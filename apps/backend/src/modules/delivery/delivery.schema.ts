@@ -1,2 +1,109 @@
-// delivery schemas — TODO
-export {}
+export const EXPORT_TYPES = [
+  'sale',
+  'internal',
+  'demo_out',
+  'warranty_out',
+  'return_out',
+  'dispose',
+  'adjustment',
+] as const
+
+export const createDeliverySchema = {
+  body: {
+    type: 'object',
+    required: ['code', 'export_type', 'warehouse_id', 'lines'],
+    properties: {
+      code:         { type: 'string', minLength: 1 },
+      export_type:  { type: 'string', enum: EXPORT_TYPES },
+      company_id:   { type: 'string', format: 'uuid' },
+      contact_id:   { type: 'string', format: 'uuid' },
+      warehouse_id: { type: 'string', format: 'uuid' },
+      quotation_id: { type: 'string', format: 'uuid' },
+      reason:       { type: 'string' },
+      note:         { type: 'string' },
+      lines: {
+        type: 'array',
+        minItems: 1,
+        items: {
+          type: 'object',
+          required: ['variant_id', 'quantity'],
+          properties: {
+            variant_id:             { type: 'string', format: 'uuid' },
+            quantity:               { type: 'integer', minimum: 1 },
+            bundle_id:              { type: 'string', format: 'uuid' },
+            quotation_line_item_id: { type: 'string', format: 'uuid' },
+            line_order:             { type: 'integer' },
+            note:                   { type: 'string' },
+          },
+        },
+      },
+    },
+  },
+}
+
+export const listDeliverySchema = {
+  querystring: {
+    type: 'object',
+    properties: {
+      status:       { type: 'string' },
+      export_type:  { type: 'string', enum: EXPORT_TYPES },
+      warehouse_id: { type: 'string' },
+      page:         { type: 'integer', minimum: 1, default: 1 },
+      limit:        { type: 'integer', minimum: 1, maximum: 100, default: 20 },
+    },
+  },
+}
+
+// Giống completeReceiptSchema — chỉ cần serials cho dòng storable, khai báo lúc Complete
+// (lúc nhân viên kho thực sự lấy hàng ra khỏi kệ, quét đúng SN sắp xuất).
+export const completeDeliverySchema = {
+  body: {
+    type: 'object',
+    properties: {
+      lines: {
+        type: 'array',
+        items: {
+          type: 'object',
+          required: ['line_id'],
+          properties: {
+            line_id: { type: 'string', format: 'uuid' },
+            serials: { type: 'array', items: { type: 'string', minLength: 1 } },
+          },
+        },
+      },
+    },
+  },
+}
+
+export type ExportType = (typeof EXPORT_TYPES)[number]
+
+export interface CreateDeliveryBody {
+  code: string
+  export_type: ExportType
+  company_id?: string
+  contact_id?: string
+  warehouse_id: string
+  quotation_id?: string
+  reason?: string
+  note?: string
+  lines: Array<{
+    variant_id: string
+    quantity: number
+    bundle_id?: string
+    quotation_line_item_id?: string
+    line_order?: number
+    note?: string
+  }>
+}
+
+export interface ListDeliveryQuery {
+  status?: string
+  export_type?: ExportType
+  warehouse_id?: string
+  page?: number
+  limit?: number
+}
+
+export interface CompleteDeliveryBody {
+  lines?: Array<{ line_id: string; serials?: string[] }>
+}

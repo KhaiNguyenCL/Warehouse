@@ -11,8 +11,9 @@
 //   + reserved_items.warehouse_id + quotation_line_item_id
 //   + stock_movements.unit_cost
 //   + completed_at cho receipts, delivery_orders, transfer_orders
-//   + Bảng mới: delivery_order_serials
 //   + Bảng mới: stocktake_serials
+//   - Bỏ delivery_order_serials / transfer_order_serials: serial chọn trực tiếp
+//     trong request body lúc Complete, không cần bảng staged assignment riêng
 // ================================================
 
 // ================================================
@@ -196,6 +197,7 @@ Table quotations {
   contact_id       uuid         [ref: > contacts.id]
   project_name     varchar
   delivery_location varchar
+  warehouse_id     uuid         [ref: > warehouses.id, note: '1 kho cho cả quotation, dùng để tạo reserved_items lúc Confirm']
   valid_days       int
   expired_at       date
   bitrix_deal_id   varchar      [note: 'ID deal Bitrix, tùy chọn']
@@ -297,25 +299,14 @@ Table delivery_orders {
 }
 
 Table delivery_order_lines {
-  id                uuid [primary key]
-  delivery_order_id uuid [ref: > delivery_orders.id]
-  variant_id        uuid [ref: > variants.id]
-  quantity          int
-  bundle_id         uuid [ref: > variants.id, note: 'Null nếu không từ bundle']
-  line_order        int
-  note              text
-}
-
-Table delivery_order_serials {
-  id        uuid [primary key]
-  line_id   uuid [ref: > delivery_order_lines.id, note: 'DO line chứa serial này']
-  serial_id uuid [ref: > serial_numbers.id, note: 'Serial được gán để xuất']
-
-  note: 'Staged assignment — gán serial trước khi DO Completed. Khi Complete → cập nhật serial_numbers.status + delivery_line_id'
-
-  indexes {
-    (line_id, serial_id) [unique]
-  }
+  id                      uuid [primary key]
+  delivery_order_id       uuid [ref: > delivery_orders.id]
+  variant_id              uuid [ref: > variants.id]
+  quantity                int
+  bundle_id               uuid [ref: > variants.id, note: 'Null nếu không từ bundle']
+  quotation_line_item_id  uuid [ref: > quotation_line_items.id, note: 'Set khi export_type=sale, dùng tính exported_qty/remaining_qty']
+  line_order              int
+  note                    text
 }
 
 // ================================================
@@ -345,16 +336,6 @@ Table transfer_order_lines {
   quantity          int
   line_order        int
   note              text
-}
-
-Table transfer_order_serials {
-  id        uuid [primary key]
-  line_id   uuid [ref: > transfer_order_lines.id]
-  serial_id uuid [ref: > serial_numbers.id]
-
-  indexes {
-    (line_id, serial_id) [unique]
-  }
 }
 
 // ================================================

@@ -180,6 +180,9 @@ CREATE TABLE quotations (
     contact_id        UUID          REFERENCES contacts(id),
     project_name      TEXT,
     delivery_location TEXT,
+    -- 1 kho cho cả quotation (giống delivery_orders.warehouse_id) — dùng để tạo
+    -- reserved_items lúc Confirm. Nullable ở Draft, bắt buộc trước khi Confirm.
+    warehouse_id      UUID          REFERENCES warehouses(id),
     valid_days        INTEGER,
     expired_at        DATE,
     bitrix_deal_id    TEXT,
@@ -294,13 +297,17 @@ CREATE INDEX idx_delivery_orders_quotation_id ON delivery_orders(quotation_id);
 CREATE INDEX idx_delivery_orders_status       ON delivery_orders(status);
 
 CREATE TABLE delivery_order_lines (
-    id                UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
-    delivery_order_id UUID    NOT NULL REFERENCES delivery_orders(id) ON DELETE CASCADE,
-    variant_id        UUID    NOT NULL REFERENCES variants(id),
-    quantity          INTEGER NOT NULL CHECK (quantity > 0),
-    bundle_id         UUID    REFERENCES variants(id),
-    line_order        INTEGER NOT NULL DEFAULT 0,
-    note              TEXT
+    id                      UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
+    delivery_order_id      UUID    NOT NULL REFERENCES delivery_orders(id) ON DELETE CASCADE,
+    variant_id              UUID    NOT NULL REFERENCES variants(id),
+    quantity                INTEGER NOT NULL CHECK (quantity > 0),
+    bundle_id               UUID    REFERENCES variants(id),
+    -- Set khi export_type='sale' và dòng này xuất để trừ vào 1 dòng báo giá cụ thể —
+    -- dùng để tính exported_qty/pending_qty/remaining_qty của quotation_line_items
+    -- (CLAUDE.md mục 6, 16) và để Complete() biết dòng nào cần giải phóng reserved.
+    quotation_line_item_id UUID    REFERENCES quotation_line_items(id),
+    line_order              INTEGER NOT NULL DEFAULT 0,
+    note                    TEXT
 );
 
 CREATE INDEX idx_do_lines_delivery_order_id ON delivery_order_lines(delivery_order_id);
@@ -382,28 +389,6 @@ CREATE INDEX idx_sn_variant_id    ON serial_numbers(variant_id);
 CREATE INDEX idx_sn_warehouse_id  ON serial_numbers(warehouse_id);
 CREATE INDEX idx_sn_status        ON serial_numbers(status);
 CREATE INDEX idx_sn_batch_id      ON serial_numbers(batch_id);
-
--- =============================================================
--- DELIVERY ORDER SERIALS (sau serial_numbers)
--- =============================================================
-
-CREATE TABLE delivery_order_serials (
-    id        UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    line_id   UUID NOT NULL REFERENCES delivery_order_lines(id) ON DELETE CASCADE,
-    serial_id UUID NOT NULL REFERENCES serial_numbers(id),
-    UNIQUE (line_id, serial_id)
-);
-
--- =============================================================
--- TRANSFER ORDER SERIALS (sau serial_numbers)
--- =============================================================
-
-CREATE TABLE transfer_order_serials (
-    id        UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    line_id   UUID NOT NULL REFERENCES transfer_order_lines(id) ON DELETE CASCADE,
-    serial_id UUID NOT NULL REFERENCES serial_numbers(id),
-    UNIQUE (line_id, serial_id)
-);
 
 -- =============================================================
 -- INVENTORY

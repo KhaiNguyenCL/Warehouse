@@ -8,9 +8,16 @@ import { getApp, closeApp } from './helpers'
 // và không đụng tới roles/permissions/warehouses/import_types/export_types (seed cố định).
 const TABLES_TO_CLEAN = [
   'stock_movements',
+  'serial_numbers',   // phải xoá trước receipt_lines/delivery_order_lines (FK) và variants
   'inventory',
   'receipt_lines',
   'receipts',
+  'delivery_order_lines',
+  'delivery_orders',
+  'transfer_order_lines',
+  'transfer_orders',
+  'quotations',
+  'companies',
   'variants',
   'products',
   'categories',
@@ -22,6 +29,9 @@ beforeEach(async () => {
   for (const table of TABLES_TO_CLEAN) {
     await app.db(table).del()
   }
+  // Chỉ xoá kho "physical" do test tạo ra — 4 kho "virtual" (WH-DEMO, WH-BH,...)
+  // là seed data cố định từ migration, nhiều test khác đang dựa vào chúng tồn tại sẵn.
+  await app.db('warehouses').where({ type: 'physical' }).del()
 })
 
 afterAll(async () => {

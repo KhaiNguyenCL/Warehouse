@@ -27,8 +27,9 @@ import settingsRoutes from './modules/settings/settings.routes'
 export async function buildApp() {
   const app = Fastify({
     logger: {
-      // production chỉ log warn/error (đỡ rác log); dev log mọi thứ (info) để debug
-      level: process.env.NODE_ENV === 'production' ? 'warn' : 'info',
+      // production chỉ log warn/error (đỡ rác log); dev log mọi thứ (info) để debug;
+      // test im hoàn toàn để output `pnpm test` chỉ hiện kết quả pass/fail
+      level: process.env.NODE_ENV === 'test' ? 'silent' : process.env.NODE_ENV === 'production' ? 'warn' : 'info',
     },
   })
 
@@ -39,6 +40,16 @@ export async function buildApp() {
   await app.register(cors, { origin: true })          // cho phép web/mobile gọi API (origin: true = mở cho tất cả, NHỚ siết lại ở production)
   await app.register(jwt, { secret: process.env.JWT_SECRET! })  // bật request.jwtVerify() / app.jwt.sign()
   await app.register(multipart)      // cho phép upload file (dùng ở module template — upload Excel)
+
+  // Error handler chung — mọi route chỉ cần `throw { statusCode, message }` trong service,
+  // không cần try/catch lặp lại ở từng route nữa. Fastify tự bắt lỗi throw từ async handler
+  // và đưa vào đây. statusCode >= 500 thì log full error (lỗi thật, cần biết để debug);
+  // 4xx là lỗi nghiệp vụ đã được service chủ động throw, không cần log ồn log server.
+  app.setErrorHandler((err: any, request, reply) => {
+    const statusCode = err.statusCode ?? 500
+    if (statusCode >= 500) request.log.error(err)
+    reply.code(statusCode).send({ error: err.message ?? 'Internal Server Error' })
+  })
 
   // Health check — dùng để kiểm tra server còn sống (load balancer, docker healthcheck...)
   app.get('/health', async () => ({ status: 'ok', ts: new Date().toISOString() }))

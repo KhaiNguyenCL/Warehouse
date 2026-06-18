@@ -13,14 +13,10 @@ const authRoutes: FastifyPluginAsync = async (app) => {
 
   // POST /api/v1/auth/login — không cần preHandler vì đây là route public (chưa đăng nhập)
   // <{ Body: LoginBody }> = generic TypeScript, giúp request.body được gợi ý đúng kiểu trong IDE
+  // Lỗi do service throw ({ statusCode, message }) tự rơi vào setErrorHandler ở app.ts.
   app.post<{ Body: LoginBody }>('/login', { schema: loginSchema }, async (request, reply) => {
-    try {
-      const result = await service.login(request.body.email, request.body.password)
-      return reply.send(result)
-    } catch (err: any) {
-      // err.statusCode do service throw (xem auth.service.ts) — nếu không có, coi là lỗi server (500)
-      return reply.code(err.statusCode ?? 500).send({ error: err.message })
-    }
+    const result = await service.login(request.body.email, request.body.password)
+    return reply.send(result)
   })
 
   // GET /api/v1/auth/me — route PHẢI đăng nhập, nên có preHandler: authenticate.

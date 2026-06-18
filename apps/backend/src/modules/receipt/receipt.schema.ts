@@ -51,6 +51,33 @@ export const listReceiptSchema = {
   },
 }
 
+// Schema cho PATCH /receipts/:id/complete — chỉ cần khi receipt có dòng hàng "storable"
+// (CLAUDE.md mục 5: storable bắt buộc có serial number). serials không cần ở bước
+// tạo phiếu vì hàng "chưa tồn tại" cho tới khi Complete — nhân viên kho quét SN ngay
+// lúc nhận hàng thật, tức là lúc bấm Complete.
+export const completeReceiptSchema = {
+  body: {
+    type: 'object',
+    properties: {
+      lines: {
+        type: 'array',
+        items: {
+          type: 'object',
+          required: ['line_id'],
+          properties: {
+            line_id: { type: 'string', format: 'uuid' },
+            serials: { type: 'array', items: { type: 'string', minLength: 1 } },
+          },
+        },
+      },
+    },
+  },
+}
+
+export interface CompleteReceiptBody {
+  lines?: Array<{ line_id: string; serials?: string[] }>
+}
+
 // Interface TypeScript — PHẢI khớp tay với JSON Schema phía trên (Fastify không tự
 // generate type từ schema). Dùng cho generic <{ Body: CreateReceiptBody }> ở routes.ts
 // để request.body có gợi ý đúng field trong IDE.

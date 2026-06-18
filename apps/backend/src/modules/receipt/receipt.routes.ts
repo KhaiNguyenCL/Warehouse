@@ -2,7 +2,14 @@
 // nhất, có 6 endpoint khớp với state machine trong receipt.service.ts.
 import { FastifyPluginAsync } from 'fastify'
 import { ReceiptService } from './receipt.service'
-import { createReceiptSchema, listReceiptSchema, CreateReceiptBody, ListReceiptQuery } from './receipt.schema'
+import {
+  createReceiptSchema,
+  listReceiptSchema,
+  completeReceiptSchema,
+  CreateReceiptBody,
+  ListReceiptQuery,
+  CompleteReceiptBody,
+} from './receipt.schema'
 import { authenticate } from '../../middleware/auth'
 import { requirePermission } from '../../middleware/permission'
 
@@ -24,11 +31,7 @@ const receiptRoutes: FastifyPluginAsync = async (app) => {
     '/:id',
     { preHandler: requirePermission('receipt.view') },
     async (request, reply) => {
-      try {
-        return await service.getById(request.params.id)
-      } catch (err: any) {
-        return reply.code(err.statusCode ?? 500).send({ error: err.message })
-      }
+      return await service.getById(request.params.id)
     },
   )
 
@@ -38,13 +41,9 @@ const receiptRoutes: FastifyPluginAsync = async (app) => {
     '/',
     { schema: createReceiptSchema, preHandler: requirePermission('receipt.create') },
     async (request, reply) => {
-      try {
-        // request.user.sub = user id lấy từ JWT (do requirePermission đã gọi authenticate trước)
-        const receipt = await service.create(request.body, request.user.sub)
-        return reply.code(201).send(receipt)   // 201 = Created, chuẩn REST cho POST tạo mới
-      } catch (err: any) {
-        return reply.code(err.statusCode ?? 500).send({ error: err.message })
-      }
+      // request.user.sub = user id lấy từ JWT (do requirePermission đã gọi authenticate trước)
+      const receipt = await service.create(request.body, request.user.sub)
+      return reply.code(201).send(receipt)   // 201 = Created, chuẩn REST cho POST tạo mới
     },
   )
 
@@ -55,11 +54,7 @@ const receiptRoutes: FastifyPluginAsync = async (app) => {
     '/:id/submit',
     { preHandler: authenticate },
     async (request, reply) => {
-      try {
-        return await service.submitForApproval(request.params.id, request.user.sub)
-      } catch (err: any) {
-        return reply.code(err.statusCode ?? 500).send({ error: err.message })
-      }
+      return await service.submitForApproval(request.params.id)
     },
   )
 
@@ -69,37 +64,28 @@ const receiptRoutes: FastifyPluginAsync = async (app) => {
     '/:id/approve',
     { preHandler: requirePermission('receipt.approve') },
     async (request, reply) => {
-      try {
-        return await service.approve(request.params.id, request.user.sub)
-      } catch (err: any) {
-        return reply.code(err.statusCode ?? 500).send({ error: err.message })
-      }
+      return await service.approve(request.params.id, request.user.sub)
     },
   )
 
-  // PATCH /receipts/:id/complete — approved → completed (tồn kho thay đổi thật ở bước này)
-  app.patch<{ Params: { id: string } }>(
+  // PATCH /receipts/:id/complete — approved → completed (tồn kho thay đổi thật ở bước này).
+  // Body { lines: [{ line_id, serials }] } — chỉ cần truyền cho dòng hàng storable.
+  app.patch<{ Params: { id: string }; Body: CompleteReceiptBody }>(
     '/:id/complete',
-    { preHandler: requirePermission('receipt.complete') },
+    { schema: completeReceiptSchema, preHandler: requirePermission('receipt.complete') },
     async (request, reply) => {
-      try {
-        return await service.complete(request.params.id, request.user.sub)
-      } catch (err: any) {
-        return reply.code(err.statusCode ?? 500).send({ error: err.message })
-      }
+      return await service.complete(request.params.id, request.user.sub, request.body)
     },
   )
 
-  // PATCH /receipts/:id/cancel — huỷ phiếu (chỉ khi chưa completed)
+  // PATCH /receipts/:id/cancel — huỷ phiếu (chỉ khi chưa completed). preHandler chỉ cần
+  // authenticate — authorization thật (chủ phiếu hoặc người có quyền approve) nằm trong
+  // service.cancel(), vì cần biết created_by của chính document đó.
   app.patch<{ Params: { id: string } }>(
     '/:id/cancel',
-    { preHandler: requirePermission('receipt.create') },   // dùng tạm quyền create — người tạo được tự huỷ phiếu của mình
+    { preHandler: authenticate },
     async (request, reply) => {
-      try {
-        return await service.cancel(request.params.id)
-      } catch (err: any) {
-        return reply.code(err.statusCode ?? 500).send({ error: err.message })
-      }
+      return await service.cancel(request.params.id, request.user.sub, request.user.roleId)
     },
   )
 }

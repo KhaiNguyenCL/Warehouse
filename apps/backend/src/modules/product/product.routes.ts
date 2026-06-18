@@ -30,12 +30,8 @@ const productRoutes: FastifyPluginAsync = async (app) => {
     '/categories',
     { schema: createCategorySchema, preHandler: requirePermission('settings.products') },
     async (request, reply) => {
-      try {
-        const category = await service.createCategory(request.body)
-        return reply.code(201).send(category)
-      } catch (err: any) {
-        return reply.code(err.statusCode ?? 500).send({ error: err.message })
-      }
+      const category = await service.createCategory(request.body)
+      return reply.code(201).send(category)
     },
   )
 
@@ -53,11 +49,7 @@ const productRoutes: FastifyPluginAsync = async (app) => {
     '/:id',
     { preHandler: authenticate },
     async (request, reply) => {
-      try {
-        return await service.getProductById(request.params.id)
-      } catch (err: any) {
-        return reply.code(err.statusCode ?? 500).send({ error: err.message })
-      }
+      return await service.getProductById(request.params.id)
     },
   )
 
@@ -65,12 +57,8 @@ const productRoutes: FastifyPluginAsync = async (app) => {
     '/',
     { schema: createProductSchema, preHandler: requirePermission('settings.products') },
     async (request, reply) => {
-      try {
-        const product = await service.createProduct(request.body)
-        return reply.code(201).send(product)
-      } catch (err: any) {
-        return reply.code(err.statusCode ?? 500).send({ error: err.message })
-      }
+      const product = await service.createProduct(request.body)
+      return reply.code(201).send(product)
     },
   )
 
@@ -78,11 +66,7 @@ const productRoutes: FastifyPluginAsync = async (app) => {
     '/:id',
     { schema: updateProductSchema, preHandler: requirePermission('settings.products') },
     async (request, reply) => {
-      try {
-        return await service.updateProduct(request.params.id, request.body)
-      } catch (err: any) {
-        return reply.code(err.statusCode ?? 500).send({ error: err.message })
-      }
+      return await service.updateProduct(request.params.id, request.body)
     },
   )
 
@@ -92,12 +76,8 @@ const productRoutes: FastifyPluginAsync = async (app) => {
     '/:id/variants',
     { schema: createVariantSchema, preHandler: requirePermission('settings.products') },
     async (request, reply) => {
-      try {
-        const variant = await service.addVariant(request.params.id, request.body)
-        return reply.code(201).send(variant)
-      } catch (err: any) {
-        return reply.code(err.statusCode ?? 500).send({ error: err.message })
-      }
+      const variant = await service.addVariant(request.params.id, request.body)
+      return reply.code(201).send(variant)
     },
   )
 
@@ -105,11 +85,7 @@ const productRoutes: FastifyPluginAsync = async (app) => {
     '/:id/variants/:variantId',
     { schema: updateVariantSchema, preHandler: requirePermission('settings.products') },
     async (request, reply) => {
-      try {
-        return await service.updateVariant(request.params.id, request.params.variantId, request.body)
-      } catch (err: any) {
-        return reply.code(err.statusCode ?? 500).send({ error: err.message })
-      }
+      return await service.updateVariant(request.params.id, request.params.variantId, request.body)
     },
   )
 }

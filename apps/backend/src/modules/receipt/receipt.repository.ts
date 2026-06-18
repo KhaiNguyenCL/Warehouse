@@ -60,7 +60,8 @@ export class ReceiptRepository {
       .join('variants as v', 'v.id', 'rl.variant_id')
       .join('products as p', 'p.id', 'v.product_id')   // join thêm products để lấy tên sản phẩm hiển thị
       .where('rl.receipt_id', id)
-      .select('rl.*', 'v.sku', 'v.name as variant_name', 'p.name as product_name')
+      // p.product_type cần để service biết dòng nào storable (bắt buộc serial) khi Complete
+      .select('rl.*', 'v.sku', 'v.name as variant_name', 'p.name as product_name', 'p.product_type')
       .orderBy('rl.line_order')
 
     return { ...receipt, lines }   // gộp lines vào object receipt để trả ra 1 response duy nhất
@@ -80,22 +81,31 @@ export class ReceiptRepository {
       receipt_id: receipt.id,
       line_order: l.line_order ?? i + 1,   // nếu client không gửi line_order, tự đánh số theo thứ tự trong mảng
     }))
-    await trx('receipt_lines').insert(lineRows)   // insert nhiều dòng 1 lần (bulk insert), nhanh hơn insert từng dòng
+    // .returning('*') để trả lại line_id ngay — client cần line_id để gọi /complete
+    // kèm danh sách serial cho từng dòng, không phải GET lại receipt trước.
+    const insertedLines = await trx('receipt_lines').insert(lineRows).returning('*')
 
-    return receipt
+    return { ...receipt, lines: insertedLines }
   }
 
-  // Helper chung cho mọi bước chuyển trạng thái (submit/approve/complete/cancel) —
-  // tránh lặp code update status ở 4 nơi khác nhau trong service.
+  // Helper chung cho mọi bước chuyển trạng thái (submit/approve/complete/cancel).
+  // expectedStatus nằm ngay trong WHERE — biến "check status rồi update" (2 bước, có
+  // race condition nếu 2 request xen vào giữa) thành 1 câu UPDATE atomic duy nhất.
+  // Nếu lúc UPDATE chạy mà status KHÔNG còn đúng expectedStatus nữa (vì 1 request khác
+  // đã đổi trước), câu lệnh khớp 0 dòng → trả về undefined, KHÔNG đổi gì cả.
   async updateStatus(
     id: string,
-    status: string,
+    expectedStatus: string | string[],
+    newStatus: string,
     extra: Record<string, unknown>,   // field phụ tuỳ bước, ví dụ { approved_by, approved_at }
     trx: Knex.Transaction,
   ) {
-    const [updated] = await trx('receipts')
-      .where({ id })
-      .update({ status, updated_at: trx.fn.now(), ...extra })   // trx.fn.now() = SQL NOW(), lấy giờ server DB chứ không phải giờ Node.js
+    const query = trx('receipts').where({ id })
+    if (Array.isArray(expectedStatus)) query.whereIn('status', expectedStatus)
+    else query.where('status', expectedStatus)
+
+    const [updated] = await query
+      .update({ status: newStatus, updated_at: trx.fn.now(), ...extra })
       .returning('*')
     return updated
   }

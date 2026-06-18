@@ -345,8 +345,7 @@ Inventory             serial_numbers, stock_batches, inventory,
                       reserved_items, stock_movements
 Receipts              receipts, receipt_lines
 Delivery Orders       delivery_orders, delivery_order_lines
-Transfer Orders       transfer_orders, transfer_order_lines,
-                      transfer_order_serials
+Transfer Orders       transfer_orders, transfer_order_lines
 Quotations            quotations, quotation_sections,
                       quotation_line_items
 Stocktake             stocktakes, stocktake_lines, stocktake_results
@@ -508,7 +507,7 @@ inventory.qty_reserved -= quotation_line.quantity
 - Mỗi module Fastify export 1 plugin: `fastify.register(receiptModule, { prefix: '/receipts' })`
 - Repository layer chỉ dùng Knex — không viết raw SQL string trực tiếp trong service
 - Shared types trong `packages/types` — import qua `@wms/types`, không duplicate interface
-- `delivery_order_serials` = staged (trước Complete); `serial_numbers.delivery_line_id` = audit (sau Complete)
+- Serial chọn trực tiếp trong request body lúc Complete (không qua bảng staged riêng); `serial_numbers.delivery_line_id` = audit (sau Complete)
 - `stocktake_lines.difference` là generated column PostgreSQL — không update thủ công
 - Migration dùng Knex migration (không chạy file SQL thủ công trong production)
 - JWT payload chỉ chứa `{ sub: userId, roleId }` — permission check query DB mỗi request qua middleware
