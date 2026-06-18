@@ -1,0 +1,10 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    "paths": {
+      "@wms/types": ["../../packages/types/src/index.ts"],
+      "@wms/utils": ["../../packages/utils/src/index.ts"]
+    }
+  }
+}

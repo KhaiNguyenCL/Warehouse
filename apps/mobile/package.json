@@ -1,0 +1,28 @@
+{
+  "name": "@wms/mobile",
+  "version": "0.1.0",
+  "private": true,
+  "main": "expo-router/entry",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "^5.50.0",
+    "@wms/types": "workspace:*",
+    "@wms/utils": "workspace:*",
+    "expo": "~51.0.0",
+    "expo-barcode-scanner": "~13.0.0",
+    "expo-camera": "~15.0.0",
+    "expo-router": "~3.5.0",
+    "react": "18.2.0",
+    "react-native": "0.74.0",
+    "zustand": "^4.5.4"
+  },
+  "devDependencies": {
+    "@types/react": "~18.2.79",
+    "typescript": "^5.5.2"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "name": "WMS",
+    "slug": "wms-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "wms",
+    "userInterfaceStyle": "automatic",
+    "plugins": ["expo-router", "expo-camera"]
+  }
+}

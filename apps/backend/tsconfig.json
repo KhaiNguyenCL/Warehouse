@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "paths": {
+      "@wms/types": ["../../packages/types/src/index.ts"]
+    }
+  },
+  "include": ["src/**/*", "migrations/**/*", "knexfile.ts"]
+}

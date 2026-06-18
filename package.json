@@ -1,0 +1,15 @@
+{
+  "name": "wms",
+  "private": true,
+  "scripts": {
+    "dev:backend": "pnpm --filter @wms/backend dev",
+    "dev:web": "pnpm --filter @wms/web dev",
+    "dev:mobile": "pnpm --filter @wms/mobile start",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "migrate": "pnpm --filter @wms/backend migrate:latest"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.2"
+  }
+}

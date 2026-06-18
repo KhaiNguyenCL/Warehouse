@@ -1,0 +1,32 @@
+# Chạy PostgreSQL bằng Docker thay vì cài trực tiếp lên máy.
+# Lệnh dùng: docker compose up -d (bật) / docker compose down (tắt, giữ data)
+services:
+  db:
+    image: postgres:16-alpine        # bản nhẹ (alpine) của PostgreSQL 16
+    container_name: wms-postgres     # tên cố định để gõ lệnh docker exec wms-postgres ...
+    restart: unless-stopped          # tự khởi động lại nếu Docker daemon restart (trừ khi mình tắt tay)
+
+    # ${DB_NAME:-wms_db} = lấy biến DB_NAME từ file .env, nếu không có thì dùng "wms_db"
+    environment:
+      POSTGRES_DB: ${DB_NAME:-wms_db}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+
+    ports:
+      - '${DB_PORT:-5432}:5432'      # map port: <port trên máy host>:<port trong container>
+
+    volumes:
+      # Lưu data PostgreSQL vào volume riêng của Docker (không phải thư mục thường) —
+      # nên data SỐNG SÓT qua `docker compose down` (chỉ mất khi thêm flag -v)
+      - wms_pg_data:/var/lib/postgresql/data
+
+    # Healthcheck: Docker tự ping DB để biết khi nào PostgreSQL THỰC SỰ sẵn sàng nhận
+    # kết nối (không chỉ là container đã "Up"). Dùng cho script chờ DB trước khi migrate.
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-wms_db}']
+      interval: 5s    # check mỗi 5 giây
+      timeout: 5s     # mỗi lần check tối đa chờ 5 giây
+      retries: 10     # thử tối đa 10 lần trước khi báo unhealthy
+
+volumes:
+  wms_pg_data:   # khai báo volume — Docker tự quản lý nơi lưu trên máy host

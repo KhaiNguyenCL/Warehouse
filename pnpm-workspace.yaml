@@ -1,0 +1,13 @@
+# Khai báo cho pnpm biết đây là monorepo — những thư mục nào là "workspace package".
+# Mỗi package trong apps/* và packages/* có package.json riêng, nhưng share 1 node_modules
+# ở root để không duplicate dependency.
+packages:
+  - 'apps/*'      # backend, web, mobile
+  - 'packages/*'  # types, utils — code dùng chung giữa các app
+
+# pnpm mới (>=9) mặc định CHẶN chạy postinstall script của mọi package (an toàn, tránh
+# supply-chain attack). Package nào cần compile native code hoặc cần postinstall thì phải
+# khai báo rõ true ở đây mới được chạy.
+allowBuilds:
+  bcrypt: true   # cần compile native binding (mã hoá password) khi cài
+  esbuild: true  # cần tải binary riêng theo OS khi cài (dùng bởi vite/tsx)
