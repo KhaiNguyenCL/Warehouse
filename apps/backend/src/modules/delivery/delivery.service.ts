@@ -39,8 +39,86 @@ export class DeliveryService {
     if (data.export_type === 'sale' && !data.quotation_id) {
       throw { statusCode: 400, message: 'export_type "sale" bắt buộc phải có quotation_id' }
     }
+    if (data.export_type === 'adjustment') {
+      await this.validateAdjustmentRefDocument(data)
+    }
+
+    await this.validateQuotationLines(data)
 
     return this.db.transaction((trx) => this.repo.create(data, userId, trx))
+  }
+
+  // CLAUDE.md mục 8/9: "điều chỉnh tồn kho thiếu" cũng phải bắt nguồn từ 1 Stocktake Result
+  // cụ thể — giống nguyên tắc áp cho receipt import_type="adjustment".
+  private async validateAdjustmentRefDocument(data: CreateDeliveryBody) {
+    if (data.ref_document_type !== 'stocktake_result' || !data.ref_document_id) {
+      throw {
+        statusCode: 400,
+        message: 'export_type "adjustment" bắt buộc ref_document_type="stocktake_result" và ref_document_id hợp lệ',
+      }
+    }
+    const result = await this.db('stocktake_results').where({ id: data.ref_document_id }).first()
+    if (!result) throw { statusCode: 400, message: 'Stocktake Result tham chiếu không tồn tại' }
+  }
+
+  // Dòng DO tham chiếu quotation_line_item_id phải thuộc đúng quotation đã Confirmed, và
+  // không vượt remaining_qty còn lại của dòng báo giá đó (CLAUDE.md mục 6: remaining_qty=0
+  // → khoá, không tạo thêm DO). Query trực tiếp DB thay vì import QuotationRepository để
+  // 2 module không phụ thuộc lẫn nhau (giống cách cancel() check role_permissions trực tiếp).
+  private async validateQuotationLines(data: CreateDeliveryBody) {
+    const linkedLines = data.lines.filter((l) => l.quotation_line_item_id)
+    if (linkedLines.length === 0) return
+
+    if (!data.quotation_id) {
+      throw { statusCode: 400, message: 'Dòng hàng tham chiếu báo giá nhưng phiếu không có quotation_id' }
+    }
+
+    const quotation = await this.db('quotations').where({ id: data.quotation_id }).first()
+    if (!quotation) throw { statusCode: 400, message: 'Quotation không tồn tại' }
+    if (quotation.status !== 'confirmed') {
+      throw { statusCode: 400, message: 'Chỉ có thể xuất hàng theo báo giá đã Confirmed' }
+    }
+
+    const lineItemIds = [...new Set(linkedLines.map((l) => l.quotation_line_item_id as string))]
+    const quotationLines = await this.db('quotation_line_items')
+      .whereIn('id', lineItemIds)
+      .andWhere('quotation_id', data.quotation_id)
+      .select('id', 'quantity')
+
+    const quotationLineById = new Map(quotationLines.map((l) => [l.id, l]))
+    const missing = lineItemIds.filter((id) => !quotationLineById.has(id))
+    if (missing.length > 0) {
+      throw { statusCode: 400, message: `Dòng báo giá không thuộc quotation này: ${missing.join(', ')}` }
+    }
+
+    // committed_qty = đã xuất (completed) hoặc đang chờ xử lý (draft/pending_approval/approved)
+    // — DO Cancelled không tính. Đây là exported_qty + pending_qty của quotation.repository.ts.
+    const progressRows = await this.db('delivery_order_lines as dl')
+      .join('delivery_orders as d', 'd.id', 'dl.delivery_order_id')
+      .whereIn('dl.quotation_line_item_id', lineItemIds)
+      .whereIn('d.status', ['draft', 'pending_approval', 'approved', 'completed'])
+      .groupBy('dl.quotation_line_item_id')
+      .select('dl.quotation_line_item_id', this.db.raw(`SUM(dl.quantity)::int as committed_qty`))
+    const committedByLine = new Map(progressRows.map((r: any) => [r.quotation_line_item_id, r.committed_qty]))
+
+    // Cộng dồn trường hợp request hiện tại có nhiều dòng cùng tham chiếu 1 quotation_line_item_id.
+    const requestedByLine = new Map<string, number>()
+    for (const l of linkedLines) {
+      const key = l.quotation_line_item_id as string
+      requestedByLine.set(key, (requestedByLine.get(key) ?? 0) + l.quantity)
+    }
+
+    for (const [lineItemId, requestedQty] of requestedByLine) {
+      const qLine = quotationLineById.get(lineItemId)!
+      const committed = committedByLine.get(lineItemId) ?? 0
+      const remaining = Number(qLine.quantity) - committed
+      if (requestedQty > remaining) {
+        throw {
+          statusCode: 400,
+          message: `Dòng báo giá ${lineItemId} chỉ còn ${remaining} chưa xuất, không thể xuất ${requestedQty}`,
+        }
+      }
+    }
   }
 
   // updateStatus() so khớp status trong WHERE — atomic, tránh race condition khi 2
@@ -161,10 +239,55 @@ export class DeliveryService {
             trx, delivery.export_type, line.id, line.variant_id, delivery.warehouse_id, serials,
           )
         }
+
+        // Dòng này đã trừ vào 1 dòng báo giá (CLAUDE.md mục 6, 7) — giải phóng phần
+        // qty_reserved đã giữ chỗ lúc Quotation Confirm, nếu không inventory.qty_reserved
+        // sẽ bị kẹt cao mãi sau khi hàng đã bán xong.
+        if (line.quotation_line_item_id) {
+          await trx('inventory')
+            .where({ variant_id: line.variant_id, warehouse_id: delivery.warehouse_id })
+            .update({
+              qty_reserved: trx.raw('GREATEST(qty_reserved - ?::int, 0)', [line.quantity]),
+              last_updated: trx.fn.now(),
+            })
+
+          await this.releaseQuotationReservation(
+            trx, delivery.quotation_id, line.quotation_line_item_id, line.variant_id, line.quantity,
+          )
+        }
       }
 
       return completed
     })
+  }
+
+  // Giảm (hoặc xoá nếu về 0) đúng dòng reserved_items khớp variant + dòng báo giá — không
+  // xoá nguyên dòng reserved_items ngay vì 1 dòng báo giá có thể được xuất qua nhiều DO
+  // khác nhau (CLAUDE.md mục 7: "Tổng qty_reserved không đổi khi chuyển" giữa các DO).
+  private async releaseQuotationReservation(
+    trx: Knex.Transaction,
+    quotationId: string | null | undefined,
+    lineItemId: string,
+    variantId: string,
+    qty: number,
+  ) {
+    if (!quotationId) return
+    const row = await trx('reserved_items')
+      .where({
+        source_type: 'quotation',
+        source_id: quotationId,
+        quotation_line_item_id: lineItemId,
+        variant_id: variantId,
+      })
+      .first()
+    if (!row) return
+
+    const remaining = Number(row.quantity) - qty
+    if (remaining > 0) {
+      await trx('reserved_items').where({ id: row.id }).update({ quantity: remaining })
+    } else {
+      await trx('reserved_items').where({ id: row.id }).del()
+    }
   }
 
   // Cập nhật serial_numbers theo đúng quy tắc export_type ở CLAUDE.md mục 9 —

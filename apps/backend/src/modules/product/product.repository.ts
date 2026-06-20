@@ -6,6 +6,8 @@ import {
   ListProductQuery,
   CreateVariantBody,
   UpdateVariantBody,
+  CreateVariantSupplierBody,
+  UpdateVariantSupplierBody,
 } from './product.schema'
 
 export class ProductRepository {
@@ -95,5 +97,43 @@ export class ProductRepository {
       .update({ ...data, updated_at: this.db.fn.now() })
       .returning('*')
     return row
+  }
+
+  // ─── Variant Suppliers ─────────────────────────────────────────────────
+
+  findVariantSuppliers(variantId: string) {
+    return this.db('variant_suppliers as vs')
+      .join('companies as c', 'c.id', 'vs.company_id')
+      .where('vs.variant_id', variantId)
+      .select('vs.*', 'c.name as company_name', 'c.code as company_code')
+      .orderBy('vs.is_preferred', 'desc')
+  }
+
+  findVariantSupplierById(id: string) {
+    return this.db('variant_suppliers').where({ id }).first()
+  }
+
+  // Chỉ 1 supplier được is_preferred=true mỗi variant — giống clearPrimaryContact ở
+  // company.repository.ts.
+  clearPreferredSupplier(variantId: string, exceptSupplierId: string | null, trx: Knex.Transaction) {
+    const q = trx('variant_suppliers').where({ variant_id: variantId }).update({ is_preferred: false })
+    if (exceptSupplierId) q.whereNot({ id: exceptSupplierId })
+    return q
+  }
+
+  async addVariantSupplier(variantId: string, data: CreateVariantSupplierBody, trx: Knex.Transaction) {
+    const [row] = await trx('variant_suppliers')
+      .insert({ ...data, variant_id: variantId })
+      .returning('*')
+    return row
+  }
+
+  async updateVariantSupplier(id: string, data: UpdateVariantSupplierBody, trx: Knex.Transaction) {
+    const [row] = await trx('variant_suppliers').where({ id }).update(data).returning('*')
+    return row
+  }
+
+  deleteVariantSupplier(id: string) {
+    return this.db('variant_suppliers').where({ id }).del()
   }
 }

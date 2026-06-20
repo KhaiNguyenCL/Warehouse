@@ -209,4 +209,56 @@ describe('Transfer', () => {
     expect(toInventory.qty_on_hand).toBe(10)
     expect(Number(toInventory.avg_cost)).toBe(150000)
   })
+
+  it('demo_in: tự suy from_warehouse_id = kho ảo WH-DEMO, không cần client truyền lên', async () => {
+    const app = await getApp()
+    const demoWarehouse = await app.db('warehouses').where({ code: 'WH-DEMO' }).first()
+
+    const createRes = await authedInject({
+      method: 'POST',
+      url: '/api/v1/transfers',
+      payload: {
+        code: 'TO-TEST-006',
+        transfer_type: 'demo_in',
+        to_warehouse_id: toWarehouseId,
+        lines: [{ variant_id: variantId, quantity: 1 }],
+      },
+    })
+    expect(createRes.statusCode).toBe(201)
+    const transfer = JSON.parse(createRes.payload)
+    expect(transfer.from_warehouse_id).toBe(demoWarehouse.id)
+  })
+
+  it('demo_in: client cố truyền from_warehouse_id khác → bị bỏ qua, vẫn dùng kho ảo WH-DEMO', async () => {
+    const app = await getApp()
+    const demoWarehouse = await app.db('warehouses').where({ code: 'WH-DEMO' }).first()
+
+    const createRes = await authedInject({
+      method: 'POST',
+      url: '/api/v1/transfers',
+      payload: {
+        code: 'TO-TEST-007',
+        transfer_type: 'demo_in',
+        from_warehouse_id: fromWarehouseId,
+        to_warehouse_id: toWarehouseId,
+        lines: [{ variant_id: variantId, quantity: 1 }],
+      },
+    })
+    expect(createRes.statusCode).toBe(201)
+    expect(JSON.parse(createRes.payload).from_warehouse_id).toBe(demoWarehouse.id)
+  })
+
+  it('transfer_type="transfer" thiếu from_warehouse_id → 400', async () => {
+    const res = await authedInject({
+      method: 'POST',
+      url: '/api/v1/transfers',
+      payload: {
+        code: 'TO-TEST-008',
+        transfer_type: 'transfer',
+        to_warehouse_id: toWarehouseId,
+        lines: [{ variant_id: variantId, quantity: 1 }],
+      },
+    })
+    expect(res.statusCode).toBe(400)
+  })
 })

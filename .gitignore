@@ -5,3 +5,4 @@ dist/
 .env.test
 *.log
 .DS_Store
+apps/backend/templates/

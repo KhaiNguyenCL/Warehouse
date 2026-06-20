@@ -7,12 +7,16 @@ import {
   listProductSchema,
   createVariantSchema,
   updateVariantSchema,
+  createVariantSupplierSchema,
+  updateVariantSupplierSchema,
   CreateCategoryBody,
   CreateProductBody,
   UpdateProductBody,
   ListProductQuery,
   CreateVariantBody,
   UpdateVariantBody,
+  CreateVariantSupplierBody,
+  UpdateVariantSupplierBody,
 } from './product.schema'
 import { authenticate } from '../../middleware/auth'
 import { requirePermission } from '../../middleware/permission'
@@ -86,6 +90,47 @@ const productRoutes: FastifyPluginAsync = async (app) => {
     { schema: updateVariantSchema, preHandler: requirePermission('settings.products') },
     async (request, reply) => {
       return await service.updateVariant(request.params.id, request.params.variantId, request.body)
+    },
+  )
+
+  // ─── Variant Suppliers ────────────────────────────────────────────────
+
+  app.get<{ Params: { id: string; variantId: string } }>(
+    '/:id/variants/:variantId/suppliers',
+    { preHandler: authenticate },
+    async (request) => {
+      return await service.listVariantSuppliers(request.params.id, request.params.variantId)
+    },
+  )
+
+  app.post<{ Params: { id: string; variantId: string }; Body: CreateVariantSupplierBody }>(
+    '/:id/variants/:variantId/suppliers',
+    { schema: createVariantSupplierSchema, preHandler: requirePermission('settings.products') },
+    async (request, reply) => {
+      const supplier = await service.addVariantSupplier(request.params.id, request.params.variantId, request.body)
+      return reply.code(201).send(supplier)
+    },
+  )
+
+  app.patch<{ Params: { id: string; variantId: string; supplierId: string }; Body: UpdateVariantSupplierBody }>(
+    '/:id/variants/:variantId/suppliers/:supplierId',
+    { schema: updateVariantSupplierSchema, preHandler: requirePermission('settings.products') },
+    async (request) => {
+      return await service.updateVariantSupplier(
+        request.params.id,
+        request.params.variantId,
+        request.params.supplierId,
+        request.body,
+      )
+    },
+  )
+
+  app.delete<{ Params: { id: string; variantId: string; supplierId: string } }>(
+    '/:id/variants/:variantId/suppliers/:supplierId',
+    { preHandler: requirePermission('settings.products') },
+    async (request, reply) => {
+      await service.deleteVariantSupplier(request.params.id, request.params.variantId, request.params.supplierId)
+      return reply.code(204).send()
     },
   )
 }

@@ -51,6 +51,10 @@ export class TransferRepository {
     return { ...transfer, lines }
   }
 
+  findWarehouseByCode(code: string, trx: Knex.Transaction) {
+    return trx('warehouses').where({ code }).first()
+  }
+
   async create(data: CreateTransferBody, userId: string, trx: Knex.Transaction) {
     const { lines, ...header } = data
     const [transfer] = await trx('transfer_orders')

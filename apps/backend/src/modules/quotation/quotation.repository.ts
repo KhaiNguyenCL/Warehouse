@@ -28,6 +28,7 @@ export interface ComputedSection {
 }
 
 export interface ComputedQuotation {
+  code: string
   company_id: string
   contact_id?: string
   project_name?: string

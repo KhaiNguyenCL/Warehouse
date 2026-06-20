@@ -19,6 +19,9 @@ export const createDeliverySchema = {
       contact_id:   { type: 'string', format: 'uuid' },
       warehouse_id: { type: 'string', format: 'uuid' },
       quotation_id: { type: 'string', format: 'uuid' },
+      // Dùng cho export_type="adjustment" — tham chiếu Stocktake Result gốc (CLAUDE.md mục 8/9).
+      ref_document_type: { type: 'string' },
+      ref_document_id:   { type: 'string', format: 'uuid' },
       reason:       { type: 'string' },
       note:         { type: 'string' },
       lines: {
@@ -84,6 +87,8 @@ export interface CreateDeliveryBody {
   contact_id?: string
   warehouse_id: string
   quotation_id?: string
+  ref_document_type?: string
+  ref_document_id?: string
   reason?: string
   note?: string
   lines: Array<{

@@ -7,6 +7,8 @@ import multipart from '@fastify/multipart'
 
 import { knexPlugin } from './plugins/knex'
 import { envPlugin } from './plugins/env'
+import { carbonePlugin } from './plugins/carbone'
+import { bitrixPlugin } from './plugins/bitrix'
 
 // Mỗi module nghiệp vụ export 1 Fastify plugin (xem modules/receipt/receipt.routes.ts
 // làm ví dụ). Import hết vào đây rồi register dưới dạng route có prefix riêng.
@@ -23,6 +25,8 @@ import stocktakeRoutes from './modules/stocktake/stocktake.routes'
 import templateRoutes from './modules/template/template.routes'
 import bitrixRoutes from './modules/bitrix/bitrix.routes'
 import settingsRoutes from './modules/settings/settings.routes'
+import customFieldRoutes from './modules/customfield/customfield.routes'
+import reportRoutes from './modules/report/report.routes'
 
 export async function buildApp() {
   const app = Fastify({
@@ -40,6 +44,8 @@ export async function buildApp() {
   await app.register(cors, { origin: true })          // cho phép web/mobile gọi API (origin: true = mở cho tất cả, NHỚ siết lại ở production)
   await app.register(jwt, { secret: process.env.JWT_SECRET! })  // bật request.jwtVerify() / app.jwt.sign()
   await app.register(multipart)      // cho phép upload file (dùng ở module template — upload Excel)
+  await app.register(carbonePlugin)  // gắn app.carbone — render template Excel/PDF (mục 14)
+  await app.register(bitrixPlugin)   // gắn app.bitrix — fetch deal/company/contact (mục 13)
 
   // Error handler chung — mọi route chỉ cần `throw { statusCode, message }` trong service,
   // không cần try/catch lặp lại ở từng route nữa. Fastify tự bắt lỗi throw từ async handler
@@ -70,6 +76,8 @@ export async function buildApp() {
   await app.register(templateRoutes,  { prefix: '/api/v1/templates' })
   await app.register(bitrixRoutes,    { prefix: '/api/v1/bitrix' })
   await app.register(settingsRoutes,  { prefix: '/api/v1/settings' })
+  await app.register(customFieldRoutes, { prefix: '/api/v1/custom-fields' })
+  await app.register(reportRoutes,    { prefix: '/api/v1/reports' })
 
   return app
 }

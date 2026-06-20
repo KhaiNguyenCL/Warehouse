@@ -25,7 +25,23 @@ export class ReceiptService {
   // Tạo receipt — bọc trong db.transaction() dù repository.create() chỉ có 2 insert,
   // để nếu sau này thêm bước nữa (ví dụ ghi log) thì vẫn an toàn atomic.
   async create(data: CreateReceiptBody, userId: string) {
+    if (data.import_type === 'adjustment') {
+      await this.validateAdjustmentRefDocument(data)
+    }
     return this.db.transaction((trx) => this.repo.create(data, userId, trx))
+  }
+
+  // CLAUDE.md mục 8: import_type="adjustment" — Document gốc = Stocktake Result. Không cho
+  // tạo phiếu "điều chỉnh tồn kho thừa" mà không tham chiếu tới 1 stocktake_results đã tồn tại.
+  private async validateAdjustmentRefDocument(data: CreateReceiptBody) {
+    if (data.ref_document_type !== 'stocktake_result' || !data.ref_document_id) {
+      throw {
+        statusCode: 400,
+        message: 'import_type "adjustment" bắt buộc ref_document_type="stocktake_result" và ref_document_id hợp lệ',
+      }
+    }
+    const result = await this.db('stocktake_results').where({ id: data.ref_document_id }).first()
+    if (!result) throw { statusCode: 400, message: 'Stocktake Result tham chiếu không tồn tại' }
   }
 
   // Khi updateStatus() không khớp được dòng nào (status thực tế không còn đúng

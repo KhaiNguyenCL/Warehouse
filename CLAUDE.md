@@ -350,6 +350,7 @@ Quotations            quotations, quotation_sections,
                       quotation_line_items
 Stocktake             stocktakes, stocktake_lines, stocktake_results
 Template Module       document_templates, template_field_mappings
+Bitrix Integration     bitrix_field_mappings
 Custom Fields         custom_fields, field_values
 Settings              import_types, export_types
 ```

@@ -17,8 +17,9 @@ const lineItemProperties = {
 export const createQuotationSchema = {
   body: {
     type: 'object',
-    required: ['company_id', 'sections'],
+    required: ['code', 'company_id', 'sections'],
     properties: {
+      code:              { type: 'string', minLength: 1 },
       company_id:        { type: 'string', format: 'uuid' },
       contact_id:        { type: 'string', format: 'uuid' },
       project_name:      { type: 'string' },
@@ -125,6 +126,7 @@ export interface QuotationSectionInput {
 }
 
 export interface CreateQuotationBody {
+  code: string
   company_id: string
   contact_id?: string
   project_name?: string

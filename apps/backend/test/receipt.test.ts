@@ -322,4 +322,70 @@ describe('Receipt', () => {
     expect(cancelRes.statusCode).toBe(200)
     expect(JSON.parse(cancelRes.payload).status).toBe('cancelled')
   })
+
+  describe('import_type=adjustment liên kết Stocktake Result', () => {
+    async function createStocktakeResult() {
+      const app = await getApp()
+      const admin = await app.db('users').where({ email: 'admin@test.local' }).first()
+      const [stocktake] = await app
+        .db('stocktakes')
+        .insert({ code: 'ST-ADJ-001', warehouse_id: warehouseId, status: 'completed', created_by: admin.id })
+        .returning('*')
+      const [result] = await app
+        .db('stocktake_results')
+        .insert({ stocktake_id: stocktake.id, total_sku: 1, matched: 0, shortage: 0, surplus: 1 })
+        .returning('*')
+      return result
+    }
+
+    it('thiếu ref_document_type/ref_document_id → 400', async () => {
+      const res = await authedInject({
+        method: 'POST',
+        url: '/api/v1/receipts',
+        payload: {
+          code: 'PN-ADJ-001',
+          import_type: 'adjustment',
+          warehouse_id: warehouseId,
+          lines: [{ variant_id: variantId, quantity: 2, cost_price: 0 }],
+        },
+      })
+      expect(res.statusCode).toBe(400)
+    })
+
+    it('ref_document_id tham chiếu tới stocktake_result không tồn tại → 400', async () => {
+      const res = await authedInject({
+        method: 'POST',
+        url: '/api/v1/receipts',
+        payload: {
+          code: 'PN-ADJ-002',
+          import_type: 'adjustment',
+          warehouse_id: warehouseId,
+          ref_document_type: 'stocktake_result',
+          ref_document_id: '00000000-0000-0000-0000-000000000000',
+          lines: [{ variant_id: variantId, quantity: 2, cost_price: 0 }],
+        },
+      })
+      expect(res.statusCode).toBe(400)
+    })
+
+    it('ref_document_type/ref_document_id hợp lệ → tạo thành công', async () => {
+      const result = await createStocktakeResult()
+      const res = await authedInject({
+        method: 'POST',
+        url: '/api/v1/receipts',
+        payload: {
+          code: 'PN-ADJ-003',
+          import_type: 'adjustment',
+          warehouse_id: warehouseId,
+          ref_document_type: 'stocktake_result',
+          ref_document_id: result.id,
+          lines: [{ variant_id: variantId, quantity: 2, cost_price: 0 }],
+        },
+      })
+      expect(res.statusCode).toBe(201)
+      const receipt = JSON.parse(res.payload)
+      expect(receipt.ref_document_type).toBe('stocktake_result')
+      expect(receipt.ref_document_id).toBe(result.id)
+    })
+  })
 })

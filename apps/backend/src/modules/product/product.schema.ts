@@ -98,6 +98,32 @@ export const updateVariantSchema = {
   },
 }
 
+export const createVariantSupplierSchema = {
+  body: {
+    type: 'object',
+    required: ['company_id'],
+    properties: {
+      company_id:     { type: 'string', format: 'uuid' },
+      supplier_sku:   { type: 'string' },
+      supplier_price: { type: 'number', minimum: 0 },
+      lead_time_days: { type: 'integer', minimum: 0 },
+      is_preferred:   { type: 'boolean' },
+    },
+  },
+}
+
+export const updateVariantSupplierSchema = {
+  body: {
+    type: 'object',
+    properties: {
+      supplier_sku:   { type: 'string' },
+      supplier_price: { type: 'number', minimum: 0 },
+      lead_time_days: { type: 'integer', minimum: 0 },
+      is_preferred:   { type: 'boolean' },
+    },
+  },
+}
+
 export type ProductType = (typeof PRODUCT_TYPES)[number]
 
 export interface CreateCategoryBody {
@@ -144,4 +170,19 @@ export interface CreateVariantBody {
 
 export interface UpdateVariantBody extends Partial<CreateVariantBody> {
   is_active?: boolean
+}
+
+export interface CreateVariantSupplierBody {
+  company_id: string
+  supplier_sku?: string
+  supplier_price?: number
+  lead_time_days?: number
+  is_preferred?: boolean
+}
+
+export interface UpdateVariantSupplierBody {
+  supplier_sku?: string
+  supplier_price?: number
+  lead_time_days?: number
+  is_preferred?: boolean
 }

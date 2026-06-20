@@ -2,6 +2,15 @@ import { Knex } from 'knex'
 import { TransferRepository } from './transfer.repository'
 import { CreateTransferBody, ListTransferQuery, CompleteTransferBody } from './transfer.schema'
 
+// CLAUDE.md mục 10: với 4 transfer_type này, kho NGUỒN luôn là 1 kho ảo cố định —
+// client chỉ cần chọn kho đích (vật lý), không cần biết UUID kho ảo.
+const VIRTUAL_SOURCE_WAREHOUSE_CODE: Partial<Record<CreateTransferBody['transfer_type'], string>> = {
+  warranty_in: 'WH-BH',
+  demo_in: 'WH-DEMO',
+  qc_pass: 'WH-QC',
+  sn_ready: 'WH-SN',
+}
+
 export class TransferService {
   private repo: TransferRepository
 
@@ -19,13 +28,35 @@ export class TransferService {
     return transfer
   }
 
-  async create(data: CreateTransferBody, userId: string) {
-    // CHECK constraint trong DB cũng chặn việc này, nhưng validate ở app cho message
-    // rõ ràng (409/500 từ raw constraint violation khó hiểu hơn nhiều so với 400 này).
-    if (data.from_warehouse_id === data.to_warehouse_id) {
-      throw { statusCode: 400, message: 'Kho nguồn và kho đích không được trùng nhau' }
+  // Tự suy from_warehouse_id theo transfer_type — bỏ qua from_warehouse_id client gửi lên
+  // (nếu có) cho 4 type "nhận lại từ kho ảo", để tránh nhập sai/giả mạo UUID kho ảo.
+  private async resolveFromWarehouseId(data: CreateTransferBody, trx: Knex.Transaction): Promise<string> {
+    const virtualCode = VIRTUAL_SOURCE_WAREHOUSE_CODE[data.transfer_type]
+    if (!virtualCode) {
+      if (!data.from_warehouse_id) {
+        throw { statusCode: 400, message: 'Thiếu from_warehouse_id cho transfer_type="transfer"' }
+      }
+      return data.from_warehouse_id
     }
-    return this.db.transaction((trx) => this.repo.create(data, userId, trx))
+
+    const virtualWarehouse = await this.repo.findWarehouseByCode(virtualCode, trx)
+    if (!virtualWarehouse) {
+      throw { statusCode: 500, message: `Kho ảo ${virtualCode} chưa được seed trong hệ thống` }
+    }
+    return virtualWarehouse.id
+  }
+
+  async create(data: CreateTransferBody, userId: string) {
+    return this.db.transaction(async (trx) => {
+      const from_warehouse_id = await this.resolveFromWarehouseId(data, trx)
+
+      // CHECK constraint trong DB cũng chặn việc này, nhưng validate ở app cho message
+      // rõ ràng (409/500 từ raw constraint violation khó hiểu hơn nhiều so với 400 này).
+      if (from_warehouse_id === data.to_warehouse_id) {
+        throw { statusCode: 400, message: 'Kho nguồn và kho đích không được trùng nhau' }
+      }
+      return this.repo.create({ ...data, from_warehouse_id }, userId, trx)
+    })
   }
 
   // updateStatus() so khớp status trong WHERE — atomic, tránh race condition khi 2

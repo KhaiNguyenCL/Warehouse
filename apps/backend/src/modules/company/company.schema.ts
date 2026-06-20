@@ -14,6 +14,7 @@ export const createCompanySchema = {
       email:        { type: 'string', format: 'email' },
       bank_account: { type: 'string' },
       bank_name:    { type: 'string' },
+      bitrix_company_id: { type: 'string' },
       note:         { type: 'string' },
       // 1 company có thể vừa là KH vừa là NCC (CLAUDE.md mục 12) — types là mảng,
       // không phải 1 giá trị duy nhất.
@@ -40,6 +41,7 @@ export const updateCompanySchema = {
       email:        { type: 'string', format: 'email' },
       bank_account: { type: 'string' },
       bank_name:    { type: 'string' },
+      bitrix_company_id: { type: 'string' },
       note:         { type: 'string' },
       is_active:    { type: 'boolean' },
       types: {
@@ -74,6 +76,7 @@ export const createContactSchema = {
       phone:      { type: 'string' },
       email:      { type: 'string', format: 'email' },
       is_primary: { type: 'boolean' },
+      bitrix_contact_id: { type: 'string' },
       note:       { type: 'string' },
     },
   },
@@ -88,6 +91,7 @@ export const updateContactSchema = {
       phone:      { type: 'string' },
       email:      { type: 'string', format: 'email' },
       is_primary: { type: 'boolean' },
+      bitrix_contact_id: { type: 'string' },
       note:       { type: 'string' },
     },
   },
@@ -105,6 +109,7 @@ export interface CreateCompanyBody {
   email?: string
   bank_account?: string
   bank_name?: string
+  bitrix_company_id?: string
   note?: string
   types: CompanyType[]
 }
@@ -127,6 +132,7 @@ export interface CreateContactBody {
   phone?: string
   email?: string
   is_primary?: boolean
+  bitrix_contact_id?: string
   note?: string
 }
 

@@ -3,7 +3,10 @@ export const TRANSFER_TYPES = ['transfer', 'warranty_in', 'demo_in', 'qc_pass', 
 export const createTransferSchema = {
   body: {
     type: 'object',
-    required: ['code', 'transfer_type', 'from_warehouse_id', 'to_warehouse_id', 'lines'],
+    // from_warehouse_id KHÔNG bắt buộc ở schema: với transfer_type khác "transfer"
+    // (warranty_in/demo_in/qc_pass/sn_ready), service tự suy ra kho ảo nguồn theo
+    // CLAUDE.md mục 10 — chỉ "transfer" thường mới cần client tự chọn from_warehouse_id.
+    required: ['code', 'transfer_type', 'to_warehouse_id', 'lines'],
     properties: {
       code:              { type: 'string', minLength: 1 },
       transfer_type:     { type: 'string', enum: TRANSFER_TYPES },
@@ -64,7 +67,7 @@ export type TransferType = (typeof TRANSFER_TYPES)[number]
 export interface CreateTransferBody {
   code: string
   transfer_type: TransferType
-  from_warehouse_id: string
+  from_warehouse_id?: string
   to_warehouse_id: string
   note?: string
   lines: Array<{

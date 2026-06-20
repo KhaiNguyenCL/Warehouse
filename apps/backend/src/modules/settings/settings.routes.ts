@@ -1,7 +1,139 @@
 import { FastifyPluginAsync } from 'fastify'
+import { SettingsService } from './settings.service'
+import {
+  createRoleSchema,
+  updateRoleSchema,
+  replaceRolePermissionsSchema,
+  createUserSchema,
+  updateUserSchema,
+  listUserSchema,
+  createImportTypeSchema,
+  updateImportTypeSchema,
+  createExportTypeSchema,
+  updateExportTypeSchema,
+  CreateRoleBody,
+  UpdateRoleBody,
+  ReplaceRolePermissionsBody,
+  CreateUserBody,
+  UpdateUserBody,
+  ListUserQuery,
+  CreateImportTypeBody,
+  UpdateImportTypeBody,
+  CreateExportTypeBody,
+  UpdateExportTypeBody,
+} from './settings.schema'
+import { authenticate } from '../../middleware/auth'
+import { requirePermission } from '../../middleware/permission'
 
 const settingsRoutes: FastifyPluginAsync = async (app) => {
-  app.get('/', async () => ({ message: 'settings routes — TODO' }))
+  const service = new SettingsService(app.db)
+
+  // ─── Roles & Permissions (settings.roles) ─────────────────────────────────
+
+  app.get('/roles', { preHandler: authenticate }, () => service.listRoles())
+  app.get<{ Params: { id: string } }>('/roles/:id', { preHandler: authenticate }, (request) =>
+    service.getRoleById(request.params.id),
+  )
+  app.get('/permissions', { preHandler: authenticate }, () => service.listPermissions())
+
+  app.post<{ Body: CreateRoleBody }>(
+    '/roles',
+    { schema: createRoleSchema, preHandler: requirePermission('settings.roles') },
+    async (request, reply) => {
+      const role = await service.createRole(request.body)
+      return reply.code(201).send(role)
+    },
+  )
+
+  app.patch<{ Params: { id: string }; Body: UpdateRoleBody }>(
+    '/roles/:id',
+    { schema: updateRoleSchema, preHandler: requirePermission('settings.roles') },
+    (request) => service.updateRole(request.params.id, request.body),
+  )
+
+  // PUT — replace toàn bộ permission set của role, không cộng dồn từng cái.
+  app.put<{ Params: { id: string }; Body: ReplaceRolePermissionsBody }>(
+    '/roles/:id/permissions',
+    { schema: replaceRolePermissionsSchema, preHandler: requirePermission('settings.roles') },
+    (request) => service.replaceRolePermissions(request.params.id, request.body.permission_keys),
+  )
+
+  app.delete<{ Params: { id: string } }>(
+    '/roles/:id',
+    { preHandler: requirePermission('settings.roles') },
+    async (request, reply) => {
+      await service.deleteRole(request.params.id)
+      return reply.code(204).send()
+    },
+  )
+
+  // ─── Users (settings.users) ────────────────────────────────────────────────
+
+  app.get<{ Querystring: ListUserQuery }>(
+    '/users',
+    { schema: listUserSchema, preHandler: authenticate },
+    (request) => service.listUsers(request.query),
+  )
+  app.get<{ Params: { id: string } }>('/users/:id', { preHandler: authenticate }, (request) =>
+    service.getUserById(request.params.id),
+  )
+
+  app.post<{ Body: CreateUserBody }>(
+    '/users',
+    { schema: createUserSchema, preHandler: requirePermission('settings.users') },
+    async (request, reply) => {
+      const user = await service.createUser(request.body)
+      return reply.code(201).send(user)
+    },
+  )
+
+  app.patch<{ Params: { id: string }; Body: UpdateUserBody }>(
+    '/users/:id',
+    { schema: updateUserSchema, preHandler: requirePermission('settings.users') },
+    (request) => service.updateUser(request.params.id, request.body),
+  )
+
+  // ─── Import / Export Types ─────────────────────────────────────────────────
+  // Không có permission key riêng trong CLAUDE.md mục 15 — chỉ cần đăng nhập, giống
+  // company/template/bitrix module.
+
+  app.get('/import-types', { preHandler: authenticate }, () => service.listImportTypes())
+  app.post<{ Body: CreateImportTypeBody }>(
+    '/import-types',
+    { schema: createImportTypeSchema, preHandler: authenticate },
+    async (request, reply) => {
+      const row = await service.createImportType(request.body)
+      return reply.code(201).send(row)
+    },
+  )
+  app.patch<{ Params: { id: string }; Body: UpdateImportTypeBody }>(
+    '/import-types/:id',
+    { schema: updateImportTypeSchema, preHandler: authenticate },
+    (request) => service.updateImportType(request.params.id, request.body),
+  )
+  app.delete<{ Params: { id: string } }>('/import-types/:id', { preHandler: authenticate }, async (request, reply) => {
+    await service.deleteImportType(request.params.id)
+    return reply.code(204).send()
+  })
+
+  app.get('/export-types', { preHandler: authenticate }, () => service.listExportTypes())
+  app.post<{ Body: CreateExportTypeBody }>(
+    '/export-types',
+    { schema: createExportTypeSchema, preHandler: authenticate },
+    async (request, reply) => {
+      const row = await service.createExportType(request.body)
+      return reply.code(201).send(row)
+    },
+  )
+  app.patch<{ Params: { id: string }; Body: UpdateExportTypeBody }>(
+    '/export-types/:id',
+    { schema: updateExportTypeSchema, preHandler: authenticate },
+    (request) => service.updateExportType(request.params.id, request.body),
+  )
+  app.delete<{ Params: { id: string } }>('/export-types/:id', { preHandler: authenticate }, async (request, reply) => {
+    await service.deleteExportType(request.params.id)
+    return reply.code(204).send()
+  })
 }
 
 export default settingsRoutes

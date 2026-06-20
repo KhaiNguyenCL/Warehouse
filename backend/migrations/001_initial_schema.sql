@@ -281,6 +281,10 @@ CREATE TABLE delivery_orders (
     contact_id   UUID        REFERENCES contacts(id),
     warehouse_id UUID        NOT NULL REFERENCES warehouses(id),
     quotation_id UUID        REFERENCES quotations(id),
+    -- polymorphic relation giống receipts (mục 19) — dùng cho export_type='adjustment',
+    -- tham chiếu tới stocktake_results (mục 8/9: "Document gốc" của điều chỉnh tồn kho).
+    ref_document_type TEXT,
+    ref_document_id   UUID,
     status       TEXT        NOT NULL DEFAULT 'draft'
                    CHECK (status IN ('draft', 'pending_approval', 'approved', 'completed', 'cancelled')),
     approved_by  UUID        REFERENCES users(id),
@@ -524,6 +528,21 @@ CREATE TABLE template_field_mappings (
 );
 
 -- =============================================================
+-- BITRIX INTEGRATION
+-- =============================================================
+
+-- Mapping field Quotation <- field Bitrix Deal/Company/Contact (CLAUDE.md mục 13).
+-- Admin tự cấu hình trong Settings, không cần dev — KHÁC với template_field_mappings
+-- (bảng đó là mapping cho XUẤT file Carbone; bảng này là mapping cho NHẬP dữ liệu từ
+-- Bitrix vào form Quotation lúc fetch/sync deal).
+CREATE TABLE bitrix_field_mappings (
+    id              UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
+    quotation_field TEXT    NOT NULL UNIQUE,
+    bitrix_object   TEXT    NOT NULL CHECK (bitrix_object IN ('deal', 'company', 'contact')),
+    bitrix_field    TEXT    NOT NULL
+);
+
+-- =============================================================
 -- CUSTOM FIELDS & EAV
 -- =============================================================
 
@@ -533,9 +552,13 @@ CREATE TABLE custom_fields (
     field_label TEXT    NOT NULL,
     field_type  TEXT    NOT NULL CHECK (field_type IN ('text', 'number', 'date', 'select', 'boolean')),
     object_type TEXT    NOT NULL CHECK (object_type IN ('quotation', 'receipt', 'delivery_order', 'product', 'company')),
+    -- Danh sách lựa chọn khi field_type='select', VD ["Loại A","Loại B"] — NULL cho các
+    -- field_type khác. Không có cột này thì field_type='select' không có nơi lưu options.
+    options     JSONB,
     is_system   BOOLEAN NOT NULL DEFAULT false,
     is_active   BOOLEAN NOT NULL DEFAULT true,
-    sort_order  INTEGER NOT NULL DEFAULT 0
+    sort_order  INTEGER NOT NULL DEFAULT 0,
+    UNIQUE (object_type, field_name)
 );
 
 CREATE TABLE field_values (

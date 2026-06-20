@@ -486,15 +486,27 @@ Table template_field_mappings {
 }
 
 // ================================================
+// BITRIX INTEGRATION
+// ================================================
+
+Table bitrix_field_mappings {
+  id              uuid    [primary key]
+  quotation_field varchar [unique, note: 'VD: project_name, terms, delivery_location']
+  bitrix_object   varchar [note: 'deal / company / contact']
+  bitrix_field    varchar [note: 'VD: TITLE, OPPORTUNITY, UF_CRM_XXX']
+}
+
+// ================================================
 // CUSTOM FIELDS & EAV
 // ================================================
 
 Table custom_fields {
   id          uuid    [primary key]
-  field_name  varchar
+  field_name  varchar [note: 'unique theo object_type']
   field_label varchar
   field_type  varchar [note: 'text / number / date / select / boolean']
   object_type varchar [note: 'quotation / receipt / delivery_order / product / company']
+  options     json    [note: 'danh sách lựa chọn khi field_type=select']
   is_system   boolean [default: false]
   is_active   boolean [default: true]
   sort_order  int

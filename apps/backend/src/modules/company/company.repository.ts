@@ -51,6 +51,10 @@ export class CompanyRepository {
     return { data, total: Number(countResult?.count ?? 0), page, limit }
   }
 
+  findByBitrixId(bitrixCompanyId: string) {
+    return this.db('companies').where({ bitrix_company_id: bitrixCompanyId }).first()
+  }
+
   async findById(id: string) {
     const company = await this.db('companies').where({ id }).first()
     if (!company) return null
@@ -89,6 +93,10 @@ export class CompanyRepository {
 
   findContactById(id: string) {
     return this.db('contacts').where({ id }).first()
+  }
+
+  findContactByBitrixId(bitrixContactId: string) {
+    return this.db('contacts').where({ bitrix_contact_id: bitrixContactId }).first()
   }
 
   // Bỏ cờ is_primary của các contact khác trong cùng company — chỉ 1 contact
