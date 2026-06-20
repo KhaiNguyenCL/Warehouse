@@ -419,8 +419,8 @@ describe('Delivery', () => {
     })
   })
 
-  describe('stock_batches (FIFO) — trừ lô khi Complete', () => {
-    it('serial-driven: xuất đúng serial nào, trừ đúng batch của serial đó (không phải FIFO đoán)', async () => {
+  describe('receipt_lines.qty_remaining (FIFO) — trừ lô khi Complete', () => {
+    it('serial-driven: xuất đúng serial nào, trừ đúng receipt_line (lô) của serial đó (không phải FIFO đoán)', async () => {
       const app = await getApp()
       const receiptRes = await authedInject({
         method: 'POST',
@@ -441,8 +441,8 @@ describe('Delivery', () => {
         url: `/api/v1/receipts/${receipt.id}/complete`,
         payload: { lines: [{ line_id: receiptLineId, serials: ['BATCH-SN-1', 'BATCH-SN-2'] }] },
       })
-      const batch = await app.db('stock_batches').where({ receipt_id: receipt.id }).first()
-      expect(batch.qty_remaining).toBe(2)
+      const lineBefore = await app.db('receipt_lines').where({ id: receiptLineId }).first()
+      expect(lineBefore.qty_remaining).toBe(2)
 
       const createRes = await authedInject({
         method: 'POST',
@@ -464,11 +464,11 @@ describe('Delivery', () => {
         payload: { lines: [{ line_id: lineId, serials: ['BATCH-SN-1'] }] },
       })
 
-      const batchAfter = await app.db('stock_batches').where({ id: batch.id }).first()
-      expect(batchAfter.qty_remaining).toBe(1)   // 2 -> 1, chỉ trừ đúng serial đã xuất, BATCH-SN-2 chưa đụng tới
+      const lineAfter = await app.db('receipt_lines').where({ id: receiptLineId }).first()
+      expect(lineAfter.qty_remaining).toBe(1)   // 2 -> 1, chỉ trừ đúng serial đã xuất, BATCH-SN-2 chưa đụng tới
     })
 
-    it('FIFO: dòng consumable (không serial) trừ lô cũ nhất (import_date) trước', async () => {
+    it('FIFO: dòng consumable (không serial) trừ lô cũ nhất (receipts.completed_at) trước', async () => {
       const app = await getApp()
       const [consumableProduct] = await app
         .db('products')
@@ -478,16 +478,25 @@ describe('Delivery', () => {
         .db('variants')
         .insert({ product_id: consumableProduct.id, sku: 'CABLE-1-01', name: 'Cáp mạng 1', unit: 'Cuộn' })
         .returning('*')
-      await app.db('inventory').insert({ variant_id: consumableVariant.id, warehouse_id: warehouseId, qty_on_hand: 20, avg_cost: 50000 })
 
-      const [oldBatch] = await app
-        .db('stock_batches')
-        .insert({ variant_id: consumableVariant.id, warehouse_id: warehouseId, cost_price: 40000, qty_total: 10, qty_remaining: 10, import_date: '2026-01-01' })
-        .returning('*')
-      const [newBatch] = await app
-        .db('stock_batches')
-        .insert({ variant_id: consumableVariant.id, warehouse_id: warehouseId, cost_price: 60000, qty_total: 10, qty_remaining: 10, import_date: '2026-06-01' })
-        .returning('*')
+      // Nhập 2 lô qua Receipt thật (qty_on_hand tự cộng dồn, không cần seed tay) — ép
+      // completed_at để kiểm soát đúng thứ tự FIFO trong test (thực tế đủ khác biệt tự nhiên).
+      async function receiveBatch(code: string, quantity: number, costPrice: number, completedAt: string) {
+        const createRes = await authedInject({
+          method: 'POST',
+          url: '/api/v1/receipts',
+          payload: { code, import_type: 'purchase', warehouse_id: warehouseId, lines: [{ variant_id: consumableVariant.id, quantity, cost_price: costPrice }] },
+        })
+        const receipt = JSON.parse(createRes.payload)
+        await authedInject({ method: 'PATCH', url: `/api/v1/receipts/${receipt.id}/submit` })
+        await authedInject({ method: 'PATCH', url: `/api/v1/receipts/${receipt.id}/approve` })
+        await authedInject({ method: 'PATCH', url: `/api/v1/receipts/${receipt.id}/complete`, payload: {} })
+        await app.db('receipts').where({ id: receipt.id }).update({ completed_at: completedAt })
+        return receipt.lines[0].id as string
+      }
+
+      const oldLineId = await receiveBatch('PN-FIFO-OLD', 10, 40000, '2026-01-01')
+      const newLineId = await receiveBatch('PN-FIFO-NEW', 10, 60000, '2026-06-01')
 
       const createRes = await authedInject({
         method: 'POST',
@@ -507,13 +516,13 @@ describe('Delivery', () => {
       // trước khi tới được handler.
       await authedInject({ method: 'PATCH', url: `/api/v1/deliveries/${delivery.id}/complete`, payload: {} })
 
-      const oldAfter = await app.db('stock_batches').where({ id: oldBatch.id }).first()
-      const newAfter = await app.db('stock_batches').where({ id: newBatch.id }).first()
+      const oldAfter = await app.db('receipt_lines').where({ id: oldLineId }).first()
+      const newAfter = await app.db('receipt_lines').where({ id: newLineId }).first()
       expect(oldAfter.qty_remaining).toBe(0)   // lấy hết lô cũ trước: 10 -> 0
       expect(newAfter.qty_remaining).toBe(8)    // còn thiếu 2, lấy tiếp lô mới: 10 -> 8
     })
 
-    it('export_type=adjustment (storable, không quét serial) cũng trừ FIFO từ stock_batches', async () => {
+    it('export_type=adjustment (storable, không quét serial) cũng trừ FIFO từ receipt_lines', async () => {
       const app = await getApp()
       const receiptRes = await authedInject({
         method: 'POST',
@@ -526,14 +535,14 @@ describe('Delivery', () => {
         },
       })
       const receipt = JSON.parse(receiptRes.payload)
+      const receiptLineId = receipt.lines[0].id
       await authedInject({ method: 'PATCH', url: `/api/v1/receipts/${receipt.id}/submit` })
       await authedInject({ method: 'PATCH', url: `/api/v1/receipts/${receipt.id}/approve` })
       await authedInject({
         method: 'PATCH',
         url: `/api/v1/receipts/${receipt.id}/complete`,
-        payload: { lines: [{ line_id: receipt.lines[0].id, serials: ['ADJ-SN-1'] }] },
+        payload: { lines: [{ line_id: receiptLineId, serials: ['ADJ-SN-1'] }] },
       })
-      const batch = await app.db('stock_batches').where({ receipt_id: receipt.id }).first()
 
       const [stocktake] = await app
         .db('stocktakes')
@@ -561,8 +570,8 @@ describe('Delivery', () => {
       await authedInject({ method: 'PATCH', url: `/api/v1/deliveries/${delivery.id}/approve` })
       await authedInject({ method: 'PATCH', url: `/api/v1/deliveries/${delivery.id}/complete`, payload: {} })
 
-      const batchAfter = await app.db('stock_batches').where({ id: batch.id }).first()
-      expect(batchAfter.qty_remaining).toBe(0)
+      const lineAfter = await app.db('receipt_lines').where({ id: receiptLineId }).first()
+      expect(lineAfter.qty_remaining).toBe(0)
     })
   })
 })

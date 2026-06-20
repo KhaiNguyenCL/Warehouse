@@ -9,9 +9,8 @@ lần nhập kho không? Thay vì SKU chỉ để đặt tên cho biến thể t
 
 Câu 1 — Override thông tin sản phẩm per báo giá:
 Không cần thêm gì. quotation_line_items đã có sẵn các field description, unit_price, warranty, vat_percent — khi thêm SKU vào báo giá hệ thống tự điền từ SKU gốc, user override tùy ý per báo giá mà không ảnh hưởng SKU gốc.
-
 Câu 2 — Quy tắc đặt tên SKU:
 Dùng format [Category Code]-[Brand Code]-[Sequential]. Hệ thống tự sinh số thứ tự, user chọn Category + Brand. VD: SW-CSC-001, AP-UBI-001, SVC-001. User vẫn có thể nhập tay nếu muốn.
-
 Câu 3 — Quản lý lô nhập cho consumable:
 Không tạo SKU mới cho mỗi lần nhập. Dùng Stock Batch để quản lý lô — thêm field batch_name để đặt tên lô (VD: "Lô tháng 5 — NCC A"). Khi xuất kho user chọn lô thủ công hoặc tự động FIFO/LIFO.
+Thiết kế lại database

@@ -177,22 +177,14 @@ export class ReceiptService {
           created_by:        userId,
         })
 
-        // Mỗi dòng nhập tạo 1 lô (stock_batch) riêng — đây là cơ sở để Delivery xuất theo
-        // đúng giá vốn của lô và trừ dần theo FIFO (mặc định, CLAUDE.md mục 19) khi xuất.
-        // Áp dụng cho cả storable và consumable — không chỉ storable.
-        const [batch] = await trx('stock_batches')
-          .insert({
-            variant_id:    line.variant_id,
-            warehouse_id:  receipt.warehouse_id,
-            receipt_id:    id,
-            cost_price:    line.cost_price,
-            qty_total:     line.quantity,
-            qty_remaining: line.quantity,
-          })
-          .returning('*')
+        // receipt_line CHÍNH LÀ 1 lô nhập (1 SKU trong 1 lần nhập) — set qty_remaining =
+        // quantity ngay lúc này (trước đó NULL vì hàng chưa thật vào kho). Delivery xuất
+        // theo FIFO sẽ trừ dần field này (mặc định, CLAUDE.md mục 19). Áp dụng cho cả
+        // storable và consumable, không cần bảng stock_batches riêng (xem schema SQL).
+        await trx('receipt_lines').where({ id: line.id }).update({ qty_remaining: line.quantity })
 
         // storable → mỗi serial 1 dòng riêng trong serial_numbers, status active,
-        // warehouse_id = kho vừa nhập, gắn batch_id để khi xuất biết đúng lô cần trừ.
+        // warehouse_id = kho vừa nhập, gắn receipt_line_id để khi xuất biết đúng lô cần trừ.
         if (line.product_type === 'storable') {
           const serials = serialsByLine.get(line.id) ?? []
           await trx('serial_numbers').insert(
@@ -200,7 +192,6 @@ export class ReceiptService {
               serial_no,
               variant_id:      line.variant_id,
               warehouse_id:    receipt.warehouse_id,
-              batch_id:        batch.id,
               status:          'active',
               receipt_line_id: line.id,
             })),

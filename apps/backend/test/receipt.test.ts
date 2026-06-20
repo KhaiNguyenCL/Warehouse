@@ -523,8 +523,8 @@ describe('Receipt', () => {
     })
   })
 
-  describe('stock_batches (FIFO) — tạo lô khi Complete', () => {
-    it('complete tạo đúng 1 stock_batch cho dòng hàng, gắn batch_id cho từng serial', async () => {
+  describe('receipt_lines.qty_remaining (FIFO) — set lúc Complete', () => {
+    it('complete set qty_remaining = quantity cho dòng hàng (1 receipt_line = 1 lô)', async () => {
       const app = await getApp()
       const createRes = await authedInject({
         method: 'POST',
@@ -541,6 +541,10 @@ describe('Receipt', () => {
       await authedInject({ method: 'PATCH', url: `/api/v1/receipts/${receipt.id}/submit` })
       await authedInject({ method: 'PATCH', url: `/api/v1/receipts/${receipt.id}/approve` })
 
+      // Trước Complete: qty_remaining phải là NULL — hàng chưa thật vào kho.
+      const beforeComplete = await app.db('receipt_lines').where({ id: lineId }).first()
+      expect(beforeComplete.qty_remaining).toBeNull()
+
       const serials = genSerials('SN-BATCH', 3)
       await authedInject({
         method: 'PATCH',
@@ -548,14 +552,13 @@ describe('Receipt', () => {
         payload: { lines: [{ line_id: lineId, serials }] },
       })
 
-      const batch = await app.db('stock_batches').where({ receipt_id: receipt.id }).first()
-      expect(batch).toBeDefined()
-      expect(batch.qty_total).toBe(3)
-      expect(batch.qty_remaining).toBe(3)
-      expect(Number(batch.cost_price)).toBe(75000)
+      const line = await app.db('receipt_lines').where({ id: lineId }).first()
+      expect(line.quantity).toBe(3)
+      expect(line.qty_remaining).toBe(3)
+      expect(Number(line.cost_price)).toBe(75000)
 
       const createdSerials = await app.db('serial_numbers').whereIn('serial_no', serials)
-      expect(createdSerials.every((s) => s.batch_id === batch.id)).toBe(true)
+      expect(createdSerials.every((s) => s.receipt_line_id === lineId)).toBe(true)
     })
   })
 })

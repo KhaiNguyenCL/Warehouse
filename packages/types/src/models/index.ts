@@ -84,7 +84,6 @@ export interface SerialNumber {
   serial_no: string
   variant_id: string
   warehouse_id?: string
-  batch_id?: string
   status: SerialStatus
   mac_address?: string
   warranty_end?: string

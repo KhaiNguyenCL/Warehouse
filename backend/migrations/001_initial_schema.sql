@@ -258,13 +258,21 @@ CREATE TABLE receipts (
 );
 
 CREATE TABLE receipt_lines (
-    id         UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
-    receipt_id UUID          NOT NULL REFERENCES receipts(id) ON DELETE CASCADE,
-    variant_id UUID          NOT NULL REFERENCES variants(id),
-    quantity   INTEGER       NOT NULL CHECK (quantity > 0),
-    cost_price NUMERIC(15,2) NOT NULL,
-    line_order INTEGER       NOT NULL DEFAULT 0,
-    note       TEXT
+    id            UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
+    receipt_id    UUID          NOT NULL REFERENCES receipts(id) ON DELETE CASCADE,
+    variant_id    UUID          NOT NULL REFERENCES variants(id),
+    quantity      INTEGER       NOT NULL CHECK (quantity > 0),
+    -- "Lô nhập" — set = quantity lúc Receipt Complete (trước đó NULL, vì hàng chưa thật sự
+    -- vào kho). Delivery xuất theo FIFO trừ dần field này (mặc định, CLAUDE.md mục 19) —
+    -- 1 receipt_line đã LÀ 1 lô (1 SKU trong 1 lần nhập), không cần thêm bảng stock_batches
+    -- riêng (trùng receipt_id/variant_id/cost_price, chỉ thêm đúng 1 field qty_remaining).
+    -- Định danh lô dùng luôn receipts.code + receipts.completed_at + company_id, không cần
+    -- thêm "batch_name" riêng.
+    qty_remaining INTEGER,
+    cost_price    NUMERIC(15,2) NOT NULL,
+    line_order    INTEGER       NOT NULL DEFAULT 0,
+    note          TEXT,
+    CHECK (qty_remaining IS NULL OR (qty_remaining >= 0 AND qty_remaining <= quantity))
 );
 
 CREATE INDEX idx_receipt_lines_receipt_id ON receipt_lines(receipt_id);
@@ -349,35 +357,16 @@ CREATE TABLE transfer_order_lines (
 );
 
 -- =============================================================
--- STOCK BATCHES (trước serial_numbers)
--- =============================================================
-
-CREATE TABLE stock_batches (
-    id            UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
-    name          TEXT,
-    variant_id    UUID          NOT NULL REFERENCES variants(id),
-    warehouse_id  UUID          NOT NULL REFERENCES warehouses(id),
-    receipt_id    UUID          REFERENCES receipts(id),
-    import_date   DATE          NOT NULL DEFAULT CURRENT_DATE,
-    cost_price    NUMERIC(15,2) NOT NULL,
-    qty_total     INTEGER       NOT NULL CHECK (qty_total > 0),
-    qty_remaining INTEGER       NOT NULL,
-    created_at    TIMESTAMPTZ   NOT NULL DEFAULT now(),
-    CONSTRAINT chk_batch_qty CHECK (qty_remaining >= 0 AND qty_remaining <= qty_total)
-);
-
-CREATE INDEX idx_stock_batches_variant_wh ON stock_batches(variant_id, warehouse_id);
-
--- =============================================================
 -- SERIAL NUMBERS
 -- =============================================================
+-- Không có bảng stock_batches riêng — 1 receipt_line ĐÃ LÀ 1 lô nhập (1 SKU trong 1 lần
+-- nhập), xem ghi chú ở receipt_lines.qty_remaining phía trên.
 
 CREATE TABLE serial_numbers (
     id               UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
     serial_no        TEXT        NOT NULL UNIQUE,
     variant_id       UUID        NOT NULL REFERENCES variants(id),
     warehouse_id     UUID        REFERENCES warehouses(id),
-    batch_id         UUID        REFERENCES stock_batches(id),
     status           TEXT        NOT NULL DEFAULT 'active'
                        CHECK (status IN ('active', 'sold', 'disposed')),
     receipt_line_id  UUID        REFERENCES receipt_lines(id),
@@ -392,7 +381,6 @@ CREATE TABLE serial_numbers (
 CREATE INDEX idx_sn_variant_id    ON serial_numbers(variant_id);
 CREATE INDEX idx_sn_warehouse_id  ON serial_numbers(warehouse_id);
 CREATE INDEX idx_sn_status        ON serial_numbers(status);
-CREATE INDEX idx_sn_batch_id      ON serial_numbers(batch_id);
 
 -- =============================================================
 -- INVENTORY

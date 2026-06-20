@@ -244,20 +244,20 @@ export class DeliveryService {
         })
 
         if (line.product_type === 'storable' && effectiveType !== 'adjustment') {
-          // Mỗi serial đã "ghim" đúng lô (batch_id) từ lúc Receipt — trừ thẳng vào lô đó,
-          // không cần đoán theo FIFO vì đã biết chính xác serial nào thuộc lô nào.
+          // Mỗi serial đã "ghim" đúng lô (receipt_line) từ lúc Receipt — trừ thẳng vào lô
+          // đó, không cần đoán theo FIFO vì đã biết chính xác serial nào thuộc lô nào.
           const serials = serialsByLine.get(line.id) ?? []
-          const batchIds = serials.length > 0
-            ? await trx('serial_numbers').whereIn('serial_no', serials).pluck('batch_id')
+          const receiptLineIds = serials.length > 0
+            ? await trx('serial_numbers').whereIn('serial_no', serials).pluck('receipt_line_id')
             : []
-          await this.consumeStockBatchesBySerial(trx, batchIds)
+          await this.consumeReceiptLinesBySerial(trx, receiptLineIds)
           await this.applySerialTransition(
             trx, effectiveType, line.id, line.variant_id, delivery.warehouse_id, serials,
           )
         } else {
           // Consumable (không có serial) hoặc storable xuất theo "adjustment" (không quét
           // serial cụ thể) — trừ theo FIFO mặc định (CLAUDE.md mục 19).
-          await this.consumeStockBatchesFifo(trx, line.variant_id, delivery.warehouse_id, line.quantity)
+          await this.consumeReceiptLinesFifo(trx, line.variant_id, delivery.warehouse_id, line.quantity)
         }
 
         // Dòng này đã trừ vào 1 dòng báo giá (CLAUDE.md mục 6, 7) — giải phóng phần
@@ -310,44 +310,48 @@ export class DeliveryService {
     }
   }
 
-  // Gom serial theo batch_id rồi trừ qty_remaining 1 lần/batch (thay vì trừ từng serial) —
-  // ít round-trip DB hơn khi 1 dòng xuất nhiều serial cùng thuộc 1 lô. Bỏ qua serial không có
-  // batch_id (dữ liệu cũ/seed thủ công không qua Receipt) — không có gì để trừ.
-  private async consumeStockBatchesBySerial(trx: Knex.Transaction, batchIds: Array<string | null>) {
+  // Gom serial theo receipt_line_id rồi trừ qty_remaining 1 lần/lô (thay vì trừ từng serial)
+  // — ít round-trip DB hơn khi 1 dòng xuất nhiều serial cùng thuộc 1 lô nhập. Bỏ qua serial
+  // không có receipt_line_id (dữ liệu cũ/seed thủ công không qua Receipt) — không có gì để trừ.
+  private async consumeReceiptLinesBySerial(trx: Knex.Transaction, receiptLineIds: Array<string | null>) {
     const counts = new Map<string, number>()
-    for (const batchId of batchIds) {
-      if (!batchId) continue
-      counts.set(batchId, (counts.get(batchId) ?? 0) + 1)
+    for (const id of receiptLineIds) {
+      if (!id) continue
+      counts.set(id, (counts.get(id) ?? 0) + 1)
     }
-    for (const [batchId, qty] of counts) {
-      await trx('stock_batches')
-        .where({ id: batchId })
+    for (const [receiptLineId, qty] of counts) {
+      await trx('receipt_lines')
+        .where({ id: receiptLineId })
         .update({ qty_remaining: trx.raw('GREATEST(qty_remaining - ?::int, 0)', [qty]) })
     }
   }
 
   // FIFO mặc định (CLAUDE.md mục 19) cho dòng không gắn serial cụ thể — trừ dần qty_remaining
-  // theo lô cũ nhất trước (import_date rồi created_at). Best-effort: nếu không tìm đủ lô che
-  // hết quantity (vd inventory được tạo tay/qua đường khác không qua Receipt), bỏ qua phần dư
-  // — qty_on_hand vẫn là số liệu tồn kho chính thức, stock_batches chỉ là sổ phụ tính giá vốn.
-  private async consumeStockBatchesFifo(
+  // của receipt_lines theo lô cũ nhất trước (receipts.completed_at — lúc hàng thật vào kho,
+  // không phải created_at của phiếu). Best-effort: nếu không tìm đủ lô che hết quantity (vd
+  // inventory được tạo tay/qua đường khác không qua Receipt), bỏ qua phần dư — qty_on_hand
+  // vẫn là số liệu tồn kho chính thức, receipt_lines.qty_remaining chỉ là sổ phụ tính giá vốn.
+  private async consumeReceiptLinesFifo(
     trx: Knex.Transaction,
     variantId: string,
     warehouseId: string,
     quantity: number,
   ) {
     let remaining = quantity
-    const batches = await trx('stock_batches')
-      .where({ variant_id: variantId, warehouse_id: warehouseId })
-      .where('qty_remaining', '>', 0)
-      .orderBy('import_date', 'asc')
-      .orderBy('created_at', 'asc')
+    const lines = await trx('receipt_lines as rl')
+      .join('receipts as r', 'r.id', 'rl.receipt_id')
+      .where('rl.variant_id', variantId)
+      .andWhere('r.warehouse_id', warehouseId)
+      .andWhere('rl.qty_remaining', '>', 0)
+      .orderBy('r.completed_at', 'asc')
+      .orderBy('rl.line_order', 'asc')
       .forUpdate()
+      .select('rl.id', 'rl.qty_remaining')
 
-    for (const batch of batches) {
+    for (const line of lines) {
       if (remaining <= 0) break
-      const take = Math.min(remaining, batch.qty_remaining)
-      await trx('stock_batches').where({ id: batch.id }).update({ qty_remaining: batch.qty_remaining - take })
+      const take = Math.min(remaining, line.qty_remaining)
+      await trx('receipt_lines').where({ id: line.id }).update({ qty_remaining: line.qty_remaining - take })
       remaining -= take
     }
   }
