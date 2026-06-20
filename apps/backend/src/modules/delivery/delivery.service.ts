@@ -1,19 +1,6 @@
 import { Knex } from 'knex'
 import { DeliveryRepository } from './delivery.repository'
-import { CreateDeliveryBody, ListDeliveryQuery, CompleteDeliveryBody, ExportType } from './delivery.schema'
-
-// CLAUDE.md mục 9 — bảng "Các loại xuất kho". export_type nào bắt buộc company,
-// export_type nào bắt buộc quotation_id. Validate ngay lúc tạo, không để tới Complete
-// mới phát hiện thiếu thông tin.
-const REQUIRES_COMPANY: Record<ExportType, boolean> = {
-  sale: true,
-  internal: false,
-  demo_out: true,
-  warranty_out: false,
-  return_out: true,
-  dispose: false,
-  adjustment: false,
-}
+import { CreateDeliveryBody, ListDeliveryQuery, CompleteDeliveryBody } from './delivery.schema'
 
 export class DeliveryService {
   private repo: DeliveryRepository
@@ -33,19 +20,39 @@ export class DeliveryService {
   }
 
   async create(data: CreateDeliveryBody, userId: string) {
-    if (REQUIRES_COMPANY[data.export_type] && !data.company_id) {
+    const exportType = await this.resolveActiveExportType(data.export_type)
+    if (exportType.requires_company !== 'none' && !data.company_id) {
       throw { statusCode: 400, message: `export_type "${data.export_type}" bắt buộc phải có company_id` }
     }
-    if (data.export_type === 'sale' && !data.quotation_id) {
-      throw { statusCode: 400, message: 'export_type "sale" bắt buộc phải có quotation_id' }
+    if (exportType.requires_quotation && !data.quotation_id) {
+      throw { statusCode: 400, message: `export_type "${data.export_type}" bắt buộc phải có quotation_id` }
     }
-    if (data.export_type === 'adjustment') {
+    const effectiveType = exportType.parent_key ?? exportType.key
+    if (effectiveType === 'adjustment') {
       await this.validateAdjustmentRefDocument(data)
     }
 
     await this.validateQuotationLines(data)
 
     return this.db.transaction((trx) => this.repo.create(data, userId, trx))
+  }
+
+  // Đọc cấu hình từ bảng export_types (Settings module) thay vì enum + map hardcode — admin
+  // thêm export_type mới qua Settings (vd con của 1 type hệ thống qua parent_key) là dùng
+  // được ngay trong Delivery, không cần sửa code (CLAUDE.md mục 19).
+  private async resolveActiveExportType(key: string) {
+    const row = await this.db('export_types').where({ key, is_active: true }).first()
+    if (!row) throw { statusCode: 400, message: `export_type "${key}" không hợp lệ hoặc đã bị tắt` }
+    return row
+  }
+
+  // applySerialTransition() chỉ biết xử lý đúng 7 export_type hệ thống (SYSTEM_EXPORT_TYPES) —
+  // type tự tạo qua Settings phải set parent_key về 1 trong 7 giá trị này để được xử lý đúng.
+  // Không lọc is_active ở đây vì đang xử lý 1 phiếu ĐÃ tồn tại (lúc Complete), không phải lúc
+  // tạo mới — phiếu cũ vẫn phải hoàn thành được dù type đã bị tắt/xoá sau đó.
+  private async resolveEffectiveExportType(key: string): Promise<string> {
+    const row = await this.db('export_types').where({ key }).first()
+    return row?.parent_key ?? row?.key ?? key
   }
 
   // CLAUDE.md mục 8/9: "điều chỉnh tồn kho thiếu" cũng phải bắt nguồn từ 1 Stocktake Result
@@ -152,6 +159,9 @@ export class DeliveryService {
     if (!delivery) throw { statusCode: 404, message: 'Delivery order not found' }
     if (delivery.status !== 'approved') throw { statusCode: 400, message: 'Chỉ có thể hoàn thành từ Approved' }
 
+    // effectiveType = hành vi xử lý serial THẬT (parent_key nếu export_type là type tự tạo
+    // qua Settings) — dùng thay cho so sánh literal delivery.export_type === 'adjustment'.
+    const effectiveType = await this.resolveEffectiveExportType(delivery.export_type)
     const serialsByLine = new Map((body.lines ?? []).map((l) => [l.line_id, l.serials ?? []]))
 
     // Validate TRƯỚC khi mở transaction: đủ tồn kho + đủ serial cho dòng storable.
@@ -168,7 +178,7 @@ export class DeliveryService {
         }
       }
 
-      if (line.product_type === 'storable' && delivery.export_type !== 'adjustment') {
+      if (line.product_type === 'storable' && effectiveType !== 'adjustment') {
         const serials = serialsByLine.get(line.id) ?? []
         if (serials.length !== line.quantity) {
           throw {
@@ -233,11 +243,21 @@ export class DeliveryService {
           created_by:        userId,
         })
 
-        if (line.product_type === 'storable' && delivery.export_type !== 'adjustment') {
+        if (line.product_type === 'storable' && effectiveType !== 'adjustment') {
+          // Mỗi serial đã "ghim" đúng lô (batch_id) từ lúc Receipt — trừ thẳng vào lô đó,
+          // không cần đoán theo FIFO vì đã biết chính xác serial nào thuộc lô nào.
           const serials = serialsByLine.get(line.id) ?? []
+          const batchIds = serials.length > 0
+            ? await trx('serial_numbers').whereIn('serial_no', serials).pluck('batch_id')
+            : []
+          await this.consumeStockBatchesBySerial(trx, batchIds)
           await this.applySerialTransition(
-            trx, delivery.export_type, line.id, line.variant_id, delivery.warehouse_id, serials,
+            trx, effectiveType, line.id, line.variant_id, delivery.warehouse_id, serials,
           )
+        } else {
+          // Consumable (không có serial) hoặc storable xuất theo "adjustment" (không quét
+          // serial cụ thể) — trừ theo FIFO mặc định (CLAUDE.md mục 19).
+          await this.consumeStockBatchesFifo(trx, line.variant_id, delivery.warehouse_id, line.quantity)
         }
 
         // Dòng này đã trừ vào 1 dòng báo giá (CLAUDE.md mục 6, 7) — giải phóng phần
@@ -290,6 +310,48 @@ export class DeliveryService {
     }
   }
 
+  // Gom serial theo batch_id rồi trừ qty_remaining 1 lần/batch (thay vì trừ từng serial) —
+  // ít round-trip DB hơn khi 1 dòng xuất nhiều serial cùng thuộc 1 lô. Bỏ qua serial không có
+  // batch_id (dữ liệu cũ/seed thủ công không qua Receipt) — không có gì để trừ.
+  private async consumeStockBatchesBySerial(trx: Knex.Transaction, batchIds: Array<string | null>) {
+    const counts = new Map<string, number>()
+    for (const batchId of batchIds) {
+      if (!batchId) continue
+      counts.set(batchId, (counts.get(batchId) ?? 0) + 1)
+    }
+    for (const [batchId, qty] of counts) {
+      await trx('stock_batches')
+        .where({ id: batchId })
+        .update({ qty_remaining: trx.raw('GREATEST(qty_remaining - ?::int, 0)', [qty]) })
+    }
+  }
+
+  // FIFO mặc định (CLAUDE.md mục 19) cho dòng không gắn serial cụ thể — trừ dần qty_remaining
+  // theo lô cũ nhất trước (import_date rồi created_at). Best-effort: nếu không tìm đủ lô che
+  // hết quantity (vd inventory được tạo tay/qua đường khác không qua Receipt), bỏ qua phần dư
+  // — qty_on_hand vẫn là số liệu tồn kho chính thức, stock_batches chỉ là sổ phụ tính giá vốn.
+  private async consumeStockBatchesFifo(
+    trx: Knex.Transaction,
+    variantId: string,
+    warehouseId: string,
+    quantity: number,
+  ) {
+    let remaining = quantity
+    const batches = await trx('stock_batches')
+      .where({ variant_id: variantId, warehouse_id: warehouseId })
+      .where('qty_remaining', '>', 0)
+      .orderBy('import_date', 'asc')
+      .orderBy('created_at', 'asc')
+      .forUpdate()
+
+    for (const batch of batches) {
+      if (remaining <= 0) break
+      const take = Math.min(remaining, batch.qty_remaining)
+      await trx('stock_batches').where({ id: batch.id }).update({ qty_remaining: batch.qty_remaining - take })
+      remaining -= take
+    }
+  }
+
   // Cập nhật serial_numbers theo đúng quy tắc export_type ở CLAUDE.md mục 9 —
   // mỗi loại xuất kho có hiệu ứng khác nhau lên trạng thái/vị trí của serial.
   //
@@ -299,7 +361,7 @@ export class DeliveryService {
   // So khớp rowCount với serials.length để chắc chắn không có serial nào "lọt lưới".
   private async applySerialTransition(
     trx: Knex.Transaction,
-    exportType: ExportType,
+    exportType: string,
     lineId: string,
     variantId: string,
     warehouseId: string,

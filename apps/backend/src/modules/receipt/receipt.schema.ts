@@ -7,8 +7,10 @@ export const createReceiptSchema = {
     required: ['code', 'import_type', 'warehouse_id', 'lines'],
     properties: {
       code:              { type: 'string' },
-      // enum: chỉ chấp nhận đúng 3 giá trị này — khớp với import_type trong CLAUDE.md mục 8
-      import_type:       { type: 'string', enum: ['purchase', 'return_in', 'adjustment'] },
+      // Không còn enum hardcode — chấp nhận bất kỳ key đang active trong bảng import_types
+      // (Settings module). Service layer (receipt.service.ts) tra bảng đó để validate thật
+      // và đọc requires_ref_document, để type mới thêm qua Settings dùng được ngay.
+      import_type:       { type: 'string', minLength: 1 },
       company_id:        { type: 'string', format: 'uuid' },   // format: 'uuid' tự validate đúng dạng UUID
       contact_id:        { type: 'string', format: 'uuid' },
       warehouse_id:      { type: 'string', format: 'uuid' },

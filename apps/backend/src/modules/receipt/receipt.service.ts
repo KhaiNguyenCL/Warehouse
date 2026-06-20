@@ -25,23 +25,39 @@ export class ReceiptService {
   // Tạo receipt — bọc trong db.transaction() dù repository.create() chỉ có 2 insert,
   // để nếu sau này thêm bước nữa (ví dụ ghi log) thì vẫn an toàn atomic.
   async create(data: CreateReceiptBody, userId: string) {
-    if (data.import_type === 'adjustment') {
-      await this.validateAdjustmentRefDocument(data)
-    }
+    const importType = await this.resolveActiveImportType(data.import_type)
+    await this.validateRefDocument(data, importType.requires_ref_document)
     return this.db.transaction((trx) => this.repo.create(data, userId, trx))
   }
 
-  // CLAUDE.md mục 8: import_type="adjustment" — Document gốc = Stocktake Result. Không cho
-  // tạo phiếu "điều chỉnh tồn kho thừa" mà không tham chiếu tới 1 stocktake_results đã tồn tại.
-  private async validateAdjustmentRefDocument(data: CreateReceiptBody) {
-    if (data.ref_document_type !== 'stocktake_result' || !data.ref_document_id) {
+  // Đọc cấu hình từ bảng import_types (Settings module) thay vì enum hardcode trong schema —
+  // admin thêm import_type mới qua Settings là dùng được ngay, không cần sửa code lại
+  // (CLAUDE.md mục 19, xem ghi chú trước đây ở settings.service.ts).
+  private async resolveActiveImportType(key: string) {
+    const row = await this.db('import_types').where({ key, is_active: true }).first()
+    if (!row) throw { statusCode: 400, message: `import_type "${key}" không hợp lệ hoặc đã bị tắt` }
+    return row
+  }
+
+  // CLAUDE.md mục 8: requires_ref_document của import_type quyết định loại document gốc bắt
+  // buộc — "adjustment" → stocktake_result, "return_in" → quotation. Đọc trực tiếp từ
+  // import_types nên return_in tự động được validate giống adjustment, không cần hardcode riêng.
+  private async validateRefDocument(data: CreateReceiptBody, requiresRefDocument: string) {
+    if (requiresRefDocument === 'none') return
+    if (data.ref_document_type !== requiresRefDocument || !data.ref_document_id) {
       throw {
         statusCode: 400,
-        message: 'import_type "adjustment" bắt buộc ref_document_type="stocktake_result" và ref_document_id hợp lệ',
+        message: `import_type "${data.import_type}" bắt buộc ref_document_type="${requiresRefDocument}" và ref_document_id hợp lệ`,
       }
     }
-    const result = await this.db('stocktake_results').where({ id: data.ref_document_id }).first()
-    if (!result) throw { statusCode: 400, message: 'Stocktake Result tham chiếu không tồn tại' }
+    const table = requiresRefDocument === 'quotation' ? 'quotations' : 'stocktake_results'
+    const exists = await this.db(table).where({ id: data.ref_document_id }).first()
+    if (!exists) {
+      throw {
+        statusCode: 400,
+        message: `${requiresRefDocument === 'quotation' ? 'Quotation' : 'Stocktake Result'} tham chiếu không tồn tại`,
+      }
+    }
   }
 
   // Khi updateStatus() không khớp được dòng nào (status thực tế không còn đúng
@@ -161,9 +177,22 @@ export class ReceiptService {
           created_by:        userId,
         })
 
+        // Mỗi dòng nhập tạo 1 lô (stock_batch) riêng — đây là cơ sở để Delivery xuất theo
+        // đúng giá vốn của lô và trừ dần theo FIFO (mặc định, CLAUDE.md mục 19) khi xuất.
+        // Áp dụng cho cả storable và consumable — không chỉ storable.
+        const [batch] = await trx('stock_batches')
+          .insert({
+            variant_id:    line.variant_id,
+            warehouse_id:  receipt.warehouse_id,
+            receipt_id:    id,
+            cost_price:    line.cost_price,
+            qty_total:     line.quantity,
+            qty_remaining: line.quantity,
+          })
+          .returning('*')
+
         // storable → mỗi serial 1 dòng riêng trong serial_numbers, status active,
-        // warehouse_id = kho vừa nhập. batch_id để null — FIFO/stock_batches là việc
-        // của bước sau, chưa làm ở đây để không phình phạm vi của task này.
+        // warehouse_id = kho vừa nhập, gắn batch_id để khi xuất biết đúng lô cần trừ.
         if (line.product_type === 'storable') {
           const serials = serialsByLine.get(line.id) ?? []
           await trx('serial_numbers').insert(
@@ -171,6 +200,7 @@ export class ReceiptService {
               serial_no,
               variant_id:      line.variant_id,
               warehouse_id:    receipt.warehouse_id,
+              batch_id:        batch.id,
               status:          'active',
               receipt_line_id: line.id,
             })),

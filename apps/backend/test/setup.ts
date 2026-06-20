@@ -11,7 +11,9 @@ const TABLES_TO_CLEAN = [
   'stocktakes',        // cascade xoá stocktake_lines + stocktake_serials; serial_numbers
                         // còn bị stocktake_serials tham chiếu nên phải xoá TRƯỚC serial_numbers
   'stock_movements',
-  'serial_numbers',   // phải xoá trước receipt_lines/delivery_order_lines (FK) và variants
+  'serial_numbers',   // phải xoá trước receipt_lines/delivery_order_lines (FK) và variants;
+                        // cũng phải xoá trước stock_batches vì serial_numbers.batch_id -> stock_batches
+  'stock_batches',    // FK -> receipts — xoá trước receipts
   'inventory',
   'receipt_lines',
   'receipts',

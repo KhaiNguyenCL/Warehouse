@@ -1,0 +1,17 @@
+- User có nhu cầu khi mỗi sản phẩm báo giá cho các khách hàng khác nhau sẽ có sửa đổi so với
+thông tin gốc ban đầu, ví dụ như khi báo giá cho khách hàng A, thì sẽ tăng thời gian bảo hành
+từ 24 tháng lên 36 tháng, đối với khách B thì tăng 48 tháng đối với cùng một sản phẩm
+- Có cần có quy tắc đặt tên SKU cho từng sản phẩm không hay chỉ đơn thuần là một chuỗi ID hay
+kết hợp cả hai như Tên viết tắt + ID (RAM_Kingston_4G_3200_12345)
+- Đối với sản phẩm tiêu thụ không có SN thì quản lí theo lô nhập hay sao? Có cần tạo SKU cho mỗi
+lần nhập kho không? Thay vì SKU chỉ để đặt tên cho biến thể thì thêm chức năng là phân loại lô nhập
+được không?
+
+Câu 1 — Override thông tin sản phẩm per báo giá:
+Không cần thêm gì. quotation_line_items đã có sẵn các field description, unit_price, warranty, vat_percent — khi thêm SKU vào báo giá hệ thống tự điền từ SKU gốc, user override tùy ý per báo giá mà không ảnh hưởng SKU gốc.
+
+Câu 2 — Quy tắc đặt tên SKU:
+Dùng format [Category Code]-[Brand Code]-[Sequential]. Hệ thống tự sinh số thứ tự, user chọn Category + Brand. VD: SW-CSC-001, AP-UBI-001, SVC-001. User vẫn có thể nhập tay nếu muốn.
+
+Câu 3 — Quản lý lô nhập cho consumable:
+Không tạo SKU mới cho mỗi lần nhập. Dùng Stock Batch để quản lý lô — thêm field batch_name để đặt tên lô (VD: "Lô tháng 5 — NCC A"). Khi xuất kho user chọn lô thủ công hoặc tự động FIFO/LIFO.

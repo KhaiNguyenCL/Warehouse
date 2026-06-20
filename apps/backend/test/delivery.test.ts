@@ -329,4 +329,240 @@ describe('Delivery', () => {
       expect(delivery.ref_document_id).toBe(result.id)
     })
   })
+
+  describe('export_type không hardcode — đọc trực tiếp từ bảng export_types', () => {
+    it('export_type không tồn tại trong export_types → 400', async () => {
+      const res = await authedInject({
+        method: 'POST',
+        url: '/api/v1/deliveries',
+        payload: {
+          code: 'DO-BADTYPE-001',
+          export_type: 'khong_ton_tai',
+          warehouse_id: warehouseId,
+          lines: [{ variant_id: variantId, quantity: 1 }],
+        },
+      })
+      expect(res.statusCode).toBe(400)
+    })
+
+    it('export_type bị tắt (is_active=false) → 400 dù key có tồn tại', async () => {
+      const app = await getApp()
+      await app
+        .db('export_types')
+        .insert({ key: 'internal_disabled', label: 'Ngừng dùng', parent_key: 'internal', requires_company: 'none', is_active: false })
+
+      const res = await authedInject({
+        method: 'POST',
+        url: '/api/v1/deliveries',
+        payload: {
+          code: 'DO-DISABLED-001',
+          export_type: 'internal_disabled',
+          warehouse_id: warehouseId,
+          lines: [{ variant_id: variantId, quantity: 1 }],
+        },
+      })
+      expect(res.statusCode).toBe(400)
+    })
+
+    it('export_type tự thêm qua Settings với parent_key="demo_out" → tự kế thừa hành vi xử lý serial của demo_out', async () => {
+      const app = await getApp()
+      const [company] = await app.db('companies').insert({ code: 'CUST-VIP', name: 'KH VIP' }).returning('*')
+      await app
+        .db('export_types')
+        .insert({ key: 'demo_out_vip', label: 'Demo khách VIP', parent_key: 'demo_out', requires_company: 'customer', requires_quotation: false })
+
+      const createRes = await authedInject({
+        method: 'POST',
+        url: '/api/v1/deliveries',
+        payload: {
+          code: 'DO-VIP-001',
+          export_type: 'demo_out_vip',
+          company_id: company.id,
+          warehouse_id: warehouseId,
+          lines: [{ variant_id: variantId, quantity: 1 }],
+        },
+      })
+      expect(createRes.statusCode).toBe(201)
+      const delivery = JSON.parse(createRes.payload)
+      const lineId = delivery.lines[0].id
+      await authedInject({ method: 'PATCH', url: `/api/v1/deliveries/${delivery.id}/submit` })
+      await authedInject({ method: 'PATCH', url: `/api/v1/deliveries/${delivery.id}/approve` })
+      await authedInject({
+        method: 'PATCH',
+        url: `/api/v1/deliveries/${delivery.id}/complete`,
+        payload: { lines: [{ line_id: lineId, serials: ['SEED-SN-8'] }] },
+      })
+
+      const demoWarehouse = await app.db('warehouses').where({ code: 'WH-DEMO' }).first()
+      const serial = await app.db('serial_numbers').where({ serial_no: 'SEED-SN-8' }).first()
+      expect(serial.status).toBe('active')
+      expect(serial.warehouse_id).toBe(demoWarehouse.id)
+    })
+
+    it('thiếu company_id cho export_type tự thêm có requires_company≠"none" → 400 (đọc từ DB, không phải hardcode)', async () => {
+      const app = await getApp()
+      await app
+        .db('export_types')
+        .insert({ key: 'demo_out_vip2', label: 'Demo VIP 2', parent_key: 'demo_out', requires_company: 'customer' })
+
+      const res = await authedInject({
+        method: 'POST',
+        url: '/api/v1/deliveries',
+        payload: {
+          code: 'DO-VIP-002',
+          export_type: 'demo_out_vip2',
+          warehouse_id: warehouseId,
+          lines: [{ variant_id: variantId, quantity: 1 }],
+        },
+      })
+      expect(res.statusCode).toBe(400)
+    })
+  })
+
+  describe('stock_batches (FIFO) — trừ lô khi Complete', () => {
+    it('serial-driven: xuất đúng serial nào, trừ đúng batch của serial đó (không phải FIFO đoán)', async () => {
+      const app = await getApp()
+      const receiptRes = await authedInject({
+        method: 'POST',
+        url: '/api/v1/receipts',
+        payload: {
+          code: 'PN-FOR-DO-001',
+          import_type: 'purchase',
+          warehouse_id: warehouseId,
+          lines: [{ variant_id: variantId, quantity: 2, cost_price: 90000 }],
+        },
+      })
+      const receipt = JSON.parse(receiptRes.payload)
+      const receiptLineId = receipt.lines[0].id
+      await authedInject({ method: 'PATCH', url: `/api/v1/receipts/${receipt.id}/submit` })
+      await authedInject({ method: 'PATCH', url: `/api/v1/receipts/${receipt.id}/approve` })
+      await authedInject({
+        method: 'PATCH',
+        url: `/api/v1/receipts/${receipt.id}/complete`,
+        payload: { lines: [{ line_id: receiptLineId, serials: ['BATCH-SN-1', 'BATCH-SN-2'] }] },
+      })
+      const batch = await app.db('stock_batches').where({ receipt_id: receipt.id }).first()
+      expect(batch.qty_remaining).toBe(2)
+
+      const createRes = await authedInject({
+        method: 'POST',
+        url: '/api/v1/deliveries',
+        payload: {
+          code: 'DO-BATCH-001',
+          export_type: 'internal',
+          warehouse_id: warehouseId,
+          lines: [{ variant_id: variantId, quantity: 1 }],
+        },
+      })
+      const delivery = JSON.parse(createRes.payload)
+      const lineId = delivery.lines[0].id
+      await authedInject({ method: 'PATCH', url: `/api/v1/deliveries/${delivery.id}/submit` })
+      await authedInject({ method: 'PATCH', url: `/api/v1/deliveries/${delivery.id}/approve` })
+      await authedInject({
+        method: 'PATCH',
+        url: `/api/v1/deliveries/${delivery.id}/complete`,
+        payload: { lines: [{ line_id: lineId, serials: ['BATCH-SN-1'] }] },
+      })
+
+      const batchAfter = await app.db('stock_batches').where({ id: batch.id }).first()
+      expect(batchAfter.qty_remaining).toBe(1)   // 2 -> 1, chỉ trừ đúng serial đã xuất, BATCH-SN-2 chưa đụng tới
+    })
+
+    it('FIFO: dòng consumable (không serial) trừ lô cũ nhất (import_date) trước', async () => {
+      const app = await getApp()
+      const [consumableProduct] = await app
+        .db('products')
+        .insert({ code: 'CABLE-1', name: 'Cáp mạng', product_type: 'consumable' })
+        .returning('*')
+      const [consumableVariant] = await app
+        .db('variants')
+        .insert({ product_id: consumableProduct.id, sku: 'CABLE-1-01', name: 'Cáp mạng 1', unit: 'Cuộn' })
+        .returning('*')
+      await app.db('inventory').insert({ variant_id: consumableVariant.id, warehouse_id: warehouseId, qty_on_hand: 20, avg_cost: 50000 })
+
+      const [oldBatch] = await app
+        .db('stock_batches')
+        .insert({ variant_id: consumableVariant.id, warehouse_id: warehouseId, cost_price: 40000, qty_total: 10, qty_remaining: 10, import_date: '2026-01-01' })
+        .returning('*')
+      const [newBatch] = await app
+        .db('stock_batches')
+        .insert({ variant_id: consumableVariant.id, warehouse_id: warehouseId, cost_price: 60000, qty_total: 10, qty_remaining: 10, import_date: '2026-06-01' })
+        .returning('*')
+
+      const createRes = await authedInject({
+        method: 'POST',
+        url: '/api/v1/deliveries',
+        payload: {
+          code: 'DO-FIFO-001',
+          export_type: 'internal',
+          warehouse_id: warehouseId,
+          lines: [{ variant_id: consumableVariant.id, quantity: 12 }],
+        },
+      })
+      const delivery = JSON.parse(createRes.payload)
+      await authedInject({ method: 'PATCH', url: `/api/v1/deliveries/${delivery.id}/submit` })
+      await authedInject({ method: 'PATCH', url: `/api/v1/deliveries/${delivery.id}/approve` })
+      // payload: {} bắt buộc — schema completeDeliverySchema yêu cầu body type object,
+      // bỏ trống hẳn payload (không phải {}) làm Fastify trả 400 "body must be object"
+      // trước khi tới được handler.
+      await authedInject({ method: 'PATCH', url: `/api/v1/deliveries/${delivery.id}/complete`, payload: {} })
+
+      const oldAfter = await app.db('stock_batches').where({ id: oldBatch.id }).first()
+      const newAfter = await app.db('stock_batches').where({ id: newBatch.id }).first()
+      expect(oldAfter.qty_remaining).toBe(0)   // lấy hết lô cũ trước: 10 -> 0
+      expect(newAfter.qty_remaining).toBe(8)    // còn thiếu 2, lấy tiếp lô mới: 10 -> 8
+    })
+
+    it('export_type=adjustment (storable, không quét serial) cũng trừ FIFO từ stock_batches', async () => {
+      const app = await getApp()
+      const receiptRes = await authedInject({
+        method: 'POST',
+        url: '/api/v1/receipts',
+        payload: {
+          code: 'PN-FOR-ADJ-001',
+          import_type: 'purchase',
+          warehouse_id: warehouseId,
+          lines: [{ variant_id: variantId, quantity: 1, cost_price: 80000 }],
+        },
+      })
+      const receipt = JSON.parse(receiptRes.payload)
+      await authedInject({ method: 'PATCH', url: `/api/v1/receipts/${receipt.id}/submit` })
+      await authedInject({ method: 'PATCH', url: `/api/v1/receipts/${receipt.id}/approve` })
+      await authedInject({
+        method: 'PATCH',
+        url: `/api/v1/receipts/${receipt.id}/complete`,
+        payload: { lines: [{ line_id: receipt.lines[0].id, serials: ['ADJ-SN-1'] }] },
+      })
+      const batch = await app.db('stock_batches').where({ receipt_id: receipt.id }).first()
+
+      const [stocktake] = await app
+        .db('stocktakes')
+        .insert({ code: 'ST-ADJ-FIFO-001', warehouse_id: warehouseId, status: 'completed', created_by: adminUserId })
+        .returning('*')
+      const [stocktakeResult] = await app
+        .db('stocktake_results')
+        .insert({ stocktake_id: stocktake.id, total_sku: 1, matched: 0, shortage: 1, surplus: 0 })
+        .returning('*')
+
+      const createRes = await authedInject({
+        method: 'POST',
+        url: '/api/v1/deliveries',
+        payload: {
+          code: 'DO-ADJ-FIFO-001',
+          export_type: 'adjustment',
+          warehouse_id: warehouseId,
+          ref_document_type: 'stocktake_result',
+          ref_document_id: stocktakeResult.id,
+          lines: [{ variant_id: variantId, quantity: 1 }],
+        },
+      })
+      const delivery = JSON.parse(createRes.payload)
+      await authedInject({ method: 'PATCH', url: `/api/v1/deliveries/${delivery.id}/submit` })
+      await authedInject({ method: 'PATCH', url: `/api/v1/deliveries/${delivery.id}/approve` })
+      await authedInject({ method: 'PATCH', url: `/api/v1/deliveries/${delivery.id}/complete`, payload: {} })
+
+      const batchAfter = await app.db('stock_batches').where({ id: batch.id }).first()
+      expect(batchAfter.qty_remaining).toBe(0)
+    })
+  })
 })

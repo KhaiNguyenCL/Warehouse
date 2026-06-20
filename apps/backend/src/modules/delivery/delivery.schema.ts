@@ -1,4 +1,7 @@
-export const EXPORT_TYPES = [
+// 7 export_type "hệ thống" — applySerialTransition() trong delivery.service.ts chỉ biết xử lý
+// đúng 7 key này. Export_type tự tạo qua Settings (bảng export_types) phải set parent_key về
+// 1 trong 7 giá trị này để được xử lý đúng (xem resolveEffectiveExportType()).
+export const SYSTEM_EXPORT_TYPES = [
   'sale',
   'internal',
   'demo_out',
@@ -14,7 +17,10 @@ export const createDeliverySchema = {
     required: ['code', 'export_type', 'warehouse_id', 'lines'],
     properties: {
       code:         { type: 'string', minLength: 1 },
-      export_type:  { type: 'string', enum: EXPORT_TYPES },
+      // Không còn enum hardcode — chấp nhận bất kỳ key đang active trong bảng export_types
+      // (Settings module). Service layer tra bảng đó để validate thật và đọc
+      // requires_company/requires_quotation, để type mới thêm qua Settings dùng được ngay.
+      export_type:  { type: 'string', minLength: 1 },
       company_id:   { type: 'string', format: 'uuid' },
       contact_id:   { type: 'string', format: 'uuid' },
       warehouse_id: { type: 'string', format: 'uuid' },
@@ -49,7 +55,7 @@ export const listDeliverySchema = {
     type: 'object',
     properties: {
       status:       { type: 'string' },
-      export_type:  { type: 'string', enum: EXPORT_TYPES },
+      export_type:  { type: 'string' },
       warehouse_id: { type: 'string' },
       page:         { type: 'integer', minimum: 1, default: 1 },
       limit:        { type: 'integer', minimum: 1, maximum: 100, default: 20 },
@@ -78,11 +84,11 @@ export const completeDeliverySchema = {
   },
 }
 
-export type ExportType = (typeof EXPORT_TYPES)[number]
+export type SystemExportType = (typeof SYSTEM_EXPORT_TYPES)[number]
 
 export interface CreateDeliveryBody {
   code: string
-  export_type: ExportType
+  export_type: string
   company_id?: string
   contact_id?: string
   warehouse_id: string
@@ -103,7 +109,7 @@ export interface CreateDeliveryBody {
 
 export interface ListDeliveryQuery {
   status?: string
-  export_type?: ExportType
+  export_type?: string
   warehouse_id?: string
   page?: number
   limit?: number

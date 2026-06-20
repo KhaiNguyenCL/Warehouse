@@ -388,4 +388,174 @@ describe('Receipt', () => {
       expect(receipt.ref_document_id).toBe(result.id)
     })
   })
+
+  describe('import_type không hardcode — đọc trực tiếp từ bảng import_types', () => {
+    it('import_type không tồn tại trong import_types → 400', async () => {
+      const res = await authedInject({
+        method: 'POST',
+        url: '/api/v1/receipts',
+        payload: {
+          code: 'PN-BADTYPE-001',
+          import_type: 'khong_ton_tai',
+          warehouse_id: warehouseId,
+          lines: [{ variant_id: variantId, quantity: 1, cost_price: 1000 }],
+        },
+      })
+      expect(res.statusCode).toBe(400)
+    })
+
+    it('import_type tự thêm qua Settings (chưa từng có trong code) dùng được ngay, không cần sửa code', async () => {
+      const app = await getApp()
+      await app
+        .db('import_types')
+        .insert({ key: 'purchase_urgent', label: 'Mua hàng gấp', requires_company: 'none', requires_ref_document: 'none' })
+
+      const res = await authedInject({
+        method: 'POST',
+        url: '/api/v1/receipts',
+        payload: {
+          code: 'PN-CUSTOM-001',
+          import_type: 'purchase_urgent',
+          warehouse_id: warehouseId,
+          lines: [{ variant_id: variantId, quantity: 1, cost_price: 1000 }],
+        },
+      })
+      expect(res.statusCode).toBe(201)
+    })
+
+    it('import_type bị tắt (is_active=false) → 400 dù key có tồn tại', async () => {
+      const app = await getApp()
+      await app
+        .db('import_types')
+        .insert({ key: 'purchase_disabled', label: 'Ngừng dùng', requires_company: 'none', requires_ref_document: 'none', is_active: false })
+
+      const res = await authedInject({
+        method: 'POST',
+        url: '/api/v1/receipts',
+        payload: {
+          code: 'PN-DISABLED-001',
+          import_type: 'purchase_disabled',
+          warehouse_id: warehouseId,
+          lines: [{ variant_id: variantId, quantity: 1, cost_price: 1000 }],
+        },
+      })
+      expect(res.statusCode).toBe(400)
+    })
+  })
+
+  describe('import_type=return_in liên kết Quotation', () => {
+    async function createQuotation() {
+      const app = await getApp()
+      const admin = await app.db('users').where({ email: 'admin@test.local' }).first()
+      const [company] = await app.db('companies').insert({ code: 'CUST-RETURN', name: 'KH trả hàng' }).returning('*')
+      const [quotation] = await app
+        .db('quotations')
+        .insert({ code: 'QU-RETURN-001', company_id: company.id, created_by: admin.id })
+        .returning('*')
+      return quotation
+    }
+
+    it('thiếu ref_document_type/ref_document_id → 400', async () => {
+      const res = await authedInject({
+        method: 'POST',
+        url: '/api/v1/receipts',
+        payload: {
+          code: 'PN-RETURN-001',
+          import_type: 'return_in',
+          warehouse_id: warehouseId,
+          lines: [{ variant_id: variantId, quantity: 1, cost_price: 0 }],
+        },
+      })
+      expect(res.statusCode).toBe(400)
+    })
+
+    it('ref_document_type sai (vd "stocktake_result" thay vì "quotation") → 400', async () => {
+      const quotation = await createQuotation()
+      const res = await authedInject({
+        method: 'POST',
+        url: '/api/v1/receipts',
+        payload: {
+          code: 'PN-RETURN-002',
+          import_type: 'return_in',
+          warehouse_id: warehouseId,
+          ref_document_type: 'stocktake_result',
+          ref_document_id: quotation.id,
+          lines: [{ variant_id: variantId, quantity: 1, cost_price: 0 }],
+        },
+      })
+      expect(res.statusCode).toBe(400)
+    })
+
+    it('ref_document_id tham chiếu tới quotation không tồn tại → 400', async () => {
+      const res = await authedInject({
+        method: 'POST',
+        url: '/api/v1/receipts',
+        payload: {
+          code: 'PN-RETURN-003',
+          import_type: 'return_in',
+          warehouse_id: warehouseId,
+          ref_document_type: 'quotation',
+          ref_document_id: '00000000-0000-0000-0000-000000000000',
+          lines: [{ variant_id: variantId, quantity: 1, cost_price: 0 }],
+        },
+      })
+      expect(res.statusCode).toBe(400)
+    })
+
+    it('ref_document_type/ref_document_id hợp lệ → tạo thành công', async () => {
+      const quotation = await createQuotation()
+      const res = await authedInject({
+        method: 'POST',
+        url: '/api/v1/receipts',
+        payload: {
+          code: 'PN-RETURN-004',
+          import_type: 'return_in',
+          warehouse_id: warehouseId,
+          ref_document_type: 'quotation',
+          ref_document_id: quotation.id,
+          lines: [{ variant_id: variantId, quantity: 1, cost_price: 0 }],
+        },
+      })
+      expect(res.statusCode).toBe(201)
+      const receipt = JSON.parse(res.payload)
+      expect(receipt.ref_document_type).toBe('quotation')
+      expect(receipt.ref_document_id).toBe(quotation.id)
+    })
+  })
+
+  describe('stock_batches (FIFO) — tạo lô khi Complete', () => {
+    it('complete tạo đúng 1 stock_batch cho dòng hàng, gắn batch_id cho từng serial', async () => {
+      const app = await getApp()
+      const createRes = await authedInject({
+        method: 'POST',
+        url: '/api/v1/receipts',
+        payload: {
+          code: 'PN-BATCH-001',
+          import_type: 'purchase',
+          warehouse_id: warehouseId,
+          lines: [{ variant_id: variantId, quantity: 3, cost_price: 75000 }],
+        },
+      })
+      const receipt = JSON.parse(createRes.payload)
+      const lineId = receipt.lines[0].id
+      await authedInject({ method: 'PATCH', url: `/api/v1/receipts/${receipt.id}/submit` })
+      await authedInject({ method: 'PATCH', url: `/api/v1/receipts/${receipt.id}/approve` })
+
+      const serials = genSerials('SN-BATCH', 3)
+      await authedInject({
+        method: 'PATCH',
+        url: `/api/v1/receipts/${receipt.id}/complete`,
+        payload: { lines: [{ line_id: lineId, serials }] },
+      })
+
+      const batch = await app.db('stock_batches').where({ receipt_id: receipt.id }).first()
+      expect(batch).toBeDefined()
+      expect(batch.qty_total).toBe(3)
+      expect(batch.qty_remaining).toBe(3)
+      expect(Number(batch.cost_price)).toBe(75000)
+
+      const createdSerials = await app.db('serial_numbers').whereIn('serial_no', serials)
+      expect(createdSerials.every((s) => s.batch_id === batch.id)).toBe(true)
+    })
+  })
 })
