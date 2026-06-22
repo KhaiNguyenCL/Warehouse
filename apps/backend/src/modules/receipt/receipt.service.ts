@@ -22,12 +22,74 @@ export class ReceiptService {
     return receipt
   }
 
-  // Tạo receipt — bọc trong db.transaction() dù repository.create() chỉ có 2 insert,
-  // để nếu sau này thêm bước nữa (ví dụ ghi log) thì vẫn an toàn atomic.
+  // Tạo receipt — validatePurchaseOrder() PHẢI chạy TRONG transaction này (không phải
+  // 1 SELECT rời trước đó) và lock hàng purchase_orders/purchase_order_lines bằng
+  // forUpdate(): nếu để check ngoài transaction, 2 request tạo Receipt cùng lúc cho
+  // CÙNG 1 po_line có thể cùng đọc remaining_qty cũ, cùng pass validate, rồi cùng insert
+  // → tổng nhận vượt số PO đã đặt (race condition — phát hiện qua review kỹ lại sau khi
+  // hỏi "workflow đã chuẩn chưa", không phải qua test, vì test chạy tuần tự không lộ race).
   async create(data: CreateReceiptBody, userId: string) {
     const importType = await this.resolveActiveImportType(data.import_type)
     await this.validateRefDocument(data, importType.requires_ref_document)
-    return this.db.transaction((trx) => this.repo.create(data, userId, trx))
+    return this.db.transaction(async (trx) => {
+      await this.validatePurchaseOrder(data, trx)
+      return this.repo.create(data, userId, trx)
+    })
+  }
+
+  // PO tham chiếu (po_id/po_line_id) là TUỲ CHỌN — không phải mọi receipt purchase đều
+  // xuất phát từ 1 PO chính thức. Nếu có, validate: PO phải Confirmed (mới được nhận
+  // hàng), po_line phải thuộc đúng po_id, variant_id phải khớp, và quantity không vượt
+  // remaining_qty (= po_line.quantity - tổng quantity của các receipt_line CHƯA cancelled
+  // đã link tới dòng đó — tính chung received+pending vì mục đích ở đây chỉ là chặn
+  // over-commit, không cần tách riêng như purchaseorder.repository.ts::findLineProgress).
+  // forUpdate() trên CẢ purchase_orders và purchase_order_lines — khoá này phải khớp với
+  // lockForUpdate() bên purchaseorder.service.ts::unconfirm()/cancel() để 2 transaction
+  // cùng đụng 1 PO (1 bên tạo Receipt, 1 bên unconfirm/cancel PO) buộc phải serialize.
+  private async validatePurchaseOrder(data: CreateReceiptBody, trx: Knex.Transaction) {
+    if (!data.po_id) return
+
+    const po = await trx('purchase_orders').where({ id: data.po_id }).forUpdate().first()
+    if (!po) throw { statusCode: 400, message: 'Purchase Order tham chiếu không tồn tại' }
+    if (po.status !== 'confirmed') {
+      throw { statusCode: 400, message: 'Purchase Order phải ở trạng thái Confirmed để tạo Receipt' }
+    }
+
+    const poLineIds = data.lines.map((l) => l.po_line_id).filter((id): id is string => Boolean(id))
+    if (poLineIds.length === 0) return
+
+    const poLines = await trx('purchase_order_lines')
+      .where({ purchase_order_id: data.po_id })
+      .whereIn('id', poLineIds)
+      .forUpdate()
+    const poLineById = new Map(poLines.map((l) => [l.id, l]))
+
+    const usedRows = await trx('receipt_lines as rl')
+      .join('receipts as r', 'r.id', 'rl.receipt_id')
+      .whereIn('rl.po_line_id', poLineIds)
+      .andWhere('r.status', '!=', 'cancelled')
+      .groupBy('rl.po_line_id')
+      .select('rl.po_line_id', trx.raw('SUM(rl.quantity)::int as used_qty'))
+    const usedByPoLine = new Map(usedRows.map((r) => [r.po_line_id, r.used_qty]))
+
+    for (const line of data.lines) {
+      if (!line.po_line_id) continue
+      const poLine = poLineById.get(line.po_line_id)
+      if (!poLine) {
+        throw { statusCode: 400, message: `purchase_order_line "${line.po_line_id}" không thuộc Purchase Order này` }
+      }
+      if (poLine.variant_id !== line.variant_id) {
+        throw { statusCode: 400, message: 'Dòng hàng không khớp SKU với purchase_order_line tương ứng' }
+      }
+      const used = usedByPoLine.get(line.po_line_id) ?? 0
+      const remaining = poLine.quantity - used
+      if (line.quantity > remaining) {
+        throw {
+          statusCode: 400,
+          message: `Số lượng (${line.quantity}) vượt quá remaining_qty (${remaining}) của purchase_order_line`,
+        }
+      }
+    }
   }
 
   // Đọc cấu hình từ bảng import_types (Settings module) thay vì enum hardcode trong schema —
@@ -185,8 +247,18 @@ export class ReceiptService {
 
         // storable → mỗi serial 1 dòng riêng trong serial_numbers, status active,
         // warehouse_id = kho vừa nhập, gắn receipt_line_id để khi xuất biết đúng lô cần trừ.
+        // warranty_end = completed_at + warranty_months của LÔ này (không phải variant
+        // default) — tính ngay trong SQL để cùng mốc thời gian với completed_at ở trên.
         if (line.product_type === 'storable') {
           const serials = serialsByLine.get(line.id) ?? []
+          // So sánh != null (không dùng truthy check) — warranty_months = 0 là giá trị
+          // hợp lệ (schema cho phép minimum 0, nghĩa là "không bảo hành" tường minh, khác
+          // với "không khai báo"), nhưng 0 bị falsy nên `line.warranty_months ?` sẽ coi
+          // 0 giống null và luôn ra warranty_end = null — sai với trường hợp này.
+          const warrantyEndExpr =
+            line.warranty_months != null
+              ? trx.raw("now() + (?::int * interval '1 month')", [line.warranty_months])
+              : null
           await trx('serial_numbers').insert(
             serials.map((serial_no) => ({
               serial_no,
@@ -194,6 +266,7 @@ export class ReceiptService {
               warehouse_id:    receipt.warehouse_id,
               status:          'active',
               receipt_line_id: line.id,
+              warranty_end:    warrantyEndExpr,
             })),
           )
         }

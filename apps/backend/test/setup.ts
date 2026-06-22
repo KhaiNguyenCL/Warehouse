@@ -15,6 +15,8 @@ const TABLES_TO_CLEAN = [
   'inventory',
   'receipt_lines',
   'receipts',
+  'purchase_order_lines', // FK <- receipt_lines.po_line_id — xoá sau receipt_lines
+  'purchase_orders',      // FK <- receipts.po_id — xoá sau receipts
   'delivery_order_lines',
   'delivery_orders',
   'transfer_order_lines',
@@ -32,6 +34,7 @@ const TABLES_TO_CLEAN = [
   'variants',
   'products',
   'categories',
+  'brands',  // FK <- products.brand_id — xoá sau products
   'users',
 ]
 

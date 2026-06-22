@@ -91,6 +91,80 @@ describe('Inventory', () => {
     expect(body.limit).toBe(2)
   })
 
+  it('GET /lots trả về breakdown từng lô (giá/bảo hành/qty_remaining riêng), sắp theo completed_at', async () => {
+    const app = await getApp()
+    const variant = await seedVariant(app, 'INV-LOT')
+    const [company] = await app.db('companies').insert({ code: 'INV-LOT-NCC', name: 'NCC Lô Test' }).returning('*')
+    const [user] = await app.db('users').select('id').limit(1)
+
+    const [oldReceipt] = await app
+      .db('receipts')
+      .insert({
+        code: 'PN-LOT-OLD', import_type: 'purchase', company_id: company.id, warehouse_id: warehouseId,
+        status: 'completed', completed_at: '2026-01-01', created_by: user.id,
+      })
+      .returning('*')
+    const [newReceipt] = await app
+      .db('receipts')
+      .insert({
+        code: 'PN-LOT-NEW', import_type: 'purchase', company_id: company.id, warehouse_id: warehouseId,
+        status: 'completed', completed_at: '2026-06-01', created_by: user.id,
+      })
+      .returning('*')
+    await app.db('receipt_lines').insert([
+      { receipt_id: oldReceipt.id, variant_id: variant.id, quantity: 10, qty_remaining: 4, cost_price: 900000, warranty_months: 12 },
+      { receipt_id: newReceipt.id, variant_id: variant.id, quantity: 5, qty_remaining: 5, cost_price: 950000, warranty_months: 24 },
+    ])
+
+    const res = await authedInject({
+      method: 'GET',
+      url: `/api/v1/inventory/lots?variant_id=${variant.id}&warehouse_id=${warehouseId}`,
+    })
+    expect(res.statusCode).toBe(200)
+    const lots = JSON.parse(res.payload)
+    expect(lots).toHaveLength(2)
+    expect(lots[0].receipt_code).toBe('PN-LOT-OLD')
+    expect(Number(lots[0].cost_price)).toBe(900000)
+    expect(lots[0].warranty_months).toBe(12)
+    expect(lots[0].qty_remaining).toBe(4)
+    expect(lots[0].company_name).toBe('NCC Lô Test')
+    expect(lots[1].receipt_code).toBe('PN-LOT-NEW')
+    expect(Number(lots[1].cost_price)).toBe(950000)
+  })
+
+  it('GET /serials trả về đúng các SN thuộc 1 receipt_line, không lẫn SN của lô khác', async () => {
+    const app = await getApp()
+    const variant = await seedVariant(app, 'INV-SN')
+    const [user] = await app.db('users').select('id').limit(1)
+    const [receipt] = await app
+      .db('receipts')
+      .insert({
+        code: 'PN-SN-001', import_type: 'purchase', warehouse_id: warehouseId,
+        status: 'completed', completed_at: '2026-01-01', created_by: user.id,
+      })
+      .returning('*')
+    const [lineA, lineB] = await app
+      .db('receipt_lines')
+      .insert([
+        { receipt_id: receipt.id, variant_id: variant.id, quantity: 2, cost_price: 100000 },
+        { receipt_id: receipt.id, variant_id: variant.id, quantity: 1, cost_price: 100000 },
+      ])
+      .returning('*')
+    await app.db('serial_numbers').insert([
+      { serial_no: 'INV-SN-A1', variant_id: variant.id, warehouse_id: warehouseId, receipt_line_id: lineA.id, warranty_end: '2027-01-01' },
+      { serial_no: 'INV-SN-A2', variant_id: variant.id, warehouse_id: warehouseId, receipt_line_id: lineA.id },
+      { serial_no: 'INV-SN-B1', variant_id: variant.id, warehouse_id: warehouseId, receipt_line_id: lineB.id },
+    ])
+
+    const res = await authedInject({ method: 'GET', url: `/api/v1/inventory/serials?receipt_line_id=${lineA.id}` })
+    expect(res.statusCode).toBe(200)
+    const serials = JSON.parse(res.payload)
+    expect(serials).toHaveLength(2)
+    expect(serials.map((s: any) => s.serial_no)).toEqual(['INV-SN-A1', 'INV-SN-A2'])
+    expect(serials[0].warranty_end).not.toBeNull()
+    expect(serials[1].warranty_end).toBeNull()
+  })
+
   it('filter theo warehouse_id chỉ trả đúng kho đó', async () => {
     const app = await getApp()
     const [otherWarehouse] = await app

@@ -1,6 +1,9 @@
 import { Knex } from 'knex'
 import {
   CreateCategoryBody,
+  UpdateCategoryBody,
+  CreateBrandBody,
+  UpdateBrandBody,
   CreateProductBody,
   UpdateProductBody,
   ListProductQuery,
@@ -23,6 +26,26 @@ export class ProductRepository {
     return this.db('categories').insert(data).returning('*').then(([row]) => row)
   }
 
+  async updateCategory(id: string, data: UpdateCategoryBody) {
+    const [row] = await this.db('categories').where({ id }).update(data).returning('*')
+    return row
+  }
+
+  // ─── Brands ────────────────────────────────────────────────────────────
+
+  findAllBrands() {
+    return this.db('brands').where('is_active', true).orderBy('name')
+  }
+
+  createBrand(data: CreateBrandBody) {
+    return this.db('brands').insert(data).returning('*').then(([row]) => row)
+  }
+
+  async updateBrand(id: string, data: UpdateBrandBody) {
+    const [row] = await this.db('brands').where({ id }).update(data).returning('*')
+    return row
+  }
+
   // ─── Products ──────────────────────────────────────────────────────────
 
   async findAllProducts(query: ListProductQuery) {
@@ -31,7 +54,8 @@ export class ProductRepository {
 
     const base = this.db('products as p')
       .leftJoin('categories as c', 'c.id', 'p.category_id')
-      .select('p.*', 'c.name as category_name')
+      .leftJoin('brands as b', 'b.id', 'p.brand_id')
+      .select('p.*', 'c.name as category_name', 'b.name as brand_name')
       .where('p.is_active', true)
 
     if (category_id) base.where('p.category_id', category_id)
@@ -53,8 +77,9 @@ export class ProductRepository {
   async findProductById(id: string) {
     const product = await this.db('products as p')
       .leftJoin('categories as c', 'c.id', 'p.category_id')
+      .leftJoin('brands as b', 'b.id', 'p.brand_id')
       .where('p.id', id)
-      .select('p.*', 'c.name as category_name')
+      .select('p.*', 'c.name as category_name', 'c.short_code as category_short_code', 'b.name as brand_name', 'b.short_code as brand_short_code')
       .first()
 
     if (!product) return null

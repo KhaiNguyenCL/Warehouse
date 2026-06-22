@@ -49,14 +49,29 @@ export interface Warehouse {
 
 export type ProductType = 'storable' | 'consumable' | 'service' | 'bundle'
 
+export interface Category {
+  id: string
+  name: string
+  short_code?: string
+  parent_id?: string
+  is_active: boolean
+}
+
+export interface Brand {
+  id: string
+  name: string
+  short_code?: string
+  is_active: boolean
+}
+
 export interface Product {
   id: string
   code: string
   name: string
   name_en?: string
-  brand?: string
+  brand_id: string
   product_type: ProductType
-  category_id?: string
+  category_id: string
   is_active: boolean
 }
 
@@ -99,6 +114,32 @@ export interface Inventory {
   avg_cost?: number
 }
 
+// ─── PURCHASE ORDER ───────────────────────────────────────────────────────────
+
+export type PurchaseOrderStatus = 'draft' | 'confirmed' | 'cancelled'
+
+export interface PurchaseOrder {
+  id: string
+  code: string
+  company_id: string
+  contact_id?: string
+  bitrix_deal_id?: string
+  status: PurchaseOrderStatus
+  note?: string
+  created_by: string
+  created_at: string
+}
+
+export interface PurchaseOrderLine {
+  id: string
+  purchase_order_id: string
+  variant_id: string
+  quantity: number
+  unit_price: number
+  warranty_months?: number
+  line_order: number
+}
+
 // ─── RECEIPT ─────────────────────────────────────────────────────────────────
 
 export type ImportType = 'purchase' | 'return_in' | 'adjustment'
@@ -110,6 +151,7 @@ export interface Receipt {
   import_type: ImportType
   company_id?: string
   warehouse_id: string
+  po_id?: string
   status: DocumentStatus
   approved_by?: string
   approved_at?: string
@@ -123,8 +165,11 @@ export interface ReceiptLine {
   id: string
   receipt_id: string
   variant_id: string
+  po_line_id?: string
   quantity: number
   cost_price: number
+  warranty_months?: number
+  qty_remaining?: number
   line_order: number
 }
 

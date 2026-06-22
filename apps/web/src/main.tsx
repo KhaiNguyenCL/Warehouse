@@ -3,6 +3,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import App from './App'
+import './index.css'
 
 // QueryClient = "bộ nhớ cache" trung tâm của TanStack Query — mọi API call qua useQuery()
 // sau này đều lưu/lấy cache từ đây.

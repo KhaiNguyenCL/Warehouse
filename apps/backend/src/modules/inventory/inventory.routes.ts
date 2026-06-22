@@ -1,6 +1,15 @@
 import { FastifyPluginAsync } from 'fastify'
 import { InventoryService } from './inventory.service'
-import { listInventorySchema, listLowStockSchema, ListInventoryQuery, ListLowStockQuery } from './inventory.schema'
+import {
+  listInventorySchema,
+  listLowStockSchema,
+  listLotsSchema,
+  listSerialsSchema,
+  ListInventoryQuery,
+  ListLowStockQuery,
+  ListLotsQuery,
+  ListSerialsQuery,
+} from './inventory.schema'
 import { requirePermission } from '../../middleware/permission'
 
 const inventoryRoutes: FastifyPluginAsync = async (app) => {
@@ -12,6 +21,21 @@ const inventoryRoutes: FastifyPluginAsync = async (app) => {
     '/',
     { schema: listInventorySchema, preHandler: requirePermission('report.inventory') },
     async (request) => service.list(request.query),
+  )
+
+  // GET /inventory/lots — breakdown từng lô (receipt_line) của 1 SKU, giá/bảo hành/
+  // qty_remaining riêng từng lần nhập — inventory chỉ có số tổng hợp, không thấy được điều này.
+  app.get<{ Querystring: ListLotsQuery }>(
+    '/lots',
+    { schema: listLotsSchema, preHandler: requirePermission('report.inventory') },
+    async (request) => service.lots(request.query),
+  )
+
+  // GET /inventory/serials — chi tiết từng SN vật lý của 1 lô (drill-down từ /lots).
+  app.get<{ Querystring: ListSerialsQuery }>(
+    '/serials',
+    { schema: listSerialsSchema, preHandler: requirePermission('report.inventory') },
+    async (request) => service.serials(request.query),
   )
 
   app.get<{ Querystring: ListLowStockQuery }>(

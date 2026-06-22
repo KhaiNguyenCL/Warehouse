@@ -1,0 +1,28 @@
+/* antd Menu không tự ẩn title của Menu.ItemGroup khi inlineCollapsed=true (hạn chế đã
+   biết của antd, group + collapsed sidebar không tương thích sẵn) — ẩn bằng tay để
+   sidebar thu gọn chỉ còn icon, không bị vỡ layout vì chữ "Danh mục"/"Giao dịch"... */
+.ant-menu-inline-collapsed .ant-menu-item-group-title {
+  display: none;
+}
+
+/* EntityFormModal (xem component): form dài tự chia nhiều cột theo độ rộng modal thay vì
+   luôn 1 field/hàng — cột tự co dãn từ 220px, modal hẹp (mobile) tự dồn về 1 cột. Field
+   dạng textarea (note/description/specifications...) và .form-row-full (Form.List, đoạn
+   text dài...) luôn chiếm nguyên 1 hàng vì không hợp để bị bóp hẹp theo cột. */
+.entity-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0 16px;
+  align-items: start;
+}
+.entity-form-grid .ant-form-item:has(textarea),
+.entity-form-grid .form-row-full {
+  grid-column: 1 / -1;
+}
+
+/* Select bị giãn đầy chiều rộng cột grid (có thể rất rộng khi modal lớn) — giới hạn lại,
+   chỉ áp trong entity-form-grid để không ảnh hưởng Select ở chỗ khác (vd POLineItem đã tự
+   set width riêng, hẹp hơn 280px nên rule này không đổi gì ở đó). */
+.entity-form-grid .ant-select-selector {
+  max-width: 280px;
+}

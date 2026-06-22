@@ -5,21 +5,61 @@ export const createCategorySchema = {
     type: 'object',
     required: ['name'],
     properties: {
-      name:      { type: 'string', minLength: 1 },
-      parent_id: { type: 'string', format: 'uuid' },
+      name:       { type: 'string', minLength: 1 },
+      // Dùng gợi ý mã sản phẩm: product.code = category.short_code + brand.short_code.
+      short_code: { type: 'string', minLength: 1 },
+      parent_id:  { type: 'string', format: 'uuid' },
     },
   },
 }
 
+export const updateCategorySchema = {
+  body: {
+    type: 'object',
+    properties: {
+      name:       { type: 'string', minLength: 1 },
+      short_code: { type: 'string', minLength: 1 },
+      parent_id:  { type: 'string', format: 'uuid' },
+      is_active:  { type: 'boolean' },
+    },
+  },
+}
+
+export const createBrandSchema = {
+  body: {
+    type: 'object',
+    required: ['name'],
+    properties: {
+      name:       { type: 'string', minLength: 1 },
+      short_code: { type: 'string', minLength: 1 },
+    },
+  },
+}
+
+export const updateBrandSchema = {
+  body: {
+    type: 'object',
+    properties: {
+      name:       { type: 'string', minLength: 1 },
+      short_code: { type: 'string', minLength: 1 },
+      is_active:  { type: 'boolean' },
+    },
+  },
+}
+
+// category_id/brand_id BẮT BUỘC ở đây (ép user phải tạo Category + Brand trước khi tạo
+// Product — note.txt: "cần phải tạo category trước khi tạo sản phẩm"). KHÔNG ép NOT NULL
+// ở cột DB tương ứng — chỉ enforce ở schema này, để không phá các test fixture cũ đang
+// insert thẳng vào DB bỏ qua 2 field này (xem ghi chú ở 001_initial_schema.sql).
 export const createProductSchema = {
   body: {
     type: 'object',
-    required: ['code', 'name', 'product_type'],
+    required: ['code', 'name', 'product_type', 'category_id', 'brand_id'],
     properties: {
       code:         { type: 'string', minLength: 1 },
       name:         { type: 'string', minLength: 1 },
       name_en:      { type: 'string' },
-      brand:        { type: 'string' },
+      brand_id:     { type: 'string', format: 'uuid' },
       model_number: { type: 'string' },
       category_id:  { type: 'string', format: 'uuid' },
       product_type: { type: 'string', enum: PRODUCT_TYPES },
@@ -36,7 +76,7 @@ export const updateProductSchema = {
       code:         { type: 'string', minLength: 1 },
       name:         { type: 'string', minLength: 1 },
       name_en:      { type: 'string' },
-      brand:        { type: 'string' },
+      brand_id:     { type: 'string', format: 'uuid' },
       model_number: { type: 'string' },
       category_id:  { type: 'string', format: 'uuid' },
       product_type: { type: 'string', enum: PRODUCT_TYPES },
@@ -128,16 +168,30 @@ export type ProductType = (typeof PRODUCT_TYPES)[number]
 
 export interface CreateCategoryBody {
   name: string
+  short_code?: string
   parent_id?: string
+}
+
+export interface UpdateCategoryBody extends Partial<CreateCategoryBody> {
+  is_active?: boolean
+}
+
+export interface CreateBrandBody {
+  name: string
+  short_code?: string
+}
+
+export interface UpdateBrandBody extends Partial<CreateBrandBody> {
+  is_active?: boolean
 }
 
 export interface CreateProductBody {
   code: string
   name: string
   name_en?: string
-  brand?: string
+  brand_id: string
   model_number?: string
-  category_id?: string
+  category_id: string
   product_type: ProductType
   description?: string
   image_url?: string

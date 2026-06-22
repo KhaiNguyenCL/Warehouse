@@ -110,10 +110,23 @@ CREATE TABLE warehouses (
 -- =============================================================
 
 CREATE TABLE categories (
-    id        UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
-    name      TEXT    NOT NULL,
-    parent_id UUID    REFERENCES categories(id),
-    is_active BOOLEAN NOT NULL DEFAULT true
+    id         UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
+    name       TEXT    NOT NULL,
+    -- Dùng để gợi ý mã sản phẩm: product.code = category.short_code + brand.short_code
+    -- (product.schema.ts không ép NOT NULL ở DB — chỉ bắt buộc lúc tạo qua API/form,
+    -- để không phá fixture test cũ đang insert trực tiếp DB bỏ qua field này).
+    short_code TEXT    UNIQUE,
+    parent_id  UUID    REFERENCES categories(id),
+    is_active  BOOLEAN NOT NULL DEFAULT true
+);
+
+-- Hãng sản xuất — tách bảng riêng (trước đây products.brand là text tự do, không quản lý
+-- được nhất quán). short_code dùng chung với categories.short_code để gợi ý product.code.
+CREATE TABLE brands (
+    id         UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
+    name       TEXT    NOT NULL,
+    short_code TEXT    UNIQUE,
+    is_active  BOOLEAN NOT NULL DEFAULT true
 );
 
 CREATE TABLE products (
@@ -121,7 +134,7 @@ CREATE TABLE products (
     code         TEXT        NOT NULL UNIQUE,
     name         TEXT        NOT NULL,
     name_en      TEXT,
-    brand        TEXT,
+    brand_id     UUID        REFERENCES brands(id),
     model_number TEXT,
     category_id  UUID        REFERENCES categories(id),
     product_type TEXT        NOT NULL CHECK (product_type IN ('storable', 'consumable', 'service', 'bundle')),
@@ -168,6 +181,47 @@ CREATE TABLE variant_suppliers (
     lead_time_days INTEGER,
     is_preferred   BOOLEAN       NOT NULL DEFAULT false
 );
+
+-- =============================================================
+-- PURCHASE ORDERS
+-- =============================================================
+-- Chứng từ CAM KẾT mua hàng, KHÔNG động inventory trực tiếp — giống vai trò của
+-- quotations với delivery_orders. Receipt (import_type='purchase') tham chiếu ngược
+-- lại po_id/po_line_id để biết đã nhận bao nhiêu trên tổng đã đặt (remaining_qty
+-- tính động, không lưu cột riêng — xem purchaseorder.repository.ts::findLineProgress).
+
+CREATE TABLE purchase_orders (
+    id             UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    code           TEXT        NOT NULL,
+    company_id     UUID        NOT NULL REFERENCES companies(id),
+    contact_id     UUID        REFERENCES contacts(id),
+    bitrix_deal_id TEXT,
+    status         TEXT        NOT NULL DEFAULT 'draft'
+                      CHECK (status IN ('draft', 'confirmed', 'cancelled')),
+    note           TEXT,
+    created_by     UUID        NOT NULL REFERENCES users(id),
+    created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_po_company_id ON purchase_orders(company_id);
+CREATE INDEX idx_po_status     ON purchase_orders(status);
+
+-- Mỗi dòng = 1 SKU + số lượng + giá/bảo hành THOẢ THUẬN cho lần mua này. unit_price/
+-- warranty_months copy từ variants.cost_price/warranty_months lúc tạo (giá trị gợi ý
+-- mặc định) nhưng lưu độc lập — sửa variants sau đó KHÔNG ảnh hưởng dòng PO đã tạo.
+CREATE TABLE purchase_order_lines (
+    id                UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
+    purchase_order_id UUID          NOT NULL REFERENCES purchase_orders(id) ON DELETE CASCADE,
+    variant_id        UUID          NOT NULL REFERENCES variants(id),
+    quantity          INTEGER       NOT NULL CHECK (quantity > 0),
+    unit_price        NUMERIC(15,2) NOT NULL,
+    warranty_months   INTEGER,
+    line_order        INTEGER       NOT NULL DEFAULT 0,
+    note              TEXT
+);
+
+CREATE INDEX idx_po_lines_purchase_order_id ON purchase_order_lines(purchase_order_id);
 
 -- =============================================================
 -- QUOTATIONS
@@ -244,6 +298,9 @@ CREATE TABLE receipts (
     company_id        UUID        REFERENCES companies(id),
     contact_id        UUID        REFERENCES contacts(id),
     warehouse_id      UUID        NOT NULL REFERENCES warehouses(id),
+    -- PO gốc (tuỳ chọn — không phải mọi receipt purchase đều xuất phát từ 1 PO chính
+    -- thức). PO phải ở status='confirmed' mới được tham chiếu (receipt.service.ts validate).
+    po_id             UUID        REFERENCES purchase_orders(id),
     ref_document_type TEXT,
     ref_document_id   UUID,
     status            TEXT        NOT NULL DEFAULT 'draft'
@@ -261,6 +318,9 @@ CREATE TABLE receipt_lines (
     id            UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
     receipt_id    UUID          NOT NULL REFERENCES receipts(id) ON DELETE CASCADE,
     variant_id    UUID          NOT NULL REFERENCES variants(id),
+    -- Dòng PO gốc đang được nhận 1 phần/toàn bộ qua receipt_line này (tuỳ chọn) — dùng
+    -- để tính received_qty/pending_qty/remaining_qty của purchase_order_lines.
+    po_line_id    UUID          REFERENCES purchase_order_lines(id),
     quantity      INTEGER       NOT NULL CHECK (quantity > 0),
     -- "Lô nhập" — set = quantity lúc Receipt Complete (trước đó NULL, vì hàng chưa thật sự
     -- vào kho). Delivery xuất theo FIFO trừ dần field này (mặc định, CLAUDE.md mục 19) —
@@ -268,14 +328,19 @@ CREATE TABLE receipt_lines (
     -- riêng (trùng receipt_id/variant_id/cost_price, chỉ thêm đúng 1 field qty_remaining).
     -- Định danh lô dùng luôn receipts.code + receipts.completed_at + company_id, không cần
     -- thêm "batch_name" riêng.
-    qty_remaining INTEGER,
-    cost_price    NUMERIC(15,2) NOT NULL,
-    line_order    INTEGER       NOT NULL DEFAULT 0,
-    note          TEXT,
+    qty_remaining   INTEGER,
+    cost_price      NUMERIC(15,2) NOT NULL,
+    -- Bảo hành THỰC TẾ của lô này — copy từ po_line.warranty_months lúc tạo Receipt
+    -- (giống cost_price), có thể sửa độc lập nếu hàng về khác thoả thuận PO. Dùng tính
+    -- serial_numbers.warranty_end lúc Complete (= completed_at + warranty_months).
+    warranty_months INTEGER,
+    line_order      INTEGER       NOT NULL DEFAULT 0,
+    note            TEXT,
     CHECK (qty_remaining IS NULL OR (qty_remaining >= 0 AND qty_remaining <= quantity))
 );
 
-CREATE INDEX idx_receipt_lines_receipt_id ON receipt_lines(receipt_id);
+CREATE INDEX idx_receipt_lines_receipt_id  ON receipt_lines(receipt_id);
+CREATE INDEX idx_receipt_lines_po_line_id  ON receipt_lines(po_line_id);
 
 -- =============================================================
 -- DELIVERY ORDERS
@@ -619,7 +684,11 @@ INSERT INTO permissions (key, description, "group") VALUES
     ('settings.roles',     'Quản lý role',                 'settings'),
     ('settings.users',     'Quản lý users',                'settings'),
     ('settings.warehouse', 'Quản lý kho',                  'settings'),
-    ('settings.products',  'Quản lý sản phẩm',             'settings');
+    ('settings.products',  'Quản lý sản phẩm',             'settings'),
+    ('purchase_order.create',  'Tạo đơn mua hàng (PO)',      'purchase_order'),
+    ('purchase_order.edit',    'Sửa đơn mua hàng (PO)',      'purchase_order'),
+    ('purchase_order.confirm', 'Xác nhận đơn mua hàng (PO)', 'purchase_order'),
+    ('purchase_order.view',    'Xem đơn mua hàng (PO)',      'purchase_order');
 
 -- =============================================================
 -- SEED: Roles mặc định (is_system = true)
@@ -649,6 +718,7 @@ WHERE r.name = 'Manager'
     'delivery.approve', 'delivery.complete', 'delivery.view',
     'transfer.approve', 'transfer.complete', 'transfer.view',
     'stocktake.view',
+    'purchase_order.confirm', 'purchase_order.view',
     'report.inventory', 'report.revenue', 'report.view'
   );
 
@@ -662,6 +732,7 @@ WHERE r.name = 'Warehouse'
     'delivery.create', 'delivery.view',
     'transfer.create', 'transfer.view',
     'stocktake.create', 'stocktake.complete', 'stocktake.view',
+    'purchase_order.create', 'purchase_order.edit', 'purchase_order.confirm', 'purchase_order.view',
     'report.inventory'
   );
 
@@ -686,6 +757,7 @@ WHERE r.name = 'Accounting'
     'delivery.view',
     'transfer.view',
     'stocktake.view',
+    'purchase_order.view',
     'report.inventory', 'report.revenue', 'report.view'
   );
 

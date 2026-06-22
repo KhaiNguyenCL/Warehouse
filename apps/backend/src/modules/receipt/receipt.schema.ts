@@ -14,6 +14,9 @@ export const createReceiptSchema = {
       company_id:        { type: 'string', format: 'uuid' },   // format: 'uuid' tự validate đúng dạng UUID
       contact_id:        { type: 'string', format: 'uuid' },
       warehouse_id:      { type: 'string', format: 'uuid' },
+      // PO gốc (tuỳ chọn) — phải ở status='confirmed' (receipt.service.ts validate).
+      // Không phải mọi receipt purchase đều xuất phát từ 1 PO chính thức.
+      po_id:             { type: 'string', format: 'uuid' },
       ref_document_type: { type: 'string' },
       ref_document_id:   { type: 'string', format: 'uuid' },
       note:              { type: 'string' },
@@ -25,11 +28,16 @@ export const createReceiptSchema = {
           type: 'object',
           required: ['variant_id', 'quantity', 'cost_price'],
           properties: {
-            variant_id: { type: 'string', format: 'uuid' },
-            quantity:   { type: 'integer', minimum: 1 },     // không cho nhập số lượng <= 0
-            cost_price: { type: 'number', minimum: 0 },
-            line_order: { type: 'integer' },
-            note:       { type: 'string' },
+            variant_id:      { type: 'string', format: 'uuid' },
+            quantity:        { type: 'integer', minimum: 1 },     // không cho nhập số lượng <= 0
+            cost_price:      { type: 'number', minimum: 0 },
+            // Dòng PO gốc đang được nhận 1 phần/toàn bộ qua dòng này (tuỳ chọn).
+            po_line_id:      { type: 'string', format: 'uuid' },
+            // Bảo hành thực tế của lô (tháng) — dùng tính warranty_end cho serial lúc
+            // Complete. Tuỳ chọn, độc lập với warranty_months của po_line nếu có.
+            warranty_months: { type: 'integer', minimum: 0 },
+            line_order:      { type: 'integer' },
+            note:            { type: 'string' },
           },
         },
       },
@@ -89,6 +97,7 @@ export interface CreateReceiptBody {
   company_id?: string
   contact_id?: string
   warehouse_id: string
+  po_id?: string
   ref_document_type?: string
   ref_document_id?: string
   note?: string
@@ -96,6 +105,8 @@ export interface CreateReceiptBody {
     variant_id: string
     quantity: number
     cost_price: number
+    po_line_id?: string
+    warranty_months?: number
     line_order?: number
     note?: string
   }>

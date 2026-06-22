@@ -7,6 +7,8 @@
     "lib": ["ES2020", "DOM", "DOM.Iterable"],
     "jsx": "react-jsx",
     "noEmit": true,
+    "declaration": false,
+    "declarationMap": false,
     "paths": {
       "@wms/types": ["../../packages/types/src/index.ts"],
       "@wms/utils": ["../../packages/utils/src/index.ts"]

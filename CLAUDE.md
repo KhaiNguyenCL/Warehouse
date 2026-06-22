@@ -80,6 +80,7 @@ backend/src/
 │   ├── warehouse/      ┐
 │   ├── inventory/      │ Core Layer — hoạt động độc lập
 │   ├── receipt/        │
+│   ├── purchaseorder/  │ (Receipt có thể link tới PO, không bắt buộc)
 │   ├── delivery/       │
 │   ├── transfer/       ┘
 │   ├── quotation/      ┐
@@ -127,7 +128,34 @@ Mỗi module tự chứa: `routes.ts` · `service.ts` · `repository.ts` · `sch
 
 ---
 
-## 5. Item Status (Serial Number)
+## 5. Category / Brand / Quy tắc đặt tên sản phẩm
+
+**Thứ tự tạo bắt buộc:** Category và Brand phải tồn tại **trước khi** tạo Product — vì cả hai dùng để gợi ý mã sản phẩm.
+
+| Bảng | Field liên quan | Ghi chú |
+|---|---|---|
+| `categories` | `short_code` (UNIQUE, nullable ở DB) | Viết tắt category, VD: `SW` (Switch) |
+| `brands` | `short_code` (UNIQUE, nullable ở DB) | Viết tắt hãng, VD: `CSC` (Cisco) |
+| `products` | `category_id`, `brand_id` (FK, nullable ở DB, **bắt buộc ở API schema**) | Xem nguyên tắc validate ở mục 19 |
+
+**Quy tắc đặt tên (gợi ý ở client, KHÔNG enforce format ở backend — user luôn sửa được):**
+
+```
+Product.code = Category.short_code + "-" + Brand.short_code + "-" + [mã dòng sản phẩm]
+Variant.sku  = Product.code + "-" + [field đặc thù]
+```
+
+- **"Mã dòng sản phẩm"** (free-text, optional, nhập ở ProductsPage khi tạo Product): phân biệt
+  các dòng sản phẩm khác nhau của cùng 1 Category+Brand — VD: Cisco có nhiều dòng switch
+  SG110/SG350, chỉ Category+Brand sẽ bị trùng mã.
+- **"Field đặc thù"** (free-text, optional, nhập ở ProductDetailPage khi tạo Variant): phân
+  biệt các SKU khác nhau của cùng 1 Product — VD: dung lượng RAM 8GB/16GB.
+- Cả 2 tầng đều theo cùng pattern: `mã tầng trên + phần tự nhập để phân biệt`. Cả `code` và
+  `sku` luôn là field text bình thường, có thể sửa tay sau khi gợi ý tự động điền.
+
+---
+
+## 6. Item Status (Serial Number)
 
 Chỉ áp dụng cho **storable**. Vị trí xác định qua `warehouse_id`.
 
@@ -138,9 +166,27 @@ Chỉ áp dụng cho **storable**. Vị trí xác định qua `warehouse_id`.
 | disposed | null | Đã huỷ |
 | (hard delete) | — | Khi return_out — xoá khỏi database |
 
+`serial_numbers.warranty_end` = thời điểm Receipt Complete + `receipt_lines.warranty_months`
+của đúng lô đó (không phải warranty_months mặc định của variant — xem mục 19).
+
 ---
 
-## 6. Trạng thái các đối tượng
+## 7. Trạng thái các đối tượng
+
+### Purchase Order (Đơn đặt hàng NCC)
+```
+Draft → Confirmed
+     → Cancelled
+```
+- **3 trạng thái** — không có Expired/Completed (PO không tự hết hạn; "hoàn thành" được suy ra
+  từ `remaining_qty = 0` của các dòng, không phải 1 status riêng)
+- Confirmed → Draft (`unconfirm`) chỉ cho phép khi chưa có Receipt nào tham chiếu tới (xem
+  `assertNoReceiptActivity` ở mục 19)
+- Cancel: chỉ người tạo PO hoặc người có quyền `purchase_order.confirm`; nếu PO đang Confirmed
+  thì áp dụng cùng điều kiện chặn như unconfirm
+- Tiến độ theo dõi qua: `received_qty` (Receipt Completed), `pending_qty` (Receipt
+  Draft/Pending Approval/Approved), `remaining_qty` (computed) — đối xứng với
+  exported_qty/pending_qty/remaining_qty của Quotation
 
 ### Quotation (Báo giá)
 ```
@@ -163,6 +209,11 @@ Draft → Pending Approval → Approved → Completed
 Draft → Pending Approval → Approved → Completed
                         → Cancelled
 ```
+- `receipts.po_id` / `receipt_lines.po_line_id` (cả hai nullable) — liên kết **tuỳ chọn** tới
+  Purchase Order. Không phải mọi receipt purchase đều xuất phát từ 1 PO chính thức.
+- Khi tạo Receipt có `po_id`: PO phải đang Confirmed, từng `po_line_id` phải thuộc đúng PO đó,
+  variant phải khớp, và quantity không vượt remaining_qty của po_line — validate trong cùng
+  transaction với forUpdate lock (xem mục 19).
 
 ### Transfer Order (Phiếu chuyển kho)
 ```
@@ -180,7 +231,7 @@ In Progress → Completed
 
 ---
 
-## 7. Tồn kho & Reserved
+## 8. Tồn kho & Reserved
 
 ```
 qty_available = qty_on_hand - qty_reserved
@@ -200,13 +251,21 @@ qty_available = qty_on_hand - qty_reserved
 - Service luôn `false`, disabled
 - User có thể bỏ tick nếu không cần giữ chỗ
 
+**Lô hàng (receipt_lines = lô):**
+- Không có bảng `stock_batches` riêng — **mỗi `receipt_line` chính là 1 lô nhập** (1 SKU
+  trong 1 lần nhập), mang giá vốn (`cost_price`) và bảo hành (`warranty_months`) độc lập
+  theo lô. `qty_remaining` được set = `quantity` lúc Receipt Complete, rồi bị FIFO consumer
+  của Delivery trừ dần.
+- FIFO order chuẩn (phải nhất quán ở MỌI nơi đọc theo thứ tự lô — xem mục 19):
+  `receipts.completed_at ASC, receipt_lines.line_order ASC`.
+
 ---
 
-## 8. Các loại nhập kho (import_type)
+## 9. Các loại nhập kho (import_type)
 
 | Type | Mô tả | Document gốc | NCC/KH |
 |---|---|---|---|
-| purchase | Mua hàng mới từ NCC | Nhập thủ công | NCC bắt buộc |
+| purchase | Mua hàng mới từ NCC | Nhập thủ công, có thể link Purchase Order (`po_id`) | NCC bắt buộc |
 | return_in | Khách trả lại (SN đã sold) | Quotation gốc | KH bắt buộc |
 | adjustment | Điều chỉnh tồn kho thừa | Stocktake Result | Không cần |
 
@@ -214,7 +273,7 @@ qty_available = qty_on_hand - qty_reserved
 
 ---
 
-## 9. Các loại xuất kho (export_type)
+## 10. Các loại xuất kho (export_type)
 
 | Type | Mô tả | NCC/KH | storable SN | consumable |
 |---|---|---|---|---|
@@ -228,7 +287,7 @@ qty_available = qty_on_hand - qty_reserved
 
 ---
 
-## 10. Các loại chuyển kho (transfer_type)
+## 11. Các loại chuyển kho (transfer_type)
 
 | Type | Mô tả | Kho nguồn | Kho đích |
 |---|---|---|---|
@@ -240,7 +299,7 @@ qty_available = qty_on_hand - qty_reserved
 
 ---
 
-## 11. Approve workflow
+## 12. Approve workflow
 
 - **1 cấp duyệt** — Manager hoặc Admin
 - Áp dụng cho: Receipt, Delivery Order, Transfer Order
@@ -249,7 +308,7 @@ qty_available = qty_on_hand - qty_reserved
 
 ---
 
-## 12. Companies (KH + NCC)
+## 13. Companies (KH + NCC)
 
 - **1 bảng chung** `companies` thay vì tách customers/suppliers
 - Phân loại qua `company_types`: customer / supplier / cả hai
@@ -265,7 +324,7 @@ WHERE ct.type = 'supplier'
 
 ---
 
-## 13. Tích hợp Bitrix CRM
+## 14. Tích hợp Bitrix CRM
 
 **Mục đích:** Fetch thông tin từ Bitrix (chỉ đọc, không ghi ngược lại)
 
@@ -285,7 +344,7 @@ GET /rest/1/{api_key}/crm.contact.list
 
 ---
 
-## 14. Template Module (Xuất báo giá)
+## 15. Template Module (Xuất báo giá)
 
 **Công nghệ:** Carbone.io
 
@@ -302,7 +361,7 @@ GET /rest/1/{api_key}/crm.contact.list
 
 ---
 
-## 15. RBAC (Phân quyền)
+## 16. RBAC (Phân quyền)
 
 - **Tạo/sửa/xoá role** tùy ý
 - **1 user chỉ có 1 role**
@@ -320,6 +379,7 @@ GET /rest/1/{api_key}/crm.contact.list
 
 **Danh sách permission keys:**
 ```
+purchase_order.create / purchase_order.edit / purchase_order.confirm / purchase_order.view
 quotation.create / quotation.edit / quotation.confirm / quotation.view
 receipt.create / receipt.approve / receipt.complete / receipt.view
 delivery.create / delivery.approve / delivery.complete / delivery.view
@@ -329,20 +389,24 @@ report.inventory / report.revenue / report.view
 settings.roles / settings.users / settings.warehouse / settings.products
 ```
 
+PO permission seed mặc định: Manager (confirm + view), Warehouse (create + edit + confirm +
+view), Accounting (view).
+
 ---
 
-## 16. Database Schema
+## 17. Database Schema
 
-### Danh sách bảng (34 bảng)
+### Danh sách bảng (37 bảng)
 
 ```
 Users & RBAC          roles, permissions, role_permissions, users
 Companies & Contacts  companies, company_types, contacts
 Warehouses            warehouses
-Product Catalog       categories, products, variants,
+Product Catalog       categories, brands, products, variants,
                       bundle_items, variant_suppliers
-Inventory             serial_numbers, stock_batches, inventory,
+Inventory             serial_numbers, inventory,
                       reserved_items, stock_movements
+Purchase Orders       purchase_orders, purchase_order_lines
 Receipts              receipts, receipt_lines
 Delivery Orders       delivery_orders, delivery_order_lines
 Transfer Orders       transfer_orders, transfer_order_lines
@@ -354,6 +418,8 @@ Bitrix Integration     bitrix_field_mappings
 Custom Fields         custom_fields, field_values
 Settings              import_types, export_types
 ```
+
+> Không có bảng `stock_batches` — `receipt_lines` đóng luôn vai trò "lô hàng" (xem mục 8).
 
 ### Business Rules quan trọng
 
@@ -368,18 +434,28 @@ section.subtotal = SUM(line_items.line_total + line_items.vat_amount)
 quotation.grand_total = subtotal + vat_total - discount
 quotation.expired_at = created_at + valid_days
 
-// Tiến độ xuất hàng
+// Tiến độ xuất hàng (Quotation)
 exported_qty = SUM(DO Completed qty)
 pending_qty  = SUM(DO Draft/Approved qty)
 remaining_qty = total_qty - exported_qty - pending_qty
 // remaining_qty = 0 → khoá Quotation
 
-// Stock batch
-stock_batch.qty_remaining = qty_total - SUM(xuất từ batch này)
+// Tiến độ nhận hàng (Purchase Order) — đối xứng với Quotation, group theo po_line_id
+received_qty  = SUM(receipt_line.quantity) WHERE receipt.status = 'completed'
+pending_qty   = SUM(receipt_line.quantity) WHERE receipt.status IN (draft, pending_approval, approved)
+remaining_qty = po_line.quantity - received_qty - pending_qty
+
+// Lô hàng (receipt_line CHÍNH LÀ lô — không có bảng stock_batches riêng)
+receipt_line.qty_remaining = quantity - SUM(xuất từ lô này) // set = quantity lúc Receipt Complete
 
 // Inventory khi Receipt Completed:
 inventory.qty_on_hand += receipt_line.quantity
 inventory.avg_cost = (old_qty * old_avg + new_qty * new_cost) / (old_qty + new_qty)
+
+// Bảo hành theo lô (storable), tính lúc Receipt Complete:
+serial_numbers.warranty_end = completed_at + (receipt_line.warranty_months * interval '1 month')
+// warranty_months = 0 là giá trị hợp lệ (tường minh "không bảo hành") — PHẢI so sánh
+// `!= null`, không dùng truthy check, để không bị nhầm 0 thành "chưa khai báo"
 
 // Inventory khi DO Completed:
 inventory.qty_on_hand -= delivery_line.quantity
@@ -394,7 +470,7 @@ inventory.qty_reserved -= quotation_line.quantity
 
 ---
 
-## 17. Cấu trúc thư mục
+## 18. Cấu trúc thư mục
 
 ```
 / (pnpm monorepo)
@@ -406,6 +482,7 @@ inventory.qty_reserved -= quotation_line.quantity
 │   │   │   │   ├── warehouse/
 │   │   │   │   ├── inventory/
 │   │   │   │   ├── receipt/
+│   │   │   │   ├── purchaseorder/
 │   │   │   │   ├── delivery/
 │   │   │   │   ├── transfer/
 │   │   │   │   ├── stocktake/
@@ -459,7 +536,7 @@ inventory.qty_reserved -= quotation_line.quantity
 
 ---
 
-## 18. Lộ trình triển khai
+## 19. Lộ trình triển khai
 
 ### Phase 1 — Core kho
 - Danh mục: Product, Variant, Serial Number, Warehouse
@@ -472,6 +549,7 @@ inventory.qty_reserved -= quotation_line.quantity
 
 ### Phase 2 — Nghiệp vụ
 - Quotation (báo giá) + xuất PDF/Excel
+- Purchase Order (PO) — gắn Receipt qua `po_id`/`po_line_id`, liên kết tuỳ chọn
 - Bundle
 - Tích hợp Bitrix CRM
 - Companies/Contacts
@@ -487,7 +565,7 @@ inventory.qty_reserved -= quotation_line.quantity
 
 ---
 
-## 19. Lưu ý khi code
+## 20. Lưu ý khi code
 
 **Business logic:**
 - Dùng UUID cho tất cả primary key
@@ -498,11 +576,30 @@ inventory.qty_reserved -= quotation_line.quantity
 - **warranty_in / demo_in → Transfer Order**, không phải Receipt
 - **return_out → hard delete SN** khỏi database
 - Bundle → expand sản phẩm con khi tạo reserved_items và DO lines
-- FIFO/LIFO cấu hình trong Settings, mặc định FIFO
+- FIFO/LIFO cấu hình trong Settings, mặc định FIFO — thứ tự chuẩn
+  `receipts.completed_at ASC, receipt_lines.line_order ASC`; MỌI nơi đọc theo thứ tự lô
+  (FIFO consumer của Delivery, breakdown lô ở Inventory,...) phải dùng đúng 2 cột này, chỉ
+  `completed_at` không đủ làm tie-breaker vì nhiều `receipt_line` của cùng 1 receipt share
+  đúng 1 `completed_at`.
 - Approve: check permission `{object}.approve` trước khi cho duyệt
-- `remaining_qty` là computed field — tính từ DO, không lưu trong database
+- `remaining_qty` là computed field — tính từ DO (Quotation) hoặc Receipt (Purchase Order),
+  không lưu trong database
 - Stocktake snapshot: lưu `qty_system` vào `stocktake_lines` tại thời điểm tạo
 - Company fetch từ Bitrix: lưu `bitrix_company_id` để sync
+- Purchase Order module mirror Quotation: state machine draft/confirmed/cancelled,
+  `findLineProgress()` tính received_qty/pending_qty/remaining_qty per line (mục 17). Mọi
+  state-transition (confirm/unconfirm/cancel) phải `forUpdate()` lock đúng dòng
+  `purchase_orders` TRƯỚC KHI đọc lại progress của các dòng — nếu đọc progress (qua
+  `findById()`/`findLineProgress()`) trước khi mở transaction hoặc trước khi lock thì sẽ có
+  race: 1 request unconfirm/cancel và 1 request receipt.create() cùng đụng PO đó có thể đọc
+  progress cũ rồi cùng pass validate. `receipt.service.ts::validatePurchaseOrder()` cũng phải
+  `forUpdate()` lock đúng cùng dòng `purchase_orders`/`purchase_order_lines` đó, trong cùng
+  transaction với insert receipt_lines, để 2 cơ chế khoá nhau và serialize đúng.
+- Category/Brand bắt buộc khi tạo Product: enforce ở **API JSON schema** (`required` trong
+  `createProductSchema`), KHÔNG enforce bằng `NOT NULL` ở DB — vì nhiều test fixture insert
+  trực tiếp vào bảng `products` bỏ qua validate API. Đây là pattern chuẩn cho mọi business
+  rule mới: ưu tiên enforce ở schema tầng API, chỉ thêm constraint DB khi chắc chắn không có
+  code nào insert trực tiếp bỏ qua API.
 
 **Kỹ thuật (stack đã chốt):**
 - Mỗi module Fastify export 1 plugin: `fastify.register(receiptModule, { prefix: '/receipts' })`

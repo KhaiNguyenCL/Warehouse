@@ -2,6 +2,9 @@ import { Knex } from 'knex'
 import { ProductRepository } from './product.repository'
 import {
   CreateCategoryBody,
+  UpdateCategoryBody,
+  CreateBrandBody,
+  UpdateBrandBody,
   CreateProductBody,
   UpdateProductBody,
   ListProductQuery,
@@ -20,7 +23,7 @@ function mapDbError(err: any): never {
     throw { statusCode: 409, message: 'Mã hoặc SKU đã tồn tại' }
   }
   if (err.code === PG_FOREIGN_KEY_VIOLATION) {
-    throw { statusCode: 400, message: 'Tham chiếu không hợp lệ (category/product/company không tồn tại)' }
+    throw { statusCode: 400, message: 'Tham chiếu không hợp lệ (category/brand/product/company không tồn tại)' }
   }
   throw err
 }
@@ -41,6 +44,36 @@ export class ProductService {
   async createCategory(data: CreateCategoryBody) {
     try {
       return await this.repo.createCategory(data)
+    } catch (err) {
+      mapDbError(err)
+    }
+  }
+
+  async updateCategory(id: string, data: UpdateCategoryBody) {
+    try {
+      return await this.repo.updateCategory(id, data)
+    } catch (err) {
+      mapDbError(err)
+    }
+  }
+
+  // ─── Brands ────────────────────────────────────────────────────────────
+
+  listBrands() {
+    return this.repo.findAllBrands()
+  }
+
+  async createBrand(data: CreateBrandBody) {
+    try {
+      return await this.repo.createBrand(data)
+    } catch (err) {
+      mapDbError(err)
+    }
+  }
+
+  async updateBrand(id: string, data: UpdateBrandBody) {
+    try {
+      return await this.repo.updateBrand(id, data)
     } catch (err) {
       mapDbError(err)
     }

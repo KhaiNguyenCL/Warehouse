@@ -20,6 +20,7 @@ import receiptRoutes from './modules/receipt/receipt.routes'
 import deliveryRoutes from './modules/delivery/delivery.routes'
 import transferRoutes from './modules/transfer/transfer.routes'
 import quotationRoutes from './modules/quotation/quotation.routes'
+import purchaseOrderRoutes from './modules/purchaseorder/purchaseorder.routes'
 import companyRoutes from './modules/company/company.routes'
 import stocktakeRoutes from './modules/stocktake/stocktake.routes'
 import templateRoutes from './modules/template/template.routes'
@@ -71,6 +72,7 @@ export async function buildApp() {
   await app.register(deliveryRoutes,  { prefix: '/api/v1/deliveries' })
   await app.register(transferRoutes,  { prefix: '/api/v1/transfers' })
   await app.register(quotationRoutes, { prefix: '/api/v1/quotations' })
+  await app.register(purchaseOrderRoutes, { prefix: '/api/v1/purchase-orders' })
   await app.register(companyRoutes,   { prefix: '/api/v1/companies' })
   await app.register(stocktakeRoutes, { prefix: '/api/v1/stocktakes' })
   await app.register(templateRoutes,  { prefix: '/api/v1/templates' })

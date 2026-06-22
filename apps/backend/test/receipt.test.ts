@@ -88,6 +88,90 @@ describe('Receipt', () => {
     expect(createdSerials.map((s) => s.serial_no)).toEqual(serials.slice().sort())
   })
 
+  it('warranty_months trên receipt_line → tính đúng serial_numbers.warranty_end = completed_at + N tháng', async () => {
+    const app = await getApp()
+    const createRes = await authedInject({
+      method: 'POST',
+      url: '/api/v1/receipts',
+      payload: {
+        code: 'PN-WARRANTY-001',
+        import_type: 'purchase',
+        warehouse_id: warehouseId,
+        lines: [{ variant_id: variantId, quantity: 2, cost_price: 100000, warranty_months: 24 }],
+      },
+    })
+    const receipt = JSON.parse(createRes.payload)
+    const lineId = receipt.lines[0].id
+    expect(receipt.lines[0].warranty_months).toBe(24)
+
+    await authedInject({ method: 'PATCH', url: `/api/v1/receipts/${receipt.id}/submit` })
+    await authedInject({ method: 'PATCH', url: `/api/v1/receipts/${receipt.id}/approve` })
+    const serials = genSerials('SN-WTY', 2)
+    await authedInject({
+      method: 'PATCH',
+      url: `/api/v1/receipts/${receipt.id}/complete`,
+      payload: { lines: [{ line_id: lineId, serials }] },
+    })
+
+    const createdSerials = await app.db('serial_numbers').whereIn('serial_no', serials)
+    expect(createdSerials).toHaveLength(2)
+    for (const s of createdSerials) {
+      expect(s.warranty_end).not.toBeNull()
+      const expected = new Date()
+      expected.setMonth(expected.getMonth() + 24)
+      const diffDays = Math.abs((new Date(s.warranty_end).getTime() - expected.getTime()) / 86400000)
+      expect(diffDays).toBeLessThan(2) // sai lệch nhỏ do thời điểm chạy test khác completed_at vài ms
+    }
+  })
+
+  it('không có warranty_months → serial_numbers.warranty_end vẫn NULL (không lỗi)', async () => {
+    const app = await getApp()
+    const createRes = await authedInject({
+      method: 'POST',
+      url: '/api/v1/receipts',
+      payload: {
+        code: 'PN-NO-WARRANTY-001',
+        import_type: 'purchase',
+        warehouse_id: warehouseId,
+        lines: [{ variant_id: variantId, quantity: 1, cost_price: 100000 }],
+      },
+    })
+    const receipt = JSON.parse(createRes.payload)
+    const lineId = receipt.lines[0].id
+    await authedInject({ method: 'PATCH', url: `/api/v1/receipts/${receipt.id}/submit` })
+    await authedInject({ method: 'PATCH', url: `/api/v1/receipts/${receipt.id}/approve` })
+    const serials = genSerials('SN-NOWTY', 1)
+    await authedInject({
+      method: 'PATCH',
+      url: `/api/v1/receipts/${receipt.id}/complete`,
+      payload: { lines: [{ line_id: lineId, serials }] },
+    })
+
+    const created = await app.db('serial_numbers').where({ serial_no: serials[0] }).first()
+    expect(created.warranty_end).toBeNull()
+  })
+
+  // Trước đây findAll() thiếu .clearSelect() trước .count() — Postgres lỗi 500 "column
+  // must appear in GROUP BY" mỗi khi gọi GET /receipts (phát hiện qua browser smoke test,
+  // không phải unit test, vì trước đó CHƯA có test nào gọi list — chỉ test :id).
+  it('GET / (list) trả về 200 kèm total, không lỗi GROUP BY khi có nhiều receipt', async () => {
+    await authedInject({
+      method: 'POST',
+      url: '/api/v1/receipts',
+      payload: {
+        code: 'PN-LIST-001',
+        import_type: 'purchase',
+        warehouse_id: warehouseId,
+        lines: [{ variant_id: variantId, quantity: 1, cost_price: 10000 }],
+      },
+    })
+    const res = await authedInject({ method: 'GET', url: '/api/v1/receipts' })
+    expect(res.statusCode).toBe(200)
+    const body = JSON.parse(res.payload)
+    expect(body.total).toBeGreaterThan(0)
+    expect(Array.isArray(body.data)).toBe(true)
+  })
+
   it('thiếu serial cho dòng storable → 400, không tạo serial_numbers nào', async () => {
     const app = await getApp()
     const createRes = await authedInject({
@@ -559,6 +643,157 @@ describe('Receipt', () => {
 
       const createdSerials = await app.db('serial_numbers').whereIn('serial_no', serials)
       expect(createdSerials.every((s) => s.receipt_line_id === lineId)).toBe(true)
+    })
+  })
+
+  describe('po_id/po_line_id — Receipt nhận hàng theo Purchase Order', () => {
+    let companyId: string
+
+    beforeEach(async () => {
+      const app = await getApp()
+      const [company] = await app.db('companies').insert({ code: 'PO-RCPT-NCC', name: 'NCC PO Receipt' }).returning('*')
+      companyId = company.id
+    })
+
+    async function createConfirmedPO(quantity: number) {
+      const createRes = await authedInject({
+        method: 'POST',
+        url: '/api/v1/purchase-orders',
+        payload: {
+          code: 'PO-RCPT-001',
+          company_id: companyId,
+          lines: [{ variant_id: variantId, quantity, unit_price: 900000 }],
+        },
+      })
+      const po = JSON.parse(createRes.payload)
+      await authedInject({ method: 'PATCH', url: `/api/v1/purchase-orders/${po.id}/confirm` })
+      return { po, poLineId: po.lines[0].id }
+    }
+
+    it('tạo Receipt link po_id/po_line_id thành công khi PO đã Confirmed', async () => {
+      const { po, poLineId } = await createConfirmedPO(10)
+
+      const res = await authedInject({
+        method: 'POST',
+        url: '/api/v1/receipts',
+        payload: {
+          code: 'PN-PO-OK-001',
+          import_type: 'purchase',
+          warehouse_id: warehouseId,
+          po_id: po.id,
+          lines: [{ variant_id: variantId, quantity: 6, cost_price: 950000, po_line_id: poLineId }],
+        },
+      })
+      expect(res.statusCode).toBe(201)
+      const receipt = JSON.parse(res.payload)
+      expect(receipt.po_id).toBe(po.id)
+      expect(receipt.lines[0].po_line_id).toBe(poLineId)
+
+      const getPoRes = await authedInject({ method: 'GET', url: `/api/v1/purchase-orders/${po.id}` })
+      const poDetail = JSON.parse(getPoRes.payload)
+      expect(poDetail.lines[0].pending_qty).toBe(6)
+      expect(poDetail.lines[0].remaining_qty).toBe(4)
+    })
+
+    it('400 khi PO chưa Confirmed (còn Draft)', async () => {
+      const createPoRes = await authedInject({
+        method: 'POST',
+        url: '/api/v1/purchase-orders',
+        payload: {
+          code: 'PO-RCPT-DRAFT',
+          company_id: companyId,
+          lines: [{ variant_id: variantId, quantity: 10, unit_price: 900000 }],
+        },
+      })
+      const po = JSON.parse(createPoRes.payload)
+
+      const res = await authedInject({
+        method: 'POST',
+        url: '/api/v1/receipts',
+        payload: {
+          code: 'PN-PO-DRAFT-001',
+          import_type: 'purchase',
+          warehouse_id: warehouseId,
+          po_id: po.id,
+          lines: [{ variant_id: variantId, quantity: 5, cost_price: 950000, po_line_id: po.lines[0].id }],
+        },
+      })
+      expect(res.statusCode).toBe(400)
+    })
+
+    it('400 khi variant_id của dòng receipt không khớp với po_line', async () => {
+      const { po, poLineId } = await createConfirmedPO(10)
+
+      const app = await getApp()
+      const [otherProduct] = await app
+        .db('products')
+        .insert({ code: 'PO-RCPT-OTHER', name: 'Other', product_type: 'storable' })
+        .returning('*')
+      const [otherVariant] = await app
+        .db('variants')
+        .insert({ product_id: otherProduct.id, sku: 'PO-RCPT-OTHER-01', name: 'Other 01', unit: 'Cái' })
+        .returning('*')
+
+      const res = await authedInject({
+        method: 'POST',
+        url: '/api/v1/receipts',
+        payload: {
+          code: 'PN-PO-MISMATCH-001',
+          import_type: 'purchase',
+          warehouse_id: warehouseId,
+          po_id: po.id,
+          lines: [{ variant_id: otherVariant.id, quantity: 5, cost_price: 950000, po_line_id: poLineId }],
+        },
+      })
+      expect(res.statusCode).toBe(400)
+    })
+
+    it('400 khi quantity vượt remaining_qty của po_line', async () => {
+      const { po, poLineId } = await createConfirmedPO(10)
+
+      const res = await authedInject({
+        method: 'POST',
+        url: '/api/v1/receipts',
+        payload: {
+          code: 'PN-PO-OVER-001',
+          import_type: 'purchase',
+          warehouse_id: warehouseId,
+          po_id: po.id,
+          lines: [{ variant_id: variantId, quantity: 11, cost_price: 950000, po_line_id: poLineId }],
+        },
+      })
+      expect(res.statusCode).toBe(400)
+    })
+
+    it('Receipt bị cancelled không tính vào remaining_qty — nhận lại đủ số lượng', async () => {
+      const { po, poLineId } = await createConfirmedPO(10)
+
+      const firstRes = await authedInject({
+        method: 'POST',
+        url: '/api/v1/receipts',
+        payload: {
+          code: 'PN-PO-CANCEL-001',
+          import_type: 'purchase',
+          warehouse_id: warehouseId,
+          po_id: po.id,
+          lines: [{ variant_id: variantId, quantity: 10, cost_price: 950000, po_line_id: poLineId }],
+        },
+      })
+      const firstReceipt = JSON.parse(firstRes.payload)
+      await authedInject({ method: 'PATCH', url: `/api/v1/receipts/${firstReceipt.id}/cancel` })
+
+      const secondRes = await authedInject({
+        method: 'POST',
+        url: '/api/v1/receipts',
+        payload: {
+          code: 'PN-PO-CANCEL-002',
+          import_type: 'purchase',
+          warehouse_id: warehouseId,
+          po_id: po.id,
+          lines: [{ variant_id: variantId, quantity: 10, cost_price: 950000, po_line_id: poLineId }],
+        },
+      })
+      expect(secondRes.statusCode).toBe(201)
     })
   })
 })

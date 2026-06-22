@@ -2,6 +2,9 @@ import { FastifyPluginAsync } from 'fastify'
 import { ProductService } from './product.service'
 import {
   createCategorySchema,
+  updateCategorySchema,
+  createBrandSchema,
+  updateBrandSchema,
   createProductSchema,
   updateProductSchema,
   listProductSchema,
@@ -10,6 +13,9 @@ import {
   createVariantSupplierSchema,
   updateVariantSupplierSchema,
   CreateCategoryBody,
+  UpdateCategoryBody,
+  CreateBrandBody,
+  UpdateBrandBody,
   CreateProductBody,
   UpdateProductBody,
   ListProductQuery,
@@ -25,6 +31,8 @@ const productRoutes: FastifyPluginAsync = async (app) => {
   const service = new ProductService(app.db)
 
   // ─── Categories ────────────────────────────────────────────────────────
+  // Phải tạo Category (+ short_code) trước khi tạo Product — short_code dùng gợi ý
+  // product.code = category.short_code + brand.short_code (note.txt).
 
   app.get('/categories', { preHandler: authenticate }, async () => {
     return service.listCategories()
@@ -37,6 +45,33 @@ const productRoutes: FastifyPluginAsync = async (app) => {
       const category = await service.createCategory(request.body)
       return reply.code(201).send(category)
     },
+  )
+
+  app.patch<{ Params: { id: string }; Body: UpdateCategoryBody }>(
+    '/categories/:id',
+    { schema: updateCategorySchema, preHandler: requirePermission('settings.products') },
+    async (request) => service.updateCategory(request.params.id, request.body),
+  )
+
+  // ─── Brands ────────────────────────────────────────────────────────────
+
+  app.get('/brands', { preHandler: authenticate }, async () => {
+    return service.listBrands()
+  })
+
+  app.post<{ Body: CreateBrandBody }>(
+    '/brands',
+    { schema: createBrandSchema, preHandler: requirePermission('settings.products') },
+    async (request, reply) => {
+      const brand = await service.createBrand(request.body)
+      return reply.code(201).send(brand)
+    },
+  )
+
+  app.patch<{ Params: { id: string }; Body: UpdateBrandBody }>(
+    '/brands/:id',
+    { schema: updateBrandSchema, preHandler: requirePermission('settings.products') },
+    async (request) => service.updateBrand(request.params.id, request.body),
   )
 
   // ─── Products ──────────────────────────────────────────────────────────

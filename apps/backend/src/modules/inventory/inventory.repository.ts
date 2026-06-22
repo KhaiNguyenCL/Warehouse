@@ -1,5 +1,5 @@
 import { Knex } from 'knex'
-import { ListInventoryQuery, ListLowStockQuery } from './inventory.schema'
+import { ListInventoryQuery, ListLowStockQuery, ListLotsQuery, ListSerialsQuery } from './inventory.schema'
 
 export class InventoryRepository {
   constructor(private db: Knex) {}
@@ -41,6 +41,56 @@ export class InventoryRepository {
     ])
 
     return { data: rows, total: Number(countResult?.count ?? 0), page, limit }
+  }
+
+  // Breakdown từng lô (receipt_line) của 1 SKU — chỉ lấy từ Receipt đã Completed (hàng
+  // thật đã vào kho; Draft/Approved chưa phải lô thật). Sắp theo đúng thứ tự FIFO thật
+  // của delivery.service.ts::consumeReceiptLinesFifo (completed_at ASC, line_order ASC)
+  // để user thấy đúng lô nào sẽ bị trừ trước — chỉ completed_at không đủ làm tie-breaker
+  // vì nhiều receipt_line của CÙNG 1 receipt share đúng 1 completed_at.
+  findLots(query: ListLotsQuery) {
+    const { variant_id, warehouse_id } = query
+    const q = this.db('receipt_lines as rl')
+      .join('receipts as r', 'r.id', 'rl.receipt_id')
+      .leftJoin('companies as c', 'c.id', 'r.company_id')
+      .where('rl.variant_id', variant_id)
+      .andWhere('r.status', 'completed')
+      .select(
+        'rl.id as receipt_line_id',
+        'r.code as receipt_code',
+        'r.completed_at',
+        'c.name as company_name',
+        'rl.quantity',
+        'rl.qty_remaining',
+        'rl.cost_price',
+        'rl.warranty_months',
+      )
+      .orderBy([
+        { column: 'r.completed_at', order: 'asc' },
+        { column: 'rl.line_order', order: 'asc' },
+      ])
+
+    if (warehouse_id) q.andWhere('r.warehouse_id', warehouse_id)
+    return q
+  }
+
+  // Từng SN vật lý của 1 lô (receipt_line) — drill-down từ findLots() xuống chi tiết
+  // cuối cùng: serial_no, trạng thái hiện tại (có thể đã sold/disposed sau khi xuất),
+  // warranty_end đã tính lúc Complete, MAC nếu có.
+  findSerials(query: ListSerialsQuery) {
+    return this.db('serial_numbers as sn')
+      .leftJoin('warehouses as w', 'w.id', 'sn.warehouse_id')
+      .where('sn.receipt_line_id', query.receipt_line_id)
+      .select(
+        'sn.id',
+        'sn.serial_no',
+        'sn.status',
+        'w.name as warehouse_name',
+        'sn.mac_address',
+        'sn.warranty_end',
+        'sn.created_at',
+      )
+      .orderBy('sn.serial_no')
   }
 
   // Tồn tổng (cộng tất cả kho) của 1 variant thấp hơn reorder_point — cảnh báo cần nhập thêm.

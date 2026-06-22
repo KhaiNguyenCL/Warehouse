@@ -18,12 +18,17 @@ export default defineConfig({
 
   server: {
     port: 5173,
+    // host: true = bind 0.0.0.0 thay vì chỉ 127.0.0.1 — máy khác trong LAN truy cập được
+    // qua http://<LAN-IP>:5173. Request /api/v1/* từ máy đó vẫn đi qua proxy bên dưới
+    // (chạy trên CHÍNH máy này, gọi localhost:3000) nên không cần mở port 3000 ra LAN.
+    host: true,
     // Proxy: khi code gọi fetch('/api/v1/...'), Vite dev server tự chuyển tiếp request
     // sang backend ở localhost:3000 — nhờ vậy KHÔNG bị lỗi CORS lúc dev (browser thấy
     // request cùng origin 5173, Vite âm thầm forward ra 3000 ở phía server).
     proxy: {
       '/api': {
         target: 'http://localhost:3000',
+        
         changeOrigin: true,
       },
     },

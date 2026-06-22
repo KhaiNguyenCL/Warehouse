@@ -125,7 +125,7 @@ Table warehouses {
 Table categories {
   id        uuid    [primary key]
   name      varchar [note: 'Router, Switch, Camera, Dịch vụ,...']
-  parent_id uuid    [ref: > categories.id]
+  parent_id uuid                                                                                                             [ref: > categories.id]
   is_active boolean [default: true]
 }
 

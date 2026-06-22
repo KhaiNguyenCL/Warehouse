@@ -36,6 +36,127 @@ describe('Product', () => {
     return app.inject({ ...opts, headers: { authorization: `Bearer ${token}`, ...(opts.headers as object) } })
   }
 
+  describe('Categories & Brands', () => {
+    it('tạo category kèm short_code thành công', async () => {
+      const res = await authedInject({
+        method: 'POST',
+        url: '/api/v1/products/categories',
+        payload: { name: 'Switch', short_code: 'SW' },
+      })
+      expect(res.statusCode).toBe(201)
+      const category = JSON.parse(res.payload)
+      expect(category.short_code).toBe('SW')
+    })
+
+    it('sửa category', async () => {
+      const createRes = await authedInject({
+        method: 'POST',
+        url: '/api/v1/products/categories',
+        payload: { name: 'Switch', short_code: 'SW' },
+      })
+      const category = JSON.parse(createRes.payload)
+
+      const res = await authedInject({
+        method: 'PATCH',
+        url: `/api/v1/products/categories/${category.id}`,
+        payload: { short_code: 'SWT' },
+      })
+      expect(res.statusCode).toBe(200)
+      expect(JSON.parse(res.payload).short_code).toBe('SWT')
+    })
+
+    it('tạo brand kèm short_code thành công', async () => {
+      const res = await authedInject({
+        method: 'POST',
+        url: '/api/v1/products/brands',
+        payload: { name: 'Cisco', short_code: 'CSC' },
+      })
+      expect(res.statusCode).toBe(201)
+      const brand = JSON.parse(res.payload)
+      expect(brand.short_code).toBe('CSC')
+    })
+
+    it('GET /brands trả về danh sách brand đang active', async () => {
+      await authedInject({ method: 'POST', url: '/api/v1/products/brands', payload: { name: 'Ubiquiti', short_code: 'UBI' } })
+      const res = await authedInject({ method: 'GET', url: '/api/v1/products/brands' })
+      expect(res.statusCode).toBe(200)
+      const brands = JSON.parse(res.payload)
+      expect(brands.some((b: any) => b.short_code === 'UBI')).toBe(true)
+    })
+  })
+
+  describe('Tạo Product — bắt buộc category_id + brand_id', () => {
+    let categoryId: string
+    let brandId: string
+
+    beforeEach(async () => {
+      const catRes = await authedInject({
+        method: 'POST',
+        url: '/api/v1/products/categories',
+        payload: { name: 'Switch', short_code: 'SW' },
+      })
+      categoryId = JSON.parse(catRes.payload).id
+
+      const brandRes = await authedInject({
+        method: 'POST',
+        url: '/api/v1/products/brands',
+        payload: { name: 'Cisco', short_code: 'CSC' },
+      })
+      brandId = JSON.parse(brandRes.payload).id
+    })
+
+    it('thiếu category_id → 400', async () => {
+      const res = await authedInject({
+        method: 'POST',
+        url: '/api/v1/products',
+        payload: { code: 'SW-CSC-01', name: 'Switch Cisco 24 port', product_type: 'storable', brand_id: brandId },
+      })
+      expect(res.statusCode).toBe(400)
+    })
+
+    it('thiếu brand_id → 400', async () => {
+      const res = await authedInject({
+        method: 'POST',
+        url: '/api/v1/products',
+        payload: { code: 'SW-CSC-01', name: 'Switch Cisco 24 port', product_type: 'storable', category_id: categoryId },
+      })
+      expect(res.statusCode).toBe(400)
+    })
+
+    it('có đủ category_id + brand_id → 201, GET detail trả về category_name/brand_name', async () => {
+      const createRes = await authedInject({
+        method: 'POST',
+        url: '/api/v1/products',
+        payload: {
+          code: 'SW-CSC-01',
+          name: 'Switch Cisco 24 port',
+          product_type: 'storable',
+          category_id: categoryId,
+          brand_id: brandId,
+        },
+      })
+      expect(createRes.statusCode).toBe(201)
+      const product = JSON.parse(createRes.payload)
+
+      const getRes = await authedInject({ method: 'GET', url: `/api/v1/products/${product.id}` })
+      const detail = JSON.parse(getRes.payload)
+      expect(detail.category_name).toBe('Switch')
+      expect(detail.brand_name).toBe('Cisco')
+      expect(detail.category_short_code).toBe('SW')
+      expect(detail.brand_short_code).toBe('CSC')
+    })
+
+    it('category_id/brand_id không tồn tại → 400', async () => {
+      const fakeId = '00000000-0000-0000-0000-000000000000'
+      const res = await authedInject({
+        method: 'POST',
+        url: '/api/v1/products',
+        payload: { code: 'SW-CSC-02', name: 'X', product_type: 'storable', category_id: fakeId, brand_id: fakeId },
+      })
+      expect(res.statusCode).toBe(400)
+    })
+  })
+
   describe('Variant Suppliers', () => {
     it('thêm NCC cho variant thành công', async () => {
       const res = await authedInject({

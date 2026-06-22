@@ -14,3 +14,39 @@ Dùng format [Category Code]-[Brand Code]-[Sequential]. Hệ thống tự sinh s
 Câu 3 — Quản lý lô nhập cho consumable:
 Không tạo SKU mới cho mỗi lần nhập. Dùng Stock Batch để quản lý lô — thêm field batch_name để đặt tên lô (VD: "Lô tháng 5 — NCC A"). Khi xuất kho user chọn lô thủ công hoặc tự động FIFO/LIFO.
 Thiết kế lại database
+
+Tui muốn thiết kế lại DB hiện tại, dựa vào quy trình nhập kho như sau:
+1. Tạo PO (phiếu mua), nhập thông tin phiếu mua như nhà cung cấp,...hoặc
+lấy thông tin từ PO deal Bitrix 
+2. Thêm đối tượng chi tiết PO, trong đối tượng này sẽ có danh sách hàng hóa
+chi tiết, danh sách hàng hóa sẽ lấy từ SKU hoặc product (tui đang phân vân), tui
+không biết định nghĩa SKU là biến thể sản phẩm hay là phân loại lô 
+nhập hàng, nếu một cùng là một SKU nhưng có  hai  lần nhập  hàng khác nhau
+thì lần nhập thứ hai có phải là một SKU mới không?
+Chi  tiết PO sẽ có thông tin như sau:
+STT   Tên SP      Số lượng     Bảo hành
+1     RAM cosair    10         24 tháng
+2     ổ cứng SSD     5         36 tháng
+
+3. Sau khi tạo PO, sẽ tạo hóa đơn, trong hóa đơn mua sẽ link tới PO, 1 PO có
+thể có nhiều hóa đơn, trong hóa đơn sẽ có danh sách hàng hóa của PO, user
+sẽ phải nhập đủ SN của hóa đơn đó để nhập kho thành công
+Theo bạn quy trình này ổn không thay vì quản lí từng line trên  Receipt?
+
+
+Quy trình nhập hành sẽ như thế này đúng ko?
+1. Tạo PO gồm thông tin PO và danh sách hàng hóa lấy từ SKU, mỗi
+dòng là một SKU, có thể chỉnh sửa tất cả field của SKU đó ở đây, sau khi
+chỉnh sửa mỗi dòng sẽ lưu thành đối  tượng  PO_line gồm tất cả  các field
+của dòng đó
+2. Tạo hóa đơn, sẽ lấy danh sách PO_line của PO, nếu PO_line 1 có
+số lượng 10 thì sẽ có thêm 10 dòng, mỗi dòng là 1 receipt_line và receipt_line
+chỉ khác PO_line ở chỗ có thêm field SN, sau khi nhập đủ thì sẽ lưu thành đối
+tượng receipt_line đúng không?
+
+Có một vài điểm cần chỉnh sửa, đầu tiên là category, cần phải tạo
+ category trước khi tạo sản phẩm vì cái này ảnh hưởng đến quy tắc đặt
+ tên sản phẩm, thêm bảng hãng để xác định sản phẩm đó của hãng nào, category
+ thêm cột tên viết tắt, quy tắc đặt tên mã sản phẩm là
+ tên viết tắt Category+ Hãng viết tắt (có thể edit), tên mã SKU Tên mã sản phẩm + field đặc thù (có thể edit)
+ sẽ có các SKU có các field đặc thù 

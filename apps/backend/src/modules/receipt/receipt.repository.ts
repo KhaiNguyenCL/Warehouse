@@ -34,7 +34,10 @@ export class ReceiptRepository {
     // .limit() của query thứ nhất (Knex query builder là mutable).
     const [rows, countResult] = await Promise.all([
       base.clone().orderBy('r.created_at', 'desc').limit(limit).offset(offset),
-      base.clone().count('r.id as count').first(),   // query riêng để đếm TỔNG số dòng (cho biết có bao nhiêu trang)
+      // .clearSelect() bắt buộc — base đã có .select(...) cột thường ở trên, nếu không xoá
+      // trước khi thêm count() thì Postgres lỗi "column must appear in GROUP BY" (trộn cột
+      // thường với hàm aggregate trong cùng 1 SELECT không GROUP BY).
+      base.clone().clearSelect().count('r.id as count').first(),
     ])
 
     return {
