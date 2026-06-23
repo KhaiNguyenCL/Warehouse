@@ -1,12 +1,14 @@
 import { useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Table, Input, InputNumber, Select, Switch, Tag, Typography, Form, message } from 'antd'
+import { Table, Input, InputNumber, Select, Switch, Tag, Typography, Form } from 'antd'
 import { api } from '../lib/api'
 import { useApiMutation } from '../hooks/useApiMutation'
 import { useEntityModal } from '../hooks/useEntityModal'
 import { PageHeader } from '../components/PageHeader'
 import { EntityFormModal } from '../components/EntityFormModal'
 import CustomFieldsPanel from '../components/CustomFieldsPanel'
+import BundleItemsPanel from '../components/BundleItemsPanel'
+import VariantSuppliersPanel from '../components/VariantSuppliersPanel'
 
 const PRODUCT_TYPES = [
   { value: 'storable', label: 'Storable (có serial)' },
@@ -14,17 +16,6 @@ const PRODUCT_TYPES = [
   { value: 'service', label: 'Service' },
   { value: 'bundle', label: 'Bundle' },
 ]
-
-// specifications là JSONB tự do (vd { "ram": "16GB", "ports": 24 }) — cho nhập dạng JSON
-// thô qua textarea thay vì dựng form key/value động, đơn giản hơn cho UI test này.
-function parseSpecifications(text: string | undefined) {
-  if (!text?.trim()) return undefined
-  try {
-    return JSON.parse(text)
-  } catch {
-    throw { statusCode: 400, message: 'Specifications phải là JSON hợp lệ, vd: {"ram": "16GB"}' }
-  }
-}
 
 export default function ProductDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -64,23 +55,12 @@ export default function ProductDetailPage() {
   })
 
   function submitVariant(values: any) {
-    let specifications
-    try {
-      specifications = parseSpecifications(values.specifications)
-    } catch (err: any) {
-      message.error(err.message)
-      return
-    }
-    const body = { ...values, specifications }
-    if (variantModal.editing) updateVariant.mutate(body)
-    else createVariant.mutate(body)
+    if (variantModal.editing) updateVariant.mutate(values)
+    else createVariant.mutate(values)
   }
 
   function openEditVariant(variant: any) {
-    variantModal.openEdit(variant, {
-      ...variant,
-      specifications: variant.specifications ? JSON.stringify(variant.specifications, null, 2) : undefined,
-    })
+    variantModal.openEdit(variant)
   }
 
   if (isLoading || !data) return null
@@ -133,6 +113,16 @@ export default function ProductDetailPage() {
         onFinish={submitVariant}
         confirmLoading={createVariant.isPending || updateVariant.isPending}
         form={variantModal.form}
+        extra={
+          variantModal.editing ? (
+            <>
+              {data.product_type === 'bundle' && (
+                <BundleItemsPanel productId={id!} variantId={variantModal.editing.id} />
+              )}
+              <VariantSuppliersPanel productId={id!} variantId={variantModal.editing.id} />
+            </>
+          ) : undefined
+        }
       >
         {!variantModal.editing && (
           <Form.Item
@@ -173,9 +163,6 @@ export default function ProductDetailPage() {
         </Form.Item>
         <Form.Item name="reorder_point" label="Điểm đặt lại (cảnh báo tồn thấp)" initialValue={0}>
           <InputNumber style={{ width: '100%' }} min={0} />
-        </Form.Item>
-        <Form.Item name="specifications" label="Specifications (JSON, tuỳ chọn)" extra='VD: {"ram": "16GB", "ports": 24}'>
-          <Input.TextArea rows={3} />
         </Form.Item>
         {variantModal.editing && (
           <Form.Item name="is_active" label="Active" valuePropName="checked" initialValue={true}>

@@ -34,7 +34,7 @@ export function EntityFormModal({
   initialValues?: Record<string, unknown>
 }) {
   return (
-    <Modal title={title} open={open} onCancel={onCancel} onOk={() => form.submit()} confirmLoading={confirmLoading} width={width}>
+    <Modal title={title} open={open} onCancel={onCancel} onOk={() => form.submit()} confirmLoading={confirmLoading} width={width ?? 760}>
       <Form form={form} layout="vertical" onFinish={onFinish} initialValues={initialValues}>
         {/* entity-form-grid (index.css): form dài tự chia 2-3 cột theo độ rộng modal, field
             dạng textarea hoặc đánh dấu .form-row-full (Form.List...) chiếm nguyên 1 hàng. */}

@@ -107,7 +107,6 @@ export const createVariantSchema = {
     properties: {
       sku:             { type: 'string', minLength: 1 },
       name:            { type: 'string', minLength: 1 },
-      specifications:  { type: 'object' },
       unit:            { type: 'string' },
       cost_price:      { type: 'number', minimum: 0 },
       sale_price:      { type: 'number', minimum: 0 },
@@ -125,7 +124,6 @@ export const updateVariantSchema = {
     properties: {
       sku:             { type: 'string', minLength: 1 },
       name:            { type: 'string', minLength: 1 },
-      specifications:  { type: 'object' },
       unit:            { type: 'string' },
       cost_price:      { type: 'number', minimum: 0 },
       sale_price:      { type: 'number', minimum: 0 },
@@ -160,6 +158,32 @@ export const updateVariantSupplierSchema = {
       supplier_price: { type: 'number', minimum: 0 },
       lead_time_days: { type: 'integer', minimum: 0 },
       is_preferred:   { type: 'boolean' },
+    },
+  },
+}
+
+// ─── Bundle Items ──────────────────────────────────────────────────────────
+// CLAUDE.md mục 4: bundle gồm nhiều sản phẩm con, mỗi dòng = 1 item_variant_id + quantity.
+// Không lồng bundle trong bundle — validate ở service (item_variant phải là storable/
+// consumable/service, không phải bundle khác).
+
+export const createBundleItemSchema = {
+  body: {
+    type: 'object',
+    required: ['item_variant_id', 'quantity'],
+    properties: {
+      item_variant_id: { type: 'string', format: 'uuid' },
+      quantity:        { type: 'integer', minimum: 1 },
+    },
+  },
+}
+
+export const updateBundleItemSchema = {
+  body: {
+    type: 'object',
+    required: ['quantity'],
+    properties: {
+      quantity: { type: 'integer', minimum: 1 },
     },
   },
 }
@@ -212,7 +236,6 @@ export interface ListProductQuery {
 export interface CreateVariantBody {
   sku: string
   name: string
-  specifications?: Record<string, unknown>
   unit?: string
   cost_price?: number
   sale_price?: number
@@ -239,4 +262,13 @@ export interface UpdateVariantSupplierBody {
   supplier_price?: number
   lead_time_days?: number
   is_preferred?: boolean
+}
+
+export interface CreateBundleItemBody {
+  item_variant_id: string
+  quantity: number
+}
+
+export interface UpdateBundleItemBody {
+  quantity: number
 }

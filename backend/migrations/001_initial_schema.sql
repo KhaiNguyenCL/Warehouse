@@ -150,7 +150,6 @@ CREATE TABLE variants (
     product_id      UUID           NOT NULL REFERENCES products(id),
     sku             TEXT           NOT NULL UNIQUE,
     name            TEXT           NOT NULL,
-    specifications  JSONB,
     unit            TEXT           NOT NULL DEFAULT 'Cái',
     cost_price      NUMERIC(15,2),
     sale_price      NUMERIC(15,2),

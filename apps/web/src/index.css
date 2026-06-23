@@ -5,19 +5,53 @@
   display: none;
 }
 
-/* EntityFormModal (xem component): form dài tự chia nhiều cột theo độ rộng modal thay vì
-   luôn 1 field/hàng — cột tự co dãn từ 220px, modal hẹp (mobile) tự dồn về 1 cột. Field
-   dạng textarea (note/description/specifications...) và .form-row-full (Form.List, đoạn
-   text dài...) luôn chiếm nguyên 1 hàng vì không hợp để bị bóp hẹp theo cột. */
+/* EntityFormModal (xem component): cố định 3 field/hàng (yêu cầu trực tiếp — auto-fit theo
+   độ rộng modal trước đây cho 2 cột với modal mặc định 520px, vẫn bị dài). Field dạng
+   textarea (note/description...) và .form-row-full (Form.List, đoạn text dài...) luôn
+   chiếm nguyên 1 hàng vì không hợp để bị bóp hẹp theo cột. Viewport hẹp (mobile) giảm dần
+   xuống 2 rồi 1 cột qua media query — không phụ thuộc `width` của Modal vì antd tự giới hạn
+   modal theo viewport (max-width: calc(100vw - 16px)) nên cột vẫn co theo viewport thật. */
+/* Kẻ ô như table: nền xám làm "đường kẻ", mỗi field là 1 ô nền trắng cách nhau 1px —
+   tránh double-border ở cạnh chung giữa 2 ô (cách border-collapse thủ công cho CSS Grid).
+   align-items: stretch để mọi ô trong cùng 1 hàng cao bằng nhau, viền ô luôn thẳng hàng dù
+   field bên cạnh có label 1 hay 2 dòng. */
 .entity-form-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 0 16px;
-  align-items: start;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  align-items: stretch;
+  background: #e5e7eb;
+  border: 1px solid #e5e7eb;
+}
+@media (max-width: 700px) {
+  .entity-form-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 480px) {
+  .entity-form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.entity-form-grid > .ant-form-item,
+.entity-form-grid > .form-row-full {
+  background: #fff;
+  margin: 0;
+  padding: 12px 16px;
 }
 .entity-form-grid .ant-form-item:has(textarea),
 .entity-form-grid .form-row-full {
   grid-column: 1 / -1;
+}
+
+/* Label dài bị xuống 2 dòng ở cột hẹp khiến input bên dưới lệch khỏi hàng so với các field
+   label 1 dòng cùng hàng (vì input nằm ngay sau label, label cao bao nhiêu input xuống bấy
+   nhiêu) — ép mọi label trong grid reserve sẵn chiều cao 2 dòng để input luôn bắt đầu cùng
+   1 mức, bất kể label 1 hay 2 dòng. */
+.entity-form-grid .ant-form-item-label {
+  min-height: 44px;
+  display: flex;
+  align-items: flex-end;
 }
 
 /* Select bị giãn đầy chiều rộng cột grid (có thể rất rộng khi modal lớn) — giới hạn lại,

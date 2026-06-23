@@ -12,6 +12,8 @@ import {
   updateVariantSchema,
   createVariantSupplierSchema,
   updateVariantSupplierSchema,
+  createBundleItemSchema,
+  updateBundleItemSchema,
   CreateCategoryBody,
   UpdateCategoryBody,
   CreateBrandBody,
@@ -23,6 +25,8 @@ import {
   UpdateVariantBody,
   CreateVariantSupplierBody,
   UpdateVariantSupplierBody,
+  CreateBundleItemBody,
+  UpdateBundleItemBody,
 } from './product.schema'
 import { authenticate } from '../../middleware/auth'
 import { requirePermission } from '../../middleware/permission'
@@ -165,6 +169,47 @@ const productRoutes: FastifyPluginAsync = async (app) => {
     { preHandler: requirePermission('settings.products') },
     async (request, reply) => {
       await service.deleteVariantSupplier(request.params.id, request.params.variantId, request.params.supplierId)
+      return reply.code(204).send()
+    },
+  )
+
+  // ─── Bundle Items ────────────────────────────────────────────────────────
+
+  app.get<{ Params: { id: string; variantId: string } }>(
+    '/:id/variants/:variantId/bundle-items',
+    { preHandler: authenticate },
+    async (request) => {
+      return await service.listBundleItems(request.params.id, request.params.variantId)
+    },
+  )
+
+  app.post<{ Params: { id: string; variantId: string }; Body: CreateBundleItemBody }>(
+    '/:id/variants/:variantId/bundle-items',
+    { schema: createBundleItemSchema, preHandler: requirePermission('settings.products') },
+    async (request, reply) => {
+      const item = await service.addBundleItem(request.params.id, request.params.variantId, request.body)
+      return reply.code(201).send(item)
+    },
+  )
+
+  app.patch<{ Params: { id: string; variantId: string; itemId: string }; Body: UpdateBundleItemBody }>(
+    '/:id/variants/:variantId/bundle-items/:itemId',
+    { schema: updateBundleItemSchema, preHandler: requirePermission('settings.products') },
+    async (request) => {
+      return await service.updateBundleItem(
+        request.params.id,
+        request.params.variantId,
+        request.params.itemId,
+        request.body,
+      )
+    },
+  )
+
+  app.delete<{ Params: { id: string; variantId: string; itemId: string } }>(
+    '/:id/variants/:variantId/bundle-items/:itemId',
+    { preHandler: requirePermission('settings.products') },
+    async (request, reply) => {
+      await service.deleteBundleItem(request.params.id, request.params.variantId, request.params.itemId)
       return reply.code(204).send()
     },
   )

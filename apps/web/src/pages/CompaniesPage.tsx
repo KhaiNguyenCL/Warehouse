@@ -6,6 +6,7 @@ import { useEntityModal } from '../hooks/useEntityModal'
 import { PageHeader } from '../components/PageHeader'
 import { EntityFormModal } from '../components/EntityFormModal'
 import CustomFieldsPanel from '../components/CustomFieldsPanel'
+import ContactsPanel from '../components/ContactsPanel'
 
 export default function CompaniesPage() {
   const { open, editing, form, openCreate, openEdit, close } = useEntityModal()
@@ -57,7 +58,14 @@ export default function CompaniesPage() {
         onFinish={(v) => (editing ? updateMutation.mutate(v) : createMutation.mutate(v))}
         confirmLoading={createMutation.isPending || updateMutation.isPending}
         form={form}
-        extra={editing && <CustomFieldsPanel objectType="company" objectId={editing.id} />}
+        extra={
+          editing && (
+            <>
+              <ContactsPanel companyId={editing.id} />
+              <CustomFieldsPanel objectType="company" objectId={editing.id} />
+            </>
+          )
+        }
       >
         <Form.Item name="code" label="Mã" rules={[{ required: true }]}>
           <Input />

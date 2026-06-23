@@ -12,6 +12,7 @@ import {
   FileTextOutlined,
   InboxOutlined,
   DatabaseOutlined,
+  BarChartOutlined,
   SettingOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
@@ -41,19 +42,31 @@ const NAV_ITEMS = [
     children: [
       { key: '/purchase-orders', icon: <FileTextOutlined />, label: 'Purchase Order' },
       { key: '/receipts', icon: <InboxOutlined />, label: 'Phiếu nhập kho' },
+      { key: '/quotations', icon: <FileTextOutlined />, label: 'Báo giá' },
+      { key: '/deliveries', icon: <InboxOutlined />, label: 'Phiếu xuất kho' },
+      { key: '/transfers', icon: <InboxOutlined />, label: 'Phiếu chuyển kho' },
     ],
   },
   {
     key: 'warehousing',
     label: 'Kho vận',
     type: 'group' as const,
-    children: [{ key: '/inventory', icon: <DatabaseOutlined />, label: 'Tồn kho' }],
+    children: [
+      { key: '/inventory', icon: <DatabaseOutlined />, label: 'Tồn kho' },
+      { key: '/stocktakes', icon: <DatabaseOutlined />, label: 'Kiểm kê' },
+      { key: '/reports', icon: <BarChartOutlined />, label: 'Báo cáo' },
+    ],
   },
   {
     key: 'settings',
     label: 'Cài đặt',
     type: 'group' as const,
-    children: [{ key: '/settings/custom-fields', icon: <SettingOutlined />, label: 'Custom Field' }],
+    children: [
+      { key: '/settings/custom-fields', icon: <SettingOutlined />, label: 'Custom Field' },
+      { key: '/settings/types', icon: <SettingOutlined />, label: 'Loại nhập/xuất kho' },
+      { key: '/settings/roles', icon: <SettingOutlined />, label: 'Roles & Permissions' },
+      { key: '/settings/users', icon: <SettingOutlined />, label: 'Users' },
+    ],
   },
 ]
 

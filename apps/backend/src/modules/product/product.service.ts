@@ -12,6 +12,8 @@ import {
   UpdateVariantBody,
   CreateVariantSupplierBody,
   UpdateVariantSupplierBody,
+  CreateBundleItemBody,
+  UpdateBundleItemBody,
 } from './product.schema'
 
 // Postgres SQLSTATE codes — map sang lỗi nghiệp vụ dễ hiểu thay vì để lộ lỗi DB thô ra API.
@@ -201,5 +203,62 @@ export class ProductService {
       throw { statusCode: 404, message: 'Variant supplier not found' }
     }
     await this.repo.deleteVariantSupplier(supplierId)
+  }
+
+  // ─── Bundle Items ──────────────────────────────────────────────────────
+  // CLAUDE.md mục 4: bundle có SKU/giá riêng, gồm nhiều sản phẩm con với quantity riêng,
+  // không lồng bundle trong bundle.
+
+  private async assertBundleVariant(productId: string, variantId: string) {
+    await this.assertVariantBelongsToProduct(productId, variantId)
+    const variant = await this.repo.findVariantWithProductType(variantId)
+    if (variant.product_type !== 'bundle') {
+      throw { statusCode: 400, message: 'Chỉ variant thuộc Product loại "bundle" mới khai báo được sản phẩm con' }
+    }
+  }
+
+  async listBundleItems(productId: string, variantId: string) {
+    await this.assertBundleVariant(productId, variantId)
+    return this.repo.findBundleItems(variantId)
+  }
+
+  async addBundleItem(productId: string, variantId: string, data: CreateBundleItemBody) {
+    await this.assertBundleVariant(productId, variantId)
+
+    if (data.item_variant_id === variantId) {
+      throw { statusCode: 400, message: 'Sản phẩm con không thể tự tham chiếu chính bundle này' }
+    }
+    const itemVariant = await this.repo.findVariantWithProductType(data.item_variant_id)
+    if (!itemVariant) throw { statusCode: 400, message: 'item_variant_id không tồn tại' }
+    if (itemVariant.product_type === 'bundle') {
+      throw { statusCode: 400, message: 'Không thể lồng bundle trong bundle' }
+    }
+
+    try {
+      return await this.repo.addBundleItem(variantId, data)
+    } catch (err: any) {
+      if (err.code === PG_UNIQUE_VIOLATION) {
+        throw { statusCode: 409, message: 'Sản phẩm con này đã có trong bundle — sửa quantity ở dòng hiện có' }
+      }
+      mapDbError(err)
+    }
+  }
+
+  async updateBundleItem(productId: string, variantId: string, itemId: string, data: UpdateBundleItemBody) {
+    await this.assertBundleVariant(productId, variantId)
+    const item = await this.repo.findBundleItemById(itemId)
+    if (!item || item.bundle_variant_id !== variantId) {
+      throw { statusCode: 404, message: 'Bundle item not found' }
+    }
+    return this.repo.updateBundleItem(itemId, data)
+  }
+
+  async deleteBundleItem(productId: string, variantId: string, itemId: string) {
+    await this.assertBundleVariant(productId, variantId)
+    const item = await this.repo.findBundleItemById(itemId)
+    if (!item || item.bundle_variant_id !== variantId) {
+      throw { statusCode: 404, message: 'Bundle item not found' }
+    }
+    await this.repo.deleteBundleItem(itemId)
   }
 }

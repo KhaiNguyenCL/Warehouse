@@ -14,6 +14,18 @@ import ReceiptsPage from './pages/ReceiptsPage'
 import ReceiptDetailPage from './pages/ReceiptDetailPage'
 import InventoryPage from './pages/InventoryPage'
 import CustomFieldsSettingsPage from './pages/CustomFieldsSettingsPage'
+import QuotationsPage from './pages/QuotationsPage'
+import QuotationDetailPage from './pages/QuotationDetailPage'
+import DeliveryOrdersPage from './pages/DeliveryOrdersPage'
+import DeliveryOrderDetailPage from './pages/DeliveryOrderDetailPage'
+import TransferOrdersPage from './pages/TransferOrdersPage'
+import TransferOrderDetailPage from './pages/TransferOrderDetailPage'
+import StocktakesPage from './pages/StocktakesPage'
+import StocktakeDetailPage from './pages/StocktakeDetailPage'
+import SettingsTypesPage from './pages/SettingsTypesPage'
+import RolesPage from './pages/RolesPage'
+import UsersPage from './pages/UsersPage'
+import ReportsPage from './pages/ReportsPage'
 
 function ProtectedRoute() {
   const token = useAuthStore((s) => s.token)
@@ -41,7 +53,19 @@ const routes: RouteObject[] = [
           { path: '/receipts', element: <ReceiptsPage /> },
           { path: '/receipts/:id', element: <ReceiptDetailPage /> },
           { path: '/inventory', element: <InventoryPage /> },
+          { path: '/quotations', element: <QuotationsPage /> },
+          { path: '/quotations/:id', element: <QuotationDetailPage /> },
+          { path: '/deliveries', element: <DeliveryOrdersPage /> },
+          { path: '/deliveries/:id', element: <DeliveryOrderDetailPage /> },
+          { path: '/transfers', element: <TransferOrdersPage /> },
+          { path: '/transfers/:id', element: <TransferOrderDetailPage /> },
+          { path: '/stocktakes', element: <StocktakesPage /> },
+          { path: '/stocktakes/:id', element: <StocktakeDetailPage /> },
+          { path: '/reports', element: <ReportsPage /> },
           { path: '/settings/custom-fields', element: <CustomFieldsSettingsPage /> },
+          { path: '/settings/types', element: <SettingsTypesPage /> },
+          { path: '/settings/roles', element: <RolesPage /> },
+          { path: '/settings/users', element: <UsersPage /> },
         ],
       },
     ],

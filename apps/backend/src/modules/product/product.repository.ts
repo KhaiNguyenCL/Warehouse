@@ -11,6 +11,8 @@ import {
   UpdateVariantBody,
   CreateVariantSupplierBody,
   UpdateVariantSupplierBody,
+  CreateBundleItemBody,
+  UpdateBundleItemBody,
 } from './product.schema'
 
 export class ProductRepository {
@@ -160,5 +162,46 @@ export class ProductRepository {
 
   deleteVariantSupplier(id: string) {
     return this.db('variant_suppliers').where({ id }).del()
+  }
+
+  // ─── Bundle Items ──────────────────────────────────────────────────────
+  // bundle_items.bundle_variant_id = chính variant đang xem (phải product_type='bundle');
+  // item_variant_id = SKU con. Join products để service kiểm tra product_type khi validate
+  // (không lồng bundle trong bundle — CLAUDE.md mục 4).
+
+  findVariantWithProductType(variantId: string) {
+    return this.db('variants as v')
+      .join('products as p', 'p.id', 'v.product_id')
+      .where('v.id', variantId)
+      .select('v.*', 'p.product_type')
+      .first()
+  }
+
+  findBundleItems(bundleVariantId: string) {
+    return this.db('bundle_items as bi')
+      .join('variants as v', 'v.id', 'bi.item_variant_id')
+      .where('bi.bundle_variant_id', bundleVariantId)
+      .select('bi.*', 'v.sku as item_sku', 'v.name as item_name')
+      .orderBy('v.sku')
+  }
+
+  findBundleItemById(id: string) {
+    return this.db('bundle_items').where({ id }).first()
+  }
+
+  async addBundleItem(bundleVariantId: string, data: CreateBundleItemBody) {
+    const [row] = await this.db('bundle_items')
+      .insert({ ...data, bundle_variant_id: bundleVariantId })
+      .returning('*')
+    return row
+  }
+
+  async updateBundleItem(id: string, data: UpdateBundleItemBody) {
+    const [row] = await this.db('bundle_items').where({ id }).update(data).returning('*')
+    return row
+  }
+
+  deleteBundleItem(id: string) {
+    return this.db('bundle_items').where({ id }).del()
   }
 }
