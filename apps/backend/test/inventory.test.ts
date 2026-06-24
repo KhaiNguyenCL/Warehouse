@@ -165,6 +165,75 @@ describe('Inventory', () => {
     expect(serials[1].warranty_end).toBeNull()
   })
 
+  it('GET /serials/:id/movements trả về đúng lịch sử di chuyển của 1 SN, sắp theo created_at', async () => {
+    const app = await getApp()
+    const variant = await seedVariant(app, 'INV-MOVES')
+    const [user] = await app.db('users').select('id').limit(1)
+    const [otherWarehouse] = await app
+      .db('warehouses')
+      .insert({ code: 'WH-INV-MOVES', name: 'Kho test movements', type: 'physical' })
+      .returning('*')
+    const [sn] = await app
+      .db('serial_numbers')
+      .insert({ serial_no: 'INV-MOVES-001', variant_id: variant.id, warehouse_id: otherWarehouse.id })
+      .returning('*')
+    await app.db('stock_movements').insert([
+      {
+        variant_id: variant.id, warehouse_id: warehouseId, serial_id: sn.id,
+        movement_type: 'in', quantity: 1, unit_cost: 100000,
+        ref_document_type: 'receipt', ref_document_id: app.db.raw('gen_random_uuid()'),
+        created_by: user.id, created_at: '2026-01-01',
+      },
+      {
+        variant_id: variant.id, warehouse_id: otherWarehouse.id, serial_id: sn.id,
+        movement_type: 'in', quantity: 1, unit_cost: 100000,
+        ref_document_type: 'transfer_order', ref_document_id: app.db.raw('gen_random_uuid()'),
+        created_by: user.id, created_at: '2026-01-02',
+      },
+    ])
+
+    const res = await authedInject({ method: 'GET', url: `/api/v1/inventory/serials/${sn.id}/movements` })
+    expect(res.statusCode).toBe(200)
+    const movements = JSON.parse(res.payload)
+    expect(movements).toHaveLength(2)
+    expect(movements[0].ref_document_type).toBe('receipt')
+    expect(movements[0].warehouse_name).not.toBeNull()
+    expect(movements[1].ref_document_type).toBe('transfer_order')
+  })
+
+  it('GET /serials?search tra ngược đúng 1 SN theo serial_no, không cần biết trước receipt_line_id', async () => {
+    const app = await getApp()
+    const variant = await seedVariant(app, 'INV-SEARCH')
+    const [user] = await app.db('users').select('id').limit(1)
+    const [receipt] = await app
+      .db('receipts')
+      .insert({
+        code: 'PN-SEARCH-001', import_type: 'purchase', warehouse_id: warehouseId,
+        status: 'completed', completed_at: '2026-01-01', created_by: user.id,
+      })
+      .returning('*')
+    const [line] = await app
+      .db('receipt_lines')
+      .insert({ receipt_id: receipt.id, variant_id: variant.id, quantity: 1, cost_price: 100000 })
+      .returning('*')
+    await app.db('serial_numbers').insert({
+      serial_no: 'INV-SEARCH-UNIQUE-001', variant_id: variant.id, warehouse_id: warehouseId, receipt_line_id: line.id,
+    })
+
+    const res = await authedInject({ method: 'GET', url: '/api/v1/inventory/serials?search=SEARCH-UNIQUE' })
+    expect(res.statusCode).toBe(200)
+    const serials = JSON.parse(res.payload)
+    expect(serials).toHaveLength(1)
+    expect(serials[0].serial_no).toBe('INV-SEARCH-UNIQUE-001')
+    expect(serials[0].sku).toBe(variant.sku)
+    expect(serials[0].receipt_code).toBe('PN-SEARCH-001')
+  })
+
+  it('GET /serials thiếu cả receipt_line_id và search → 400', async () => {
+    const res = await authedInject({ method: 'GET', url: '/api/v1/inventory/serials' })
+    expect(res.statusCode).toBe(400)
+  })
+
   it('filter theo warehouse_id chỉ trả đúng kho đó', async () => {
     const app = await getApp()
     const [otherWarehouse] = await app

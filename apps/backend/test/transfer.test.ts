@@ -97,13 +97,18 @@ describe('Transfer', () => {
     const movedSerials = await app.db('serial_numbers').whereIn('serial_no', serialsToMove)
     expect(movedSerials.every((s) => s.warehouse_id === toWarehouseId && s.status === 'active')).toBe(true)
 
+    // storable → 1 CẶP dòng stock_movements (out khỏi nguồn + in vào đích) cho TỪNG serial
+    // (quantity=1, serial_id gắn đúng SN đó), không phải 1 cặp dòng tổng quantity=4.
     const movements = await app
       .db('stock_movements')
       .where({ ref_document_type: 'transfer_order', ref_document_id: transfer.id })
-      .orderBy('movement_type')
-    expect(movements).toHaveLength(2)
-    expect(movements[0].movement_type).toBe('in')
-    expect(movements[1].movement_type).toBe('out')
+      .orderBy(['serial_id', 'movement_type'])
+    expect(movements).toHaveLength(8)
+    expect(movements.every((m) => m.quantity === 1)).toBe(true)
+    const inSerialIds = movements.filter((m) => m.movement_type === 'in').map((m) => m.serial_id).sort()
+    const outSerialIds = movements.filter((m) => m.movement_type === 'out').map((m) => m.serial_id).sort()
+    expect(inSerialIds).toEqual(movedSerials.map((s) => s.id).sort())
+    expect(outSerialIds).toEqual(movedSerials.map((s) => s.id).sort())
   })
 
   it('from_warehouse_id trùng to_warehouse_id → 400', async () => {

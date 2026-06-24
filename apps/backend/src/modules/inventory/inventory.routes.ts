@@ -38,6 +38,15 @@ const inventoryRoutes: FastifyPluginAsync = async (app) => {
     async (request) => service.serials(request.query),
   )
 
+  // GET /inventory/serials/:id/movements — lịch sử di chuyển (nhập/xuất/chuyển kho) của
+  // ĐÚNG 1 SN cụ thể, theo stock_movements.serial_id. Đặt SAU '/serials' (path tĩnh) nên
+  // không bị nhầm — Fastify so khớp '/serials' trước khi thử pattern '/serials/:id/...'.
+  app.get<{ Params: { id: string } }>(
+    '/serials/:id/movements',
+    { preHandler: requirePermission('report.inventory') },
+    async (request) => service.serialMovements(request.params.id),
+  )
+
   app.get<{ Querystring: ListLowStockQuery }>(
     '/low-stock',
     { schema: listLowStockSchema, preHandler: requirePermission('report.inventory') },

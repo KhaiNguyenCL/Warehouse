@@ -77,9 +77,36 @@ export class InventoryRepository {
   // Từng SN vật lý của 1 lô (receipt_line) — drill-down từ findLots() xuống chi tiết
   // cuối cùng: serial_no, trạng thái hiện tại (có thể đã sold/disposed sau khi xuất),
   // warranty_end đã tính lúc Complete, MAC nếu có.
+  //
+  // Mode "search" (tra ngược theo serial_no, không biết trước SKU/kho/lô): JOIN thêm
+  // variants/receipt_lines/receipts để trả đủ context — receipt_line_id có thể NULL (SN
+  // tạo qua adjustment không gắn lô) nên dùng leftJoin, không inner join.
   findSerials(query: ListSerialsQuery) {
-    return this.db('serial_numbers as sn')
-      .leftJoin('warehouses as w', 'w.id', 'sn.warehouse_id')
+    const base = this.db('serial_numbers as sn').leftJoin('warehouses as w', 'w.id', 'sn.warehouse_id')
+
+    if (query.search) {
+      return base
+        .leftJoin('variants as v', 'v.id', 'sn.variant_id')
+        .leftJoin('receipt_lines as rl', 'rl.id', 'sn.receipt_line_id')
+        .leftJoin('receipts as r', 'r.id', 'rl.receipt_id')
+        .whereILike('sn.serial_no', `%${query.search}%`)
+        .select(
+          'sn.id',
+          'sn.serial_no',
+          'sn.status',
+          'v.sku',
+          'v.name as variant_name',
+          'w.name as warehouse_name',
+          'r.code as receipt_code',
+          'sn.mac_address',
+          'sn.warranty_end',
+          'sn.created_at',
+        )
+        .orderBy('sn.serial_no')
+        .limit(50)
+    }
+
+    return base
       .where('sn.receipt_line_id', query.receipt_line_id)
       .select(
         'sn.id',
@@ -91,6 +118,26 @@ export class InventoryRepository {
         'sn.created_at',
       )
       .orderBy('sn.serial_no')
+  }
+
+  // Lịch sử di chuyển (nhập/xuất/chuyển kho) của ĐÚNG 1 SN — stock_movements.serial_id
+  // chỉ được ghi cho dòng storable (receipt/delivery/transfer.service.ts), không có ở
+  // dòng consumable (serial_id luôn null nên không match where này).
+  findMovementsBySerial(serialId: string) {
+    return this.db('stock_movements as sm')
+      .leftJoin('warehouses as w', 'w.id', 'sm.warehouse_id')
+      .where('sm.serial_id', serialId)
+      .select(
+        'sm.id',
+        'sm.movement_type',
+        'sm.quantity',
+        'sm.unit_cost',
+        'w.name as warehouse_name',
+        'sm.ref_document_type',
+        'sm.ref_document_id',
+        'sm.created_at',
+      )
+      .orderBy('sm.created_at')
   }
 
   // Tồn tổng (cộng tất cả kho) của 1 variant thấp hơn reorder_point — cảnh báo cần nhập thêm.

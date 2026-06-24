@@ -1,8 +1,9 @@
 // Quản lý Contact của 1 Company — render trong slot `extra` của EntityFormModal (ngoài
 // <Form> chính, có Form riêng). Backend chỉ có POST (tạo) + PATCH (sửa), không có DELETE
 // — click 1 dòng để load vào form sửa, không có nút xoá.
-import { useQuery } from '@tanstack/react-query'
-import { Table, Form, Input, Switch, Button, Typography } from 'antd'
+import { useState } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { Table, Form, Input, Switch, Button, Typography, Space, message } from 'antd'
 import { api } from '../lib/api'
 import { useApiMutation } from '../hooks/useApiMutation'
 import { useEntityModal } from '../hooks/useEntityModal'
@@ -13,6 +14,8 @@ interface Props {
 
 export default function ContactsPanel({ companyId }: Props) {
   const { editing, form, openCreate, openEdit, close } = useEntityModal()
+  const qc = useQueryClient()
+  const [bitrixContactId, setBitrixContactId] = useState('')
 
   const { data: company, isLoading } = useQuery({
     queryKey: ['companies', companyId],
@@ -20,6 +23,18 @@ export default function ContactsPanel({ companyId }: Props) {
   })
 
   const invalidate = { invalidateKey: ['companies', companyId] }
+
+  // CLAUDE.md mục 12: import Contact từ Bitrix, gắn vào company hiện tại (company_id
+  // override — không cần dựa vào deal.COMPANY_ID resolve).
+  const importMutation = useMutation({
+    mutationFn: () => api.post(`/bitrix/contacts/${bitrixContactId}/import`, { company_id: companyId }),
+    onSuccess: () => {
+      message.success('Import contact từ Bitrix thành công')
+      qc.invalidateQueries({ queryKey: ['companies', companyId] })
+      setBitrixContactId('')
+    },
+    onError: (err: any) => message.error(err.response?.data?.error ?? 'Import thất bại'),
+  })
 
   const createMutation = useApiMutation((values: any) => api.post(`/companies/${companyId}/contacts`, values), {
     successMessage: 'Thêm người liên hệ thành công',
@@ -34,7 +49,24 @@ export default function ContactsPanel({ companyId }: Props) {
 
   return (
     <div style={{ marginTop: 24, borderTop: '1px solid #f0f0f0', paddingTop: 16 }}>
-      <Typography.Title level={5}>Người liên hệ</Typography.Title>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Typography.Title level={5} style={{ margin: 0 }}>Người liên hệ</Typography.Title>
+        <Space>
+          <Input
+            placeholder="Bitrix Contact ID"
+            style={{ width: 160 }}
+            value={bitrixContactId}
+            onChange={(e) => setBitrixContactId(e.target.value)}
+          />
+          <Button
+            disabled={!bitrixContactId}
+            loading={importMutation.isPending}
+            onClick={() => importMutation.mutate()}
+          >
+            Import từ Bitrix
+          </Button>
+        </Space>
+      </div>
 
       <Table
         rowKey="id"

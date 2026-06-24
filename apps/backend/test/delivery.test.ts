@@ -100,12 +100,15 @@ describe('Delivery', () => {
     expect(soldSerials).toHaveLength(4)
     expect(soldSerials.every((s) => s.status === 'sold' && s.warehouse_id === null)).toBe(true)
 
-    const movement = await app
+    // storable → 1 dòng stock_movements RIÊNG cho từng serial (quantity=1, serial_id gắn
+    // đúng SN đó), không phải 1 dòng tổng quantity=4.
+    const movements = await app
       .db('stock_movements')
       .where({ ref_document_type: 'delivery_order', ref_document_id: delivery.id })
-      .first()
-    expect(movement.movement_type).toBe('out')
-    expect(movement.quantity).toBe(4)
+      .orderBy('serial_id')
+    expect(movements).toHaveLength(4)
+    expect(movements.every((m) => m.movement_type === 'out' && m.quantity === 1)).toBe(true)
+    expect(movements.map((m) => m.serial_id).sort()).toEqual(soldSerials.map((s) => s.id).sort())
   })
 
   it('export_type sale thiếu quotation_id → 400', async () => {
@@ -255,14 +258,26 @@ describe('Delivery', () => {
     await authedInject({ method: 'PATCH', url: `/api/v1/deliveries/${delivery.id}/submit` })
     await authedInject({ method: 'PATCH', url: `/api/v1/deliveries/${delivery.id}/approve` })
 
-    await authedInject({
+    const completeRes = await authedInject({
       method: 'PATCH',
       url: `/api/v1/deliveries/${delivery.id}/complete`,
       payload: { lines: [{ line_id: lineId, serials: ['SEED-SN-7'] }] },
     })
+    expect(completeRes.statusCode).toBe(200)
 
     const deleted = await app.db('serial_numbers').where({ serial_no: 'SEED-SN-7' }).first()
     expect(deleted).toBeUndefined()
+
+    // stock_movements vẫn giữ được dòng audit (quantity, ref_document...) sau khi serial
+    // gốc đã hard-delete — chỉ serial_id tự null hoá qua ON DELETE SET NULL (migration
+    // 20260624000000), không bị mất nguyên dòng hay lỗi FK lúc insert.
+    const movement = await app
+      .db('stock_movements')
+      .where({ ref_document_type: 'delivery_order', ref_document_id: delivery.id })
+      .first()
+    expect(movement.movement_type).toBe('out')
+    expect(movement.quantity).toBe(1)
+    expect(movement.serial_id).toBeNull()
   })
 
   describe('export_type=adjustment liên kết Stocktake Result', () => {

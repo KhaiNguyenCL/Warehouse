@@ -225,20 +225,6 @@ export class ReceiptService {
           { variant_id: line.variant_id, warehouse_id: receipt.warehouse_id, qty: line.quantity, cost: line.cost_price },
         )
 
-        // Ghi lại LỊCH SỬ thay đổi kho (audit trail) — bảng stock_movements không bao giờ
-        // bị update/xoá, chỉ insert thêm, nên luôn truy được "ai, lúc nào, từ phiếu nào"
-        // đã làm tồn kho thay đổi.
-        await trx('stock_movements').insert({
-          variant_id:        line.variant_id,
-          warehouse_id:      receipt.warehouse_id,
-          movement_type:     'in',   // receipt luôn là nhập kho → movement_type = 'in'
-          quantity:          line.quantity,
-          unit_cost:         line.cost_price,
-          ref_document_type: 'receipt',   // polymorphic reference — xem CLAUDE.md mục 19
-          ref_document_id:   id,
-          created_by:        userId,
-        })
-
         // receipt_line CHÍNH LÀ 1 lô nhập (1 SKU trong 1 lần nhập) — set qty_remaining =
         // quantity ngay lúc này (trước đó NULL vì hàng chưa thật vào kho). Delivery xuất
         // theo FIFO sẽ trừ dần field này (mặc định, CLAUDE.md mục 19). Áp dụng cho cả
@@ -249,6 +235,11 @@ export class ReceiptService {
         // warehouse_id = kho vừa nhập, gắn receipt_line_id để khi xuất biết đúng lô cần trừ.
         // warranty_end = completed_at + warranty_months của LÔ này (không phải variant
         // default) — tính ngay trong SQL để cùng mốc thời gian với completed_at ở trên.
+        //
+        // Insert serial_numbers TRƯỚC stock_movements (đảo thứ tự so với trước) để lấy
+        // được id vừa sinh ra qua .returning('id') — cần id đó để gắn serial_id vào đúng
+        // dòng stock_movements tương ứng (xem ghi chú stock_movements.serial_id phía dưới).
+        let newSerialIds: string[] = []
         if (line.product_type === 'storable') {
           const serials = serialsByLine.get(line.id) ?? []
           // So sánh != null (không dùng truthy check) — warranty_months = 0 là giá trị
@@ -259,16 +250,51 @@ export class ReceiptService {
             line.warranty_months != null
               ? trx.raw("now() + (?::int * interval '1 month')", [line.warranty_months])
               : null
-          await trx('serial_numbers').insert(
-            serials.map((serial_no) => ({
-              serial_no,
-              variant_id:      line.variant_id,
-              warehouse_id:    receipt.warehouse_id,
-              status:          'active',
-              receipt_line_id: line.id,
-              warranty_end:    warrantyEndExpr,
+          const insertedSerials = await trx('serial_numbers')
+            .insert(
+              serials.map((serial_no) => ({
+                serial_no,
+                variant_id:      line.variant_id,
+                warehouse_id:    receipt.warehouse_id,
+                status:          'active',
+                receipt_line_id: line.id,
+                warranty_end:    warrantyEndExpr,
+              })),
+            )
+            .returning('id')
+          newSerialIds = insertedSerials.map((s) => s.id)
+        }
+
+        // Ghi lại LỊCH SỬ thay đổi kho (audit trail) — bảng stock_movements không bao giờ
+        // bị update/xoá, chỉ insert thêm, nên luôn truy được "ai, lúc nào, từ phiếu nào"
+        // đã làm tồn kho thay đổi. storable → 1 dòng RIÊNG cho từng serial (quantity=1,
+        // serial_id gắn đúng SN đó) để có lịch sử di chuyển theo từng SN; consumable
+        // (không có serial) → giữ 1 dòng tổng như cũ (serial_id = null).
+        if (newSerialIds.length > 0) {
+          await trx('stock_movements').insert(
+            newSerialIds.map((serialId) => ({
+              variant_id:        line.variant_id,
+              warehouse_id:      receipt.warehouse_id,
+              serial_id:         serialId,
+              movement_type:     'in',
+              quantity:          1,
+              unit_cost:         line.cost_price,
+              ref_document_type: 'receipt',
+              ref_document_id:   id,
+              created_by:        userId,
             })),
           )
+        } else {
+          await trx('stock_movements').insert({
+            variant_id:        line.variant_id,
+            warehouse_id:      receipt.warehouse_id,
+            movement_type:     'in',   // receipt luôn là nhập kho → movement_type = 'in'
+            quantity:          line.quantity,
+            unit_cost:         line.cost_price,
+            ref_document_type: 'receipt',   // polymorphic reference — xem CLAUDE.md mục 19
+            ref_document_id:   id,
+            created_by:        userId,
+          })
         }
       }
 

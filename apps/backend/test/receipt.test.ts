@@ -71,13 +71,6 @@ describe('Receipt', () => {
     expect(inventory.qty_on_hand).toBe(10)
     expect(Number(inventory.avg_cost)).toBe(100000)
 
-    const movement = await app
-      .db('stock_movements')
-      .where({ ref_document_type: 'receipt', ref_document_id: receipt.id })
-      .first()
-    expect(movement.movement_type).toBe('in')
-    expect(movement.quantity).toBe(10)
-
     const createdSerials = await app
       .db('serial_numbers')
       .where({ variant_id: variantId, warehouse_id: warehouseId })
@@ -86,6 +79,16 @@ describe('Receipt', () => {
     expect(createdSerials.every((s) => s.status === 'active')).toBe(true)
     expect(createdSerials.every((s) => s.receipt_line_id === lineId)).toBe(true)
     expect(createdSerials.map((s) => s.serial_no)).toEqual(serials.slice().sort())
+
+    // storable → 1 dòng stock_movements RIÊNG cho từng serial (quantity=1, serial_id gắn
+    // đúng SN đó), không phải 1 dòng tổng quantity=10 — để có lịch sử di chuyển theo từng SN.
+    const movements = await app
+      .db('stock_movements')
+      .where({ ref_document_type: 'receipt', ref_document_id: receipt.id })
+      .orderBy('serial_id')
+    expect(movements).toHaveLength(10)
+    expect(movements.every((m) => m.movement_type === 'in' && m.quantity === 1)).toBe(true)
+    expect(movements.map((m) => m.serial_id).sort()).toEqual(createdSerials.map((s) => s.id).sort())
   })
 
   it('warranty_months trên receipt_line → tính đúng serial_numbers.warranty_end = completed_at + N tháng', async () => {

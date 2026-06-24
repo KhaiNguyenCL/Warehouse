@@ -232,24 +232,61 @@ export class DeliveryService {
             last_updated: trx.fn.now(),
           })
 
-        await trx('stock_movements').insert({
-          variant_id:        line.variant_id,
-          warehouse_id:      delivery.warehouse_id,
-          movement_type:     'out',
-          quantity:          line.quantity,
-          unit_cost:         inventory?.avg_cost ?? null,
-          ref_document_type: 'delivery_order',
-          ref_document_id:   id,
-          created_by:        userId,
-        })
+        // Lấy id + receipt_line_id của các serial liên quan TRƯỚC applySerialTransition().
+        let serialIds: string[] = []
+        if (line.product_type === 'storable' && effectiveType !== 'adjustment') {
+          const serials = serialsByLine.get(line.id) ?? []
+          const serialRows = serials.length > 0
+            ? await trx('serial_numbers').whereIn('serial_no', serials).select('id', 'receipt_line_id')
+            : []
+          serialIds = serialRows.map((r) => r.id)
+        }
+
+        // Ghi stock_movements TRƯỚC applySerialTransition() — bắt buộc thứ tự này vì
+        // exportType='return_out' HARD DELETE thẳng dòng serial_numbers (CLAUDE.md mục
+        // 9/19): nếu insert SAU khi đã xoá, serial_id trỏ vào id không còn tồn tại →
+        // FK violation, rollback nguyên transaction (xoá cũng mất theo). FK
+        // stock_movements_serial_id_fkey dùng ON DELETE SET NULL (migration
+        // 20260624000000) nên việc xoá NGAY SAU insert vẫn an toàn — chỉ tự null hoá
+        // serial_id của đúng dòng audit này, không lỗi.
+        //
+        // storable → 1 dòng RIÊNG cho từng serial (quantity=1, serial_id gắn đúng SN đó)
+        // để có lịch sử di chuyển theo từng SN; consumable/adjustment → giữ 1 dòng tổng
+        // như cũ (serial_id = null).
+        if (serialIds.length > 0) {
+          await trx('stock_movements').insert(
+            serialIds.map((serialId) => ({
+              variant_id:        line.variant_id,
+              warehouse_id:      delivery.warehouse_id,
+              serial_id:         serialId,
+              movement_type:     'out',
+              quantity:          1,
+              unit_cost:         inventory?.avg_cost ?? null,
+              ref_document_type: 'delivery_order',
+              ref_document_id:   id,
+              created_by:        userId,
+            })),
+          )
+        } else {
+          await trx('stock_movements').insert({
+            variant_id:        line.variant_id,
+            warehouse_id:      delivery.warehouse_id,
+            movement_type:     'out',
+            quantity:          line.quantity,
+            unit_cost:         inventory?.avg_cost ?? null,
+            ref_document_type: 'delivery_order',
+            ref_document_id:   id,
+            created_by:        userId,
+          })
+        }
 
         if (line.product_type === 'storable' && effectiveType !== 'adjustment') {
-          // Mỗi serial đã "ghim" đúng lô (receipt_line) từ lúc Receipt — trừ thẳng vào lô
-          // đó, không cần đoán theo FIFO vì đã biết chính xác serial nào thuộc lô nào.
           const serials = serialsByLine.get(line.id) ?? []
           const receiptLineIds = serials.length > 0
             ? await trx('serial_numbers').whereIn('serial_no', serials).pluck('receipt_line_id')
             : []
+          // Mỗi serial đã "ghim" đúng lô (receipt_line) từ lúc Receipt — trừ thẳng vào lô
+          // đó, không cần đoán theo FIFO vì đã biết chính xác serial nào thuộc lô nào.
           await this.consumeReceiptLinesBySerial(trx, receiptLineIds)
           await this.applySerialTransition(
             trx, effectiveType, line.id, line.variant_id, delivery.warehouse_id, serials,

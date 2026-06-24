@@ -489,7 +489,11 @@ CREATE TABLE stock_movements (
     id                UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
     variant_id        UUID          NOT NULL REFERENCES variants(id),
     warehouse_id      UUID          NOT NULL REFERENCES warehouses(id),
-    serial_id         UUID          REFERENCES serial_numbers(id),
+    -- ON DELETE SET NULL: export_type="return_out" hard-delete serial_numbers (mục 9/19) —
+    -- nếu giữ FK mặc định, dòng audit "đã return_out serial này" sẽ không insert được/chặn
+    -- xoá. Mất serial_id (không mất nguyên dòng) đúng tinh thần "serial không còn ý nghĩa
+    -- theo dõi" của return_out.
+    serial_id         UUID          REFERENCES serial_numbers(id) ON DELETE SET NULL,
     movement_type     TEXT          NOT NULL CHECK (movement_type IN ('in', 'out')),
     quantity          INTEGER       NOT NULL CHECK (quantity > 0),
     unit_cost         NUMERIC(15,2),

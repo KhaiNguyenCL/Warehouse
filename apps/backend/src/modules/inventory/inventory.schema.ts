@@ -39,19 +39,24 @@ export interface ListLotsQuery {
 }
 
 // Chi tiết từng Serial Number của 1 lô (receipt_line) — drill-down từ "Xem lô" xuống
-// từng cái vật lý cụ thể (serial_no, trạng thái, bảo hành, MAC...).
+// từng cái vật lý cụ thể (serial_no, trạng thái, bảo hành, MAC...). Hoặc tra ngược trực
+// tiếp theo serial_no (search) khi chỉ có 1 SN vật lý trong tay, không biết trước SKU/kho/
+// lô — serial_numbers.serial_no UNIQUE nên tra thẳng được, không cần drill 3 tầng. Validate
+// "phải có 1 trong 2" ở service.ts (giống pattern cross-field validation khác trong dự án),
+// không dùng JSON schema oneOf cho dễ đọc lỗi.
 export const listSerialsSchema = {
   querystring: {
     type: 'object',
-    required: ['receipt_line_id'],
     properties: {
       receipt_line_id: { type: 'string', format: 'uuid' },
+      search:          { type: 'string', minLength: 1 },
     },
   },
 }
 
 export interface ListSerialsQuery {
-  receipt_line_id: string
+  receipt_line_id?: string
+  search?: string
 }
 
 export const listLowStockSchema = {

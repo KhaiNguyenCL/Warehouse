@@ -66,6 +66,8 @@ const NAV_ITEMS = [
       { key: '/settings/types', icon: <SettingOutlined />, label: 'Loại nhập/xuất kho' },
       { key: '/settings/roles', icon: <SettingOutlined />, label: 'Roles & Permissions' },
       { key: '/settings/users', icon: <SettingOutlined />, label: 'Users' },
+      { key: '/settings/templates', icon: <SettingOutlined />, label: 'Template báo giá/phiếu' },
+      { key: '/settings/bitrix', icon: <SettingOutlined />, label: 'Bitrix Field Mapping' },
     ],
   },
 ]

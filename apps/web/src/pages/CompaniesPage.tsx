@@ -1,5 +1,6 @@
-import { useQuery } from '@tanstack/react-query'
-import { Table, Input, Select, Tag, Form } from 'antd'
+import { useState } from 'react'
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
+import { Table, Input, Select, Tag, Form, Button, Modal, message } from 'antd'
 import { api } from '../lib/api'
 import { useApiMutation } from '../hooks/useApiMutation'
 import { useEntityModal } from '../hooks/useEntityModal'
@@ -10,6 +11,9 @@ import ContactsPanel from '../components/ContactsPanel'
 
 export default function CompaniesPage() {
   const { open, editing, form, openCreate, openEdit, close } = useEntityModal()
+  const qc = useQueryClient()
+  const [importOpen, setImportOpen] = useState(false)
+  const [bitrixCompanyId, setBitrixCompanyId] = useState('')
 
   const { data, isLoading } = useQuery({
     queryKey: ['companies'],
@@ -28,9 +32,27 @@ export default function CompaniesPage() {
     onSuccess: close,
   })
 
+  // CLAUDE.md mục 12: fetch Company từ Bitrix (chỉ đọc), idempotent theo bitrix_company_id
+  // — import lại nhiều lần chỉ update, không tạo trùng.
+  const importMutation = useMutation({
+    mutationFn: () => api.post(`/bitrix/companies/${bitrixCompanyId}/import`),
+    onSuccess: () => {
+      message.success('Import company từ Bitrix thành công')
+      qc.invalidateQueries({ queryKey: ['companies'] })
+      setImportOpen(false)
+      setBitrixCompanyId('')
+    },
+    onError: (err: any) => message.error(err.response?.data?.error ?? 'Import thất bại'),
+  })
+
   return (
     <div>
-      <PageHeader title="Đối tác (Khách hàng / NCC)" actionLabel="+ Tạo mới" onAction={openCreate} />
+      <PageHeader
+        title="Đối tác (Khách hàng / NCC)"
+        actionLabel="+ Tạo mới"
+        onAction={openCreate}
+        actions={<Button onClick={() => setImportOpen(true)}>Import từ Bitrix</Button>}
+      />
 
       <Table
         rowKey="id"
@@ -110,6 +132,24 @@ export default function CompaniesPage() {
           <Input.TextArea />
         </Form.Item>
       </EntityFormModal>
+
+      <Modal
+        title="Import công ty từ Bitrix"
+        open={importOpen}
+        onCancel={() => setImportOpen(false)}
+        onOk={() => importMutation.mutate()}
+        okButtonProps={{ disabled: !bitrixCompanyId, loading: importMutation.isPending }}
+      >
+        <Form layout="vertical">
+          <Form.Item label="Bitrix Company ID" required>
+            <Input
+              value={bitrixCompanyId}
+              onChange={(e) => setBitrixCompanyId(e.target.value)}
+              placeholder="VD: 123"
+            />
+          </Form.Item>
+        </Form>
+      </Modal>
     </div>
   )
 }

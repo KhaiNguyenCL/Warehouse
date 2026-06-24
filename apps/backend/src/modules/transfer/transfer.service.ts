@@ -174,49 +174,86 @@ export class TransferService {
           },
         )
 
-        // 2 dòng stock_movements — 1 "out" khỏi kho nguồn, 1 "in" vào kho đích — cùng
-        // ref_document_id để biết chúng thuộc về 1 lần chuyển kho duy nhất.
-        await trx('stock_movements').insert([
-          {
-            variant_id: line.variant_id,
-            warehouse_id: transfer.from_warehouse_id,
-            movement_type: 'out',
-            quantity: line.quantity,
-            unit_cost: fromInventory?.avg_cost ?? null,
-            ref_document_type: 'transfer_order',
-            ref_document_id: id,
-            created_by: userId,
-          },
-          {
-            variant_id: line.variant_id,
-            warehouse_id: transfer.to_warehouse_id,
-            movement_type: 'in',
-            quantity: line.quantity,
-            unit_cost: fromInventory?.avg_cost ?? null,
-            ref_document_type: 'transfer_order',
-            ref_document_id: id,
-            created_by: userId,
-          },
-        ])
-
         // storable → di chuyển đúng các serial đã chọn sang kho đích. Khác với
         // receipt (tạo serial mới) hay delivery (đổi status), transfer chỉ đổi
         // warehouse_id — serial vẫn active, vẫn là chính nó, chỉ đổi vị trí.
         //
         // where lại variant_id + warehouse_id (kho nguồn) + status ngay tại update —
         // phòng request khác xen vào giữa lúc validate và lúc transaction này chạy.
+        // .returning('id') để lấy lại đúng id các serial vừa chuyển, gắn vào
+        // stock_movements.serial_id phía dưới (đảo thứ tự so với trước: update serial
+        // TRƯỚC khi ghi stock_movements).
+        let serialIds: string[] = []
         if (line.product_type === 'storable') {
           const serials = serialsByLine.get(line.id) ?? []
           if (serials.length > 0) {
-            const affected = await trx('serial_numbers')
+            const updated = await trx('serial_numbers')
               .whereIn('serial_no', serials)
               .where({ variant_id: line.variant_id, warehouse_id: transfer.from_warehouse_id, status: 'active' })
               .update({ warehouse_id: transfer.to_warehouse_id, updated_at: trx.fn.now() })
+              .returning('id')
 
-            if (affected !== serials.length) {
+            if (updated.length !== serials.length) {
               throw { statusCode: 409, message: 'Một số serial đã bị thay đổi bởi giao dịch khác, vui lòng thử lại' }
             }
+            serialIds = updated.map((r) => r.id)
           }
+        }
+
+        // 2 dòng stock_movements — 1 "out" khỏi kho nguồn, 1 "in" vào kho đích — cùng
+        // ref_document_id để biết chúng thuộc về 1 lần chuyển kho duy nhất. storable →
+        // tách riêng theo TỪNG serial (quantity=1, serial_id gắn đúng SN đó) để có lịch
+        // sử di chuyển theo từng SN; consumable → giữ 1 cặp dòng tổng như cũ (serial_id = null).
+        if (serialIds.length > 0) {
+          await trx('stock_movements').insert(
+            serialIds.flatMap((serialId) => [
+              {
+                variant_id: line.variant_id,
+                warehouse_id: transfer.from_warehouse_id,
+                serial_id: serialId,
+                movement_type: 'out',
+                quantity: 1,
+                unit_cost: fromInventory?.avg_cost ?? null,
+                ref_document_type: 'transfer_order',
+                ref_document_id: id,
+                created_by: userId,
+              },
+              {
+                variant_id: line.variant_id,
+                warehouse_id: transfer.to_warehouse_id,
+                serial_id: serialId,
+                movement_type: 'in',
+                quantity: 1,
+                unit_cost: fromInventory?.avg_cost ?? null,
+                ref_document_type: 'transfer_order',
+                ref_document_id: id,
+                created_by: userId,
+              },
+            ]),
+          )
+        } else {
+          await trx('stock_movements').insert([
+            {
+              variant_id: line.variant_id,
+              warehouse_id: transfer.from_warehouse_id,
+              movement_type: 'out',
+              quantity: line.quantity,
+              unit_cost: fromInventory?.avg_cost ?? null,
+              ref_document_type: 'transfer_order',
+              ref_document_id: id,
+              created_by: userId,
+            },
+            {
+              variant_id: line.variant_id,
+              warehouse_id: transfer.to_warehouse_id,
+              movement_type: 'in',
+              quantity: line.quantity,
+              unit_cost: fromInventory?.avg_cost ?? null,
+              ref_document_type: 'transfer_order',
+              ref_document_id: id,
+              created_by: userId,
+            },
+          ])
         }
       }
 

@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Table, Button, Typography, Space, Popconfirm, Select, Tag, message } from 'antd'
+import { Table, Button, Typography, Space, Popconfirm, Select, Tag, message, Input } from 'antd'
 import { useState } from 'react'
 import { api } from '../lib/api'
 import { useApiMutation } from '../hooks/useApiMutation'
@@ -13,6 +13,7 @@ export default function QuotationDetailPage() {
   const navigate = useNavigate()
   const [templateId, setTemplateId] = useState<string | undefined>()
   const [exporting, setExporting] = useState(false)
+  const [dealId, setDealId] = useState('')
 
   const { data, isLoading } = useQuery({
     queryKey: ['quotations', id],
@@ -29,6 +30,13 @@ export default function QuotationDetailPage() {
   const unconfirmMutation = useApiMutation(() => api.patch(`/quotations/${id}/unconfirm`), actionOptions)
   const cancelMutation = useApiMutation(() => api.patch(`/quotations/${id}/cancel`), actionOptions)
   const expireMutation = useApiMutation(() => api.patch(`/quotations/${id}/expire`), actionOptions)
+
+  // CLAUDE.md mục 13: "Bấm Sync lại → ghi đè toàn bộ field được map (không hỏi lại)" — chỉ
+  // cho phép khi Draft (BitrixService chặn ở backend), deal_id để trống = sync lại deal cũ.
+  const syncMutation = useApiMutation(
+    () => api.post(`/bitrix/quotations/${id}/sync`, dealId ? { deal_id: dealId } : {}),
+    { ...actionOptions, successMessage: 'Đồng bộ Bitrix thành công', onSuccess: () => setDealId('') },
+  )
 
   async function handleExport(format: 'xlsx' | 'pdf') {
     if (!templateId) {
@@ -110,6 +118,39 @@ export default function QuotationDetailPage() {
         <Button loading={exporting} disabled={!templateId} onClick={() => handleExport('pdf')}>
           Xuất PDF
         </Button>
+      </Space>
+
+      <Space style={{ marginBottom: 16 }}>
+        {data.bitrix_deal_id ? (
+          <Typography.Text>
+            Đã đồng bộ Bitrix Deal{' '}
+            {data.bitrix_deal_url ? (
+              <a href={data.bitrix_deal_url} target="_blank" rel="noreferrer">#{data.bitrix_deal_id}</a>
+            ) : (
+              <>#{data.bitrix_deal_id}</>
+            )}
+            {data.bitrix_synced_at && <> — lúc {new Date(data.bitrix_synced_at).toLocaleString('vi-VN')}</>}
+          </Typography.Text>
+        ) : (
+          <Typography.Text type="secondary">Chưa đồng bộ Bitrix</Typography.Text>
+        )}
+        {data.status === 'draft' && (
+          <>
+            <Input
+              placeholder={data.bitrix_deal_id ? 'Để trống = sync lại deal cũ' : 'Nhập Bitrix Deal ID'}
+              style={{ width: 220 }}
+              value={dealId}
+              onChange={(e) => setDealId(e.target.value)}
+            />
+            <Button
+              loading={syncMutation.isPending}
+              disabled={!dealId && !data.bitrix_deal_id}
+              onClick={() => syncMutation.mutate()}
+            >
+              {data.bitrix_deal_id ? 'Sync lại' : 'Đồng bộ'}
+            </Button>
+          </>
+        )}
       </Space>
 
       {data.sections.map((section: any) => (

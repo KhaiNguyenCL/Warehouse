@@ -11,12 +11,16 @@ export function PageHeader({
   actionLabel,
   onAction,
   extra,
+  actions,
 }: {
   title: ReactNode
   level?: 1 | 2 | 3 | 4 | 5
   actionLabel?: string
   onAction?: () => void
   extra?: ReactNode
+  // Nút phụ bên cạnh nút hành động chính (VD "Import từ Bitrix" cạnh "+ Tạo mới") — khác
+  // `extra` (nằm bên trái cạnh title), `actions` nằm bên phải cạnh actionLabel.
+  actions?: ReactNode
 }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
@@ -26,11 +30,14 @@ export function PageHeader({
         </Typography.Title>
         {extra}
       </div>
-      {actionLabel && (
-        <Button type="primary" onClick={onAction}>
-          {actionLabel}
-        </Button>
-      )}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        {actions}
+        {actionLabel && (
+          <Button type="primary" onClick={onAction}>
+            {actionLabel}
+          </Button>
+        )}
+      </div>
     </div>
   )
 }

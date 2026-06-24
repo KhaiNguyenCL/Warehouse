@@ -18,7 +18,14 @@ export class InventoryService {
   }
 
   serials(query: ListSerialsQuery) {
+    if (!query.receipt_line_id && !query.search) {
+      throw { statusCode: 400, message: 'Cần truyền receipt_line_id hoặc search' }
+    }
     return this.repo.findSerials(query)
+  }
+
+  serialMovements(serialId: string) {
+    return this.repo.findMovementsBySerial(serialId)
   }
 
   lowStock(query: ListLowStockQuery) {
