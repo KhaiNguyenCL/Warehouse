@@ -1,5 +1,5 @@
 export const FIELD_TYPES = ['text', 'number', 'date', 'select', 'boolean'] as const
-export const CUSTOM_FIELD_OBJECT_TYPES = ['quotation', 'receipt', 'delivery_order', 'product', 'company'] as const
+export const CUSTOM_FIELD_OBJECT_TYPES = ['quotation', 'receipt', 'delivery_order', 'product', 'variant', 'company'] as const
 
 export const createCustomFieldSchema = {
   body: {
@@ -14,6 +14,10 @@ export const createCustomFieldSchema = {
       object_type: { type: 'string', enum: CUSTOM_FIELD_OBJECT_TYPES },
       options:     { type: 'array', items: { type: 'string', minLength: 1 } },
       sort_order:  { type: 'integer' },
+      // Chỉ có ý nghĩa khi object_type="variant" — cho phép field này được nhập/sửa
+      // riêng theo từng dòng Purchase Order (giống cơ chế unit_price/warranty_months:
+      // variant chỉ là giá trị gợi ý mặc định, PO line lưu giá trị độc lập sau khi chọn).
+      applies_to_po_line: { type: 'boolean' },
     },
   },
 }
@@ -26,6 +30,7 @@ export const updateCustomFieldSchema = {
       options:     { type: 'array', items: { type: 'string', minLength: 1 } },
       sort_order:  { type: 'integer' },
       is_active:   { type: 'boolean' },
+      applies_to_po_line: { type: 'boolean' },
     },
   },
 }
@@ -89,6 +94,7 @@ export interface CreateCustomFieldBody {
   object_type: CustomFieldObjectType
   options?: string[]
   sort_order?: number
+  applies_to_po_line?: boolean
 }
 
 export interface UpdateCustomFieldBody {
@@ -96,6 +102,7 @@ export interface UpdateCustomFieldBody {
   options?: string[]
   sort_order?: number
   is_active?: boolean
+  applies_to_po_line?: boolean
 }
 
 export interface ListCustomFieldQuery {

@@ -53,6 +53,11 @@ export class InventoryRepository {
     const q = this.db('receipt_lines as rl')
       .join('receipts as r', 'r.id', 'rl.receipt_id')
       .leftJoin('companies as c', 'c.id', 'r.company_id')
+      // po_line_id (cả receipts.po_id và receipt_lines.po_line_id) là liên kết TUỲ CHỌN
+      // tới Purchase Order (mục 7/9 CLAUDE.md) — leftJoin để lô nhập không qua PO chính
+      // thức vẫn hiển thị bình thường, chỉ po_code là null.
+      .leftJoin('purchase_order_lines as pol', 'pol.id', 'rl.po_line_id')
+      .leftJoin('purchase_orders as po', 'po.id', 'pol.purchase_order_id')
       .where('rl.variant_id', variant_id)
       .andWhere('r.status', 'completed')
       .select(
@@ -64,6 +69,7 @@ export class InventoryRepository {
         'rl.qty_remaining',
         'rl.cost_price',
         'rl.warranty_months',
+        'po.code as po_code',
       )
       .orderBy([
         { column: 'r.completed_at', order: 'asc' },

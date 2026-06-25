@@ -139,6 +139,7 @@ function LotsTable({ variantId, warehouseId }: { variantId: string; warehouseId:
       size="small"
       columns={[
         { title: 'Phiếu nhập', dataIndex: 'receipt_code' },
+        { title: 'PO', dataIndex: 'po_code', render: (v: string | null) => v ?? '—' },
         { title: 'NCC', dataIndex: 'company_name' },
         { title: 'Ngày hoàn thành', dataIndex: 'completed_at', render: (d) => new Date(d).toLocaleDateString('vi-VN') },
         { title: 'SL nhập', dataIndex: 'quantity' },

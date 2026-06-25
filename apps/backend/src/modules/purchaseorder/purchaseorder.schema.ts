@@ -7,6 +7,20 @@ const lineItemProperties = {
   warranty_months: { type: 'integer', minimum: 0 },
   line_order:      { type: 'integer' },
   note:            { type: 'string' },
+  // Giá trị custom field (object_type="variant", applies_to_po_line=true) lưu riêng theo
+  // dòng PO này — không lẫn với giá trị mặc định trên variant (xem
+  // customfield.schema.ts::applies_to_po_line).
+  custom_field_values: {
+    type: 'array',
+    items: {
+      type: 'object',
+      required: ['field_id'],
+      properties: {
+        field_id: { type: 'string', format: 'uuid' },
+        value:    { type: ['string', 'null'] },
+      },
+    },
+  },
 }
 
 export const createPurchaseOrderSchema = {
@@ -75,6 +89,7 @@ export interface PurchaseOrderLineInput {
   warranty_months?: number
   line_order?: number
   note?: string
+  custom_field_values?: Array<{ field_id: string; value: string | null }>
 }
 
 export interface CreatePurchaseOrderBody {

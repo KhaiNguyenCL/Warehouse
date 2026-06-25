@@ -88,30 +88,40 @@ export class CustomFieldService {
   }
 
   private validateValue(field: { field_type: string; field_label: string; options: string[] | null }, value: string) {
-    switch (field.field_type) {
-      case 'number':
-        if (Number.isNaN(Number(value))) {
-          throw { statusCode: 400, message: `Giá trị "${field.field_label}" phải là số` }
+    validateCustomFieldValue(field, value)
+  }
+}
+
+// Dùng lại ở cả CustomFieldService.setValues() (object_type chính chủ của field) và
+// purchaseorder.service.ts (validate custom_field_values theo applies_to_po_line — field
+// định nghĩa object_type="variant" nhưng giá trị lưu theo object_type="purchase_order_line").
+export function validateCustomFieldValue(
+  field: { field_type: string; field_label: string; options: string[] | null },
+  value: string,
+) {
+  switch (field.field_type) {
+    case 'number':
+      if (Number.isNaN(Number(value))) {
+        throw { statusCode: 400, message: `Giá trị "${field.field_label}" phải là số` }
+      }
+      break
+    case 'date':
+      if (Number.isNaN(Date.parse(value))) {
+        throw { statusCode: 400, message: `Giá trị "${field.field_label}" phải là ngày hợp lệ` }
+      }
+      break
+    case 'boolean':
+      if (!['true', 'false'].includes(value)) {
+        throw { statusCode: 400, message: `Giá trị "${field.field_label}" phải là true hoặc false` }
+      }
+      break
+    case 'select':
+      if (!(field.options ?? []).includes(value)) {
+        throw {
+          statusCode: 400,
+          message: `Giá trị "${value}" không thuộc danh sách lựa chọn của "${field.field_label}"`,
         }
-        break
-      case 'date':
-        if (Number.isNaN(Date.parse(value))) {
-          throw { statusCode: 400, message: `Giá trị "${field.field_label}" phải là ngày hợp lệ` }
-        }
-        break
-      case 'boolean':
-        if (!['true', 'false'].includes(value)) {
-          throw { statusCode: 400, message: `Giá trị "${field.field_label}" phải là true hoặc false` }
-        }
-        break
-      case 'select':
-        if (!(field.options ?? []).includes(value)) {
-          throw {
-            statusCode: 400,
-            message: `Giá trị "${value}" không thuộc danh sách lựa chọn của "${field.field_label}"`,
-          }
-        }
-        break
-    }
+      }
+      break
   }
 }

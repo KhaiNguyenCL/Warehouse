@@ -206,4 +206,120 @@ describe('PurchaseOrder', () => {
     expect(list.data.length).toBeGreaterThan(0)
     expect(list.data[0].company_name).toBe('NCC Test')
   })
+
+  describe('Custom field theo PO line (applies_to_po_line)', () => {
+    let poLineFieldId: string
+    let variantOnlyFieldId: string
+
+    beforeEach(async () => {
+      const poLineFieldRes = await authedInject({
+        method: 'POST',
+        url: '/api/v1/custom-fields',
+        payload: {
+          field_name: 'import_lot',
+          field_label: 'Số lô nhập',
+          field_type: 'text',
+          object_type: 'variant',
+          applies_to_po_line: true,
+        },
+      })
+      poLineFieldId = JSON.parse(poLineFieldRes.payload).id
+
+      const variantOnlyFieldRes = await authedInject({
+        method: 'POST',
+        url: '/api/v1/custom-fields',
+        payload: { field_name: 'ram_size', field_label: 'RAM', field_type: 'text', object_type: 'variant' },
+      })
+      variantOnlyFieldId = JSON.parse(variantOnlyFieldRes.payload).id
+    })
+
+    it('tạo PO với custom_field_values cho field applies_to_po_line=true → lưu đúng theo line', async () => {
+      const res = await authedInject({
+        method: 'POST',
+        url: '/api/v1/purchase-orders',
+        payload: basePayload({
+          lines: [
+            {
+              variant_id: variantId,
+              quantity: 10,
+              unit_price: 1000000,
+              custom_field_values: [{ field_id: poLineFieldId, value: 'LOT-001' }],
+            },
+          ],
+        }),
+      })
+      expect(res.statusCode).toBe(201)
+      const po = JSON.parse(res.payload)
+      expect(po.lines[0].custom_field_values).toHaveLength(1)
+      expect(po.lines[0].custom_field_values[0].value).toBe('LOT-001')
+
+      const getRes = await authedInject({ method: 'GET', url: `/api/v1/purchase-orders/${po.id}` })
+      const detail = JSON.parse(getRes.payload)
+      expect(detail.lines[0].custom_field_values[0].field_name).toBe('import_lot')
+      expect(detail.lines[0].custom_field_values[0].value).toBe('LOT-001')
+    })
+
+    it('custom_field_values dùng field KHÔNG có applies_to_po_line=true → 400', async () => {
+      const res = await authedInject({
+        method: 'POST',
+        url: '/api/v1/purchase-orders',
+        payload: basePayload({
+          lines: [
+            {
+              variant_id: variantId,
+              quantity: 10,
+              unit_price: 1000000,
+              custom_field_values: [{ field_id: variantOnlyFieldId, value: '16GB' }],
+            },
+          ],
+        }),
+      })
+      expect(res.statusCode).toBe(400)
+    })
+
+    it('sửa PO (replaceLines): giá trị custom field theo line cũ không lẫn qua dòng mới, set lại đúng giá trị mới', async () => {
+      const createRes = await authedInject({
+        method: 'POST',
+        url: '/api/v1/purchase-orders',
+        payload: basePayload({
+          lines: [
+            {
+              variant_id: variantId,
+              quantity: 10,
+              unit_price: 1000000,
+              custom_field_values: [{ field_id: poLineFieldId, value: 'LOT-001' }],
+            },
+          ],
+        }),
+      })
+      const po = JSON.parse(createRes.payload)
+      const oldLineId = po.lines[0].id
+
+      const updateRes = await authedInject({
+        method: 'PATCH',
+        url: `/api/v1/purchase-orders/${po.id}`,
+        payload: {
+          lines: [
+            {
+              variant_id: variantId,
+              quantity: 20,
+              unit_price: 900000,
+              custom_field_values: [{ field_id: poLineFieldId, value: 'LOT-002' }],
+            },
+          ],
+        },
+      })
+      expect(updateRes.statusCode).toBe(200)
+      const updated = JSON.parse(updateRes.payload)
+      const newLineId = updated.lines[0].id
+      expect(newLineId).not.toBe(oldLineId)
+      expect(updated.lines[0].custom_field_values[0].value).toBe('LOT-002')
+
+      const app = await getApp()
+      const orphanedValues = await app
+        .db('field_values')
+        .where({ object_type: 'purchase_order_line', object_id: oldLineId })
+      expect(orphanedValues).toHaveLength(0)
+    })
+  })
 })

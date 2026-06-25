@@ -32,6 +32,46 @@ describe('CustomField', () => {
     expect(JSON.parse(listRes.payload)).toHaveLength(1)
   })
 
+  it('tạo custom field cho object_type="variant" (SKU) thành công, lưu/đọc value theo đúng variant_id', async () => {
+    const app = await getApp()
+    const [product] = await app.db('products').insert({ code: 'CF-PROD', name: 'SP test custom field SKU', product_type: 'storable' }).returning('*')
+    const [variant] = await app
+      .db('variants')
+      .insert({ product_id: product.id, sku: 'CF-PROD-SKU', name: 'SKU test', unit: 'Cái' })
+      .returning('*')
+
+    const createRes = await authedInject({
+      method: 'POST',
+      url: '/api/v1/custom-fields',
+      payload: { field_name: 'ram_size', field_label: 'Dung lượng RAM', field_type: 'text', object_type: 'variant' },
+    })
+    expect(createRes.statusCode).toBe(201)
+    const field = JSON.parse(createRes.payload)
+
+    const putRes = await authedInject({
+      method: 'PUT',
+      url: `/api/v1/custom-fields/values?object_type=variant&object_id=${variant.id}`,
+      payload: { values: [{ field_id: field.id, value: '16GB' }] },
+    })
+    expect(putRes.statusCode).toBe(200)
+
+    const getRes = await authedInject({
+      method: 'GET',
+      url: `/api/v1/custom-fields/values?object_type=variant&object_id=${variant.id}`,
+    })
+    const values = JSON.parse(getRes.payload)
+    expect(values).toHaveLength(1)
+    expect(values[0].value).toBe('16GB')
+
+    // value của variant này không lẫn qua object_type="product" dù field_name khác — đảm
+    // bảo 2 cấp Product/Variant tách biệt hoàn toàn theo CLAUDE.md mục 5.
+    const productValuesRes = await authedInject({
+      method: 'GET',
+      url: `/api/v1/custom-fields/values?object_type=product&object_id=${product.id}`,
+    })
+    expect(JSON.parse(productValuesRes.payload)).toHaveLength(0)
+  })
+
   it('field_type=select thiếu options → 400', async () => {
     const res = await authedInject({
       method: 'POST',

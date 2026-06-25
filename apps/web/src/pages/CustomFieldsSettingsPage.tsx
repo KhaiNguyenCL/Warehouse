@@ -16,6 +16,7 @@ const OBJECT_TYPES = [
   { value: 'receipt', label: 'Receipt' },
   { value: 'delivery_order', label: 'Delivery Order' },
   { value: 'product', label: 'Product' },
+  { value: 'variant', label: 'Variant (SKU)' },
   { value: 'company', label: 'Company' },
 ]
 
@@ -58,6 +59,7 @@ export default function CustomFieldsSettingsPage() {
       options: field.options ?? [],
       sort_order: field.sort_order,
       is_active: field.is_active,
+      applies_to_po_line: field.applies_to_po_line,
     })
   }
 
@@ -97,6 +99,15 @@ export default function CustomFieldsSettingsPage() {
             dataIndex: 'is_active',
             render: (v: boolean) => <Tag color={v ? 'green' : 'default'}>{v ? 'Có' : 'Không'}</Tag>,
           },
+          ...(objectType === 'variant'
+            ? [
+                {
+                  title: 'Sửa riêng theo PO',
+                  dataIndex: 'applies_to_po_line',
+                  render: (v: boolean) => <Tag color={v ? 'blue' : 'default'}>{v ? 'Có' : 'Không'}</Tag>,
+                },
+              ]
+            : []),
           {
             title: '',
             render: (_: any, record: any) => (
@@ -153,6 +164,17 @@ export default function CustomFieldsSettingsPage() {
         <Form.Item name="sort_order" label="Thứ tự hiển thị" initialValue={0}>
           <InputNumber style={{ width: '100%' }} />
         </Form.Item>
+        {objectType === 'variant' && (
+          <Form.Item
+            name="applies_to_po_line"
+            label="Cho phép sửa riêng theo PO"
+            valuePropName="checked"
+            initialValue={false}
+            extra="Bật: giá trị field này nhập được riêng theo từng dòng PO (như đơn giá), không bị ảnh hưởng nếu sau đó sửa giá trị mặc định trên SKU. Tắt: chỉ xem (tham chiếu giá trị trên SKU)."
+          >
+            <Switch />
+          </Form.Item>
+        )}
         {editing && (
           <Form.Item name="is_active" label="Active" valuePropName="checked" initialValue={true}>
             <Switch />

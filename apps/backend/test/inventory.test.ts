@@ -111,8 +111,20 @@ describe('Inventory', () => {
         status: 'completed', completed_at: '2026-06-01', created_by: user.id,
       })
       .returning('*')
+    const [po] = await app
+      .db('purchase_orders')
+      .insert({ code: 'PO-LOT-001', company_id: company.id, status: 'confirmed', created_by: user.id })
+      .returning('*')
+    const [poLine] = await app
+      .db('purchase_order_lines')
+      .insert({ purchase_order_id: po.id, variant_id: variant.id, quantity: 10, unit_price: 900000 })
+      .returning('*')
+
     await app.db('receipt_lines').insert([
-      { receipt_id: oldReceipt.id, variant_id: variant.id, quantity: 10, qty_remaining: 4, cost_price: 900000, warranty_months: 12 },
+      {
+        receipt_id: oldReceipt.id, variant_id: variant.id, quantity: 10, qty_remaining: 4,
+        cost_price: 900000, warranty_months: 12, po_line_id: poLine.id,
+      },
       { receipt_id: newReceipt.id, variant_id: variant.id, quantity: 5, qty_remaining: 5, cost_price: 950000, warranty_months: 24 },
     ])
 
@@ -128,8 +140,12 @@ describe('Inventory', () => {
     expect(lots[0].warranty_months).toBe(12)
     expect(lots[0].qty_remaining).toBe(4)
     expect(lots[0].company_name).toBe('NCC Lô Test')
+    // Lô đến từ Receipt có po_line_id → trả kèm po_code (liên kết PO tuỳ chọn, mục 9
+    // CLAUDE.md) — lô không qua PO chính thức (newReceipt) thì po_code phải là null.
+    expect(lots[0].po_code).toBe('PO-LOT-001')
     expect(lots[1].receipt_code).toBe('PN-LOT-NEW')
     expect(Number(lots[1].cost_price)).toBe(950000)
+    expect(lots[1].po_code).toBeNull()
   })
 
   it('GET /serials trả về đúng các SN thuộc 1 receipt_line, không lẫn SN của lô khác', async () => {

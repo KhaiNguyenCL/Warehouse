@@ -120,6 +120,7 @@ export default function ProductDetailPage() {
                 <BundleItemsPanel productId={id!} variantId={variantModal.editing.id} />
               )}
               <VariantSuppliersPanel productId={id!} variantId={variantModal.editing.id} />
+              <CustomFieldsPanel objectType="variant" objectId={variantModal.editing.id} />
             </>
           ) : undefined
         }

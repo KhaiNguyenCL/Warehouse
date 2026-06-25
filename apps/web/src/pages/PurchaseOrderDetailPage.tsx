@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Table, Button, Typography, Space, Popconfirm } from 'antd'
+import { Table, Button, Typography, Space, Popconfirm, Tag } from 'antd'
 import { api } from '../lib/api'
 import { useApiMutation } from '../hooks/useApiMutation'
 import { StatusTag } from '../components/StatusTag'
@@ -68,6 +68,18 @@ export default function PurchaseOrderDetailPage() {
           { title: 'Đang chờ', dataIndex: 'pending_qty' },
           { title: 'Còn lại', dataIndex: 'remaining_qty' },
           { title: 'Ghi chú', dataIndex: 'note' },
+          {
+            title: 'Thông tin thêm',
+            dataIndex: 'custom_field_values',
+            render: (values: any[]) =>
+              values
+                ?.filter((v) => v.value !== null && v.value !== undefined)
+                .map((v) => (
+                  <Tag key={v.field_id}>
+                    {v.field_label}: {v.field_type === 'boolean' ? (v.value === 'true' ? 'Có' : 'Không') : v.value}
+                  </Tag>
+                )),
+          },
         ]}
       />
     </div>

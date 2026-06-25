@@ -607,13 +607,17 @@ CREATE TABLE custom_fields (
     field_name  TEXT    NOT NULL,
     field_label TEXT    NOT NULL,
     field_type  TEXT    NOT NULL CHECK (field_type IN ('text', 'number', 'date', 'select', 'boolean')),
-    object_type TEXT    NOT NULL CHECK (object_type IN ('quotation', 'receipt', 'delivery_order', 'product', 'company')),
+    object_type TEXT    NOT NULL CHECK (object_type IN ('quotation', 'receipt', 'delivery_order', 'product', 'variant', 'company')),
     -- Danh sách lựa chọn khi field_type='select', VD ["Loại A","Loại B"] — NULL cho các
     -- field_type khác. Không có cột này thì field_type='select' không có nơi lưu options.
     options     JSONB,
     is_system   BOOLEAN NOT NULL DEFAULT false,
     is_active   BOOLEAN NOT NULL DEFAULT true,
     sort_order  INTEGER NOT NULL DEFAULT 0,
+    -- Chỉ có ý nghĩa khi object_type='variant' — cho phép field này nhập/sửa riêng theo
+    -- từng dòng Purchase Order, giá trị lưu độc lập theo purchase_order_lines.id (xem
+    -- field_values với object_type='purchase_order_line').
+    applies_to_po_line BOOLEAN NOT NULL DEFAULT false,
     UNIQUE (object_type, field_name)
 );
 

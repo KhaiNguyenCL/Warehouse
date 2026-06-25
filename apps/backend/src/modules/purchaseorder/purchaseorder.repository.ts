@@ -59,6 +59,7 @@ export class PurchaseOrderRepository {
 
     const lineIds = lines.map((l: any) => l.id)
     const progress = lineIds.length ? await this.findLineProgress(lineIds) : new Map()
+    const customValuesByLine = lineIds.length ? await this.findLineCustomFieldValues(lineIds) : new Map()
 
     const linesWithProgress = lines.map((l: any) => {
       const p = progress.get(l.id) ?? { received_qty: 0, pending_qty: 0 }
@@ -67,10 +68,51 @@ export class PurchaseOrderRepository {
         received_qty: p.received_qty,
         pending_qty: p.pending_qty,
         remaining_qty: Number(l.quantity) - p.received_qty - p.pending_qty,
+        custom_field_values: customValuesByLine.get(l.id) ?? [],
       }
     })
 
     return { ...po, lines: linesWithProgress }
+  }
+
+  // Giá trị custom field riêng theo từng PO line — lưu trong field_values với
+  // object_type="purchase_order_line", object_id=purchase_order_lines.id (field định nghĩa
+  // gốc có object_type="variant", xem applies_to_po_line ở customfield.schema.ts).
+  async findLineCustomFieldValues(lineIds: string[], trx?: Knex.Transaction) {
+    const runner = trx ?? this.db
+    const rows = await runner('field_values as fv')
+      .join('custom_fields as cf', 'cf.id', 'fv.field_id')
+      .where('fv.object_type', 'purchase_order_line')
+      .whereIn('fv.object_id', lineIds)
+      .select(
+        'fv.object_id as line_id', 'fv.field_id', 'fv.value',
+        'cf.field_name', 'cf.field_label', 'cf.field_type', 'cf.options',
+      )
+      .orderBy('cf.sort_order')
+
+    const map = new Map<string, any[]>()
+    for (const r of rows) {
+      if (!map.has(r.line_id)) map.set(r.line_id, [])
+      map.get(r.line_id)!.push(r)
+    }
+    return map
+  }
+
+  // Insert field_values cho custom_field_values của từng dòng PO — gọi NGAY SAU khi insert
+  // purchase_order_lines (cần line.id thật), trong cùng transaction với create()/replaceLines().
+  private async saveLineCustomFieldValues(
+    insertedLines: any[],
+    inputLines: PurchaseOrderLineInput[],
+    trx: Knex.Transaction,
+  ) {
+    const rows: Array<{ object_type: string; object_id: string; field_id: string; value: string }> = []
+    insertedLines.forEach((line, i) => {
+      for (const v of inputLines[i].custom_field_values ?? []) {
+        if (v.value === null || v.value === undefined) continue
+        rows.push({ object_type: 'purchase_order_line', object_id: line.id, field_id: v.field_id, value: v.value })
+      }
+    })
+    if (rows.length) await trx('field_values').insert(rows)
   }
 
   // received_qty (Receipt completed) + pending_qty (Receipt draft/pending_approval/approved)
@@ -124,27 +166,47 @@ export class PurchaseOrderRepository {
       .insert({ ...header, status: 'draft', created_by: userId })
       .returning('*')
 
-    const lineRows = lines.map((l, i) => ({
-      ...l,
-      purchase_order_id: po.id,
-      line_order: l.line_order ?? i + 1,
-    }))
+    const lineRows = lines.map((l, i) => {
+      const { custom_field_values, ...rest } = l
+      return { ...rest, purchase_order_id: po.id, line_order: l.line_order ?? i + 1 }
+    })
     const insertedLines = await trx('purchase_order_lines').insert(lineRows).returning('*')
+    await this.saveLineCustomFieldValues(insertedLines, lines, trx)
 
-    return { ...po, lines: insertedLines }
+    return { ...po, lines: this.withEchoedCustomFieldValues(insertedLines, lines) }
+  }
+
+  // Đính custom_field_values (lấy từ input vừa lưu) vào response trả ngay sau khi
+  // create()/replaceLines() — không cần query lại field_values+custom_fields như
+  // findById(), vì lúc này input đã chính là giá trị vừa ghi.
+  private withEchoedCustomFieldValues(insertedLines: any[], inputLines: PurchaseOrderLineInput[]) {
+    return insertedLines.map((line, i) => ({
+      ...line,
+      custom_field_values: (inputLines[i].custom_field_values ?? []).filter(
+        (v) => v.value !== null && v.value !== undefined,
+      ),
+    }))
   }
 
   // Draft-only full replace — chỉ an toàn khi chưa Confirm (chưa có receipt nào tham
-  // chiếu po_line_id của các dòng cũ).
+  // chiếu po_line_id của các dòng cũ). Xoá field_values cũ theo line_id cũ TRƯỚC khi xoá
+  // dòng — field_values không có FK tới purchase_order_lines (polymorphic, app-validated)
+  // nên Postgres không tự dọn, phải xoá tay để không tích rác mỗi lần sửa PO.
   async replaceLines(purchaseOrderId: string, lines: PurchaseOrderLineInput[], trx: Knex.Transaction) {
+    const oldLines = await trx('purchase_order_lines').where({ purchase_order_id: purchaseOrderId }).select('id')
+    const oldLineIds = oldLines.map((l: any) => l.id)
+    if (oldLineIds.length) {
+      await trx('field_values').where('object_type', 'purchase_order_line').whereIn('object_id', oldLineIds).del()
+    }
     await trx('purchase_order_lines').where({ purchase_order_id: purchaseOrderId }).del()
 
-    const lineRows = lines.map((l, i) => ({
-      ...l,
-      purchase_order_id: purchaseOrderId,
-      line_order: l.line_order ?? i + 1,
-    }))
-    return trx('purchase_order_lines').insert(lineRows).returning('*')
+    const lineRows = lines.map((l, i) => {
+      const { custom_field_values, ...rest } = l
+      return { ...rest, purchase_order_id: purchaseOrderId, line_order: l.line_order ?? i + 1 }
+    })
+    const insertedLines = await trx('purchase_order_lines').insert(lineRows).returning('*')
+    await this.saveLineCustomFieldValues(insertedLines, lines, trx)
+    return this.withEchoedCustomFieldValues(insertedLines, lines)
   }
 
   async updateHeader(id: string, header: Partial<PurchaseOrderHeaderInput>, trx: Knex.Transaction) {

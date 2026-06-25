@@ -1,6 +1,13 @@
 import { Knex } from 'knex'
 import { PurchaseOrderRepository } from './purchaseorder.repository'
-import { CreatePurchaseOrderBody, UpdatePurchaseOrderBody, ListPurchaseOrderQuery } from './purchaseorder.schema'
+import {
+  CreatePurchaseOrderBody,
+  UpdatePurchaseOrderBody,
+  ListPurchaseOrderQuery,
+  PurchaseOrderLineInput,
+} from './purchaseorder.schema'
+import { CustomFieldRepository } from '../customfield/customfield.repository'
+import { validateCustomFieldValue } from '../customfield/customfield.service'
 
 const PG_FOREIGN_KEY_VIOLATION = '23503'
 
@@ -13,9 +20,35 @@ function mapDbError(err: any): never {
 
 export class PurchaseOrderService {
   private repo: PurchaseOrderRepository
+  private customFieldRepo: CustomFieldRepository
 
   constructor(private db: Knex) {
     this.repo = new PurchaseOrderRepository(db)
+    this.customFieldRepo = new CustomFieldRepository(db)
+  }
+
+  // custom_field_values trên PO line chỉ chấp nhận field định nghĩa object_type="variant"
+  // VÀ applies_to_po_line=true (xem customfield.schema.ts) — field khác hoặc field chưa
+  // bật cờ này thì PO line không được phép ghi đè riêng.
+  private async validateLineCustomFieldValues(lines: PurchaseOrderLineInput[]) {
+    const fieldIds = [...new Set(lines.flatMap((l) => (l.custom_field_values ?? []).map((v) => v.field_id)))]
+    if (fieldIds.length === 0) return
+    const fields = await this.customFieldRepo.findByIds(fieldIds)
+    const fieldById = new Map(fields.map((f) => [f.id, f]))
+
+    for (const line of lines) {
+      for (const v of line.custom_field_values ?? []) {
+        const field = fieldById.get(v.field_id)
+        if (!field) throw { statusCode: 400, message: `Custom field "${v.field_id}" không tồn tại` }
+        if (field.object_type !== 'variant' || !field.applies_to_po_line) {
+          throw {
+            statusCode: 400,
+            message: `Custom field "${field.field_label}" không được phép sửa riêng theo PO line`,
+          }
+        }
+        if (v.value !== null && v.value !== undefined) validateCustomFieldValue(field, v.value)
+      }
+    }
   }
 
   list(query: ListPurchaseOrderQuery) {
@@ -30,6 +63,7 @@ export class PurchaseOrderService {
 
   async create(data: CreatePurchaseOrderBody, userId: string) {
     const { lines, ...header } = data
+    await this.validateLineCustomFieldValues(lines)
     try {
       return await this.db.transaction((trx) => this.repo.create(header, lines, userId, trx))
     } catch (err) {
@@ -47,6 +81,7 @@ export class PurchaseOrderService {
     }
 
     const { lines, ...header } = data
+    if (lines) await this.validateLineCustomFieldValues(lines)
 
     try {
       return await this.db.transaction(async (trx) => {
