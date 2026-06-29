@@ -67,9 +67,6 @@ export default function PurchaseOrdersPage() {
         width={800}
         initialValues={{ lines: [{}] }}
       >
-        <Form.Item name="code" label="Mã PO" rules={[{ required: true }]}>
-          <Input />
-        </Form.Item>
         <Form.Item name="company_id" label="NCC" rules={[{ required: true }]}>
           <Select
             options={companies?.data.map((c: any) => ({ value: c.id, label: c.name }))}

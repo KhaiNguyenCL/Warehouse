@@ -4,9 +4,8 @@
 export const createReceiptSchema = {
   body: {
     type: 'object',
-    required: ['code', 'import_type', 'warehouse_id', 'lines'],
+    required: ['import_type', 'warehouse_id', 'lines'],
     properties: {
-      code:              { type: 'string' },
       // Không còn enum hardcode — chấp nhận bất kỳ key đang active trong bảng import_types
       // (Settings module). Service layer (receipt.service.ts) tra bảng đó để validate thật
       // và đọc requires_ref_document, để type mới thêm qua Settings dùng được ngay.
@@ -33,9 +32,13 @@ export const createReceiptSchema = {
             cost_price:      { type: 'number', minimum: 0 },
             // Dòng PO gốc đang được nhận 1 phần/toàn bộ qua dòng này (tuỳ chọn).
             po_line_id:      { type: 'string', format: 'uuid' },
-            // Bảo hành thực tế của lô (tháng) — dùng tính warranty_end cho serial lúc
-            // Complete. Tuỳ chọn, độc lập với warranty_months của po_line nếu có.
-            warranty_months: { type: 'integer', minimum: 0 },
+            // BH hãng: months + start date tuỳ chọn (nếu hãng tính từ ngày xuất xưởng/
+            // giao hàng thay vì ngày nhập kho). Nếu start = null → dùng completed_at.
+            // BH công ty: tính từ ngày bán (delivery completed_at).
+            // Cả hai kế thừa từ PO line nếu receipt có po_line_id.
+            manufacturer_warranty_months: { type: 'integer', minimum: 0 },
+            manufacturer_warranty_start:  { type: 'string', format: 'date-time' },
+            customer_warranty_months:     { type: 'integer', minimum: 0 },
             line_order:      { type: 'integer' },
             note:            { type: 'string' },
           },
@@ -92,7 +95,6 @@ export interface CompleteReceiptBody {
 // generate type từ schema). Dùng cho generic <{ Body: CreateReceiptBody }> ở routes.ts
 // để request.body có gợi ý đúng field trong IDE.
 export interface CreateReceiptBody {
-  code: string
   import_type: string
   company_id?: string
   contact_id?: string
@@ -106,7 +108,9 @@ export interface CreateReceiptBody {
     quantity: number
     cost_price: number
     po_line_id?: string
-    warranty_months?: number
+    manufacturer_warranty_months?: number
+    manufacturer_warranty_start?: string
+    customer_warranty_months?: number
     line_order?: number
     note?: string
   }>

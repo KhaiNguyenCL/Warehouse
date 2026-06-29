@@ -1,6 +1,7 @@
 // Repository — toàn bộ Knex query của module receipt nằm ở đây, không rải ra service/routes.
 import { Knex } from 'knex'
 import { CreateReceiptBody, ListReceiptQuery } from './receipt.schema'
+import { generateDocumentCode } from '../../lib/generateDocumentCode'
 
 export class ReceiptRepository {
   constructor(private db: Knex) {}
@@ -75,8 +76,9 @@ export class ReceiptRepository {
   // sẽ tồn tại trong DB. trx đảm bảo "tất cả thành công hoặc không gì xảy ra".
   async create(data: CreateReceiptBody, userId: string, trx: Knex.Transaction) {
     const { lines, ...header } = data   // tách lines ra khỏi phần header để insert vào 2 bảng khác nhau
+    const code = await generateDocumentCode(trx, 'receipt')
     const [receipt] = await trx('receipts')
-      .insert({ ...header, status: 'draft', created_by: userId })   // mọi receipt mới luôn bắt đầu ở status draft
+      .insert({ ...header, code, status: 'draft', created_by: userId })   // mọi receipt mới luôn bắt đầu ở status draft
       .returning('*')   // PostgreSQL hỗ trợ RETURNING — lấy lại row vừa insert (kèm id tự sinh) mà không cần SELECT lại
 
     const lineRows = lines.map((l, i) => ({

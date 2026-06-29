@@ -1,6 +1,7 @@
+import { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
-import { Table, Input, InputNumber, Select, Switch, Tag, Typography, Form } from 'antd'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { Table, Input, InputNumber, Select, Switch, Tag, Typography, Form, Popconfirm, Button, Checkbox, Space, Divider, message } from 'antd'
 import { api } from '../lib/api'
 import { useApiMutation } from '../hooks/useApiMutation'
 import { useEntityModal } from '../hooks/useEntityModal'
@@ -17,10 +18,21 @@ const PRODUCT_TYPES = [
   { value: 'bundle', label: 'Bundle' },
 ]
 
+interface AttrValue {
+  attribute_def_id: string
+  name: string
+  unit: string | null
+  options: string[]
+  value: string | null
+  include_in_sku: boolean
+}
+
 export default function ProductDetailPage() {
   const { id } = useParams<{ id: string }>()
+  const qc = useQueryClient()
   const variantModal = useEntityModal()
   const productModal = useEntityModal()
+  const [attrValues, setAttrValues] = useState<AttrValue[]>([])
 
   const { data, isLoading } = useQuery({
     queryKey: ['products', id],
@@ -37,15 +49,40 @@ export default function ProductDetailPage() {
     queryFn: async () => (await api.get('/products/brands')).data,
   })
 
-  const createVariant = useApiMutation((values: any) => api.post(`/products/${id}/variants`, values), {
-    successMessage: 'Tạo SKU thành công',
-    invalidateKey: ['products', id],
-    onSuccess: variantModal.close,
+  const { data: attrDefs } = useQuery<any[]>({
+    queryKey: ['variant-attribute-defs'],
+    queryFn: async () => (await api.get('/settings/variant-attribute-defs')).data,
   })
 
+  const createVariant = useApiMutation(
+    async (values: any) => {
+      const res = await api.post(`/products/${id}/variants`, values)
+      const variantId = res.data.id
+      const toSave = attrValues.filter((a) => a.value)
+      if (toSave.length) {
+        await api.put(`/products/${id}/variants/${variantId}/attribute-values`, toSave)
+      }
+      return res
+    },
+    { successMessage: 'Tạo SKU thành công', invalidateKey: ['products', id], onSuccess: variantModal.close },
+  )
+
   const updateVariant = useApiMutation(
-    (values: any) => api.patch(`/products/${id}/variants/${variantModal.editing.id}`, values),
+    async (values: any) => {
+      const res = await api.patch(`/products/${id}/variants/${variantModal.editing.id}`, values)
+      await api.put(`/products/${id}/variants/${variantModal.editing.id}/attribute-values`, attrValues.filter((a) => a.value))
+      return res
+    },
     { successMessage: 'Cập nhật SKU thành công', invalidateKey: ['products', id], onSuccess: variantModal.close },
+  )
+
+  const deleteVariantMutation = useApiMutation(
+    (variantId: string) => api.delete(`/products/${id}/variants/${variantId}`),
+    {
+      successMessage: 'Đã xóa SKU',
+      invalidateKey: ['products', id],
+      onSuccess: variantModal.close,
+    },
   )
 
   const updateProduct = useApiMutation((values: any) => api.patch(`/products/${id}`, values), {
@@ -54,13 +91,46 @@ export default function ProductDetailPage() {
     onSuccess: productModal.close,
   })
 
+  function buildAttrValuesForModal(existingValues: any[] = []) {
+    if (!attrDefs || !data) return
+    const applicable = attrDefs.filter(
+      (d: any) =>
+        d.is_active &&
+        (d.applies_to === 'all' || d.products.some((p: any) => p.product_id === id)),
+    )
+    const existingMap = new Map(existingValues.map((v: any) => [v.attribute_def_id, v]))
+    setAttrValues(
+      applicable.map((d: any) => ({
+        attribute_def_id: d.id,
+        name: d.name,
+        unit: d.unit,
+        options: d.options,
+        value: existingMap.get(d.id)?.value ?? null,
+        include_in_sku: existingMap.get(d.id)?.include_in_sku ?? false,
+      })),
+    )
+  }
+
+  function generateSkuSuffix(attrs: AttrValue[]) {
+    return attrs
+      .filter((a) => a.include_in_sku && a.value)
+      .map((a) => `${a.value}${a.unit ?? ''}`)
+      .join(' ')
+  }
+
   function submitVariant(values: any) {
     if (variantModal.editing) updateVariant.mutate(values)
     else createVariant.mutate(values)
   }
 
   function openEditVariant(variant: any) {
+    buildAttrValuesForModal(variant.attribute_values ?? [])
     variantModal.openEdit(variant)
+  }
+
+  function openCreateVariant() {
+    buildAttrValuesForModal([])
+    variantModal.openCreate()
   }
 
   if (isLoading || !data) return null
@@ -81,7 +151,7 @@ export default function ProductDetailPage() {
         title="Variants (SKU)"
         level={4}
         actionLabel={data.product_type !== 'service' ? '+ Thêm SKU' : undefined}
-        onAction={variantModal.openCreate}
+        onAction={openCreateVariant}
       />
 
       <Table
@@ -116,6 +186,18 @@ export default function ProductDetailPage() {
         extra={
           variantModal.editing ? (
             <>
+              <div style={{ marginTop: 16, display: 'flex', justifyContent: 'flex-end' }}>
+                <Popconfirm
+                  title={`Xóa SKU "${variantModal.editing?.sku}"?`}
+                  description="Không thể xóa nếu còn tồn kho hoặc serial number."
+                  okText="Xóa"
+                  okButtonProps={{ danger: true }}
+                  cancelText="Hủy"
+                  onConfirm={() => deleteVariantMutation.mutate(variantModal.editing.id)}
+                >
+                  <Button danger loading={deleteVariantMutation.isPending}>Xóa SKU này</Button>
+                </Popconfirm>
+              </div>
               {data.product_type === 'bundle' && (
                 <BundleItemsPanel productId={id!} variantId={variantModal.editing.id} />
               )}
@@ -125,18 +207,40 @@ export default function ProductDetailPage() {
           ) : undefined
         }
       >
-        {!variantModal.editing && (
-          <Form.Item
-            label="Field đặc thù"
-            extra={`Gợi ý SKU = "${data.code}" + field đặc thù (VD: 16GB) — sửa lại ô SKU dưới nếu cần`}
-          >
-            <Input
-              placeholder="VD: 16GB"
-              onChange={(e) =>
-                variantModal.form.setFieldValue('sku', e.target.value ? `${data.code}-${e.target.value}` : data.code)
-              }
-            />
-          </Form.Item>
+        {attrValues.length > 0 && (
+          <div style={{ marginBottom: 16 }}>
+            <Divider orientation="left" style={{ fontSize: 13 }}>Thuộc tính SKU</Divider>
+            {attrValues.map((attr, i) => (
+              <div key={attr.attribute_def_id} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+                <span style={{ width: 120, flexShrink: 0 }}>{attr.name}</span>
+                <Select
+                  style={{ width: 120 }}
+                  placeholder="Chọn"
+                  allowClear
+                  value={attr.value ?? undefined}
+                  options={attr.options.map((o) => ({ value: o, label: `${o}${attr.unit ?? ''}` }))}
+                  onChange={(v) => {
+                    const next = attrValues.map((a, j) => (j === i ? { ...a, value: v ?? null } : a))
+                    setAttrValues(next)
+                    const suffix = generateSkuSuffix(next)
+                    variantModal.form.setFieldValue('sku', suffix ? `${data.code}-${suffix}` : data.code)
+                    variantModal.form.setFieldValue('name', suffix || variantModal.form.getFieldValue('name'))
+                  }}
+                />
+                <Checkbox
+                  checked={attr.include_in_sku}
+                  onChange={(e) => {
+                    const next = attrValues.map((a, j) => (j === i ? { ...a, include_in_sku: e.target.checked } : a))
+                    setAttrValues(next)
+                    const suffix = generateSkuSuffix(next)
+                    variantModal.form.setFieldValue('sku', suffix ? `${data.code}-${suffix}` : data.code)
+                  }}
+                >
+                  Gắn vào SKU
+                </Checkbox>
+              </div>
+            ))}
+          </div>
         )}
         <Form.Item name="sku" label="SKU (tự gợi ý, có thể sửa)" rules={[{ required: true }]}>
           <Input />
@@ -145,7 +249,13 @@ export default function ProductDetailPage() {
           <Input />
         </Form.Item>
         <Form.Item name="unit" label="Đơn vị" initialValue="Cái">
-          <Input />
+          <Select
+            options={[
+              'Cái', 'Chiếc', 'Bộ', 'Hộp', 'Cuộn', 'Mét', 'Cổng', 'License', 'Gói', 'Dây',
+            ].map((u) => ({ value: u, label: u }))}
+            showSearch
+            allowClear
+          />
         </Form.Item>
         <Form.Item name="cost_price" label="Giá nhập gợi ý (mặc định cho PO line mới)">
           <InputNumber style={{ width: '100%' }} min={0} />

@@ -106,7 +106,8 @@ export default function ReceiptDetailPage() {
           { title: 'Product type', dataIndex: 'product_type' },
           { title: 'Số lượng', dataIndex: 'quantity' },
           { title: 'Giá nhập', dataIndex: 'cost_price' },
-          { title: 'Bảo hành (tháng)', dataIndex: 'warranty_months' },
+          { title: 'BH hãng (tháng)', dataIndex: 'manufacturer_warranty_months' },
+          { title: 'BH cty (tháng)', dataIndex: 'customer_warranty_months' },
           { title: 'qty_remaining (lô)', dataIndex: 'qty_remaining' },
           {
             title: '',
@@ -167,9 +168,9 @@ export default function ReceiptDetailPage() {
             { title: 'Kho hiện tại', dataIndex: 'warehouse_name' },
             { title: 'MAC', dataIndex: 'mac_address' },
             {
-              title: 'Hết bảo hành',
-              dataIndex: 'warranty_end',
-              render: (d) => (d ? new Date(d).toLocaleDateString('vi-VN') : '—'),
+              title: 'Hết BH hãng',
+              dataIndex: 'manufacturer_warranty_end',
+              render: (d: string | null) => (d ? new Date(d).toLocaleDateString('vi-VN') : '—'),
             },
           ]}
         />

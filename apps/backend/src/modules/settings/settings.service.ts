@@ -213,4 +213,35 @@ export class SettingsService {
     if (existing.is_system) throw { statusCode: 400, message: 'Không thể xoá loại xuất hệ thống' }
     await this.repo.deleteExportType(id)
   }
+
+  // ─── Variant Attribute Defs ────────────────────────────────────────────────
+  listVariantAttributeDefs() {
+    return this.repo.findVariantAttributeDefs()
+  }
+
+  async createVariantAttributeDef(data: any) {
+    const { product_ids, ...row } = data
+    const def = await this.repo.insertVariantAttributeDef(row)
+    if (def.applies_to === 'product' && product_ids?.length) {
+      await this.repo.setVariantAttributeDefProducts(def.id, product_ids)
+    }
+    return this.repo.findVariantAttributeDefById(def.id)
+  }
+
+  async updateVariantAttributeDef(id: string, data: any) {
+    const existing = await this.repo.findVariantAttributeDefById(id)
+    if (!existing) throw { statusCode: 404, message: 'Attribute def not found' }
+    const { product_ids, ...row } = data
+    await this.repo.updateVariantAttributeDef(id, row)
+    if (product_ids !== undefined) {
+      await this.repo.setVariantAttributeDefProducts(id, product_ids ?? [])
+    }
+    return this.repo.findVariantAttributeDefById(id)
+  }
+
+  async deleteVariantAttributeDef(id: string) {
+    const existing = await this.repo.findVariantAttributeDefById(id)
+    if (!existing) throw { statusCode: 404, message: 'Attribute def not found' }
+    await this.repo.deleteVariantAttributeDef(id)
+  }
 }

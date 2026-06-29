@@ -38,6 +38,27 @@ const inventoryRoutes: FastifyPluginAsync = async (app) => {
     async (request) => service.serials(request.query),
   )
 
+  // PATCH /inventory/serials/:id — sửa thông tin SN sau khi nhập kho (mac_address, note).
+  // Chỉ cho sửa field thông tin bổ sung, không cho đổi status/warehouse qua đây.
+  app.patch<{ Params: { id: string }; Body: { serial_no?: string; mac_address?: string | null; note?: string | null } }>(
+    '/serials/:id',
+    {
+      schema: {
+        params: { type: 'object', properties: { id: { type: 'string', format: 'uuid' } } },
+        body: {
+          type: 'object',
+          properties: {
+            serial_no:   { type: 'string', minLength: 1 },
+            mac_address: { type: ['string', 'null'] },
+            note:        { type: ['string', 'null'] },
+          },
+        },
+      },
+      preHandler: requirePermission('receipt.complete'),
+    },
+    async (request) => service.updateSerial(request.params.id, request.body),
+  )
+
   // GET /inventory/serials/:id/movements — lịch sử di chuyển (nhập/xuất/chuyển kho) của
   // ĐÚNG 1 SN cụ thể, theo stock_movements.serial_id. Đặt SAU '/serials' (path tĩnh) nên
   // không bị nhầm — Fastify so khớp '/serials' trước khi thử pattern '/serials/:id/...'.

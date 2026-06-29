@@ -28,6 +28,7 @@ import UsersPage from './pages/UsersPage'
 import ReportsPage from './pages/ReportsPage'
 import TemplatesPage from './pages/TemplatesPage'
 import SettingsBitrixPage from './pages/SettingsBitrixPage'
+import SettingsVariantAttributesPage from './pages/SettingsVariantAttributesPage'
 
 function ProtectedRoute() {
   const token = useAuthStore((s) => s.token)
@@ -68,6 +69,7 @@ const routes: RouteObject[] = [
           { path: '/settings/bitrix', element: <SettingsBitrixPage /> },
           { path: '/settings/custom-fields', element: <CustomFieldsSettingsPage /> },
           { path: '/settings/types', element: <SettingsTypesPage /> },
+          { path: '/settings/variant-attributes', element: <SettingsVariantAttributesPage /> },
           { path: '/settings/roles', element: <RolesPage /> },
           { path: '/settings/users', element: <UsersPage /> },
         ],

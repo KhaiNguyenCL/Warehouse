@@ -89,6 +89,14 @@ export class ReceiptService {
           message: `Số lượng (${line.quantity}) vượt quá remaining_qty (${remaining}) của purchase_order_line`,
         }
       }
+      // Kế thừa BH từ PO line nếu receipt line không tự khai báo — user nhập 1 lần ở PO,
+      // receipt tự điền, không cần nhớ lại. Receipt line vẫn có thể override nếu muốn.
+      if (line.manufacturer_warranty_months == null && poLine.manufacturer_warranty_months != null) {
+        line.manufacturer_warranty_months = poLine.manufacturer_warranty_months
+      }
+      if (line.customer_warranty_months == null && poLine.customer_warranty_months != null) {
+        line.customer_warranty_months = poLine.customer_warranty_months
+      }
     }
   }
 
@@ -242,13 +250,16 @@ export class ReceiptService {
         let newSerialIds: string[] = []
         if (line.product_type === 'storable') {
           const serials = serialsByLine.get(line.id) ?? []
-          // So sánh != null (không dùng truthy check) — warranty_months = 0 là giá trị
-          // hợp lệ (schema cho phép minimum 0, nghĩa là "không bảo hành" tường minh, khác
-          // với "không khai báo"), nhưng 0 bị falsy nên `line.warranty_months ?` sẽ coi
-          // 0 giống null và luôn ra warranty_end = null — sai với trường hợp này.
-          const warrantyEndExpr =
-            line.warranty_months != null
-              ? trx.raw("now() + (?::int * interval '1 month')", [line.warranty_months])
+          // != null check (không dùng truthy) vì 0 là giá trị hợp lệ ("không bảo hành"
+          // tường minh) — 0 bị falsy sẽ bị coi là null nếu dùng `?` operator (CLAUDE.md §19).
+          // manufacturer_warranty_start: ngày hãng bắt đầu tính BH (tuỳ chọn) — nếu null
+          // thì dùng now() (= completed_at, vì expr này chạy trong cùng transaction).
+          const mfgWarrantyExpr =
+            line.manufacturer_warranty_months != null
+              ? trx.raw(
+                  "?::timestamptz + (?::int * interval '1 month')",
+                  [line.manufacturer_warranty_start ?? trx.raw('now()'), line.manufacturer_warranty_months],
+                )
               : null
           const insertedSerials = await trx('serial_numbers')
             .insert(
@@ -258,7 +269,7 @@ export class ReceiptService {
                 warehouse_id:    receipt.warehouse_id,
                 status:          'active',
                 receipt_line_id: line.id,
-                warranty_end:    warrantyEndExpr,
+                manufacturer_warranty_end: mfgWarrantyExpr,
               })),
             )
             .returning('id')

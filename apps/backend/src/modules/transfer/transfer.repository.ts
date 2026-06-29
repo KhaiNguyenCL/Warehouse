@@ -1,5 +1,6 @@
 import { Knex } from 'knex'
 import { CreateTransferBody, ListTransferQuery } from './transfer.schema'
+import { generateDocumentCode } from '../../lib/generateDocumentCode'
 
 export class TransferRepository {
   constructor(private db: Knex) {}
@@ -57,8 +58,9 @@ export class TransferRepository {
 
   async create(data: CreateTransferBody, userId: string, trx: Knex.Transaction) {
     const { lines, ...header } = data
+    const code = await generateDocumentCode(trx, 'transfer_order')
     const [transfer] = await trx('transfer_orders')
-      .insert({ ...header, status: 'draft', created_by: userId })
+      .insert({ ...header, code, status: 'draft', created_by: userId })
       .returning('*')
 
     const lineRows = lines.map((l, i) => ({

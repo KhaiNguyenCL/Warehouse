@@ -77,9 +77,6 @@ export default function TransferOrdersPage() {
         width={1000}
         initialValues={{ lines: [{}] }}
       >
-        <Form.Item name="code" label="Mã phiếu" rules={[{ required: true }]}>
-          <Input />
-        </Form.Item>
         <Form.Item name="transfer_type" label="Loại chuyển" rules={[{ required: true }]}>
           <Select options={TRANSFER_TYPES} onChange={() => form.setFieldValue('from_warehouse_id', undefined)} />
         </Form.Item>

@@ -68,7 +68,8 @@ export class InventoryRepository {
         'rl.quantity',
         'rl.qty_remaining',
         'rl.cost_price',
-        'rl.warranty_months',
+        'rl.manufacturer_warranty_months',
+        'rl.customer_warranty_months',
         'po.code as po_code',
       )
       .orderBy([
@@ -105,11 +106,45 @@ export class InventoryRepository {
           'w.name as warehouse_name',
           'r.code as receipt_code',
           'sn.mac_address',
-          'sn.warranty_end',
+          'sn.manufacturer_warranty_end',
+          'sn.customer_warranty_end',
           'sn.created_at',
         )
         .orderBy('sn.serial_no')
         .limit(50)
+    }
+
+    // Mode chọn SN cho Complete phiếu xuất — trả tất cả SN active của 1 SKU trong 1 kho,
+    // kèm thông tin lô (receipt_code, cost_price, warranty_months, po_code) để user filter.
+    // FIFO order (receipts.completed_at + line_order) nhất quán với CLAUDE.md mục 19.
+    if (query.variant_id && query.warehouse_id) {
+      return base
+        .leftJoin('receipt_lines as rl', 'rl.id', 'sn.receipt_line_id')
+        .leftJoin('receipts as r', 'r.id', 'rl.receipt_id')
+        .leftJoin('purchase_order_lines as pol', 'pol.id', 'rl.po_line_id')
+        .leftJoin('purchase_orders as po', 'po.id', 'pol.purchase_order_id')
+        .where('sn.variant_id', query.variant_id)
+        .andWhere('sn.warehouse_id', query.warehouse_id)
+        .andWhere('sn.status', 'active')
+        .select(
+          'sn.id',
+          'sn.serial_no',
+          'sn.warehouse_id',
+          'r.code as receipt_code',
+          'r.completed_at as received_at',
+          'rl.cost_price',
+          'rl.manufacturer_warranty_months',
+          'rl.customer_warranty_months',
+          'sn.manufacturer_warranty_end',
+          'sn.customer_warranty_end',
+          'sn.mac_address',
+          'po.code as po_code',
+        )
+        .orderBy([
+          { column: 'r.completed_at', order: 'asc' },
+          { column: 'rl.line_order', order: 'asc' },
+          { column: 'sn.serial_no', order: 'asc' },
+        ])
     }
 
     return base
@@ -118,12 +153,26 @@ export class InventoryRepository {
         'sn.id',
         'sn.serial_no',
         'sn.status',
+        'sn.warehouse_id',
         'w.name as warehouse_name',
         'sn.mac_address',
-        'sn.warranty_end',
+        'sn.manufacturer_warranty_end',
+        'sn.customer_warranty_end',
         'sn.created_at',
       )
       .orderBy('sn.serial_no')
+  }
+
+  findSerialById(id: string) {
+    return this.db('serial_numbers').where({ id }).first()
+  }
+
+  updateSerial(id: string, data: { serial_no?: string; mac_address?: string | null; note?: string | null }) {
+    return this.db('serial_numbers')
+      .where({ id })
+      .update({ ...data, updated_at: this.db.fn.now() })
+      .returning('*')
+      .then((rows) => rows[0])
   }
 
   // Lịch sử di chuyển (nhập/xuất/chuyển kho) của ĐÚNG 1 SN — stock_movements.serial_id

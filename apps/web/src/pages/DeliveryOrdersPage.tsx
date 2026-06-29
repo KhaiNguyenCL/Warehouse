@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Table, Form, Input, Select, Button } from 'antd'
+import dayjs from 'dayjs'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { api } from '../lib/api'
 import { useApiMutation } from '../hooks/useApiMutation'
@@ -112,6 +113,11 @@ export default function DeliveryOrdersPage() {
         variant_id: l.variant_id,
         quantity: l.quantity,
         quotation_line_item_id: l.quotation_line_item_id,
+        customer_warranty_start: l.customer_warranty_start
+          ? (dayjs.isDayjs(l.customer_warranty_start)
+              ? l.customer_warranty_start.toISOString()
+              : dayjs(l.customer_warranty_start).toISOString())
+          : undefined,
         note: l.note,
       }))
       const body: any = { ...values, lines }
@@ -153,9 +159,6 @@ export default function DeliveryOrdersPage() {
         width={1000}
         initialValues={{ lines: [{}] }}
       >
-        <Form.Item name="code" label="Mã phiếu" rules={[{ required: true }]}>
-          <Input />
-        </Form.Item>
         <Form.Item name="export_type" label="Loại xuất" rules={[{ required: true }]}>
           <Select
             options={exportTypes?.filter((t: any) => t.is_active).map((t: any) => ({ value: t.key, label: t.label }))}

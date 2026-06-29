@@ -14,9 +14,8 @@ export const SYSTEM_EXPORT_TYPES = [
 export const createDeliverySchema = {
   body: {
     type: 'object',
-    required: ['code', 'export_type', 'warehouse_id', 'lines'],
+    required: ['export_type', 'warehouse_id', 'lines'],
     properties: {
-      code:         { type: 'string', minLength: 1 },
       // Không còn enum hardcode — chấp nhận bất kỳ key đang active trong bảng export_types
       // (Settings module). Service layer tra bảng đó để validate thật và đọc
       // requires_company/requires_quotation, để type mới thêm qua Settings dùng được ngay.
@@ -37,12 +36,14 @@ export const createDeliverySchema = {
           type: 'object',
           required: ['variant_id', 'quantity'],
           properties: {
-            variant_id:             { type: 'string', format: 'uuid' },
-            quantity:               { type: 'integer', minimum: 1 },
-            bundle_id:              { type: 'string', format: 'uuid' },
-            quotation_line_item_id: { type: 'string', format: 'uuid' },
-            line_order:             { type: 'integer' },
-            note:                   { type: 'string' },
+            variant_id:               { type: 'string', format: 'uuid' },
+            quantity:                 { type: 'integer', minimum: 1 },
+            bundle_id:                { type: 'string', format: 'uuid' },
+            quotation_line_item_id:   { type: 'string', format: 'uuid' },
+            // Ngày bắt đầu BH công ty — tuỳ chọn, nếu null dùng completed_at lúc Complete.
+            customer_warranty_start:  { type: 'string', format: 'date-time' },
+            line_order:               { type: 'integer' },
+            note:                     { type: 'string' },
           },
         },
       },
@@ -87,7 +88,6 @@ export const completeDeliverySchema = {
 export type SystemExportType = (typeof SYSTEM_EXPORT_TYPES)[number]
 
 export interface CreateDeliveryBody {
-  code: string
   export_type: string
   company_id?: string
   contact_id?: string
@@ -102,6 +102,7 @@ export interface CreateDeliveryBody {
     quantity: number
     bundle_id?: string
     quotation_line_item_id?: string
+    customer_warranty_start?: string
     line_order?: number
     note?: string
   }>

@@ -1,4 +1,5 @@
 import { Knex } from 'knex'
+import { generateDocumentCode } from '../../lib/generateDocumentCode'
 import { ListQuotationQuery } from './quotation.schema'
 
 // Shape đã tính toán đầy đủ (line_total/vat_amount/subtotal/grand_total, is_reserved đã
@@ -28,7 +29,6 @@ export interface ComputedSection {
 }
 
 export interface ComputedQuotation {
-  code: string
   company_id: string
   contact_id?: string
   project_name?: string
@@ -154,8 +154,9 @@ export class QuotationRepository {
 
   async create(data: ComputedQuotation, userId: string, trx: Knex.Transaction) {
     const { sections, ...header } = data
+    const code = await generateDocumentCode(trx, 'quotation')
     const [quotation] = await trx('quotations')
-      .insert({ ...header, status: 'draft', created_by: userId })
+      .insert({ ...header, code, status: 'draft', created_by: userId })
       .returning('*')
 
     const insertedSections = []

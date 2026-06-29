@@ -27,7 +27,7 @@ export default defineConfig({
     // request cùng origin 5173, Vite âm thầm forward ra 3000 ở phía server).
     proxy: {
       '/api': {
-        target: 'http://localhost:3001',
+        target: 'http://localhost:3000',
         
         changeOrigin: true,
       },

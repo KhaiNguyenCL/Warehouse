@@ -16,6 +16,7 @@ export function EntityFormModal({
   width,
   extra,
   initialValues,
+  okText,
 }: {
   title: string
   open: boolean
@@ -32,9 +33,10 @@ export function EntityFormModal({
   // Dùng cho Form.List (vd PurchaseOrdersPage cần lines: [{}] để hiện sẵn 1 dòng trống) —
   // useEntityModal.openCreate() chỉ resetFields(), không tự set lại initialValues này.
   initialValues?: Record<string, unknown>
+  okText?: string
 }) {
   return (
-    <Modal title={title} open={open} onCancel={onCancel} onOk={() => form.submit()} confirmLoading={confirmLoading} width={width ?? 760}>
+    <Modal title={title} open={open} onCancel={onCancel} onOk={() => form.submit()} confirmLoading={confirmLoading} width={width ?? 760} okText={okText ?? 'Lưu'}>
       <Form form={form} layout="vertical" onFinish={onFinish} initialValues={initialValues}>
         {/* entity-form-grid (index.css): form dài tự chia 2-3 cột theo độ rộng modal, field
             dạng textarea hoặc đánh dấu .form-row-full (Form.List...) chiếm nguyên 1 hàng. */}

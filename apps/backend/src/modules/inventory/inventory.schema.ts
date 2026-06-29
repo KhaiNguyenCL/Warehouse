@@ -50,6 +50,10 @@ export const listSerialsSchema = {
     properties: {
       receipt_line_id: { type: 'string', format: 'uuid' },
       search:          { type: 'string', minLength: 1 },
+      // Mode chọn SN khi Complete phiếu xuất: trả tất cả SN active của 1 SKU trong 1 kho,
+      // kèm đầy đủ thông tin lô (receipt, cost, warranty, PO) để user filter/chọn trực tiếp.
+      variant_id:      { type: 'string', format: 'uuid' },
+      warehouse_id:    { type: 'string', format: 'uuid' },
     },
   },
 }
@@ -57,6 +61,8 @@ export const listSerialsSchema = {
 export interface ListSerialsQuery {
   receipt_line_id?: string
   search?: string
+  variant_id?: string
+  warehouse_id?: string
 }
 
 export const listLowStockSchema = {

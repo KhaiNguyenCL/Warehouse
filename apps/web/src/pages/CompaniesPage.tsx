@@ -75,6 +75,7 @@ export default function CompaniesPage() {
 
       <EntityFormModal
         title={editing ? `Sửa công ty "${editing.name}"` : 'Tạo công ty mới'}
+        okText={editing ? 'Lưu thông tin công ty' : 'Tạo công ty'}
         open={open}
         onCancel={close}
         onFinish={(v) => (editing ? updateMutation.mutate(v) : createMutation.mutate(v))}
@@ -89,8 +90,8 @@ export default function CompaniesPage() {
           )
         }
       >
-        <Form.Item name="code" label="Mã" rules={[{ required: true }]}>
-          <Input />
+        <Form.Item name="code" label="Mã" extra="Để trống để tự động sinh CTY-XXXX">
+          <Input placeholder="CTY-0001" />
         </Form.Item>
         <Form.Item name="name" label="Tên" rules={[{ required: true }]}>
           <Input />

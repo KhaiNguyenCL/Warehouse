@@ -113,6 +113,15 @@ const productRoutes: FastifyPluginAsync = async (app) => {
     },
   )
 
+  app.delete<{ Params: { id: string } }>(
+    '/:id',
+    { preHandler: requirePermission('settings.products') },
+    async (request, reply) => {
+      await service.deleteProduct(request.params.id)
+      return reply.code(204).send()
+    },
+  )
+
   // ─── Variants ──────────────────────────────────────────────────────────
 
   app.post<{ Params: { id: string }; Body: CreateVariantBody }>(
@@ -129,6 +138,15 @@ const productRoutes: FastifyPluginAsync = async (app) => {
     { schema: updateVariantSchema, preHandler: requirePermission('settings.products') },
     async (request, reply) => {
       return await service.updateVariant(request.params.id, request.params.variantId, request.body)
+    },
+  )
+
+  app.delete<{ Params: { id: string; variantId: string } }>(
+    '/:id/variants/:variantId',
+    { preHandler: requirePermission('settings.products') },
+    async (request, reply) => {
+      await service.deleteVariant(request.params.id, request.params.variantId)
+      return reply.code(204).send()
     },
   )
 
@@ -212,6 +230,30 @@ const productRoutes: FastifyPluginAsync = async (app) => {
       await service.deleteBundleItem(request.params.id, request.params.variantId, request.params.itemId)
       return reply.code(204).send()
     },
+  )
+
+  // ─── Variant Attribute Values ─────────────────────────────────────────────
+  // PUT thay thế toàn bộ attribute values của 1 variant (upsert array)
+  app.put<{ Params: { id: string; variantId: string }; Body: any }>(
+    '/:id/variants/:variantId/attribute-values',
+    {
+      schema: {
+        body: {
+          type: 'array',
+          items: {
+            type: 'object',
+            required: ['attribute_def_id'],
+            properties: {
+              attribute_def_id: { type: 'string', format: 'uuid' },
+              value:            { type: ['string', 'null'] },
+              include_in_sku:   { type: 'boolean' },
+            },
+          },
+        },
+      },
+      preHandler: requirePermission('settings.products'),
+    },
+    async (request) => service.setVariantAttributeValues(request.params.variantId, request.body as any),
   )
 }
 

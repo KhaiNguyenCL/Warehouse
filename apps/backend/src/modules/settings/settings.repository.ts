@@ -152,4 +152,51 @@ export class SettingsRepository {
   deleteExportType(id: string) {
     return this.db('export_types').where({ id }).del()
   }
+
+  // ─── Variant Attribute Defs ─────────────────────────────────────────────────
+  async findVariantAttributeDefs() {
+    const defs = await this.db('variant_attribute_defs').orderBy('created_at')
+    const ids = defs.map((d: any) => d.id)
+    const products = ids.length
+      ? await this.db('variant_attribute_def_products as vadp')
+          .join('products as p', 'p.id', 'vadp.product_id')
+          .whereIn('vadp.attribute_def_id', ids)
+          .select('vadp.attribute_def_id', 'vadp.product_id', 'p.name as product_name')
+      : []
+    const productsByDef = new Map<string, any[]>()
+    for (const p of products) {
+      if (!productsByDef.has(p.attribute_def_id)) productsByDef.set(p.attribute_def_id, [])
+      productsByDef.get(p.attribute_def_id)!.push({ product_id: p.product_id, product_name: p.product_name })
+    }
+    return defs.map((d: any) => ({ ...d, products: productsByDef.get(d.id) ?? [] }))
+  }
+
+  async findVariantAttributeDefById(id: string) {
+    const all = await this.findVariantAttributeDefs()
+    return all.find((d: any) => d.id === id) ?? null
+  }
+
+  async insertVariantAttributeDef(data: any) {
+    const [row] = await this.db('variant_attribute_defs')
+      .insert({ ...data, options: data.options ?? [] })
+      .returning('*')
+    return row
+  }
+
+  updateVariantAttributeDef(id: string, data: any) {
+    return this.db('variant_attribute_defs').where({ id }).update(data)
+  }
+
+  async setVariantAttributeDefProducts(defId: string, productIds: string[]) {
+    await this.db('variant_attribute_def_products').where({ attribute_def_id: defId }).del()
+    if (productIds.length) {
+      await this.db('variant_attribute_def_products').insert(
+        productIds.map((product_id) => ({ attribute_def_id: defId, product_id })),
+      )
+    }
+  }
+
+  deleteVariantAttributeDef(id: string) {
+    return this.db('variant_attribute_defs').where({ id }).del()
+  }
 }

@@ -141,6 +141,26 @@ export class ProductService {
     }
   }
 
+  async deleteVariant(productId: string, variantId: string) {
+    const variant = await this.repo.findVariantById(variantId)
+    if (!variant || variant.product_id !== productId) {
+      throw { statusCode: 404, message: 'Variant not found' }
+    }
+    if (await this.repo.hasVariantStock(variantId)) {
+      throw { statusCode: 409, message: 'Không thể xóa SKU còn tồn kho hoặc serial number' }
+    }
+    await this.repo.softDeleteVariant(variantId)
+  }
+
+  async deleteProduct(productId: string) {
+    const product = await this.repo.findProductById(productId)
+    if (!product) throw { statusCode: 404, message: 'Product not found' }
+    if (await this.repo.hasProductStock(productId)) {
+      throw { statusCode: 409, message: 'Không thể xóa sản phẩm còn tồn kho' }
+    }
+    await this.repo.softDeleteProduct(productId)
+  }
+
   // ─── Variant Suppliers ─────────────────────────────────────────────────
   // CLAUDE.md mục 16: variant_suppliers — danh sách NCC cung cấp 1 variant, kèm giá/SKU/
   // lead time riêng theo từng NCC, dùng để tham khảo khi tạo phiếu nhập (purchase).
@@ -260,5 +280,14 @@ export class ProductService {
       throw { statusCode: 404, message: 'Bundle item not found' }
     }
     await this.repo.deleteBundleItem(itemId)
+  }
+
+  // ─── Variant Attribute Values ──────────────────────────────────────────────
+  async setVariantAttributeValues(
+    variantId: string,
+    values: Array<{ attribute_def_id: string; value?: string | null; include_in_sku?: boolean }>,
+  ) {
+    await this.repo.replaceVariantAttributeValues(variantId, values)
+    return this.repo.findVariantAttributeValues(variantId)
   }
 }

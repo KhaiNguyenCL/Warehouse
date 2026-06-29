@@ -282,9 +282,40 @@ export class DeliveryService {
 
         if (line.product_type === 'storable' && effectiveType !== 'adjustment') {
           const serials = serialsByLine.get(line.id) ?? []
-          const receiptLineIds = serials.length > 0
-            ? await trx('serial_numbers').whereIn('serial_no', serials).pluck('receipt_line_id')
+          const serialRows = serials.length > 0
+            ? await trx('serial_numbers').whereIn('serial_no', serials).select('serial_no', 'receipt_line_id')
             : []
+          const receiptLineIds = serialRows.map((r) => r.receipt_line_id)
+
+          // BH công ty tính từ ngày bán (delivery.completed_at) + customer_warranty_months
+          // của đúng lô nhập mà serial đó thuộc về — mỗi serial có thể có BH khác nhau
+          // nếu đến từ các lô nhập (PO) khác nhau.
+          if (serialRows.length > 0) {
+            const uniqueReceiptLineIds = [...new Set(receiptLineIds.filter(Boolean))] as string[]
+            const receiptLines = uniqueReceiptLineIds.length > 0
+              ? await trx('receipt_lines').whereIn('id', uniqueReceiptLineIds).select('id', 'customer_warranty_months')
+              : []
+            const warrantyByReceiptLine = new Map(receiptLines.map((rl) => [rl.id, rl.customer_warranty_months]))
+
+            // customer_warranty_start: user có thể nhập ngày lắp đặt/bàn giao thực tế
+            // trên dòng DO. Nếu null → fallback về now() (= completed_at của transaction).
+            const cwStart = line.customer_warranty_start ?? trx.raw('now()')
+
+            for (const row of serialRows) {
+              const cwMonths = row.receipt_line_id ? warrantyByReceiptLine.get(row.receipt_line_id) : null
+              if (cwMonths != null) {
+                await trx('serial_numbers')
+                  .where({ serial_no: row.serial_no })
+                  .update({
+                    customer_warranty_end: trx.raw(
+                      "?::timestamptz + (?::int * interval '1 month')",
+                      [cwStart, cwMonths],
+                    ),
+                  })
+              }
+            }
+          }
+
           // Mỗi serial đã "ghim" đúng lô (receipt_line) từ lúc Receipt — trừ thẳng vào lô
           // đó, không cần đoán theo FIFO vì đã biết chính xác serial nào thuộc lô nào.
           await this.consumeReceiptLinesBySerial(trx, receiptLineIds)

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Table, Input, Select, Form } from 'antd'
+import { Table, Input, Select, Form, Popconfirm, Button } from 'antd'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../lib/api'
 import { useApiMutation } from '../hooks/useApiMutation'
@@ -33,6 +33,11 @@ export default function ProductsPage() {
   const { data: brands } = useQuery({
     queryKey: ['brands'],
     queryFn: async () => (await api.get('/products/brands')).data,
+  })
+
+  const deleteMutation = useApiMutation((id: string) => api.delete(`/products/${id}`), {
+    successMessage: 'Đã xóa sản phẩm',
+    invalidateKey: ['products'],
   })
 
   const createMutation = useApiMutation((values: any) => api.post('/products', values), {
@@ -82,6 +87,23 @@ export default function ProductsPage() {
           { title: 'Loại', dataIndex: 'product_type' },
           { title: 'Category', dataIndex: 'category_name' },
           { title: 'Hãng', dataIndex: 'brand_name' },
+          {
+            title: '',
+            width: 80,
+            onCell: () => ({ onClick: (e: React.MouseEvent) => e.stopPropagation() }),
+            render: (_: any, record: any) => (
+              <Popconfirm
+                title="Xóa sản phẩm này?"
+                description="Không thể xóa nếu còn tồn kho."
+                okText="Xóa"
+                okButtonProps={{ danger: true }}
+                cancelText="Hủy"
+                onConfirm={() => deleteMutation.mutate(record.id)}
+              >
+                <Button danger size="small" loading={deleteMutation.isPending}>Xóa</Button>
+              </Popconfirm>
+            ),
+          },
         ]}
       />
 

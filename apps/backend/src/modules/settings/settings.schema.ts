@@ -43,7 +43,7 @@ export const createUserSchema = {
     required: ['full_name', 'email', 'password', 'role_id'],
     properties: {
       full_name: { type: 'string', minLength: 1 },
-      email:     { type: 'string', format: 'email' },
+      email:     { type: 'string', minLength: 1 },
       phone:     { type: 'string' },
       password:  { type: 'string', minLength: 6 },
       role_id:   { type: 'string', format: 'uuid' },

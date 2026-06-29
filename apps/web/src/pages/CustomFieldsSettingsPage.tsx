@@ -16,7 +16,6 @@ const OBJECT_TYPES = [
   { value: 'receipt', label: 'Receipt' },
   { value: 'delivery_order', label: 'Delivery Order' },
   { value: 'product', label: 'Product' },
-  { value: 'variant', label: 'Variant (SKU)' },
   { value: 'company', label: 'Company' },
 ]
 

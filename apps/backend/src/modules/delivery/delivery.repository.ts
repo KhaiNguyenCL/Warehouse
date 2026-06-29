@@ -1,5 +1,6 @@
 import { Knex } from 'knex'
 import { CreateDeliveryBody, ListDeliveryQuery } from './delivery.schema'
+import { generateDocumentCode } from '../../lib/generateDocumentCode'
 
 export class DeliveryRepository {
   constructor(private db: Knex) {}
@@ -54,8 +55,9 @@ export class DeliveryRepository {
 
   async create(data: CreateDeliveryBody, userId: string, trx: Knex.Transaction) {
     const { lines, ...header } = data
+    const code = await generateDocumentCode(trx, 'delivery_order')
     const [delivery] = await trx('delivery_orders')
-      .insert({ ...header, status: 'draft', created_by: userId })
+      .insert({ ...header, code, status: 'draft', created_by: userId })
       .returning('*')
 
     const lineRows = lines.map((l, i) => ({

@@ -4,7 +4,7 @@
 // (Delivery Order không lưu giá — đó là việc của Quotation).
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Form, Select, InputNumber, Input, Button } from 'antd'
+import { Form, Select, InputNumber, Input, Button, DatePicker } from 'antd'
 import { api } from '../lib/api'
 
 interface Props {
@@ -46,6 +46,13 @@ export default function DeliveryLineItem({ name, remove }: Props) {
       </Form.Item>
       <Form.Item name={[name, 'quantity']} label="Số lượng" rules={[{ required: true }]}>
         <InputNumber min={1} />
+      </Form.Item>
+      <Form.Item name={[name, 'customer_warranty_start']} label="Ngày bắt đầu BH cty">
+        <DatePicker
+          style={{ width: 160 }}
+          placeholder="Để trống = ngày xuất kho"
+          allowClear
+        />
       </Form.Item>
       <Form.Item name={[name, 'note']} label="Ghi chú dòng">
         <Input style={{ width: 200 }} />

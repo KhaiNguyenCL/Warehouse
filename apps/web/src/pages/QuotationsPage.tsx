@@ -96,9 +96,6 @@ export default function QuotationsPage() {
         width={1100}
         initialValues={{ sections: [{ line_items: [{}] }] }}
       >
-        <Form.Item name="code" label="Mã báo giá" rules={[{ required: true }]}>
-          <Input />
-        </Form.Item>
         <Form.Item name="company_id" label="Khách hàng" rules={[{ required: true }]}>
           <Select
             options={companies?.data.map((c: any) => ({ value: c.id, label: c.name }))}

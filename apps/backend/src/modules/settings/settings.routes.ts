@@ -134,6 +134,60 @@ const settingsRoutes: FastifyPluginAsync = async (app) => {
     await service.deleteExportType(request.params.id)
     return reply.code(204).send()
   })
+
+  // ─── Variant Attribute Defs ──────────────────────────────────────────────────
+  app.get('/variant-attribute-defs', { preHandler: authenticate }, () => service.listVariantAttributeDefs())
+
+  app.post<{ Body: any }>(
+    '/variant-attribute-defs',
+    {
+      schema: {
+        body: {
+          type: 'object',
+          required: ['name'],
+          properties: {
+            name:        { type: 'string', minLength: 1 },
+            unit:        { type: 'string' },
+            options:     { type: 'array', items: { type: 'string', minLength: 1 } },
+            applies_to:  { type: 'string', enum: ['all', 'product'] },
+            product_ids: { type: 'array', items: { type: 'string', format: 'uuid' } },
+          },
+        },
+      },
+      preHandler: authenticate,
+    },
+    async (request, reply) => reply.code(201).send(await service.createVariantAttributeDef(request.body)),
+  )
+
+  app.patch<{ Params: { id: string }; Body: any }>(
+    '/variant-attribute-defs/:id',
+    {
+      schema: {
+        body: {
+          type: 'object',
+          properties: {
+            name:        { type: 'string', minLength: 1 },
+            unit:        { type: ['string', 'null'] },
+            options:     { type: 'array', items: { type: 'string', minLength: 1 } },
+            applies_to:  { type: 'string', enum: ['all', 'product'] },
+            product_ids: { type: 'array', items: { type: 'string', format: 'uuid' } },
+            is_active:   { type: 'boolean' },
+          },
+        },
+      },
+      preHandler: authenticate,
+    },
+    (request) => service.updateVariantAttributeDef(request.params.id, request.body),
+  )
+
+  app.delete<{ Params: { id: string } }>(
+    '/variant-attribute-defs/:id',
+    { preHandler: authenticate },
+    async (request, reply) => {
+      await service.deleteVariantAttributeDef(request.params.id)
+      return reply.code(204).send()
+    },
+  )
 }
 
 export default settingsRoutes

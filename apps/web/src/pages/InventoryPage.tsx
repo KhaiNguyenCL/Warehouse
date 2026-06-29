@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { Table, Input, Select, Space, Tag } from 'antd'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { Table, Input, Select, Space, Tag, Button, Form, Modal, message } from 'antd'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../lib/api'
 import { PageHeader } from '../components/PageHeader'
@@ -64,29 +64,104 @@ function MovementsTable({ serialId }: { serialId: string }) {
   )
 }
 
+// Modal edit SN — chỉ cho sửa mac_address và note
+function EditSnModal({
+  sn,
+  onClose,
+  queryKey,
+}: {
+  sn: { id: string; serial_no: string; mac_address: string | null; note: string | null } | null
+  onClose: () => void
+  queryKey: unknown[]
+}) {
+  const [form] = Form.useForm()
+  const qc = useQueryClient()
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    if (sn) form.setFieldsValue({ serial_no: sn.serial_no, mac_address: sn.mac_address ?? '', note: sn.note ?? '' })
+  }, [sn, form])
+
+  async function onOk() {
+    const values = form.getFieldsValue()
+    setSaving(true)
+    try {
+      await api.patch(`/inventory/serials/${sn!.id}`, {
+        serial_no:   values.serial_no,
+        mac_address: values.mac_address || null,
+        note:        values.note || null,
+      })
+      message.success('Đã cập nhật')
+      qc.invalidateQueries({ queryKey })
+      onClose()
+    } catch {
+      message.error('Lưu thất bại')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Modal
+      title={`Sửa SN: ${sn?.serial_no}`}
+      open={!!sn}
+      onCancel={onClose}
+      onOk={onOk}
+      confirmLoading={saving}
+      okText="Lưu"
+      width={420}
+    >
+      <Form form={form} layout="vertical">
+        <Form.Item name="serial_no" label="Serial No" rules={[{ required: true }]}>
+          <Input />
+        </Form.Item>
+        <Form.Item name="mac_address" label="MAC Address">
+          <Input placeholder="AA:BB:CC:DD:EE:FF" allowClear />
+        </Form.Item>
+        <Form.Item name="note" label="Ghi chú">
+          <Input.TextArea rows={2} allowClear />
+        </Form.Item>
+      </Form>
+    </Modal>
+  )
+}
+
 // Drill-down sâu nhất: từng SN vật lý của 1 lô — mở bằng expand row (không phải popup) khi
 // bấm mũi tên trên 1 dòng của LotsTable.
 function SerialsTable({ receiptLineId }: { receiptLineId: string }) {
+  const queryKey = ['inventory', 'serials', receiptLineId]
   const { data, isLoading } = useQuery({
-    queryKey: ['inventory', 'serials', receiptLineId],
+    queryKey,
     queryFn: async () => (await api.get('/inventory/serials', { params: { receipt_line_id: receiptLineId } })).data,
   })
+  const [editSn, setEditSn] = useState<any>(null)
 
   return (
-    <Table
-      rowKey="id"
-      loading={isLoading}
-      dataSource={data}
-      pagination={false}
-      size="small"
-      columns={[
-        { title: 'Serial No', dataIndex: 'serial_no' },
-        { title: 'Trạng thái', dataIndex: 'status', render: (s) => <StatusTag status={s} colorMap={SN_STATUS_COLOR} /> },
-        { title: 'Kho hiện tại', dataIndex: 'warehouse_name' },
-        { title: 'MAC', dataIndex: 'mac_address' },
-        { title: 'Hết bảo hành', dataIndex: 'warranty_end', render: (d) => (d ? new Date(d).toLocaleDateString('vi-VN') : '—') },
-      ]}
-    />
+    <>
+      <Table
+        rowKey="id"
+        loading={isLoading}
+        dataSource={data}
+        pagination={false}
+        size="small"
+        columns={[
+          { title: 'Serial No', dataIndex: 'serial_no' },
+          { title: 'Trạng thái', dataIndex: 'status', render: (s) => <StatusTag status={s} colorMap={SN_STATUS_COLOR} /> },
+          { title: 'Kho hiện tại', dataIndex: 'warehouse_name' },
+          { title: 'MAC', dataIndex: 'mac_address', render: (v: string | null) => v ?? <span style={{ color: '#bbb' }}>Chưa có</span> },
+          { title: 'Hết BH hãng', dataIndex: 'manufacturer_warranty_end', render: (d: string | null) => (d ? new Date(d).toLocaleDateString('vi-VN') : '—') },
+          { title: 'Hết BH cty', dataIndex: 'customer_warranty_end', render: (d: string | null) => (d ? new Date(d).toLocaleDateString('vi-VN') : '—') },
+          {
+            title: '',
+            width: 60,
+            render: (_: any, r: any) => (
+              <Button size="small" onClick={() => setEditSn(r)}>Sửa</Button>
+            ),
+          },
+        ]}
+      />
+      <EditSnModal sn={editSn} onClose={() => setEditSn(null)} queryKey={queryKey} />
+    </>
   )
 }
 
@@ -114,7 +189,8 @@ function SnSearchTable({ search }: { search: string }) {
         { title: 'Kho hiện tại', dataIndex: 'warehouse_name' },
         { title: 'Phiếu nhập', dataIndex: 'receipt_code' },
         { title: 'MAC', dataIndex: 'mac_address' },
-        { title: 'Hết bảo hành', dataIndex: 'warranty_end', render: (d) => (d ? new Date(d).toLocaleDateString('vi-VN') : '—') },
+        { title: 'Hết BH hãng', dataIndex: 'manufacturer_warranty_end', render: (d: string | null) => (d ? new Date(d).toLocaleDateString('vi-VN') : '—') },
+        { title: 'Hết BH cty', dataIndex: 'customer_warranty_end', render: (d: string | null) => (d ? new Date(d).toLocaleDateString('vi-VN') : '—') },
       ]}
       expandable={{ expandedRowRender: (r: any) => <MovementsTable serialId={r.id} /> }}
     />
@@ -145,7 +221,8 @@ function LotsTable({ variantId, warehouseId }: { variantId: string; warehouseId:
         { title: 'SL nhập', dataIndex: 'quantity' },
         { title: 'Còn lại', dataIndex: 'qty_remaining' },
         { title: 'Giá nhập', dataIndex: 'cost_price' },
-        { title: 'Bảo hành (tháng)', dataIndex: 'warranty_months' },
+        { title: 'BH hãng (tháng)', dataIndex: 'manufacturer_warranty_months' },
+        { title: 'BH cty (tháng)', dataIndex: 'customer_warranty_months' },
       ]}
       expandable={{ expandedRowRender: (r: any) => <SerialsTable receiptLineId={r.receipt_line_id} /> }}
     />

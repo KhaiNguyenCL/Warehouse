@@ -1,8 +1,8 @@
 import { Knex } from 'knex'
+import { generateDocumentCode } from '../../lib/generateDocumentCode'
 import { ListPurchaseOrderQuery, PurchaseOrderLineInput } from './purchaseorder.schema'
 
 export interface PurchaseOrderHeaderInput {
-  code: string
   company_id: string
   contact_id?: string
   bitrix_deal_id?: string
@@ -162,8 +162,9 @@ export class PurchaseOrderRepository {
     userId: string,
     trx: Knex.Transaction,
   ) {
+    const code = await generateDocumentCode(trx, 'purchase_order')
     const [po] = await trx('purchase_orders')
-      .insert({ ...header, status: 'draft', created_by: userId })
+      .insert({ ...header, code, status: 'draft', created_by: userId })
       .returning('*')
 
     const lineRows = lines.map((l, i) => {

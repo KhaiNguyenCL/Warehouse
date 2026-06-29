@@ -1,52 +1,75 @@
-- User có nhu cầu khi mỗi sản phẩm báo giá cho các khách hàng khác nhau sẽ có sửa đổi so với
-thông tin gốc ban đầu, ví dụ như khi báo giá cho khách hàng A, thì sẽ tăng thời gian bảo hành
-từ 24 tháng lên 36 tháng, đối với khách B thì tăng 48 tháng đối với cùng một sản phẩm
-- Có cần có quy tắc đặt tên SKU cho từng sản phẩm không hay chỉ đơn thuần là một chuỗi ID hay
-kết hợp cả hai như Tên viết tắt + ID (RAM_Kingston_4G_3200_12345)
-- Đối với sản phẩm tiêu thụ không có SN thì quản lí theo lô nhập hay sao? Có cần tạo SKU cho mỗi
-lần nhập kho không? Thay vì SKU chỉ để đặt tên cho biến thể thì thêm chức năng là phân loại lô nhập
-được không?
+========================================
+CHANGELOG — 29/06/2026
+Warehouse Management System — DNS Technology Invest Co., Ltd
+========================================
 
-Câu 1 — Override thông tin sản phẩm per báo giá:
-Không cần thêm gì. quotation_line_items đã có sẵn các field description, unit_price, warranty, vat_percent — khi thêm SKU vào báo giá hệ thống tự điền từ SKU gốc, user override tùy ý per báo giá mà không ảnh hưởng SKU gốc.
-Câu 2 — Quy tắc đặt tên SKU:
-Dùng format [Category Code]-[Brand Code]-[Sequential]. Hệ thống tự sinh số thứ tự, user chọn Category + Brand. VD: SW-CSC-001, AP-UBI-001, SVC-001. User vẫn có thể nhập tay nếu muốn.
-Câu 3 — Quản lý lô nhập cho consumable:
-Không tạo SKU mới cho mỗi lần nhập. Dùng Stock Batch để quản lý lô — thêm field batch_name để đặt tên lô (VD: "Lô tháng 5 — NCC A"). Khi xuất kho user chọn lô thủ công hoặc tự động FIFO/LIFO.
-Thiết kế lại database
+1. SN PICKER KHI COMPLETE PHIẾU XUẤT KHO
+   ----------------------------------------
+   Vấn đề: Phải nhập SN bằng tay vào textarea, rất bất tiện.
+   Giải pháp:
+   - Thêm API mode mới: GET /inventory/serials?variant_id=X&warehouse_id=Y
+     → trả toàn bộ SN active của SKU trong kho, kèm thông tin lô (receipt, PO, giá vốn, BH, MAC)
+     → sort FIFO sẵn
+   - Thay textarea bằng bảng SN có:
+     + Checkbox chọn, giới hạn đúng số lượng cần
+     + Ô tìm kiếm filter theo mọi field (SN, lô, PO, MAC, giá...)
+     + Nút Auto FIFO / Auto LIFO
+     + Tags hiển thị SN đã chọn (có thể bỏ từng cái)
+   File: apps/web/src/pages/DeliveryOrderDetailPage.tsx
+         apps/backend/src/modules/inventory/inventory.{schema,repository,service}.ts
 
-Tui muốn thiết kế lại DB hiện tại, dựa vào quy trình nhập kho như sau:
-1. Tạo PO (phiếu mua), nhập thông tin phiếu mua như nhà cung cấp,...hoặc
-lấy thông tin từ PO deal Bitrix 
-2. Thêm đối tượng chi tiết PO, trong đối tượng này sẽ có danh sách hàng hóa
-chi tiết, danh sách hàng hóa sẽ lấy từ SKU hoặc product (tui đang phân vân), tui
-không biết định nghĩa SKU là biến thể sản phẩm hay là phân loại lô 
-nhập hàng, nếu một cùng là một SKU nhưng có  hai  lần nhập  hàng khác nhau
-thì lần nhập thứ hai có phải là một SKU mới không?
-Chi  tiết PO sẽ có thông tin như sau:
-STT   Tên SP      Số lượng     Bảo hành
-1     RAM cosair    10         24 tháng
-2     ổ cứng SSD     5         36 tháng
+2. LỖI "MỘT SỐ SERIAL ĐÃ BỊ THAY ĐỔI BỞI GIAO DỊCH KHÁC" (409)
+   ----------------------------------------------------------------
+   Nguyên nhân: Bảng export_types trong DB được seed thủ công qua UI với
+   key = "Sell" (chữ hoa), nhưng backend applySerialTransition() switch
+   trên case 'sale' (lowercase) → không match → affected = 0 → throw 409.
+   Giải pháp:
+   - Xóa data sai, insert lại 7 system export_type đúng key:
+     sale / internal / demo_out / warranty_out / return_out / dispose / adjustment
+   - Đánh dấu is_system = true
+   - Update 2 delivery_orders có export_type = "Sell" → "sale"
 
-3. Sau khi tạo PO, sẽ tạo hóa đơn, trong hóa đơn mua sẽ link tới PO, 1 PO có
-thể có nhiều hóa đơn, trong hóa đơn sẽ có danh sách hàng hóa của PO, user
-sẽ phải nhập đủ SN của hóa đơn đó để nhập kho thành công
-Theo bạn quy trình này ổn không thay vì quản lí từng line trên  Receipt?
+3. TÁCH BẢO HÀNH HÃNG / BẢO HÀNH CÔNG TY
+   -----------------------------------------
+   Vấn đề: Chỉ có 1 field warranty_months/warranty_end, không phân biệt
+   được 2 loại BH với cách tính khác nhau.
+   Giải pháp:
+   - Migration: đổi tên + thêm field mới trên 3 bảng:
+     + purchase_order_lines: warranty_months → manufacturer_warranty_months
+                             thêm customer_warranty_months
+     + receipt_lines:        tương tự + thêm manufacturer_warranty_start
+     + serial_numbers:       warranty_end → manufacturer_warranty_end
+                             thêm customer_warranty_end
+   - Flow BH hãng: nhập trên PO line → receipt kế thừa tự động →
+     manufacturer_warranty_end = COALESCE(warranty_start, completed_at) + months
+     (tính lúc Receipt Complete)
+   - Flow BH công ty: nhập trên PO line → receipt kế thừa →
+     customer_warranty_end = delivery.completed_at + customer_warranty_months
+     (tính lúc Delivery Complete)
+   - manufacturer_warranty_start: tuỳ chọn, cho phép nhập ngày hãng bắt đầu
+     tính BH (khác với ngày nhập kho). Nếu để trống → dùng completed_at.
+   File: migrations/20260629000000_warranty_split.ts
+         migrations/20260629010000_receipt_line_warranty_start.ts
+         purchaseorder.schema.ts, receipt.schema.ts, receipt.service.ts,
+         delivery.service.ts, inventory.repository.ts
+         POLineItem.tsx, ReceiptsPage.tsx, DeliveryOrderDetailPage.tsx,
+         ReceiptDetailPage.tsx, PurchaseOrderDetailPage.tsx, InventoryPage.tsx
 
+4. SỬA THÔNG TIN SERIAL NUMBER SAU KHI NHẬP KHO
+   ------------------------------------------------
+   Vấn đề: Sau khi nhập kho, không có cách sửa thông tin SN (vd bổ sung MAC
+   address sau khi kiểm tra thiết bị, hoặc fix lỗi đánh máy serial_no).
+   Giải pháp:
+   - Thêm API: PATCH /inventory/serials/:id
+     → cho sửa: serial_no, mac_address, note
+     → không cho sửa: status, warehouse_id, warranty_end (do workflow quản lý)
+   - UI: Bảng SN trong Tồn kho (drill-down Lô → SN) có nút "Sửa" mỗi dòng
+     → mở modal nhỏ với 3 field trên
+     → MAC hiển thị màu xám "Chưa có" nếu chưa nhập
+   File: inventory.{routes,service,repository}.ts
+         apps/web/src/pages/InventoryPage.tsx
 
-Quy trình nhập hành sẽ như thế này đúng ko?
-1. Tạo PO gồm thông tin PO và danh sách hàng hóa lấy từ SKU, mỗi
-dòng là một SKU, có thể chỉnh sửa tất cả field của SKU đó ở đây, sau khi
-chỉnh sửa mỗi dòng sẽ lưu thành đối  tượng  PO_line gồm tất cả  các field
-của dòng đó
-2. Tạo hóa đơn, sẽ lấy danh sách PO_line của PO, nếu PO_line 1 có
-số lượng 10 thì sẽ có thêm 10 dòng, mỗi dòng là 1 receipt_line và receipt_line
-chỉ khác PO_line ở chỗ có thêm field SN, sau khi nhập đủ thì sẽ lưu thành đối
-tượng receipt_line đúng không?
+========================================
+TỔNG SỐ FILE THAY ĐỔI: ~18 files, 2 migrations
+========================================
 
-Có một vài điểm cần chỉnh sửa, đầu tiên là category, cần phải tạo
- category trước khi tạo sản phẩm vì cái này ảnh hưởng đến quy tắc đặt
- tên sản phẩm, thêm bảng hãng để xác định sản phẩm đó của hãng nào, category
- thêm cột tên viết tắt, quy tắc đặt tên mã sản phẩm là
- tên viết tắt Category+ Hãng viết tắt (có thể edit), tên mã SKU Tên mã sản phẩm + field đặc thù (có thể edit)
- sẽ có các SKU có các field đặc thù 

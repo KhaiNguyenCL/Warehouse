@@ -9,7 +9,7 @@ export const loginSchema = {
     type: 'object',
     required: ['email', 'password'],   // thiếu field này → Fastify tự trả 400, không vào tới route handler
     properties: {
-      email:    { type: 'string', format: 'email' },  // format: 'email' tự check đúng định dạng email
+      email:    { type: 'string', minLength: 1 },
       password: { type: 'string', minLength: 6 },
     },
   },

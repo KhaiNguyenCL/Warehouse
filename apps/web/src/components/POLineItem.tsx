@@ -50,7 +50,8 @@ export default function POLineItem({ form, name, remove }: Props) {
       ...lines[name],
       variant_id: variantId,
       unit_price: variant.cost_price ?? lines[name]?.unit_price,
-      warranty_months: variant.warranty_months ?? lines[name]?.warranty_months,
+      manufacturer_warranty_months: variant.manufacturer_warranty_months ?? lines[name]?.manufacturer_warranty_months,
+      customer_warranty_months: variant.customer_warranty_months ?? lines[name]?.customer_warranty_months,
     }
     form.setFieldValue('lines', lines)
 
@@ -95,8 +96,11 @@ export default function POLineItem({ form, name, remove }: Props) {
       <Form.Item name={[name, 'unit_price']} label="Đơn giá" rules={[{ required: true }]}>
         <InputNumber min={0} style={{ width: 140 }} />
       </Form.Item>
-      <Form.Item name={[name, 'warranty_months']} label="Bảo hành (tháng)">
-        <InputNumber min={0} />
+      <Form.Item name={[name, 'manufacturer_warranty_months']} label="BH hãng (tháng)">
+        <InputNumber min={0} style={{ width: 120 }} />
+      </Form.Item>
+      <Form.Item name={[name, 'customer_warranty_months']} label="BH công ty (tháng)">
+        <InputNumber min={0} style={{ width: 120 }} />
       </Form.Item>
       <Form.Item name={[name, 'note']} label="Ghi chú dòng">
         <Input style={{ width: 160 }} />

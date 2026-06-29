@@ -3,7 +3,7 @@ export const COMPANY_TYPES = ['customer', 'supplier'] as const
 export const createCompanySchema = {
   body: {
     type: 'object',
-    required: ['code', 'name', 'types'],
+    required: ['name', 'types'],
     properties: {
       code:         { type: 'string', minLength: 1 },
       name:         { type: 'string', minLength: 1 },
@@ -11,7 +11,7 @@ export const createCompanySchema = {
       country:      { type: 'string', minLength: 2, maxLength: 2 },
       address:      { type: 'string' },
       phone:        { type: 'string' },
-      email:        { type: 'string', format: 'email' },
+      email:        { type: 'string' },
       bank_account: { type: 'string' },
       bank_name:    { type: 'string' },
       bitrix_company_id: { type: 'string' },
@@ -38,7 +38,7 @@ export const updateCompanySchema = {
       country:      { type: 'string', minLength: 2, maxLength: 2 },
       address:      { type: 'string' },
       phone:        { type: 'string' },
-      email:        { type: 'string', format: 'email' },
+      email:        { type: 'string' },
       bank_account: { type: 'string' },
       bank_name:    { type: 'string' },
       bitrix_company_id: { type: 'string' },
@@ -74,7 +74,7 @@ export const createContactSchema = {
       full_name:  { type: 'string', minLength: 1 },
       position:   { type: 'string' },
       phone:      { type: 'string' },
-      email:      { type: 'string', format: 'email' },
+      email:      { type: 'string' },
       is_primary: { type: 'boolean' },
       bitrix_contact_id: { type: 'string' },
       note:       { type: 'string' },
@@ -89,7 +89,7 @@ export const updateContactSchema = {
       full_name:  { type: 'string', minLength: 1 },
       position:   { type: 'string' },
       phone:      { type: 'string' },
-      email:      { type: 'string', format: 'email' },
+      email:      { type: 'string' },
       is_primary: { type: 'boolean' },
       bitrix_contact_id: { type: 'string' },
       note:       { type: 'string' },
@@ -100,7 +100,7 @@ export const updateContactSchema = {
 export type CompanyType = (typeof COMPANY_TYPES)[number]
 
 export interface CreateCompanyBody {
-  code: string
+  code?: string
   name: string
   tax_code?: string
   country?: string

@@ -1,19 +1,24 @@
 // ================================================
 // DNS Technology Invest Co., Ltd
-// Warehouse Management System — Database Schema v2.1
+// Warehouse Management System — Database Schema v3.0
 // ================================================
 //
-// Changelog v2.1:
-//   + users.password_hash
-//   + companies.country
-//   + variants.cost_price
-//   + quotation_line_items.quotation_id (trỏ thẳng lên quotations)
-//   + reserved_items.warehouse_id + quotation_line_item_id
-//   + stock_movements.unit_cost
-//   + completed_at cho receipts, delivery_orders, transfer_orders
-//   + Bảng mới: stocktake_serials
-//   - Bỏ delivery_order_serials / transfer_order_serials: serial chọn trực tiếp
-//     trong request body lúc Complete, không cần bảng staged assignment riêng
+// Changelog v3.0 (so với v2.1):
+//   + Bảng mới: brands (tách khỏi products.brand text tự do)
+//   + Bảng mới: purchase_orders + purchase_order_lines
+//   + Bảng mới: document_sequences (sinh mã chứng từ tự động)
+//   + categories.short_code
+//   + products.brand_id → FK tới brands (thay products.brand varchar)
+//   + receipt_lines: thêm po_line_id, qty_remaining, warranty_months
+//   + receipts.po_id (liên kết tuỳ chọn tới purchase_orders)
+//   + delivery_orders: thêm ref_document_type, ref_document_id
+//   + custom_fields.object_type: thêm 'variant'
+//   + custom_fields.applies_to_po_line
+//   + stock_movements.serial_id: ON DELETE SET NULL
+//   - Bỏ bảng stock_batches: receipt_lines ĐÃ LÀ lô nhập (qty_remaining)
+//   - serial_numbers.batch_id: bỏ theo stock_batches
+//   * Mã chứng từ (code) tất cả document: auto-generated PREFIX-YYYY-NNNN,
+//     không còn nhập tay
 // ================================================
 
 // ================================================
@@ -21,19 +26,19 @@
 // ================================================
 
 Table roles {
-  id          uuid [primary key]
+  id          uuid    [primary key]
   name        varchar [note: 'VD: Admin, Manager, Warehouse, Sale, Accounting']
   description text
-  is_system   boolean [default: false, note: 'true = role mặc định không xoá được']
+  is_system   boolean [default: false, note: 'true = role mặc định, không xoá được']
   created_at  timestamp
   updated_at  timestamp
 }
 
 Table permissions {
-  id          uuid [primary key]
+  id          uuid    [primary key]
   key         varchar [unique, note: 'VD: receipt.approve, delivery.create, quotation.confirm']
   description varchar
-  group       varchar [note: 'quotation/receipt/delivery/transfer/stocktake/report/settings']
+  group       varchar [note: 'quotation/receipt/delivery/transfer/stocktake/report/settings/purchase_order']
 }
 
 Table role_permissions {
@@ -46,12 +51,12 @@ Table role_permissions {
 }
 
 Table users {
-  id            uuid [primary key]
+  id            uuid    [primary key]
   full_name     varchar
   email         varchar [unique]
   phone         varchar
   password_hash varchar [note: 'bcrypt hash']
-  role_id       uuid [ref: > roles.id, note: '1 user chỉ có 1 role']
+  role_id       uuid    [ref: > roles.id, note: '1 user chỉ có 1 role']
   is_active     boolean [default: true]
   created_at    timestamp
   updated_at    timestamp
@@ -66,7 +71,7 @@ Table companies {
   code              varchar [unique, note: 'Mã nội bộ']
   name              varchar
   tax_code          varchar [note: 'Mã số thuế']
-  country           varchar [default: 'VN', note: 'ISO 3166-1 alpha-2']
+  country           char(2) [default: 'VN', note: 'ISO 3166-1 alpha-2']
   address           varchar
   phone             varchar
   email             varchar
@@ -80,8 +85,8 @@ Table companies {
 }
 
 Table company_types {
-  id         uuid [primary key]
-  company_id uuid [ref: > companies.id]
+  id         uuid    [primary key]
+  company_id uuid    [ref: > companies.id]
   type       varchar [note: 'customer / supplier']
 
   indexes {
@@ -123,19 +128,27 @@ Table warehouses {
 // ================================================
 
 Table categories {
-  id        uuid    [primary key]
-  name      varchar [note: 'Router, Switch, Camera, Dịch vụ,...']
-  parent_id uuid                                                                                                             [ref: > categories.id]
-  is_active boolean [default: true]
+  id         uuid    [primary key]
+  name       varchar [note: 'Router, Switch, Camera, Dịch vụ,...']
+  short_code varchar [unique, note: 'Viết tắt dùng gợi ý product.code, VD: SW (Switch)']
+  parent_id  uuid    [ref: > categories.id]
+  is_active  boolean [default: true]
+}
+
+Table brands {
+  id         uuid    [primary key]
+  name       varchar [note: 'VD: Cisco, MikroTik, Hikvision']
+  short_code varchar [unique, note: 'Viết tắt dùng gợi ý product.code, VD: CSC (Cisco)']
+  is_active  boolean [default: true]
 }
 
 Table products {
   id           uuid    [primary key]
-  code         varchar [unique]
+  code         varchar [unique, note: 'Gợi ý = category.short_code + brand.short_code + model_number']
   name         varchar
   name_en      varchar [note: 'Tên tiếng Anh cho báo giá']
-  brand        varchar
-  model_number varchar [note: 'Mã model nhà sản xuất']
+  brand_id     uuid    [ref: > brands.id]
+  model_number varchar [note: 'Phân biệt dòng SP cùng Category+Brand, VD: SG110, SG350']
   category_id  uuid    [ref: > categories.id]
   product_type varchar [note: 'storable / consumable / service / bundle']
   description  text
@@ -146,19 +159,18 @@ Table products {
 }
 
 Table variants {
-  id              uuid         [primary key]
-  product_id      uuid         [ref: > products.id]
-  sku             varchar      [unique]
+  id              uuid          [primary key]
+  product_id      uuid          [ref: > products.id]
+  sku             varchar       [unique, note: 'Gợi ý = product.code + field đặc thù (VD: -16GB)']
   name            varchar
-  specifications  jsonb        [note: '{"ports":48,"poe":true,"speed":"1G"}']
-  unit            varchar      [note: 'Cái, bộ, hộp, license, tháng, mét']
-  cost_price      decimal(15,2) [note: 'Giá vốn tham chiếu mặc định, trước khi có batch']
+  unit            varchar       [note: 'Cái, bộ, hộp, license, tháng, mét']
+  cost_price      decimal(15,2) [note: 'Giá vốn tham chiếu mặc định — PO line copy lúc tạo rồi lưu độc lập']
   sale_price      decimal(15,2)
-  currency        char(3)      [default: 'VND']
+  currency        char(3)       [default: 'VND']
   weight_kg       decimal(8,3)
-  warranty_months int
-  reorder_point   int          [note: 'Tồn tối thiểu — cảnh báo khi dưới ngưỡng']
-  is_active       boolean      [default: true]
+  warranty_months int           [note: 'Bảo hành gợi ý (tháng) — PO line copy rồi lưu độc lập']
+  reorder_point   int           [note: 'Tồn tối thiểu — cảnh báo khi dưới ngưỡng']
+  is_active       boolean       [default: true]
   created_at      timestamp
   updated_at      timestamp
 
@@ -167,9 +179,9 @@ Table variants {
 
 Table bundle_items {
   id                uuid [primary key]
-  bundle_variant_id uuid [ref: > variants.id, note: 'Bundle SKU']
+  bundle_variant_id uuid [ref: > variants.id, note: 'Bundle SKU (product_type=bundle)']
   item_variant_id   uuid [ref: > variants.id, note: 'Sản phẩm con']
-  quantity          int  [note: 'Số lượng trong bundle']
+  quantity          int  [note: 'Số lượng trong bundle, > 0']
 
   indexes {
     (bundle_variant_id, item_variant_id) [unique]
@@ -177,58 +189,94 @@ Table bundle_items {
 }
 
 Table variant_suppliers {
-  id             uuid         [primary key]
-  variant_id     uuid         [ref: > variants.id]
-  company_id     uuid         [ref: > companies.id, note: 'Nhà cung cấp']
-  supplier_sku   varchar      [note: 'Mã SKU bên NCC']
+  id             uuid          [primary key]
+  variant_id     uuid          [ref: > variants.id]
+  company_id     uuid          [ref: > companies.id, note: 'Nhà cung cấp']
+  supplier_sku   varchar       [note: 'Mã SKU bên NCC']
   supplier_price decimal(15,2)
   lead_time_days int
-  is_preferred   boolean      [default: false]
+  is_preferred   boolean       [default: false, note: 'Tối đa 1 preferred per variant']
+}
+
+// ================================================
+// PURCHASE ORDERS (ĐƠN ĐẶT HÀNG NCC)
+// ================================================
+// Cam kết mua hàng — KHÔNG động inventory trực tiếp. Receipt (import_type='purchase')
+// tham chiếu ngược po_id/po_line_id để tính tiến độ nhận hàng.
+// State machine: draft → confirmed → cancelled
+
+Table purchase_orders {
+  id             uuid      [primary key]
+  code           varchar   [note: 'Auto-generated: PO-YYYY-NNNN']
+  company_id     uuid      [ref: > companies.id, note: 'Nhà cung cấp']
+  contact_id     uuid      [ref: > contacts.id]
+  bitrix_deal_id varchar
+  status         varchar   [note: 'draft / confirmed / cancelled']
+  note           text
+  created_by     uuid      [ref: > users.id]
+  created_at     timestamp
+  updated_at     timestamp
+}
+
+Table purchase_order_lines {
+  id                uuid          [primary key]
+  purchase_order_id uuid          [ref: > purchase_orders.id]
+  variant_id        uuid          [ref: > variants.id]
+  quantity          int           [note: '> 0']
+  unit_price        decimal(15,2) [note: 'Copy từ variants.cost_price lúc tạo, lưu độc lập']
+  warranty_months   int           [note: 'Copy từ variants.warranty_months lúc tạo, lưu độc lập']
+  line_order        int           [default: 0]
+  note              text
+
+  note: 'Tiến độ: received_qty + pending_qty + remaining_qty tính động từ receipt_lines (không lưu cột riêng)'
 }
 
 // ================================================
 // QUOTATIONS (BÁO GIÁ)
 // ================================================
+// State machine: draft → confirmed → expired (auto) / cancelled (manual)
 
 Table quotations {
-  id               uuid         [primary key]
-  code             varchar      [note: 'User tự nhập, VD: 2990/2026/BBG/DNS-SBVN']
-  company_id       uuid         [ref: > companies.id]
-  contact_id       uuid         [ref: > contacts.id]
-  project_name     varchar
+  id                uuid          [primary key]
+  code              varchar       [note: 'Auto-generated: BG-YYYY-NNNN']
+  company_id        uuid          [ref: > companies.id]
+  contact_id        uuid          [ref: > contacts.id]
+  project_name      varchar
   delivery_location varchar
-  warehouse_id     uuid         [ref: > warehouses.id, note: '1 kho cho cả quotation, dùng để tạo reserved_items lúc Confirm']
-  valid_days       int
-  expired_at       date
-  bitrix_deal_id   varchar      [note: 'ID deal Bitrix, tùy chọn']
-  bitrix_deal_url  varchar
-  bitrix_synced_at timestamp
-  status           varchar      [note: 'draft / confirmed / expired / cancelled']
-  subtotal         decimal(15,2)
-  vat_total        decimal(15,2)
-  discount         decimal(15,2)
-  grand_total      decimal(15,2)
-  amount_in_words  varchar
-  terms            text
-  created_by       uuid         [ref: > users.id]
-  created_at       timestamp
-  updated_at       timestamp
+  warehouse_id      uuid          [ref: > warehouses.id, note: '1 kho cho cả quotation — tạo reserved_items khi Confirm']
+  valid_days        int
+  expired_at        date
+  bitrix_deal_id    varchar       [note: 'ID deal Bitrix, tùy chọn']
+  bitrix_deal_url   varchar
+  bitrix_synced_at  timestamp
+  status            varchar       [note: 'draft / confirmed / expired / cancelled']
+  subtotal          decimal(15,2)
+  vat_total         decimal(15,2)
+  discount          decimal(15,2)
+  grand_total       decimal(15,2)
+  amount_in_words   varchar
+  terms             text
+  created_by        uuid          [ref: > users.id]
+  created_at        timestamp
+  updated_at        timestamp
+
+  note: 'Tiến độ xuất hàng: exported_qty + pending_qty + remaining_qty tính động từ delivery_order_lines'
 }
 
 Table quotation_sections {
-  id            uuid         [primary key]
-  quotation_id  uuid         [ref: > quotations.id]
-  name          varchar      [note: 'Thiết bị, Nhân công, Dịch vụ,...']
+  id            uuid          [primary key]
+  quotation_id  uuid          [ref: > quotations.id]
+  name          varchar       [note: 'Thiết bị, Nhân công, Dịch vụ,...']
   section_order int
   subtotal      decimal(15,2)
 }
 
 Table quotation_line_items {
-  id           uuid         [primary key]
-  quotation_id uuid         [ref: > quotations.id, note: 'Trỏ thẳng để join nhanh, không qua section']
-  section_id   uuid         [ref: > quotation_sections.id]
-  variant_id   uuid         [ref: > variants.id, note: 'Null nếu mô tả tự do']
-  bundle_id    uuid         [ref: > variants.id, note: 'Null nếu không phải bundle']
+  id           uuid          [primary key]
+  quotation_id uuid          [ref: > quotations.id, note: 'Trỏ thẳng để join nhanh, không qua section']
+  section_id   uuid          [ref: > quotation_sections.id]
+  variant_id   uuid          [ref: > variants.id, note: 'Null nếu mô tả tự do']
+  bundle_id    uuid          [ref: > variants.id, note: 'Null nếu không phải bundle']
   description  varchar
   unit         varchar
   quantity     decimal(10,2)
@@ -237,7 +285,7 @@ Table quotation_line_items {
   line_total   decimal(15,2)
   vat_percent  decimal(5,2)
   vat_amount   decimal(15,2)
-  is_reserved  boolean      [default: true, note: 'Có giữ chỗ tồn kho không']
+  is_reserved  boolean       [default: true, note: 'Có giữ chỗ tồn kho khi Confirm không']
   line_order   int
   note         text
 }
@@ -245,14 +293,17 @@ Table quotation_line_items {
 // ================================================
 // RECEIPTS (PHIẾU NHẬP KHO)
 // ================================================
+// State machine: draft → pending_approval → approved → completed / cancelled
+// po_id tuỳ chọn — không phải mọi receipt purchase đều từ PO chính thức
 
 Table receipts {
   id                uuid      [primary key]
-  code              varchar   [note: 'User tự nhập']
+  code              varchar   [note: 'Auto-generated: NK-YYYY-NNNN']
   import_type       varchar   [note: 'purchase / return_in / adjustment']
-  company_id        uuid      [ref: > companies.id, note: 'NCC hoặc KH tùy import_type']
+  company_id        uuid      [ref: > companies.id, note: 'NCC hoặc KH tuỳ import_type']
   contact_id        uuid      [ref: > contacts.id]
   warehouse_id      uuid      [ref: > warehouses.id, note: 'Kho đích']
+  po_id             uuid      [ref: > purchase_orders.id, note: 'Liên kết tuỳ chọn tới PO (phải Confirmed)']
   ref_document_type varchar   [note: 'quotation / stocktake_result (tùy chọn)']
   ref_document_id   uuid
   status            varchar   [note: 'draft / pending_approval / approved / completed / cancelled']
@@ -266,56 +317,65 @@ Table receipts {
 }
 
 Table receipt_lines {
-  id         uuid         [primary key]
-  receipt_id uuid         [ref: > receipts.id]
-  variant_id uuid         [ref: > variants.id]
-  quantity   int
-  cost_price decimal(15,2) [note: 'Giá nhập từ hóa đơn NCC']
-  line_order int
-  note       text
+  id              uuid          [primary key]
+  receipt_id      uuid          [ref: > receipts.id]
+  variant_id      uuid          [ref: > variants.id]
+  po_line_id      uuid          [ref: > purchase_order_lines.id, note: 'Dòng PO đang nhận (tuỳ chọn) — tính received_qty/remaining_qty']
+  quantity        int           [note: '> 0']
+  qty_remaining   int           [note: 'Set = quantity khi Receipt Complete; FIFO consumer của Delivery trừ dần']
+  cost_price      decimal(15,2) [note: 'Giá nhập từ hoá đơn NCC — lưu độc lập theo lô']
+  warranty_months int           [note: 'Bảo hành thực tế lô này — tính warranty_end = completed_at + warranty_months']
+  line_order      int
+  note            text
+
+  note: 'Mỗi receipt_line = 1 lô nhập (không có bảng stock_batches riêng). FIFO order: receipts.completed_at ASC, receipt_lines.line_order ASC'
 }
 
 // ================================================
 // DELIVERY ORDERS (PHIẾU XUẤT KHO)
 // ================================================
+// State machine: draft → pending_approval → approved → completed / cancelled
 
 Table delivery_orders {
-  id           uuid      [primary key]
-  code         varchar   [note: 'User tự nhập']
-  export_type  varchar   [note: 'sale/internal/demo_out/warranty_out/return_out/dispose/adjustment']
-  company_id   uuid      [ref: > companies.id, note: 'KH hoặc NCC tùy export_type']
-  contact_id   uuid      [ref: > contacts.id]
-  warehouse_id uuid      [ref: > warehouses.id, note: 'Kho nguồn']
-  quotation_id uuid      [ref: > quotations.id, note: 'Bắt buộc nếu sale']
-  status       varchar   [note: 'draft / pending_approval / approved / completed / cancelled']
-  approved_by  uuid      [ref: > users.id]
-  approved_at  timestamp
-  completed_at timestamp
-  reason       text      [note: 'Lý do xuất nội bộ hoặc huỷ hàng']
-  note         text
-  created_by   uuid      [ref: > users.id]
-  created_at   timestamp
-  updated_at   timestamp
+  id                uuid      [primary key]
+  code              varchar   [note: 'Auto-generated: XK-YYYY-NNNN']
+  export_type       varchar   [note: 'sale / internal / demo_out / warranty_out / return_out / dispose / adjustment']
+  company_id        uuid      [ref: > companies.id, note: 'KH hoặc NCC tuỳ export_type']
+  contact_id        uuid      [ref: > contacts.id]
+  warehouse_id      uuid      [ref: > warehouses.id, note: 'Kho nguồn']
+  quotation_id      uuid      [ref: > quotations.id, note: 'Bắt buộc nếu export_type=sale']
+  ref_document_type varchar   [note: 'stocktake_result (dùng cho export_type=adjustment)']
+  ref_document_id   uuid
+  status            varchar   [note: 'draft / pending_approval / approved / completed / cancelled']
+  approved_by       uuid      [ref: > users.id]
+  approved_at       timestamp
+  completed_at      timestamp
+  reason            text      [note: 'Lý do xuất nội bộ hoặc huỷ hàng']
+  note              text
+  created_by        uuid      [ref: > users.id]
+  created_at        timestamp
+  updated_at        timestamp
 }
 
 Table delivery_order_lines {
-  id                      uuid [primary key]
-  delivery_order_id       uuid [ref: > delivery_orders.id]
-  variant_id              uuid [ref: > variants.id]
-  quantity                int
-  bundle_id               uuid [ref: > variants.id, note: 'Null nếu không từ bundle']
-  quotation_line_item_id  uuid [ref: > quotation_line_items.id, note: 'Set khi export_type=sale, dùng tính exported_qty/remaining_qty']
-  line_order              int
-  note                    text
+  id                     uuid [primary key]
+  delivery_order_id      uuid [ref: > delivery_orders.id]
+  variant_id             uuid [ref: > variants.id]
+  quantity               int  [note: '> 0']
+  bundle_id              uuid [ref: > variants.id, note: 'Null nếu không từ bundle']
+  quotation_line_item_id uuid [ref: > quotation_line_items.id, note: 'Set khi sale — tính exported_qty/remaining_qty và giải phóng reserved']
+  line_order             int
+  note                   text
 }
 
 // ================================================
 // TRANSFER ORDERS (PHIẾU CHUYỂN KHO)
 // ================================================
+// State machine: draft → pending_approval → approved → completed / cancelled
 
 Table transfer_orders {
   id                uuid      [primary key]
-  code              varchar   [note: 'User tự nhập']
+  code              varchar   [note: 'Auto-generated: CK-YYYY-NNNN']
   transfer_type     varchar   [note: 'transfer / warranty_in / demo_in / qc_pass / sn_ready']
   from_warehouse_id uuid      [ref: > warehouses.id]
   to_warehouse_id   uuid      [ref: > warehouses.id]
@@ -333,7 +393,7 @@ Table transfer_order_lines {
   id                uuid [primary key]
   transfer_order_id uuid [ref: > transfer_orders.id]
   variant_id        uuid [ref: > variants.id]
-  quantity          int
+  quantity          int  [note: '> 0']
   line_order        int
   note              text
 }
@@ -342,77 +402,86 @@ Table transfer_order_lines {
 // INVENTORY
 // ================================================
 
-Table stock_batches {
-  id            uuid         [primary key]
-  name          varchar      [note: 'VD: Đợt nhập 1']
-  variant_id    uuid         [ref: > variants.id]
-  warehouse_id  uuid         [ref: > warehouses.id]
-  receipt_id    uuid         [ref: > receipts.id]
-  import_date   date
-  cost_price    decimal(15,2) [note: 'Giá vốn đợt này']
-  qty_total     int
-  qty_remaining int          [note: 'Còn lại sau các lần xuất (FIFO/LIFO)']
-  created_at    timestamp
-}
-
 Table serial_numbers {
   id               uuid    [primary key]
   serial_no        varchar [unique]
   variant_id       uuid    [ref: > variants.id]
-  warehouse_id     uuid    [ref: > warehouses.id, note: 'null khi sold/disposed']
-  batch_id         uuid    [ref: > stock_batches.id]
+  warehouse_id     uuid    [ref: > warehouses.id, note: 'null khi sold / disposed']
   status           varchar [note: 'active / sold / disposed']
-  receipt_line_id  uuid    [ref: > receipt_lines.id,       note: 'Nhập từ phiếu nào']
+  receipt_line_id  uuid    [ref: > receipt_lines.id,        note: 'Lô nhập từ phiếu nào']
   delivery_line_id uuid    [ref: > delivery_order_lines.id, note: 'Xuất theo phiếu nào — set khi DO Completed']
   mac_address      varchar [note: 'Thiết bị mạng có MAC']
-  warranty_end     date
+  warranty_end     date    [note: 'completed_at + receipt_line.warranty_months (set khi Receipt Completed)']
   note             text
   created_at       timestamp
   updated_at       timestamp
 }
 
 Table inventory {
-  id           uuid         [primary key]
-  variant_id   uuid         [ref: > variants.id]
-  warehouse_id uuid         [ref: > warehouses.id]
-  qty_on_hand  int          [default: 0]
-  qty_reserved int          [default: 0]
-  avg_cost     decimal(15,2)
+  id           uuid          [primary key]
+  variant_id   uuid          [ref: > variants.id]
+  warehouse_id uuid          [ref: > warehouses.id]
+  qty_on_hand  int           [default: 0, note: '≥ 0']
+  qty_reserved int           [default: 0, note: '≥ 0']
+  avg_cost     decimal(15,2) [note: '(old_qty * old_avg + new_qty * new_cost) / (old_qty + new_qty)']
   last_updated timestamp
 
   indexes {
     (variant_id, warehouse_id) [unique]
   }
+
+  note: 'qty_available = qty_on_hand − qty_reserved'
 }
 
 Table reserved_items {
   id                     uuid      [primary key]
   variant_id             uuid      [ref: > variants.id]
   warehouse_id           uuid      [ref: > warehouses.id, note: 'Kho nào bị giữ chỗ']
-  quantity               int
+  quantity               int       [note: '> 0']
   source_type            varchar   [note: 'quotation / delivery_order']
-  source_id              uuid      [note: 'FK động → quotation.id hoặc delivery_order.id']
+  source_id              uuid      [note: 'FK động → quotations.id hoặc delivery_orders.id']
   quotation_line_item_id uuid      [ref: > quotation_line_items.id, note: 'Null nếu source là delivery_order']
   created_at             timestamp
 }
 
 Table stock_movements {
-  id                uuid      [primary key]
-  variant_id        uuid      [ref: > variants.id]
-  warehouse_id      uuid      [ref: > warehouses.id]
-  serial_id         uuid      [ref: > serial_numbers.id, note: 'Null nếu consumable']
-  movement_type     varchar   [note: 'in / out']
-  quantity          int
+  id                uuid          [primary key]
+  variant_id        uuid          [ref: > variants.id]
+  warehouse_id      uuid          [ref: > warehouses.id]
+  serial_id         uuid          [ref: > serial_numbers.id, note: 'Null nếu consumable; ON DELETE SET NULL (return_out hard-delete serial)']
+  movement_type     varchar       [note: 'in / out']
+  quantity          int           [note: '> 0']
   unit_cost         decimal(15,2) [note: 'Giá vốn tại thời điểm xuất — dùng cho COGS']
-  ref_document_type varchar   [note: 'receipt / delivery_order / transfer_order']
+  ref_document_type varchar       [note: 'receipt / delivery_order / transfer_order']
   ref_document_id   uuid
-  created_by        uuid      [ref: > users.id]
+  created_by        uuid          [ref: > users.id]
   created_at        timestamp
+}
+
+// ================================================
+// DOCUMENT SEQUENCES (SINH MÃ CHỨNG TỪ)
+// ================================================
+// Atomic counter per (doc_type, year) — INSERT ... ON CONFLICT DO UPDATE RETURNING
+// đảm bảo 2 request đồng thời luôn nhận 2 seq khác nhau.
+// Prefix: NK (receipt), XK (delivery_order), CK (transfer_order), BG (quotation), PO (purchase_order)
+
+Table document_sequences {
+  doc_type varchar [note: 'receipt / delivery_order / transfer_order / quotation / purchase_order']
+  year     int
+  last_seq int     [default: 0]
+
+  indexes {
+    (doc_type, year) [pk]
+  }
+
+  note: 'Format mã chứng từ: PREFIX-YYYY-NNNN (NNNN = last_seq padStart 4)'
 }
 
 // ================================================
 // STOCKTAKE (KIỂM KÊ)
 // ================================================
+// Kho KHÔNG bị khoá khi kiểm kê — dùng snapshot qty_system.
+// State machine: in_progress → completed / cancelled
 
 Table stocktakes {
   id           uuid      [primary key]
@@ -431,9 +500,9 @@ Table stocktake_lines {
   id           uuid [primary key]
   stocktake_id uuid [ref: > stocktakes.id]
   variant_id   uuid [ref: > variants.id]
-  qty_system   int  [note: 'Snapshot lúc bắt đầu kiểm kê']
+  qty_system   int  [note: 'Snapshot qty_on_hand lúc bắt đầu kiểm kê']
   qty_actual   int  [note: 'Số lượng thực tế đếm được']
-  difference   int  [note: 'qty_actual − qty_system (generated column trong DB)']
+  difference   int  [note: 'GENERATED: qty_actual − qty_system (NULL nếu qty_actual chưa nhập)']
 }
 
 Table stocktake_serials {
@@ -442,11 +511,11 @@ Table stocktake_serials {
   serial_id    uuid    [ref: > serial_numbers.id]
   status       varchar [note: 'found / missing / unexpected']
 
-  note: 'found = có trong hệ thống và thực tế. missing = hệ thống có nhưng không thấy. unexpected = thấy nhưng hệ thống không có'
-
   indexes {
     (stocktake_id, serial_id) [unique]
   }
+
+  note: 'found = có trong hệ thống và thực tế. missing = hệ thống có nhưng không thấy. unexpected = thấy nhưng hệ thống không có'
 }
 
 Table stocktake_results {
@@ -494,6 +563,8 @@ Table bitrix_field_mappings {
   quotation_field varchar [unique, note: 'VD: project_name, terms, delivery_location']
   bitrix_object   varchar [note: 'deal / company / contact']
   bitrix_field    varchar [note: 'VD: TITLE, OPPORTUNITY, UF_CRM_XXX']
+
+  note: 'Mapping nhập dữ liệu Bitrix → Quotation form. Khác template_field_mappings (xuất Carbone)'
 }
 
 // ================================================
@@ -501,24 +572,33 @@ Table bitrix_field_mappings {
 // ================================================
 
 Table custom_fields {
-  id          uuid    [primary key]
-  field_name  varchar [note: 'unique theo object_type']
-  field_label varchar
-  field_type  varchar [note: 'text / number / date / select / boolean']
-  object_type varchar [note: 'quotation / receipt / delivery_order / product / company']
-  options     json    [note: 'danh sách lựa chọn khi field_type=select']
-  is_system   boolean [default: false]
-  is_active   boolean [default: true]
-  sort_order  int
+  id                 uuid    [primary key]
+  field_name         varchar [note: 'unique theo object_type']
+  field_label        varchar
+  field_type         varchar [note: 'text / number / date / select / boolean']
+  object_type        varchar [note: 'quotation / receipt / delivery_order / product / variant / company']
+  options            jsonb   [note: 'Danh sách lựa chọn khi field_type=select']
+  is_system          boolean [default: false]
+  is_active          boolean [default: true]
+  sort_order         int
+  applies_to_po_line boolean [default: false, note: 'Chỉ có ý nghĩa khi object_type=variant — cho phép nhập riêng theo từng PO line']
+
+  indexes {
+    (object_type, field_name) [unique]
+  }
 }
 
 Table field_values {
   id          uuid      [primary key]
-  object_type varchar
-  object_id   uuid
+  object_type varchar   [note: 'quotation / receipt / delivery_order / product / variant / company / purchase_order_line']
+  object_id   uuid      [note: 'FK động — id của object tương ứng']
   field_id    uuid      [ref: > custom_fields.id]
-  value       text      [note: 'Snapshot giá trị tại thời điểm tạo']
+  value       text
   created_at  timestamp
+
+  indexes {
+    (object_type, object_id)
+  }
 }
 
 // ================================================
@@ -538,7 +618,7 @@ Table import_types {
 
 Table export_types {
   id                 uuid    [primary key]
-  key                varchar [unique, note: 'sale/internal/demo_out/warranty_out/return_out/dispose/adjustment']
+  key                varchar [unique, note: 'sale / internal / demo_out / warranty_out / return_out / dispose / adjustment']
   label              varchar
   parent_key         varchar [note: 'System type cha nếu là custom type']
   is_system          boolean [default: false]

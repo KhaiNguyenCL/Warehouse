@@ -116,7 +116,6 @@ export class QuotationService {
     const grand_total = round2(subtotal + vat_total - discount)
 
     const computed = {
-      code: data.code,
       company_id: data.company_id,
       contact_id: data.contact_id,
       project_name: data.project_name,

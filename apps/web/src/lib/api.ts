@@ -3,11 +3,28 @@
 import axios from 'axios'
 import { useAuthStore } from '../store/auth'
 
+// Ant Design form gửi "" cho optional fields bị bỏ trống — xóa khỏi payload ở tầng
+// Axios để áp dụng cho MỌI API call, không chỉ những call qua useApiMutation.
+function stripEmptyStrings(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(stripEmptyStrings)
+  if (value !== null && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>)
+        .filter(([, v]) => v !== '')
+        .map(([k, v]) => [k, stripEmptyStrings(v)]),
+    )
+  }
+  return value
+}
+
 export const api = axios.create({ baseURL: '/api/v1' })
 
 api.interceptors.request.use((config) => {
   const token = useAuthStore.getState().token
   if (token) config.headers.Authorization = `Bearer ${token}`
+  if (config.data && typeof config.data === 'object') {
+    config.data = stripEmptyStrings(config.data)
+  }
   return config
 })
 

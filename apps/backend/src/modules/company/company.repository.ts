@@ -1,4 +1,5 @@
 import { Knex } from 'knex'
+import { generateMasterCode } from '../../lib/generateDocumentCode'
 import {
   CreateCompanyBody,
   UpdateCompanyBody,
@@ -69,6 +70,7 @@ export class CompanyRepository {
 
   async create(data: CreateCompanyBody, trx: Knex.Transaction) {
     const { types, ...header } = data
+    if (!header.code) header.code = await generateMasterCode(trx, 'company')
     const [company] = await trx('companies').insert(header).returning('*')
     await trx('company_types').insert(types.map((type) => ({ company_id: company.id, type })))
     return { ...company, types }

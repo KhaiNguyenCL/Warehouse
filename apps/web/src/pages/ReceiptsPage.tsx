@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Table, Form, Input, Select, InputNumber } from 'antd'
+import { Table, Form, Input, Select, InputNumber, DatePicker } from 'antd'
+import dayjs from 'dayjs'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { api } from '../lib/api'
 import { useApiMutation } from '../hooks/useApiMutation'
@@ -77,7 +78,8 @@ export default function ReceiptsPage() {
             po_line_id: l.id,
             quantity: l.remaining_qty,
             cost_price: l.unit_price,
-            warranty_months: l.warranty_months,
+            manufacturer_warranty_months: l.manufacturer_warranty_months,
+            customer_warranty_months: l.customer_warranty_months,
           })),
       })
     }
@@ -90,7 +92,13 @@ export default function ReceiptsPage() {
         quantity: l.quantity,
         cost_price: l.cost_price,
         po_line_id: l.po_line_id,
-        warranty_months: l.warranty_months,
+        manufacturer_warranty_months: l.manufacturer_warranty_months,
+        manufacturer_warranty_start: l.manufacturer_warranty_start
+          ? (dayjs.isDayjs(l.manufacturer_warranty_start)
+              ? l.manufacturer_warranty_start.toISOString()
+              : dayjs(l.manufacturer_warranty_start).toISOString())
+          : undefined,
+        customer_warranty_months: l.customer_warranty_months,
       }))
       return api.post('/receipts', { ...values, lines })
     },
@@ -125,9 +133,6 @@ export default function ReceiptsPage() {
         width={800}
         initialValues={{ import_type: 'purchase', lines: [] }}
       >
-        <Form.Item name="code" label="Mã phiếu" rules={[{ required: true }]}>
-          <Input />
-        </Form.Item>
         <Form.Item name="import_type" label="Loại nhập" rules={[{ required: true }]}>
           <Select options={importTypes?.map((t: any) => ({ value: t.key, label: t.label }))} />
         </Form.Item>
@@ -186,10 +191,30 @@ export default function ReceiptsPage() {
                   ),
                 },
                 {
-                  title: 'Bảo hành thực tế (tháng)',
+                  title: 'BH hãng (tháng)',
                   render: (_: any, f: any) => (
-                    <Form.Item name={[f.name, 'warranty_months']} noStyle>
-                      <InputNumber min={0} />
+                    <Form.Item name={[f.name, 'manufacturer_warranty_months']} noStyle>
+                      <InputNumber min={0} style={{ width: 80 }} />
+                    </Form.Item>
+                  ),
+                },
+                {
+                  title: 'Ngày bắt đầu BH hãng',
+                  render: (_: any, f: any) => (
+                    <Form.Item name={[f.name, 'manufacturer_warranty_start']} noStyle>
+                      <DatePicker
+                        style={{ width: 140 }}
+                        placeholder="Để trống = ngày nhập kho"
+                        allowClear
+                      />
+                    </Form.Item>
+                  ),
+                },
+                {
+                  title: 'BH công ty (tháng)',
+                  render: (_: any, f: any) => (
+                    <Form.Item name={[f.name, 'customer_warranty_months']} noStyle>
+                      <InputNumber min={0} style={{ width: 90 }} />
                     </Form.Item>
                   ),
                 },
