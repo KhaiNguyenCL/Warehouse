@@ -46,4 +46,12 @@ export class WarehouseService {
       mapDbError(err)
     }
   }
+
+  async delete(id: string) {
+    const existing = await this.repo.findById(id)
+    if (!existing) throw { statusCode: 404, message: 'Warehouse not found' }
+    const hasStock = await this.repo.hasInventory(id)
+    if (hasStock) throw { statusCode: 409, message: 'Kho đang có tồn kho, không thể xóa' }
+    await this.repo.deleteWarehouse(id)
+  }
 }

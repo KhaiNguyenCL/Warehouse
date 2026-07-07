@@ -70,6 +70,11 @@ export class DeliveryRepository {
     return { ...delivery, lines: insertedLines }
   }
 
+  async update(id: string, data: Record<string, unknown>) {
+    const [row] = await this.db('delivery_orders').where({ id }).update({ ...data, updated_at: this.db.fn.now() }).returning('*')
+    return row
+  }
+
   // expectedStatus nằm ngay trong WHERE — update atomic, tránh race condition khi 2
   // request cùng lúc chuyển trạng thái (xem giải thích chi tiết ở receipt.repository.ts).
   async updateStatus(

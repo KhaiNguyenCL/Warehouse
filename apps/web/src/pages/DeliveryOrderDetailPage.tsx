@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
-import { Table, Button, Typography, Space, Popconfirm, Modal, Input, Tag, Divider } from 'antd'
+import { Table, Button, Typography, Space, Popconfirm, Modal, Input, Tag, Divider, Form } from 'antd'
 import type { TableRowSelection } from 'antd/es/table/interface'
-import { api } from '../lib/api'
-import { useApiMutation } from '../hooks/useApiMutation'
+import { useDeliveryOrderDetail } from '../hooks/useDeliveryOrderDetail'
+import { EntityFormModal } from '../components/EntityFormModal'
 import { StatusTag } from '../components/StatusTag'
+import CustomFieldsPanel from '../components/CustomFieldsPanel'
 
 const STATUS_COLOR: Record<string, string> = {
   draft: 'default',
@@ -163,90 +163,39 @@ function SNPickerTable({
 
 export default function DeliveryOrderDetailPage() {
   const { id } = useParams<{ id: string }>()
-  const [completeOpen, setCompleteOpen] = useState(false)
-  // lineId → serial_no[] đã chọn
-  const [selectedSNs, setSelectedSNs] = useState<Record<string, string[]>>({})
-  // lineId → AvailableSN[] (fetch khi mở modal)
-  const [lineSNs, setLineSNs] = useState<Record<string, AvailableSN[]>>({})
-  const [loadingSNs, setLoadingSNs] = useState(false)
+  const hook = useDeliveryOrderDetail(id!)
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['deliveries', id],
-    queryFn: async () => (await api.get(`/deliveries/${id}`)).data,
-  })
+  if (hook.isLoading || !hook.data) return null
 
-  const actionOptions = {
-    successMessage: 'Thành công',
-    invalidateKey: [['deliveries', id], ['deliveries'], ['inventory']] as any,
-  }
-  const submitMutation   = useApiMutation(() => api.patch(`/deliveries/${id}/submit`), actionOptions)
-  const approveMutation  = useApiMutation(() => api.patch(`/deliveries/${id}/approve`), actionOptions)
-  const cancelMutation   = useApiMutation(() => api.patch(`/deliveries/${id}/cancel`), actionOptions)
-  const completeMutation = useApiMutation((body: any) => api.patch(`/deliveries/${id}/complete`, body), {
-    ...actionOptions,
-    onSuccess: () => setCompleteOpen(false),
-  })
-
-  if (isLoading || !data) return null
-
-  async function openComplete() {
-    setCompleteOpen(true)
-    setSelectedSNs({})
-    setLoadingSNs(true)
-
-    const storableLines = (data.lines as any[]).filter((l) => l.product_type === 'storable')
-    const snMap: Record<string, AvailableSN[]> = {}
-
-    await Promise.all(
-      storableLines.map(async (line) => {
-        try {
-          const res = await api.get(
-            `/inventory/serials?variant_id=${line.variant_id}&warehouse_id=${data.warehouse_id}`,
-          )
-          snMap[line.id] = res.data as AvailableSN[]
-        } catch {
-          snMap[line.id] = []
-        }
-      }),
-    )
-
-    setLineSNs(snMap)
-    setLoadingSNs(false)
-  }
-
-  function submitComplete() {
-    const lines = (data.lines as any[])
-      .filter((l) => l.product_type === 'storable')
-      .map((l) => ({ line_id: l.id, serials: selectedSNs[l.id] ?? [] }))
-    completeMutation.mutate({ lines })
-  }
-
-  const storableLines = (data.lines as any[]).filter((l) => l.product_type === 'storable')
+  const storableLines = (hook.data.lines as any[]).filter((l) => l.product_type === 'storable')
 
   return (
     <div>
       <Typography.Title level={3}>
-        Delivery Order {data.code} <StatusTag status={data.status} colorMap={STATUS_COLOR} />
+        Delivery Order {hook.data.code} <StatusTag status={hook.data.status} colorMap={STATUS_COLOR} />
       </Typography.Title>
       <p>
-        Loại xuất: <strong>{data.export_type}</strong> — Kho: <strong>{data.warehouse_name}</strong>
-        {data.company_name && <> — Đối tác: <strong>{data.company_name}</strong></>}
+        Loại xuất: <strong>{hook.data.export_type}</strong> — Kho: <strong>{hook.data.warehouse_name}</strong>
+        {hook.data.company_name && <> — Đối tác: <strong>{hook.data.company_name}</strong></>}
       </p>
-      {data.reason && <p>Lý do: {data.reason}</p>}
-      {data.note && <p>Ghi chú: {data.note}</p>}
+      {hook.data.reason && <p>Lý do: {hook.data.reason}</p>}
+      {hook.data.note && <p>Ghi chú: {hook.data.note}</p>}
 
       <Space style={{ marginBottom: 16 }}>
-        {data.status === 'draft' && (
-          <Button type="primary" onClick={() => submitMutation.mutate()}>Submit</Button>
+        {hook.data.status === 'draft' && (
+          <Button onClick={() => hook.editModal.openEdit(hook.data, { note: hook.data.note })}>Sửa</Button>
         )}
-        {data.status === 'pending_approval' && (
-          <Button type="primary" onClick={() => approveMutation.mutate()}>Approve</Button>
+        {hook.data.status === 'draft' && (
+          <Button type="primary" onClick={() => hook.submitMutation.mutate()}>Submit</Button>
         )}
-        {data.status === 'approved' && (
-          <Button type="primary" onClick={openComplete}>Complete</Button>
+        {hook.data.status === 'pending_approval' && (
+          <Button type="primary" onClick={() => hook.approveMutation.mutate()}>Approve</Button>
         )}
-        {!['completed', 'cancelled'].includes(data.status) && (
-          <Popconfirm title="Huỷ phiếu này?" onConfirm={() => cancelMutation.mutate()}>
+        {hook.data.status === 'approved' && (
+          <Button type="primary" onClick={hook.openComplete}>Complete</Button>
+        )}
+        {!['completed', 'cancelled'].includes(hook.data.status) && (
+          <Popconfirm title="Huỷ phiếu này?" onConfirm={() => hook.cancelMutation.mutate()}>
             <Button danger>Cancel</Button>
           </Popconfirm>
         )}
@@ -254,7 +203,7 @@ export default function DeliveryOrderDetailPage() {
 
       <Table
         rowKey="id"
-        dataSource={data.lines}
+        dataSource={hook.data.lines}
         pagination={false}
         columns={[
           { title: 'SKU', dataIndex: 'sku' },
@@ -267,11 +216,11 @@ export default function DeliveryOrderDetailPage() {
 
       <Modal
         title="Complete — chọn Serial Number"
-        open={completeOpen}
-        onCancel={() => setCompleteOpen(false)}
-        onOk={submitComplete}
+        open={hook.completeOpen}
+        onCancel={() => hook.setCompleteOpen(false)}
+        onOk={hook.submitComplete}
         okText="Xác nhận Complete"
-        confirmLoading={completeMutation.isPending}
+        confirmLoading={hook.completeMutation.isPending}
         width={780}
       >
         {storableLines.length === 0 && (
@@ -289,23 +238,23 @@ export default function DeliveryOrderDetailPage() {
               <SNPickerTable
                 lineId={l.id}
                 quantity={l.quantity}
-                sns={lineSNs[l.id] ?? []}
-                loading={loadingSNs}
-                selected={selectedSNs[l.id] ?? []}
-                onSelect={(keys) => setSelectedSNs((prev) => ({ ...prev, [l.id]: keys }))}
+                sns={hook.lineSNs[l.id] ?? []}
+                loading={hook.loadingSNs}
+                selected={hook.selectedSNs[l.id] ?? []}
+                onSelect={(keys) => hook.setSelectedSNs((prev) => ({ ...prev, [l.id]: keys }))}
               />
             </div>
 
             {/* Hiện SN đã chọn dưới dạng tags để dễ review trước khi submit */}
-            {(selectedSNs[l.id]?.length ?? 0) > 0 && (
+            {(hook.selectedSNs[l.id]?.length ?? 0) > 0 && (
               <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                {(selectedSNs[l.id] ?? []).map((sn) => (
+                {(hook.selectedSNs[l.id] ?? []).map((sn) => (
                   <Tag
                     key={sn}
                     closable
-                    color={(selectedSNs[l.id]?.length ?? 0) >= l.quantity ? 'success' : 'blue'}
+                    color={(hook.selectedSNs[l.id]?.length ?? 0) >= l.quantity ? 'success' : 'blue'}
                     onClose={() =>
-                      setSelectedSNs((prev) => ({
+                      hook.setSelectedSNs((prev) => ({
                         ...prev,
                         [l.id]: (prev[l.id] ?? []).filter((s) => s !== sn),
                       }))
@@ -321,6 +270,21 @@ export default function DeliveryOrderDetailPage() {
           </div>
         ))}
       </Modal>
+
+      <EntityFormModal
+        title="Sửa Delivery Order"
+        open={hook.editModal.open}
+        onCancel={hook.editModal.close}
+        onFinish={(v) => hook.updateMutation.mutate(v)}
+        confirmLoading={hook.updateMutation.isPending}
+        form={hook.editModal.form}
+      >
+        <Form.Item name="note" label="Ghi chú">
+          <Input.TextArea rows={3} />
+        </Form.Item>
+      </EntityFormModal>
+
+      <CustomFieldsPanel objectType="delivery_order" objectId={id!} />
     </div>
   )
 }

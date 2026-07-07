@@ -1,11 +1,5 @@
-import { useEffect, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { Table, Form, Input, Select, InputNumber, DatePicker } from 'antd'
-import dayjs from 'dayjs'
-import { useNavigate, useSearchParams } from 'react-router-dom'
-import { api } from '../lib/api'
-import { useApiMutation } from '../hooks/useApiMutation'
-import { useEntityModal } from '../hooks/useEntityModal'
+import { Table, Form, Input, Select, InputNumber, DatePicker, Button } from 'antd'
+import { useReceipts } from '../hooks/useReceipts'
 import { PageHeader } from '../components/PageHeader'
 import { EntityFormModal } from '../components/EntityFormModal'
 import { StatusTag } from '../components/StatusTag'
@@ -19,102 +13,18 @@ const STATUS_COLOR: Record<string, string> = {
 }
 
 export default function ReceiptsPage() {
-  const [searchParams] = useSearchParams()
-  const poIdFromQuery = searchParams.get('po_id') ?? undefined
-  const { open, form, openCreate, close } = useEntityModal()
-  const [poId, setPoId] = useState<string | undefined>(poIdFromQuery)
-  const navigate = useNavigate()
-
-  function closeAll() {
-    close()
-    setPoId(undefined)
-  }
-
-  useEffect(() => {
-    if (poIdFromQuery) {
-      setPoId(poIdFromQuery)
-      openCreate()
-    }
-  }, [poIdFromQuery])
-
-  const { data, isLoading } = useQuery({
-    queryKey: ['receipts'],
-    queryFn: async () => (await api.get('/receipts')).data,
-  })
-
-  const { data: importTypes } = useQuery({
-    queryKey: ['import-types'],
-    queryFn: async () => (await api.get('/settings/import-types')).data,
-  })
-
-  const { data: warehouses } = useQuery({
-    queryKey: ['warehouses'],
-    queryFn: async () => (await api.get('/warehouses')).data,
-  })
-
-  // PO Confirmed để chọn (nhận hàng theo PO) — chỉ cần khi import_type = purchase.
-  const { data: confirmedPOs } = useQuery({
-    queryKey: ['purchase-orders', 'confirmed'],
-    queryFn: async () => (await api.get('/purchase-orders', { params: { status: 'confirmed', limit: 100 } })).data,
-  })
-
-  // Chi tiết PO đang chọn — lấy danh sách po_line + remaining_qty để tự điền dòng hàng.
-  const { data: poDetail } = useQuery({
-    queryKey: ['purchase-orders', poId],
-    queryFn: async () => (await api.get(`/purchase-orders/${poId}`)).data,
-    enabled: !!poId,
-  })
-
-  useEffect(() => {
-    if (poDetail) {
-      form.setFieldsValue({
-        po_id: poDetail.id,
-        company_id: poDetail.company_id,
-        lines: poDetail.lines
-          .filter((l: any) => l.remaining_qty > 0)
-          .map((l: any) => ({
-            variant_id: l.variant_id,
-            variant_label: `${l.variant_sku} — ${l.variant_name}`,
-            po_line_id: l.id,
-            quantity: l.remaining_qty,
-            cost_price: l.unit_price,
-            manufacturer_warranty_months: l.manufacturer_warranty_months,
-            customer_warranty_months: l.customer_warranty_months,
-          })),
-      })
-    }
-  }, [poDetail])
-
-  const createMutation = useApiMutation(
-    (values: any) => {
-      const lines = values.lines.map((l: any) => ({
-        variant_id: l.variant_id,
-        quantity: l.quantity,
-        cost_price: l.cost_price,
-        po_line_id: l.po_line_id,
-        manufacturer_warranty_months: l.manufacturer_warranty_months,
-        manufacturer_warranty_start: l.manufacturer_warranty_start
-          ? (dayjs.isDayjs(l.manufacturer_warranty_start)
-              ? l.manufacturer_warranty_start.toISOString()
-              : dayjs(l.manufacturer_warranty_start).toISOString())
-          : undefined,
-        customer_warranty_months: l.customer_warranty_months,
-      }))
-      return api.post('/receipts', { ...values, lines })
-    },
-    { successMessage: 'Tạo Receipt thành công (Draft)', invalidateKey: ['receipts'], onSuccess: closeAll },
-  )
+  const hook = useReceipts()
 
   return (
     <div>
-      <PageHeader title="Phiếu nhập kho (Receipt)" actionLabel="+ Tạo Receipt" onAction={openCreate} />
+      <PageHeader title="Phiếu nhập kho (Receipt)" actionLabel="+ Tạo Receipt" onAction={hook.openCreate} />
 
       <Table
         rowKey="id"
-        loading={isLoading}
-        dataSource={data?.data}
+        loading={hook.isLoading}
+        dataSource={hook.data?.data}
         pagination={false}
-        onRow={(record: any) => ({ onClick: () => navigate(`/receipts/${record.id}`), style: { cursor: 'pointer' } })}
+        onRow={(record: any) => ({ onClick: () => hook.navigate(`/receipts/${record.id}`), style: { cursor: 'pointer' } })}
         columns={[
           { title: 'Mã phiếu', dataIndex: 'code' },
           { title: 'Loại nhập', dataIndex: 'import_type' },
@@ -125,29 +35,29 @@ export default function ReceiptsPage() {
 
       <EntityFormModal
         title="Tạo phiếu nhập kho"
-        open={open}
-        onCancel={closeAll}
-        onFinish={(v) => createMutation.mutate(v)}
-        confirmLoading={createMutation.isPending}
-        form={form}
+        open={hook.open}
+        onCancel={hook.closeAll}
+        onFinish={(v) => hook.createMutation.mutate(v)}
+        confirmLoading={hook.createMutation.isPending}
+        form={hook.form}
         width={800}
         initialValues={{ import_type: 'purchase', lines: [] }}
       >
         <Form.Item name="import_type" label="Loại nhập" rules={[{ required: true }]}>
-          <Select options={importTypes?.map((t: any) => ({ value: t.key, label: t.label }))} />
+          <Select options={hook.importTypes?.map((t: any) => ({ value: t.key, label: t.label }))} />
         </Form.Item>
         <Form.Item name="warehouse_id" label="Kho nhập" rules={[{ required: true }]}>
-          <Select options={warehouses?.map((w: any) => ({ value: w.id, label: `${w.name} (${w.code})` }))} />
+          <Select options={hook.warehouses?.map((w: any) => ({ value: w.id, label: `${w.name} (${w.code})` }))} />
         </Form.Item>
         <Form.Item label="Nhận hàng theo Purchase Order (tuỳ chọn)">
           <Select
             allowClear
-            value={poId}
+            value={hook.poId}
             placeholder="Chọn PO đã Confirmed để tự điền dòng hàng"
-            options={confirmedPOs?.data.map((p: any) => ({ value: p.id, label: `${p.code} — ${p.company_name}` }))}
+            options={hook.confirmedPOs?.data.map((p: any) => ({ value: p.id, label: `${p.code} — ${p.company_name}` }))}
             onChange={(v) => {
-              setPoId(v)
-              if (!v) form.setFieldsValue({ po_id: undefined, lines: [] })
+              hook.setPoId(v)
+              if (!v) hook.form.setFieldsValue({ po_id: undefined, lines: [] })
             }}
           />
         </Form.Item>
@@ -159,87 +69,107 @@ export default function ReceiptsPage() {
         </Form.Item>
 
         <Form.List name="lines">
-          {(fields) => (
-            <Table
-              className="form-row-full"
-              size="small"
-              pagination={false}
-              dataSource={fields.map((f) => ({ ...f, key: f.key }))}
-              columns={[
-                {
-                  title: 'SKU',
-                  render: (_: any, f: any) => (
-                    <Form.Item name={[f.name, 'variant_label']} noStyle>
-                      <Input disabled />
-                    </Form.Item>
-                  ),
-                },
-                {
-                  title: 'Số lượng nhận',
-                  render: (_: any, f: any) => (
-                    <Form.Item name={[f.name, 'quantity']} noStyle rules={[{ required: true }]}>
-                      <InputNumber min={1} />
-                    </Form.Item>
-                  ),
-                },
-                {
-                  title: 'Giá nhập thực tế',
-                  render: (_: any, f: any) => (
-                    <Form.Item name={[f.name, 'cost_price']} noStyle rules={[{ required: true }]}>
-                      <InputNumber min={0} />
-                    </Form.Item>
-                  ),
-                },
-                {
-                  title: 'BH hãng (tháng)',
-                  render: (_: any, f: any) => (
-                    <Form.Item name={[f.name, 'manufacturer_warranty_months']} noStyle>
-                      <InputNumber min={0} style={{ width: 80 }} />
-                    </Form.Item>
-                  ),
-                },
-                {
-                  title: 'Ngày bắt đầu BH hãng',
-                  render: (_: any, f: any) => (
-                    <Form.Item name={[f.name, 'manufacturer_warranty_start']} noStyle>
-                      <DatePicker
-                        style={{ width: 140 }}
-                        placeholder="Để trống = ngày nhập kho"
-                        allowClear
-                      />
-                    </Form.Item>
-                  ),
-                },
-                {
-                  title: 'BH công ty (tháng)',
-                  render: (_: any, f: any) => (
-                    <Form.Item name={[f.name, 'customer_warranty_months']} noStyle>
-                      <InputNumber min={0} style={{ width: 90 }} />
-                    </Form.Item>
-                  ),
-                },
-                {
-                  title: '',
-                  render: (_: any, f: any) => (
-                    <>
-                      <Form.Item name={[f.name, 'variant_id']} hidden>
-                        <Input />
+          {(fields, { add, remove }) => (
+            <>
+              <Table
+                className="form-row-full"
+                size="small"
+                pagination={false}
+                dataSource={fields.map((f) => ({ ...f, key: f.key }))}
+                locale={{ emptyText: 'Chưa có dòng hàng' }}
+                columns={[
+                  {
+                    title: 'SKU',
+                    width: hook.poId ? undefined : 220,
+                    render: (_: any, f: any) =>
+                      hook.poId ? (
+                        <Form.Item name={[f.name, 'variant_label']} noStyle>
+                          <Input disabled />
+                        </Form.Item>
+                      ) : (
+                        <Form.Item name={[f.name, 'variant_id']} noStyle rules={[{ required: true, message: 'Chọn SKU' }]}>
+                          <Select
+                            showSearch
+                            placeholder="Tìm SKU / tên sản phẩm"
+                            style={{ width: 220 }}
+                            filterOption={false}
+                            onSearch={hook.setVariantSearch}
+                            options={hook.variantOptions?.map((v: any) => ({
+                              value: v.id,
+                              label: `${v.sku} — ${v.name}`,
+                            }))}
+                          />
+                        </Form.Item>
+                      ),
+                  },
+                  {
+                    title: 'Số lượng nhận',
+                    render: (_: any, f: any) => (
+                      <Form.Item name={[f.name, 'quantity']} noStyle rules={[{ required: true }]}>
+                        <InputNumber min={1} />
                       </Form.Item>
-                      <Form.Item name={[f.name, 'po_line_id']} hidden>
-                        <Input />
+                    ),
+                  },
+                  {
+                    title: 'Giá nhập',
+                    render: (_: any, f: any) => (
+                      <Form.Item name={[f.name, 'cost_price']} noStyle rules={[{ required: true }]}>
+                        <InputNumber min={0} style={{ width: 120 }} />
                       </Form.Item>
-                    </>
-                  ),
-                },
-              ]}
-            />
+                    ),
+                  },
+                  {
+                    title: 'BH hãng (T)',
+                    render: (_: any, f: any) => (
+                      <Form.Item name={[f.name, 'manufacturer_warranty_months']} noStyle>
+                        <InputNumber min={0} style={{ width: 70 }} />
+                      </Form.Item>
+                    ),
+                  },
+                  {
+                    title: 'Ngày BH hãng',
+                    render: (_: any, f: any) => (
+                      <Form.Item name={[f.name, 'manufacturer_warranty_start']} noStyle>
+                        <DatePicker style={{ width: 130 }} placeholder="Ngày nhập kho" allowClear />
+                      </Form.Item>
+                    ),
+                  },
+                  {
+                    title: 'BH cty (T)',
+                    render: (_: any, f: any) => (
+                      <Form.Item name={[f.name, 'customer_warranty_months']} noStyle>
+                        <InputNumber min={0} style={{ width: 70 }} />
+                      </Form.Item>
+                    ),
+                  },
+                  {
+                    title: '',
+                    render: (_: any, f: any) => (
+                      <>
+                        {hook.poId && (
+                          <Form.Item name={[f.name, 'variant_id']} hidden><Input /></Form.Item>
+                        )}
+                        <Form.Item name={[f.name, 'po_line_id']} hidden><Input /></Form.Item>
+                        {!hook.poId && (
+                          <Button size="small" danger onClick={() => remove(f.name)}>Xóa</Button>
+                        )}
+                      </>
+                    ),
+                  },
+                ]}
+              />
+              {!hook.poId && (
+                <Button
+                  className="form-row-full"
+                  style={{ marginTop: 8 }}
+                  onClick={() => add({ quantity: 1 })}
+                >
+                  + Thêm dòng
+                </Button>
+              )}
+            </>
           )}
         </Form.List>
-        {!poId && (
-          <p className="form-row-full" style={{ color: '#999', marginTop: 8 }}>
-            Chưa hỗ trợ thêm dòng tự do trong UI test này — chọn 1 PO Confirmed ở trên để tự điền dòng hàng.
-          </p>
-        )}
       </EntityFormModal>
     </div>
   )

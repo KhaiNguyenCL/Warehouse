@@ -1,106 +1,59 @@
-import { useParams, useNavigate } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
-import { Table, Button, Typography, Space, Popconfirm, Select, Tag, message, Input } from 'antd'
-import { useState } from 'react'
-import { api } from '../lib/api'
-import { useApiMutation } from '../hooks/useApiMutation'
+import { useParams } from 'react-router-dom'
+import { Table, Button, Typography, Space, Popconfirm, Select, Tag, Input, Form, InputNumber } from 'antd'
+import { useQuotationDetail } from '../hooks/useQuotationDetail'
+import { EntityFormModal } from '../components/EntityFormModal'
 import { StatusTag } from '../components/StatusTag'
+import CustomFieldsPanel from '../components/CustomFieldsPanel'
 
 const STATUS_COLOR: Record<string, string> = { draft: 'default', confirmed: 'blue', expired: 'gold', cancelled: 'red' }
 
 export default function QuotationDetailPage() {
   const { id } = useParams<{ id: string }>()
-  const navigate = useNavigate()
-  const [templateId, setTemplateId] = useState<string | undefined>()
-  const [exporting, setExporting] = useState(false)
-  const [dealId, setDealId] = useState('')
+  const hook = useQuotationDetail(id!)
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['quotations', id],
-    queryFn: async () => (await api.get(`/quotations/${id}`)).data,
-  })
-
-  const { data: templates } = useQuery({
-    queryKey: ['templates', 'quotation'],
-    queryFn: async () => (await api.get('/templates', { params: { object_type: 'quotation', limit: 50 } })).data,
-  })
-
-  const actionOptions = { successMessage: 'Thành công', invalidateKey: [['quotations', id], ['quotations']] }
-  const confirmMutation = useApiMutation(() => api.patch(`/quotations/${id}/confirm`), actionOptions)
-  const unconfirmMutation = useApiMutation(() => api.patch(`/quotations/${id}/unconfirm`), actionOptions)
-  const cancelMutation = useApiMutation(() => api.patch(`/quotations/${id}/cancel`), actionOptions)
-  const expireMutation = useApiMutation(() => api.patch(`/quotations/${id}/expire`), actionOptions)
-
-  // CLAUDE.md mục 13: "Bấm Sync lại → ghi đè toàn bộ field được map (không hỏi lại)" — chỉ
-  // cho phép khi Draft (BitrixService chặn ở backend), deal_id để trống = sync lại deal cũ.
-  const syncMutation = useApiMutation(
-    () => api.post(`/bitrix/quotations/${id}/sync`, dealId ? { deal_id: dealId } : {}),
-    { ...actionOptions, successMessage: 'Đồng bộ Bitrix thành công', onSuccess: () => setDealId('') },
-  )
-
-  async function handleExport(format: 'xlsx' | 'pdf') {
-    if (!templateId) {
-      message.error('Chọn 1 template trước')
-      return
-    }
-    setExporting(true)
-    try {
-      const res = await api.post(
-        `/templates/${templateId}/export`,
-        { object_id: id, format },
-        { responseType: 'blob' },
-      )
-      const url = URL.createObjectURL(new Blob([res.data]))
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `${data?.code ?? 'quotation'}.${format}`
-      a.click()
-      URL.revokeObjectURL(url)
-    } catch (err: any) {
-      message.error(err.response?.data?.message ?? 'Xuất file thất bại')
-    } finally {
-      setExporting(false)
-    }
-  }
-
-  if (isLoading || !data) return null
+  if (hook.isLoading || !hook.data) return null
 
   return (
     <div>
       <Typography.Title level={3}>
-        Báo giá {data.code} <StatusTag status={data.status} colorMap={STATUS_COLOR} />
+        Báo giá {hook.data.code} <StatusTag status={hook.data.status} colorMap={STATUS_COLOR} />
       </Typography.Title>
       <p>
-        Khách hàng: <strong>{data.company_name}</strong>
-        {data.contact_name && <> — Người liên hệ: <strong>{data.contact_name}</strong></>}
-        {data.project_name && <> — Dự án: <strong>{data.project_name}</strong></>}
+        Khách hàng: <strong>{hook.data.company_name}</strong>
+        {hook.data.contact_name && <> — Người liên hệ: <strong>{hook.data.contact_name}</strong></>}
+        {hook.data.project_name && <> — Dự án: <strong>{hook.data.project_name}</strong></>}
       </p>
-      {data.delivery_location && <p>Địa điểm giao hàng: {data.delivery_location}</p>}
-      {data.warehouse_name && <p>Kho xuất: {data.warehouse_name}</p>}
-      {data.expired_at && <p>Hết hạn: {new Date(data.expired_at).toLocaleDateString('vi-VN')}</p>}
-      {data.terms && <p>Điều khoản: {data.terms}</p>}
+      {hook.data.delivery_location && <p>Địa điểm giao hàng: {hook.data.delivery_location}</p>}
+      {hook.data.warehouse_name && <p>Kho xuất: {hook.data.warehouse_name}</p>}
+      {hook.data.expired_at && <p>Hết hạn: {new Date(hook.data.expired_at).toLocaleDateString('vi-VN')}</p>}
+      {hook.data.terms && <p>Điều khoản: {hook.data.terms}</p>}
 
       <Space style={{ marginBottom: 16 }}>
-        {data.status === 'draft' && (
-          <Button type="primary" onClick={() => confirmMutation.mutate()}>
+        {hook.data.status === 'draft' && (
+          <Button onClick={() => hook.editModal.openEdit(hook.data, { note: hook.data.note, valid_days: hook.data.valid_days, discount: hook.data.discount })}>
+            Sửa
+          </Button>
+        )}
+        {hook.data.status === 'draft' && (
+          <Button type="primary" onClick={() => hook.confirmMutation.mutate()}>
             Confirm
           </Button>
         )}
-        {data.status === 'confirmed' && (
+        {hook.data.status === 'confirmed' && (
           <>
-            <Button onClick={() => unconfirmMutation.mutate()}>Unconfirm (về Draft)</Button>
-            <Popconfirm title="Đánh dấu hết hạn báo giá này?" onConfirm={() => expireMutation.mutate()}>
+            <Button onClick={() => hook.unconfirmMutation.mutate()}>Unconfirm (về Draft)</Button>
+            <Popconfirm title="Đánh dấu hết hạn báo giá này?" onConfirm={() => hook.expireMutation.mutate()}>
               <Button>Đánh dấu hết hạn</Button>
             </Popconfirm>
           </>
         )}
-        {!['cancelled', 'expired'].includes(data.status) && (
-          <Popconfirm title="Huỷ báo giá này?" onConfirm={() => cancelMutation.mutate()}>
+        {!['cancelled', 'expired'].includes(hook.data.status) && (
+          <Popconfirm title="Huỷ báo giá này?" onConfirm={() => hook.cancelMutation.mutate()}>
             <Button danger>Cancel</Button>
           </Popconfirm>
         )}
-        {data.status === 'confirmed' && (
-          <Button onClick={() => navigate(`/deliveries?quotation_id=${data.id}`)}>Tạo Delivery Order từ báo giá này</Button>
+        {hook.data.status === 'confirmed' && (
+          <Button onClick={() => hook.navigate(`/deliveries?quotation_id=${hook.data.id}`)}>Tạo Delivery Order từ báo giá này</Button>
         )}
       </Space>
 
@@ -108,52 +61,52 @@ export default function QuotationDetailPage() {
         <Select
           placeholder="Chọn template để xuất"
           style={{ width: 260 }}
-          options={templates?.data.map((t: any) => ({ value: t.id, label: t.name }))}
-          onChange={setTemplateId}
+          options={hook.templates?.data.map((t: any) => ({ value: t.id, label: t.name }))}
+          onChange={hook.setTemplateId}
           notFoundContent="Chưa có template — tạo ở Settings > Template"
         />
-        <Button loading={exporting} disabled={!templateId} onClick={() => handleExport('xlsx')}>
+        <Button loading={hook.exporting} disabled={!hook.templateId} onClick={() => hook.handleExport('xlsx')}>
           Xuất Excel
         </Button>
-        <Button loading={exporting} disabled={!templateId} onClick={() => handleExport('pdf')}>
+        <Button loading={hook.exporting} disabled={!hook.templateId} onClick={() => hook.handleExport('pdf')}>
           Xuất PDF
         </Button>
       </Space>
 
       <Space style={{ marginBottom: 16 }}>
-        {data.bitrix_deal_id ? (
+        {hook.data.bitrix_deal_id ? (
           <Typography.Text>
             Đã đồng bộ Bitrix Deal{' '}
-            {data.bitrix_deal_url ? (
-              <a href={data.bitrix_deal_url} target="_blank" rel="noreferrer">#{data.bitrix_deal_id}</a>
+            {hook.data.bitrix_deal_url ? (
+              <a href={hook.data.bitrix_deal_url} target="_blank" rel="noreferrer">#{hook.data.bitrix_deal_id}</a>
             ) : (
-              <>#{data.bitrix_deal_id}</>
+              <>#{hook.data.bitrix_deal_id}</>
             )}
-            {data.bitrix_synced_at && <> — lúc {new Date(data.bitrix_synced_at).toLocaleString('vi-VN')}</>}
+            {hook.data.bitrix_synced_at && <> — lúc {new Date(hook.data.bitrix_synced_at).toLocaleString('vi-VN')}</>}
           </Typography.Text>
         ) : (
           <Typography.Text type="secondary">Chưa đồng bộ Bitrix</Typography.Text>
         )}
-        {data.status === 'draft' && (
+        {hook.data.status === 'draft' && (
           <>
             <Input
-              placeholder={data.bitrix_deal_id ? 'Để trống = sync lại deal cũ' : 'Nhập Bitrix Deal ID'}
+              placeholder={hook.data.bitrix_deal_id ? 'Để trống = sync lại deal cũ' : 'Nhập Bitrix Deal ID'}
               style={{ width: 220 }}
-              value={dealId}
-              onChange={(e) => setDealId(e.target.value)}
+              value={hook.dealId}
+              onChange={(e) => hook.setDealId(e.target.value)}
             />
             <Button
-              loading={syncMutation.isPending}
-              disabled={!dealId && !data.bitrix_deal_id}
-              onClick={() => syncMutation.mutate()}
+              loading={hook.syncMutation.isPending}
+              disabled={!hook.dealId && !hook.data.bitrix_deal_id}
+              onClick={() => hook.syncMutation.mutate()}
             >
-              {data.bitrix_deal_id ? 'Sync lại' : 'Đồng bộ'}
+              {hook.data.bitrix_deal_id ? 'Sync lại' : 'Đồng bộ'}
             </Button>
           </>
         )}
       </Space>
 
-      {data.sections.map((section: any) => (
+      {hook.data.sections.map((section: any) => (
         <div key={section.id} style={{ marginBottom: 24 }}>
           <Typography.Title level={5}>{section.name}</Typography.Title>
           <Table
@@ -191,11 +144,32 @@ export default function QuotationDetailPage() {
       ))}
 
       <div style={{ textAlign: 'right' }}>
-        <p>Tạm tính: {data.subtotal}</p>
-        <p>Tiền VAT: {data.vat_total}</p>
-        <p>Giảm giá: {data.discount}</p>
-        <Typography.Title level={4}>Tổng cộng: {data.grand_total}</Typography.Title>
+        <p>Tạm tính: {hook.data.subtotal}</p>
+        <p>Tiền VAT: {hook.data.vat_total}</p>
+        <p>Giảm giá: {hook.data.discount}</p>
+        <Typography.Title level={4}>Tổng cộng: {hook.data.grand_total}</Typography.Title>
       </div>
+
+      <EntityFormModal
+        title="Sửa Báo giá"
+        open={hook.editModal.open}
+        onCancel={hook.editModal.close}
+        onFinish={(v) => hook.updateMutation.mutate(v)}
+        confirmLoading={hook.updateMutation.isPending}
+        form={hook.editModal.form}
+      >
+        <Form.Item name="valid_days" label="Hiệu lực (ngày)">
+          <InputNumber style={{ width: '100%' }} min={1} />
+        </Form.Item>
+        <Form.Item name="discount" label="Giảm giá">
+          <InputNumber style={{ width: '100%' }} min={0} />
+        </Form.Item>
+        <Form.Item name="note" label="Ghi chú">
+          <Input.TextArea rows={3} />
+        </Form.Item>
+      </EntityFormModal>
+
+      <CustomFieldsPanel objectType="quotation" objectId={id!} />
     </div>
   )
 }

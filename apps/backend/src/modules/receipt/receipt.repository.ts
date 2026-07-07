@@ -93,6 +93,20 @@ export class ReceiptRepository {
     return { ...receipt, lines: insertedLines }
   }
 
+  async update(id: string, data: Record<string, unknown>) {
+    const [row] = await this.db('receipts').where({ id }).update({ ...data, updated_at: this.db.fn.now() }).returning('*')
+    return row
+  }
+
+  async updateLines(lines: Array<{ id: string; cost_price?: number; manufacturer_warranty_months?: number | null; customer_warranty_months?: number | null }>) {
+    for (const line of lines) {
+      const { id, ...fields } = line
+      if (Object.keys(fields).length) {
+        await this.db('receipt_lines').where({ id }).update(fields)
+      }
+    }
+  }
+
   // Helper chung cho mọi bước chuyển trạng thái (submit/approve/complete/cancel).
   // expectedStatus nằm ngay trong WHERE — biến "check status rồi update" (2 bước, có
   // race condition nếu 2 request xen vào giữa) thành 1 câu UPDATE atomic duy nhất.

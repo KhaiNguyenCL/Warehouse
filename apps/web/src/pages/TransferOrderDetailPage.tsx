@@ -1,10 +1,9 @@
-import { useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
-import { Table, Button, Typography, Space, Popconfirm, Modal, Input } from 'antd'
-import { api } from '../lib/api'
-import { useApiMutation } from '../hooks/useApiMutation'
+import { Table, Button, Typography, Space, Popconfirm, Modal, Input, Form } from 'antd'
+import { useTransferOrderDetail } from '../hooks/useTransferOrderDetail'
+import { EntityFormModal } from '../components/EntityFormModal'
 import { StatusTag } from '../components/StatusTag'
+import CustomFieldsPanel from '../components/CustomFieldsPanel'
 
 const STATUS_COLOR: Record<string, string> = {
   draft: 'default',
@@ -16,71 +15,43 @@ const STATUS_COLOR: Record<string, string> = {
 
 export default function TransferOrderDetailPage() {
   const { id } = useParams<{ id: string }>()
-  const [completeOpen, setCompleteOpen] = useState(false)
-  const [serialsText, setSerialsText] = useState<Record<string, string>>({})
+  const hook = useTransferOrderDetail(id!)
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['transfers', id],
-    queryFn: async () => (await api.get(`/transfers/${id}`)).data,
-  })
-
-  const actionOptions = {
-    successMessage: 'Thành công',
-    invalidateKey: [['transfers', id], ['transfers'], ['inventory']],
-  }
-  const submitMutation = useApiMutation(() => api.patch(`/transfers/${id}/submit`), actionOptions)
-  const approveMutation = useApiMutation(() => api.patch(`/transfers/${id}/approve`), actionOptions)
-  const cancelMutation = useApiMutation(() => api.patch(`/transfers/${id}/cancel`), actionOptions)
-  const completeMutation = useApiMutation((body: any) => api.patch(`/transfers/${id}/complete`, body), {
-    ...actionOptions,
-    onSuccess: () => setCompleteOpen(false),
-  })
-
-  if (isLoading || !data) return null
-
-  function submitComplete() {
-    const lines = data.lines
-      .filter((l: any) => l.product_type === 'storable')
-      .map((l: any) => ({
-        line_id: l.id,
-        serials: (serialsText[l.id] ?? '')
-          .split('\n')
-          .map((s: string) => s.trim())
-          .filter(Boolean),
-      }))
-    completeMutation.mutate({ lines })
-  }
+  if (hook.isLoading || !hook.data) return null
 
   return (
     <div>
       <Typography.Title level={3}>
-        Transfer Order {data.code} <StatusTag status={data.status} colorMap={STATUS_COLOR} />
+        Transfer Order {hook.data.code} <StatusTag status={hook.data.status} colorMap={STATUS_COLOR} />
       </Typography.Title>
       <p>
-        Loại chuyển: <strong>{data.transfer_type}</strong>
-        {data.from_warehouse_name && <> — Kho nguồn: <strong>{data.from_warehouse_name}</strong></>}
-        {' '}— Kho đích: <strong>{data.to_warehouse_name}</strong>
+        Loại chuyển: <strong>{hook.data.transfer_type}</strong>
+        {hook.data.from_warehouse_name && <> — Kho nguồn: <strong>{hook.data.from_warehouse_name}</strong></>}
+        {' '}— Kho đích: <strong>{hook.data.to_warehouse_name}</strong>
       </p>
-      {data.note && <p>Ghi chú: {data.note}</p>}
+      {hook.data.note && <p>Ghi chú: {hook.data.note}</p>}
 
       <Space style={{ marginBottom: 16 }}>
-        {data.status === 'draft' && (
-          <Button type="primary" onClick={() => submitMutation.mutate()}>
+        {hook.data.status === 'draft' && (
+          <Button onClick={() => hook.editModal.openEdit(hook.data, { note: hook.data.note })}>Sửa</Button>
+        )}
+        {hook.data.status === 'draft' && (
+          <Button type="primary" onClick={() => hook.submitMutation.mutate()}>
             Submit
           </Button>
         )}
-        {data.status === 'pending_approval' && (
-          <Button type="primary" onClick={() => approveMutation.mutate()}>
+        {hook.data.status === 'pending_approval' && (
+          <Button type="primary" onClick={() => hook.approveMutation.mutate()}>
             Approve
           </Button>
         )}
-        {data.status === 'approved' && (
-          <Button type="primary" onClick={() => setCompleteOpen(true)}>
+        {hook.data.status === 'approved' && (
+          <Button type="primary" onClick={() => hook.setCompleteOpen(true)}>
             Complete
           </Button>
         )}
-        {!['completed', 'cancelled'].includes(data.status) && (
-          <Popconfirm title="Huỷ phiếu này?" onConfirm={() => cancelMutation.mutate()}>
+        {!['completed', 'cancelled'].includes(hook.data.status) && (
+          <Popconfirm title="Huỷ phiếu này?" onConfirm={() => hook.cancelMutation.mutate()}>
             <Button danger>Cancel</Button>
           </Popconfirm>
         )}
@@ -88,7 +59,7 @@ export default function TransferOrderDetailPage() {
 
       <Table
         rowKey="id"
-        dataSource={data.lines}
+        dataSource={hook.data.lines}
         pagination={false}
         columns={[
           { title: 'SKU', dataIndex: 'sku' },
@@ -101,13 +72,13 @@ export default function TransferOrderDetailPage() {
 
       <Modal
         title="Complete — nhập Serial Number cho từng dòng storable"
-        open={completeOpen}
-        onCancel={() => setCompleteOpen(false)}
-        onOk={submitComplete}
-        confirmLoading={completeMutation.isPending}
+        open={hook.completeOpen}
+        onCancel={() => hook.setCompleteOpen(false)}
+        onOk={hook.submitComplete}
+        confirmLoading={hook.completeMutation.isPending}
         width={600}
       >
-        {data.lines
+        {hook.data.lines
           .filter((l: any) => l.product_type === 'storable')
           .map((l: any) => (
             <div key={l.id} style={{ marginBottom: 16 }}>
@@ -116,16 +87,31 @@ export default function TransferOrderDetailPage() {
               </p>
               <Input.TextArea
                 rows={4}
-                value={serialsText[l.id] ?? ''}
-                onChange={(e) => setSerialsText((prev) => ({ ...prev, [l.id]: e.target.value }))}
+                value={hook.serialsText[l.id] ?? ''}
+                onChange={(e) => hook.setSerialsText((prev) => ({ ...prev, [l.id]: e.target.value }))}
                 placeholder={`SN-001\nSN-002\n...`}
               />
             </div>
           ))}
-        {data.lines.every((l: any) => l.product_type !== 'storable') && (
+        {hook.data.lines.every((l: any) => l.product_type !== 'storable') && (
           <p>Không có dòng storable — không cần nhập serial, bấm OK để Complete.</p>
         )}
       </Modal>
+
+      <EntityFormModal
+        title="Sửa Transfer Order"
+        open={hook.editModal.open}
+        onCancel={hook.editModal.close}
+        onFinish={(v) => hook.updateMutation.mutate(v)}
+        confirmLoading={hook.updateMutation.isPending}
+        form={hook.editModal.form}
+      >
+        <Form.Item name="note" label="Ghi chú">
+          <Input.TextArea rows={3} />
+        </Form.Item>
+      </EntityFormModal>
+
+      <CustomFieldsPanel objectType="transfer_order" objectId={id!} />
     </div>
   )
 }

@@ -33,6 +33,10 @@ export class ProductRepository {
     return row
   }
 
+  deleteCategory(id: string) {
+    return this.db('categories').where({ id }).update({ is_active: false })
+  }
+
   // ─── Brands ────────────────────────────────────────────────────────────
 
   findAllBrands() {
@@ -46,6 +50,18 @@ export class ProductRepository {
   async updateBrand(id: string, data: UpdateBrandBody) {
     const [row] = await this.db('brands').where({ id }).update(data).returning('*')
     return row
+  }
+
+  deleteBrand(id: string) {
+    return this.db('brands').where({ id }).update({ is_active: false })
+  }
+
+  countProductsByBrand(brandId: string) {
+    return this.db('products').where({ brand_id: brandId, is_active: true }).count('id as count').first()
+  }
+
+  countProductsByCategory(categoryId: string) {
+    return this.db('products').where({ category_id: categoryId, is_active: true }).count('id as count').first()
   }
 
   // ─── Products ──────────────────────────────────────────────────────────
@@ -162,6 +178,18 @@ export class ProductRepository {
       .insert({ ...data, product_id: productId })
       .returning('*')
       .then(([row]) => row)
+  }
+
+  searchVariants(search?: string, productType?: string, limit = 50) {
+    const q = this.db('variants as v')
+      .join('products as p', 'p.id', 'v.product_id')
+      .where('p.is_active', true)
+      .select('v.id', 'v.sku', 'v.name', 'v.unit', 'p.name as product_name', 'p.product_type')
+      .orderBy('v.sku')
+      .limit(limit)
+    if (search) q.where((b) => b.whereILike('v.sku', `%${search}%`).orWhereILike('v.name', `%${search}%`).orWhereILike('p.name', `%${search}%`))
+    if (productType) q.where('p.product_type', productType)
+    return q
   }
 
   findVariantById(id: string) {

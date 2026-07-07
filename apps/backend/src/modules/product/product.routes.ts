@@ -57,6 +57,12 @@ const productRoutes: FastifyPluginAsync = async (app) => {
     async (request) => service.updateCategory(request.params.id, request.body),
   )
 
+  app.delete<{ Params: { id: string } }>(
+    '/categories/:id',
+    { preHandler: requirePermission('settings.products') },
+    async (request, reply) => { await service.deleteCategory(request.params.id); return reply.code(204).send() },
+  )
+
   // ─── Brands ────────────────────────────────────────────────────────────
 
   app.get('/brands', { preHandler: authenticate }, async () => {
@@ -76,6 +82,12 @@ const productRoutes: FastifyPluginAsync = async (app) => {
     '/brands/:id',
     { schema: updateBrandSchema, preHandler: requirePermission('settings.products') },
     async (request) => service.updateBrand(request.params.id, request.body),
+  )
+
+  app.delete<{ Params: { id: string } }>(
+    '/brands/:id',
+    { preHandler: requirePermission('settings.products') },
+    async (request, reply) => { await service.deleteBrand(request.params.id); return reply.code(204).send() },
   )
 
   // ─── Products ──────────────────────────────────────────────────────────
@@ -123,6 +135,28 @@ const productRoutes: FastifyPluginAsync = async (app) => {
   )
 
   // ─── Variants ──────────────────────────────────────────────────────────
+
+  // Flat search — dùng cho dropdown chọn SKU khi tạo Receipt/DO không qua PO/Quotation.
+  app.get<{ Querystring: { search?: string; product_type?: string; limit?: number } }>(
+    '/variants',
+    {
+      schema: {
+        querystring: {
+          type: 'object',
+          properties: {
+            search:       { type: 'string' },
+            product_type: { type: 'string' },
+            limit:        { type: 'integer', minimum: 1, maximum: 200 },
+          },
+        },
+      },
+      preHandler: authenticate,
+    },
+    async (request) => {
+      const { search, product_type, limit } = request.query
+      return service.searchVariants(search, product_type, limit)
+    },
+  )
 
   app.post<{ Params: { id: string }; Body: CreateVariantBody }>(
     '/:id/variants',

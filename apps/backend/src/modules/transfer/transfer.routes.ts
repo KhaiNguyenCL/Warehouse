@@ -37,6 +37,16 @@ const transferRoutes: FastifyPluginAsync = async (app) => {
     },
   )
 
+  // PATCH /transfers/:id — sửa header khi Draft
+  app.patch<{ Params: { id: string }; Body: any }>(
+    '/:id',
+    {
+      schema: { body: { type: 'object', properties: { note: { type: 'string' } } } },
+      preHandler: requirePermission('transfer.create'),
+    },
+    async (request, reply) => reply.send(await service.update(request.params.id, request.body as Record<string, unknown>)),
+  )
+
   app.patch<{ Params: { id: string } }>(
     '/:id/submit',
     { preHandler: authenticate },

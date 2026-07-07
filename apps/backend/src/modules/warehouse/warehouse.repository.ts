@@ -34,4 +34,12 @@ export class WarehouseRepository {
       .returning('*')
     return row
   }
+
+  deleteWarehouse(id: string) {
+    return this.db('warehouses').where({ id }).update({ is_active: false, updated_at: this.db.fn.now() })
+  }
+
+  hasInventory(id: string) {
+    return this.db('inventory').where({ warehouse_id: id }).where('qty_on_hand', '>', 0).first()
+  }
 }

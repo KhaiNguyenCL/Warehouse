@@ -73,6 +73,11 @@ export class TransferRepository {
     return { ...transfer, lines: insertedLines }
   }
 
+  async update(id: string, data: Record<string, unknown>) {
+    const [row] = await this.db('transfer_orders').where({ id }).update({ ...data, updated_at: this.db.fn.now() }).returning('*')
+    return row
+  }
+
   // expectedStatus nằm ngay trong WHERE — update atomic, tránh race condition khi 2
   // request cùng lúc chuyển trạng thái (xem giải thích chi tiết ở receipt.repository.ts).
   async updateStatus(

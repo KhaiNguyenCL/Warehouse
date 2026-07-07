@@ -230,7 +230,6 @@ describe('Template', () => {
       method: 'POST',
       url: '/api/v1/quotations',
       payload: {
-        code: 'BG-TPL-001',
         company_id: companyId,
         warehouse_id: warehouseId,
         sections: [{ name: 'Thiết bị', line_items: [{ description: 'Switch', quantity: 1, unit_price: 1000000 }] }],
@@ -248,7 +247,7 @@ describe('Template', () => {
 
     const rendered = new AdmZip(exportRes.rawPayload)
     const sheetXml = rendered.getEntry('xl/worksheets/sheet1.xml')!.getData().toString('utf8')
-    expect(sheetXml).toContain('BG-TPL-001')
+    expect(sheetXml).toContain(quotation.code)   // code tự sinh từ document_sequences
     expect(sheetXml).toContain('KH template')
     expect(sheetXml).not.toContain('{d.code}')
   })

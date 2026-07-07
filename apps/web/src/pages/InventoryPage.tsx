@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Table, Input, Select, Space, Tag, Button, Form, Modal, message } from 'antd'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../lib/api'
+import { useInventory } from '../hooks/useInventory'
 import { PageHeader } from '../components/PageHeader'
 import { StatusTag } from '../components/StatusTag'
 
@@ -230,34 +231,7 @@ function LotsTable({ variantId, warehouseId }: { variantId: string; warehouseId:
 }
 
 export default function InventoryPage() {
-  const [searchInput, setSearchInput] = useState('')
-  const [search, setSearch] = useState('')
-  const [snSearchInput, setSnSearchInput] = useState('')
-  const [snSearch, setSnSearch] = useState('')
-  const [warehouseId, setWarehouseId] = useState<string | undefined>()
-
-  // Debounce nhẹ để gõ tới đâu lọc tới đó mà không bắn request mỗi lần nhấn phím.
-  useEffect(() => {
-    const t = setTimeout(() => setSearch(searchInput), 300)
-    return () => clearTimeout(t)
-  }, [searchInput])
-
-  useEffect(() => {
-    const t = setTimeout(() => setSnSearch(snSearchInput), 300)
-    return () => clearTimeout(t)
-  }, [snSearchInput])
-
-  const { data, isLoading } = useQuery({
-    queryKey: ['inventory', search, warehouseId],
-    queryFn: async () =>
-      (await api.get('/inventory', { params: { search: search || undefined, warehouse_id: warehouseId, limit: 100 } })).data,
-    refetchInterval: 5000, // tự refetch để thấy số liệu cập nhật ngay sau khi Complete Receipt ở tab khác
-  })
-
-  const { data: warehouses } = useQuery({
-    queryKey: ['warehouses'],
-    queryFn: async () => (await api.get('/warehouses')).data,
-  })
+  const hook = useInventory()
 
   return (
     <div>
@@ -268,32 +242,32 @@ export default function InventoryPage() {
           placeholder="Tìm theo SKU hoặc tên sản phẩm"
           allowClear
           style={{ width: 280 }}
-          value={searchInput}
-          onChange={(e) => setSearchInput(e.target.value)}
+          value={hook.searchInput}
+          onChange={(e) => hook.setSearchInput(e.target.value)}
         />
         <Select
           allowClear
           placeholder="Tất cả kho"
           style={{ width: 220 }}
-          options={warehouses?.map((w: any) => ({ value: w.id, label: w.name }))}
-          onChange={setWarehouseId}
+          options={hook.warehouses?.map((w: any) => ({ value: w.id, label: w.name }))}
+          onChange={hook.setWarehouseId}
         />
         <Input
           placeholder="Tìm theo Serial No (không cần biết trước SKU/kho/lô)"
           allowClear
           style={{ width: 320 }}
-          value={snSearchInput}
-          onChange={(e) => setSnSearchInput(e.target.value)}
+          value={hook.snSearchInput}
+          onChange={(e) => hook.setSnSearchInput(e.target.value)}
         />
       </Space>
 
-      {snSearch ? (
-        <SnSearchTable search={snSearch} />
+      {hook.snSearch ? (
+        <SnSearchTable search={hook.snSearch} />
       ) : (
         <Table
           rowKey={(r: any) => `${r.variant_id}-${r.warehouse_id}`}
-          loading={isLoading}
-          dataSource={data?.data}
+          loading={hook.isLoading}
+          dataSource={hook.data?.data}
           pagination={false}
           columns={[
             { title: 'SKU', dataIndex: 'sku' },

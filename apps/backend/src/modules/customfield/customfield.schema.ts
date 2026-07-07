@@ -1,5 +1,5 @@
 export const FIELD_TYPES = ['text', 'number', 'date', 'select', 'boolean'] as const
-export const CUSTOM_FIELD_OBJECT_TYPES = ['quotation', 'receipt', 'delivery_order', 'product', 'variant', 'company'] as const
+export const CUSTOM_FIELD_OBJECT_TYPES = ['quotation', 'receipt', 'delivery_order', 'purchase_order', 'transfer_order', 'stocktake', 'product', 'variant', 'company'] as const
 
 export const createCustomFieldSchema = {
   body: {

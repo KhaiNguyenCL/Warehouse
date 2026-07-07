@@ -37,6 +37,16 @@ const deliveryRoutes: FastifyPluginAsync = async (app) => {
     },
   )
 
+  // PATCH /deliveries/:id — sửa header khi Draft
+  app.patch<{ Params: { id: string }; Body: any }>(
+    '/:id',
+    {
+      schema: { body: { type: 'object', properties: { note: { type: 'string' }, company_id: { type: 'string', format: 'uuid' }, contact_id: { type: 'string', format: 'uuid' } } } },
+      preHandler: requirePermission('delivery.create'),
+    },
+    async (request, reply) => reply.send(await service.update(request.params.id, request.body as Record<string, unknown>)),
+  )
+
   app.patch<{ Params: { id: string } }>(
     '/:id/submit',
     { preHandler: authenticate },

@@ -19,6 +19,13 @@ export class DeliveryService {
     return delivery
   }
 
+  async update(id: string, data: Record<string, unknown>) {
+    const delivery = await this.repo.findById(id)
+    if (!delivery) throw { statusCode: 404, message: 'Delivery order not found' }
+    if (delivery.status !== 'draft') throw { statusCode: 409, message: 'Chỉ sửa được khi Draft' }
+    return this.repo.update(id, data)
+  }
+
   async create(data: CreateDeliveryBody, userId: string) {
     const exportType = await this.resolveActiveExportType(data.export_type)
     if (exportType.requires_company !== 'none' && !data.company_id) {

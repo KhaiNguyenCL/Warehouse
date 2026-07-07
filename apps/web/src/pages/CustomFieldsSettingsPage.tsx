@@ -1,20 +1,21 @@
-// Settings > Custom Field — CRUD định nghĩa field theo từng object_type. KHÔNG sửa được
-// field_name/field_type/object_type sau khi tạo (backend chặn — field_values cũ đã lưu
-// theo field_type này, đổi sẽ làm dữ liệu cũ sai nghĩa), nên modal "Sửa" chỉ có
-// field_label/options/sort_order/is_active.
-import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { Table, Input, Select, InputNumber, Switch, Tag, Space, Popconfirm, Button, Form } from 'antd'
-import { api } from '../lib/api'
-import { useApiMutation } from '../hooks/useApiMutation'
-import { useEntityModal } from '../hooks/useEntityModal'
+import {
+  Tabs, Table, Input, Select, InputNumber, Switch, Tag, Space,
+  Popconfirm, Button, Form, Modal,
+} from 'antd'
+import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
+import { useVariantAttributesTab, useCustomFieldsTab } from '../hooks/useCustomFieldsSettings'
 import { PageHeader } from '../components/PageHeader'
 import { EntityFormModal } from '../components/EntityFormModal'
+
+// ─── Tab 1: Thuộc tính SKU ────────────────────────────────────────────────────
 
 const OBJECT_TYPES = [
   { value: 'quotation', label: 'Quotation' },
   { value: 'receipt', label: 'Receipt' },
   { value: 'delivery_order', label: 'Delivery Order' },
+  { value: 'purchase_order', label: 'Purchase Order' },
+  { value: 'transfer_order', label: 'Transfer Order' },
+  { value: 'stocktake', label: 'Stocktake' },
   { value: 'product', label: 'Product' },
   { value: 'company', label: 'Company' },
 ]
@@ -27,62 +28,165 @@ const FIELD_TYPES = [
   { value: 'boolean', label: 'Boolean' },
 ]
 
-export default function CustomFieldsSettingsPage() {
-  const [objectType, setObjectType] = useState('product')
-  const { open, editing, form, openCreate, openEdit, close } = useEntityModal()
+function VariantAttributesTab() {
+  const hook = useVariantAttributesTab()
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['custom-fields', objectType],
-    queryFn: async () => (await api.get('/custom-fields', { params: { object_type: objectType } })).data,
-  })
-
-  const createMutation = useApiMutation(
-    (values: any) => api.post('/custom-fields', { ...values, object_type: objectType }),
-    { successMessage: 'Tạo field thành công', invalidateKey: ['custom-fields', objectType], onSuccess: close },
-  )
-
-  const updateMutation = useApiMutation((values: any) => api.patch(`/custom-fields/${editing.id}`, values), {
-    successMessage: 'Cập nhật thành công',
-    invalidateKey: ['custom-fields', objectType],
-    onSuccess: close,
-  })
-
-  const deleteMutation = useApiMutation((id: string) => api.delete(`/custom-fields/${id}`), {
-    successMessage: 'Xoá thành công',
-    invalidateKey: ['custom-fields', objectType],
-  })
-
-  function openEditField(field: any) {
-    openEdit(field, {
-      field_label: field.field_label,
-      options: field.options ?? [],
-      sort_order: field.sort_order,
-      is_active: field.is_active,
-      applies_to_po_line: field.applies_to_po_line,
-    })
-  }
-
-  function submit(values: any) {
-    if (editing) updateMutation.mutate(values)
-    else createMutation.mutate(values)
-  }
-
-  const fieldType: string = Form.useWatch('field_type', form)
+  const columns = [
+    { title: 'Tên thuộc tính', dataIndex: 'name' },
+    {
+      title: 'Loại',
+      dataIndex: 'field_type',
+      width: 90,
+      render: (v: string) => <Tag>{v === 'text' ? 'Nhập tự do' : 'Danh sách'}</Tag>,
+    },
+    {
+      title: 'Đơn vị',
+      dataIndex: 'unit',
+      width: 80,
+      render: (v: string | null) => v ?? <span style={{ color: '#aaa' }}>—</span>,
+    },
+    {
+      title: 'Các giá trị',
+      dataIndex: 'options',
+      render: (opts: string[], r: any) =>
+        r.field_type === 'text'
+          ? <span style={{ color: '#aaa' }}>Nhập tự do</span>
+          : opts.length ? opts.map((o) => <Tag key={o}>{o}</Tag>) : <span style={{ color: '#aaa' }}>Chưa có</span>,
+    },
+    {
+      title: 'Áp dụng',
+      dataIndex: 'applies_to',
+      width: 140,
+      render: (v: string, r: any) =>
+        v === 'all' ? <Tag color="blue">Tất cả</Tag> : <span>{r.products.map((p: any) => p.product_name).join(', ') || <Tag>Chưa chọn SP</Tag>}</span>,
+    },
+    {
+      title: 'Hoạt động',
+      dataIndex: 'is_active',
+      width: 90,
+      render: (v: boolean) => (v ? <Tag color="green">Có</Tag> : <Tag>Tắt</Tag>),
+    },
+    {
+      title: '',
+      width: 80,
+      render: (_: any, r: any) => (
+        <Space>
+          <Button size="small" icon={<EditOutlined />} onClick={() => hook.openEdit(r)}>Sửa</Button>
+          <Popconfirm title="Xoá thuộc tính này?" onConfirm={() => hook.handleDelete(r.id)} okText="Xoá" cancelText="Không">
+            <Button size="small" danger icon={<DeleteOutlined />}>Xoá</Button>
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ]
 
   return (
-    <div>
-      <PageHeader
-        title="Custom Field"
-        actionLabel="+ Tạo field"
-        onAction={openCreate}
-        extra={<Select style={{ width: 200 }} value={objectType} onChange={setObjectType} options={OBJECT_TYPES} />}
-      />
+    <>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+        <Button type="primary" icon={<PlusOutlined />} onClick={hook.openCreate}>Thêm thuộc tính</Button>
+      </div>
+
+      <Table rowKey="id" dataSource={hook.data} columns={columns} loading={hook.isLoading} pagination={false} size="small" />
+
+      <Modal
+        open={hook.modalOpen}
+        title={hook.editing ? 'Sửa thuộc tính' : 'Thêm thuộc tính SKU'}
+        onOk={hook.handleSave}
+        onCancel={() => hook.setModalOpen(false)}
+        width={560}
+        okText={hook.editing ? 'Lưu' : 'Tạo'}
+      >
+        <Form form={hook.form} layout="vertical" style={{ marginTop: 16 }}>
+          <Form.Item name="name" label="Tên thuộc tính" rules={[{ required: true }]}>
+            <Input placeholder="Ví dụ: Số port, RAM, Dung lượng" />
+          </Form.Item>
+
+          <Form.Item name="field_type" label="Loại" initialValue="select">
+            <Select options={[
+              { value: 'select', label: 'Danh sách (chọn từ giá trị có sẵn)' },
+              { value: 'text', label: 'Nhập tự do' },
+            ]} />
+          </Form.Item>
+
+          <Form.Item name="unit" label="Ký hiệu đơn vị (gắn vào tên SKU)">
+            <Input placeholder="Ví dụ: P, G, TB — để trống nếu không cần" style={{ width: 200 }} />
+          </Form.Item>
+
+          {hook.fieldType === 'select' && (
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ marginBottom: 4, fontWeight: 500 }}>
+                Các giá trị <span style={{ fontWeight: 400, color: '#888' }}>(nhấn Enter hoặc +)</span>
+              </div>
+              <Space wrap>
+                {hook.options.map((o) => (
+                  <Tag key={o} closable onClose={() => hook.setOptions(hook.options.filter((x) => x !== o))}>{o}</Tag>
+                ))}
+              </Space>
+              <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                <Input
+                  value={hook.optionInput}
+                  onChange={(e) => hook.setOptionInput(e.target.value)}
+                  onPressEnter={hook.addOption}
+                  placeholder="Nhập giá trị rồi Enter"
+                  style={{ width: 200 }}
+                />
+                <Button onClick={hook.addOption} icon={<PlusOutlined />}>Thêm</Button>
+              </div>
+            </div>
+          )}
+
+          <Form.Item name="applies_to" label="Áp dụng cho" initialValue="all">
+            <Select
+              options={[
+                { value: 'all', label: 'Tất cả sản phẩm' },
+                { value: 'product', label: 'Chỉ một số sản phẩm' },
+              ]}
+              onChange={(v) => hook.setAppliesTo(v)}
+            />
+          </Form.Item>
+
+          {hook.appliesTo === 'product' && (
+            <Form.Item name="product_ids" label="Chọn sản phẩm áp dụng">
+              <Select
+                mode="multiple"
+                placeholder="Chọn sản phẩm"
+                loading={hook.productsLoading}
+                options={(hook.products?.data ?? []).map((p: any) => ({ value: p.id, label: `${p.code} — ${p.name}` }))}
+                showSearch
+                filterOption={(input, opt) => (opt?.label as string)?.toLowerCase().includes(input.toLowerCase())}
+              />
+            </Form.Item>
+          )}
+
+          {hook.editing && (
+            <Form.Item name="is_active" label="Hoạt động" valuePropName="checked">
+              <Switch />
+            </Form.Item>
+          )}
+        </Form>
+      </Modal>
+    </>
+  )
+}
+
+// ─── Tab 2: Custom Field phiếu/đơn ───────────────────────────────────────────
+
+function CustomFieldsTab() {
+  const hook = useCustomFieldsTab()
+
+  return (
+    <>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+        <Select style={{ width: 200 }} value={hook.objectType} onChange={hook.setObjectType} options={OBJECT_TYPES} />
+        <Button type="primary" icon={<PlusOutlined />} onClick={hook.openCreate}>Tạo field</Button>
+      </div>
 
       <Table
         rowKey="id"
-        loading={isLoading}
-        dataSource={data}
+        loading={hook.isLoading}
+        dataSource={hook.data}
         pagination={false}
+        size="small"
         columns={[
           { title: 'field_name', dataIndex: 'field_name' },
           { title: 'Tên hiển thị', dataIndex: 'field_label' },
@@ -98,26 +202,13 @@ export default function CustomFieldsSettingsPage() {
             dataIndex: 'is_active',
             render: (v: boolean) => <Tag color={v ? 'green' : 'default'}>{v ? 'Có' : 'Không'}</Tag>,
           },
-          ...(objectType === 'variant'
-            ? [
-                {
-                  title: 'Sửa riêng theo PO',
-                  dataIndex: 'applies_to_po_line',
-                  render: (v: boolean) => <Tag color={v ? 'blue' : 'default'}>{v ? 'Có' : 'Không'}</Tag>,
-                },
-              ]
-            : []),
           {
             title: '',
             render: (_: any, record: any) => (
               <Space>
-                <Button size="small" onClick={() => openEditField(record)}>
-                  Sửa
-                </Button>
-                <Popconfirm title="Xoá field này?" onConfirm={() => deleteMutation.mutate(record.id)}>
-                  <Button size="small" danger>
-                    Xoá
-                  </Button>
+                <Button size="small" icon={<EditOutlined />} onClick={() => hook.openEditField(record)}>Sửa</Button>
+                <Popconfirm title="Xoá field này?" onConfirm={() => hook.deleteMutation.mutate(record.id)}>
+                  <Button size="small" danger icon={<DeleteOutlined />}>Xoá</Button>
                 </Popconfirm>
               </Space>
             ),
@@ -126,14 +217,14 @@ export default function CustomFieldsSettingsPage() {
       />
 
       <EntityFormModal
-        title={editing ? `Sửa field "${editing.field_name}"` : 'Tạo field mới'}
-        open={open}
-        onCancel={close}
-        onFinish={submit}
-        confirmLoading={createMutation.isPending || updateMutation.isPending}
-        form={form}
+        title={hook.editing ? `Sửa field "${hook.editing.field_name}"` : 'Tạo field mới'}
+        open={hook.open}
+        onCancel={hook.close}
+        onFinish={hook.submit}
+        confirmLoading={hook.createMutation.isPending || hook.updateMutation.isPending}
+        form={hook.form}
       >
-        {!editing && (
+        {!hook.editing && (
           <>
             <Form.Item
               name="field_name"
@@ -151,7 +242,7 @@ export default function CustomFieldsSettingsPage() {
         <Form.Item name="field_label" label="Tên hiển thị" rules={[{ required: true }]}>
           <Input placeholder="vd: Ghi chú bảo hành" />
         </Form.Item>
-        {(editing ? editing.field_type : fieldType) === 'select' && (
+        {(hook.editing ? hook.editing.field_type : hook.fieldType) === 'select' && (
           <Form.Item
             name="options"
             label="Options (mỗi giá trị 1 dòng)"
@@ -163,23 +254,29 @@ export default function CustomFieldsSettingsPage() {
         <Form.Item name="sort_order" label="Thứ tự hiển thị" initialValue={0}>
           <InputNumber style={{ width: '100%' }} />
         </Form.Item>
-        {objectType === 'variant' && (
-          <Form.Item
-            name="applies_to_po_line"
-            label="Cho phép sửa riêng theo PO"
-            valuePropName="checked"
-            initialValue={false}
-            extra="Bật: giá trị field này nhập được riêng theo từng dòng PO (như đơn giá), không bị ảnh hưởng nếu sau đó sửa giá trị mặc định trên SKU. Tắt: chỉ xem (tham chiếu giá trị trên SKU)."
-          >
-            <Switch />
-          </Form.Item>
-        )}
-        {editing && (
+        {hook.editing && (
           <Form.Item name="is_active" label="Active" valuePropName="checked" initialValue={true}>
             <Switch />
           </Form.Item>
         )}
       </EntityFormModal>
+    </>
+  )
+}
+
+// ─── Page gộp ─────────────────────────────────────────────────────────────────
+
+export default function CustomFieldsSettingsPage() {
+  return (
+    <div>
+      <PageHeader title="Custom Field" />
+      <Tabs
+        defaultActiveKey="attr"
+        items={[
+          { key: 'attr', label: 'Thuộc tính SKU', children: <VariantAttributesTab /> },
+          { key: 'custom', label: 'Custom Field (phiếu/đơn)', children: <CustomFieldsTab /> },
+        ]}
+      />
     </div>
   )
 }

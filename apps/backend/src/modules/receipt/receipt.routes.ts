@@ -47,6 +47,38 @@ const receiptRoutes: FastifyPluginAsync = async (app) => {
     },
   )
 
+  // PATCH /receipts/:id — sửa header khi Draft
+  app.patch<{ Params: { id: string }; Body: any }>(
+    '/:id',
+    {
+      schema: {
+        body: {
+          type: 'object',
+          properties: {
+            note:       { type: 'string' },
+            company_id: { type: 'string', format: 'uuid' },
+            contact_id: { type: 'string', format: 'uuid' },
+            lines: {
+              type: 'array',
+              items: {
+                type: 'object',
+                required: ['id'],
+                properties: {
+                  id:                           { type: 'string', format: 'uuid' },
+                  cost_price:                   { type: 'number', minimum: 0 },
+                  manufacturer_warranty_months: { type: ['integer', 'null'], minimum: 0 },
+                  customer_warranty_months:     { type: ['integer', 'null'], minimum: 0 },
+                },
+              },
+            },
+          },
+        },
+      },
+      preHandler: requirePermission('receipt.create'),
+    },
+    async (request, reply) => reply.send(await service.update(request.params.id, request.body as Record<string, unknown>)),
+  )
+
   // PATCH /receipts/:id/submit — draft → pending_approval.
   // Dùng authenticate (chỉ cần đăng nhập) thay vì requirePermission, vì ai tạo phiếu
   // cũng được tự submit phiếu của mình, không cần quyền approve riêng.

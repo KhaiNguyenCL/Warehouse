@@ -1,62 +1,57 @@
-import { useParams, useNavigate } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
-import { Table, Button, Typography, Space, Popconfirm, Tag } from 'antd'
-import { api } from '../lib/api'
-import { useApiMutation } from '../hooks/useApiMutation'
+import { useParams } from 'react-router-dom'
+import { Table, Button, Typography, Space, Popconfirm, Tag, Form, Input } from 'antd'
+import { usePurchaseOrderDetail } from '../hooks/usePurchaseOrderDetail'
+import { EntityFormModal } from '../components/EntityFormModal'
 import { StatusTag } from '../components/StatusTag'
+import CustomFieldsPanel from '../components/CustomFieldsPanel'
 
 const STATUS_COLOR: Record<string, string> = { draft: 'default', confirmed: 'blue', cancelled: 'red' }
 
 export default function PurchaseOrderDetailPage() {
   const { id } = useParams<{ id: string }>()
-  const navigate = useNavigate()
+  const hook = usePurchaseOrderDetail(id!)
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['purchase-orders', id],
-    queryFn: async () => (await api.get(`/purchase-orders/${id}`)).data,
-  })
-
-  const actionOptions = { successMessage: 'Thành công', invalidateKey: [['purchase-orders', id], ['purchase-orders']] }
-  const confirmMutation = useApiMutation(() => api.patch(`/purchase-orders/${id}/confirm`), actionOptions)
-  const unconfirmMutation = useApiMutation(() => api.patch(`/purchase-orders/${id}/unconfirm`), actionOptions)
-  const cancelMutation = useApiMutation(() => api.patch(`/purchase-orders/${id}/cancel`), actionOptions)
-
-  if (isLoading || !data) return null
+  if (hook.isLoading || !hook.data) return null
 
   return (
     <div>
       <Typography.Title level={3}>
-        PO {data.code} <StatusTag status={data.status} colorMap={STATUS_COLOR} />
+        PO {hook.data.code} <StatusTag status={hook.data.status} colorMap={STATUS_COLOR} />
       </Typography.Title>
       <p>
-        NCC: <strong>{data.company_name}</strong>
-        {data.contact_name && <> — Người liên hệ: <strong>{data.contact_name}</strong></>}
-        {data.bitrix_deal_id && <> — Bitrix Deal: <strong>{data.bitrix_deal_id}</strong></>}
+        NCC: <strong>{hook.data.company_name}</strong>
+        {hook.data.contact_name && <> — Người liên hệ: <strong>{hook.data.contact_name}</strong></>}
+        {hook.data.bitrix_deal_id && <> — Bitrix Deal: <strong>{hook.data.bitrix_deal_id}</strong></>}
       </p>
-      {data.note && <p>Ghi chú: {data.note}</p>}
+      {hook.data.note && <p>Ghi chú: {hook.data.note}</p>}
 
       <Space style={{ marginBottom: 16 }}>
-        {data.status === 'draft' && (
-          <Button type="primary" onClick={() => confirmMutation.mutate()}>
+        {hook.data.status === 'draft' && (
+          <Button onClick={() => hook.editModal.openEdit(hook.data, { note: hook.data.note, bitrix_deal_id: hook.data.bitrix_deal_id })}>
+            Sửa
+          </Button>
+        )}
+        {hook.data.status === 'draft' && (
+          <Button type="primary" onClick={() => hook.confirmMutation.mutate()}>
             Confirm
           </Button>
         )}
-        {data.status === 'confirmed' && (
-          <Button onClick={() => unconfirmMutation.mutate()}>Unconfirm (về Draft)</Button>
+        {hook.data.status === 'confirmed' && (
+          <Button onClick={() => hook.unconfirmMutation.mutate()}>Unconfirm (về Draft)</Button>
         )}
-        {data.status !== 'cancelled' && (
-          <Popconfirm title="Huỷ PO này?" onConfirm={() => cancelMutation.mutate()}>
+        {hook.data.status !== 'cancelled' && (
+          <Popconfirm title="Huỷ PO này?" onConfirm={() => hook.cancelMutation.mutate()}>
             <Button danger>Cancel</Button>
           </Popconfirm>
         )}
-        {data.status === 'confirmed' && (
-          <Button onClick={() => navigate(`/receipts?po_id=${data.id}`)}>Tạo Receipt từ PO này</Button>
+        {hook.data.status === 'confirmed' && (
+          <Button onClick={() => hook.navigate(`/receipts?po_id=${hook.data.id}`)}>Tạo Receipt từ PO này</Button>
         )}
       </Space>
 
       <Table
         rowKey="id"
-        dataSource={data.lines}
+        dataSource={hook.data.lines}
         pagination={false}
         columns={[
           { title: 'SKU', dataIndex: 'variant_sku' },
@@ -83,6 +78,24 @@ export default function PurchaseOrderDetailPage() {
           },
         ]}
       />
+
+      <EntityFormModal
+        title="Sửa Purchase Order"
+        open={hook.editModal.open}
+        onCancel={hook.editModal.close}
+        onFinish={(v) => hook.updateMutation.mutate(v)}
+        confirmLoading={hook.updateMutation.isPending}
+        form={hook.editModal.form}
+      >
+        <Form.Item name="bitrix_deal_id" label="Bitrix Deal ID">
+          <Input />
+        </Form.Item>
+        <Form.Item name="note" label="Ghi chú">
+          <Input.TextArea rows={3} />
+        </Form.Item>
+      </EntityFormModal>
+
+      <CustomFieldsPanel objectType="purchase_order" objectId={id!} />
     </div>
   )
 }

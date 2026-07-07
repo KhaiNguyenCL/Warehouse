@@ -28,6 +28,13 @@ export class TransferService {
     return transfer
   }
 
+  async update(id: string, data: Record<string, unknown>) {
+    const transfer = await this.repo.findById(id)
+    if (!transfer) throw { statusCode: 404, message: 'Transfer order not found' }
+    if (transfer.status !== 'draft') throw { statusCode: 409, message: 'Chỉ sửa được khi Draft' }
+    return this.repo.update(id, data)
+  }
+
   // Tự suy from_warehouse_id theo transfer_type — bỏ qua from_warehouse_id client gửi lên
   // (nếu có) cho 4 type "nhận lại từ kho ảo", để tránh nhập sai/giả mạo UUID kho ảo.
   private async resolveFromWarehouseId(data: CreateTransferBody, trx: Knex.Transaction): Promise<string> {

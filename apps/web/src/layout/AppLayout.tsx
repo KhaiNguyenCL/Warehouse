@@ -62,8 +62,7 @@ const NAV_ITEMS = [
     label: 'Cài đặt',
     type: 'group' as const,
     children: [
-      { key: '/settings/variant-attributes', icon: <SettingOutlined />, label: 'Thuộc tính SKU' },
-      { key: '/settings/custom-fields', icon: <SettingOutlined />, label: 'Custom Field (phiếu/đơn)' },
+      { key: '/settings/custom-fields', icon: <SettingOutlined />, label: 'Custom Field' },
       { key: '/settings/types', icon: <SettingOutlined />, label: 'Loại nhập/xuất kho' },
       { key: '/settings/roles', icon: <SettingOutlined />, label: 'Roles & Permissions' },
       { key: '/settings/users', icon: <SettingOutlined />, label: 'Users' },

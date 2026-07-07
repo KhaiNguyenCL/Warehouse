@@ -83,4 +83,18 @@ export class CompanyService {
       return this.repo.updateContact(contactId, data, trx)
     })
   }
+
+  async deleteContact(companyId: string, contactId: string) {
+    const contact = await this.repo.findContactById(contactId)
+    if (!contact || contact.company_id !== companyId) {
+      throw { statusCode: 404, message: 'Contact not found' }
+    }
+    await this.repo.deleteContact(contactId)
+  }
+
+  async deleteCompany(id: string) {
+    const existing = await this.repo.findById(id)
+    if (!existing) throw { statusCode: 404, message: 'Company not found' }
+    await this.repo.deleteCompany(id)
+  }
 }

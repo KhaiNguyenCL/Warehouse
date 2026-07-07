@@ -1,11 +1,5 @@
-import { useEffect, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
 import { Table, Form, Input, Select, Button } from 'antd'
-import dayjs from 'dayjs'
-import { useNavigate, useSearchParams } from 'react-router-dom'
-import { api } from '../lib/api'
-import { useApiMutation } from '../hooks/useApiMutation'
-import { useEntityModal } from '../hooks/useEntityModal'
+import { useDeliveryOrders } from '../hooks/useDeliveryOrders'
 import { PageHeader } from '../components/PageHeader'
 import { EntityFormModal } from '../components/EntityFormModal'
 import { StatusTag } from '../components/StatusTag'
@@ -20,126 +14,18 @@ const STATUS_COLOR: Record<string, string> = {
 }
 
 export default function DeliveryOrdersPage() {
-  const [searchParams] = useSearchParams()
-  const quotationIdFromQuery = searchParams.get('quotation_id') ?? undefined
-  const { open, form, openCreate, close } = useEntityModal()
-  const [quotationId, setQuotationId] = useState<string | undefined>(quotationIdFromQuery)
-  const navigate = useNavigate()
-
-  function closeAll() {
-    close()
-    setQuotationId(undefined)
-  }
-
-  useEffect(() => {
-    if (quotationIdFromQuery) {
-      setQuotationId(quotationIdFromQuery)
-      openCreate()
-      // openCreate() gọi resetFields() bên trong — phải set sau, không phải trước.
-      form.setFieldValue('export_type', 'sale')
-    }
-  }, [quotationIdFromQuery])
-
-  const { data, isLoading } = useQuery({
-    queryKey: ['deliveries'],
-    queryFn: async () => (await api.get('/deliveries')).data,
-  })
-
-  const { data: exportTypes } = useQuery({
-    queryKey: ['export-types'],
-    queryFn: async () => (await api.get('/settings/export-types')).data,
-  })
-
-  const { data: warehouses } = useQuery({
-    queryKey: ['warehouses'],
-    queryFn: async () => (await api.get('/warehouses')).data,
-  })
-
-  const exportType: string | undefined = Form.useWatch('export_type', form)
-  const activeExportType = exportTypes?.find((t: any) => t.key === exportType)
-  const requiresCompanyType = activeExportType?.requires_company // 'customer' | 'supplier' | 'none'
-  const requiresQuotation = !!activeExportType?.requires_quotation
-  const isAdjustment = exportType === 'adjustment'
-
-  const { data: companies } = useQuery({
-    queryKey: ['companies', requiresCompanyType],
-    queryFn: async () => (await api.get('/companies', { params: { type: requiresCompanyType, limit: 100 } })).data,
-    enabled: requiresCompanyType === 'customer' || requiresCompanyType === 'supplier',
-  })
-
-  const companyId: string | undefined = Form.useWatch('company_id', form)
-  const { data: companyDetail } = useQuery({
-    queryKey: ['companies', companyId],
-    queryFn: async () => (await api.get(`/companies/${companyId}`)).data,
-    enabled: !!companyId,
-  })
-
-  // Quotation Confirmed để chọn (xuất theo báo giá) — chỉ cần khi export_type yêu cầu (sale).
-  const { data: confirmedQuotations } = useQuery({
-    queryKey: ['quotations', 'confirmed'],
-    queryFn: async () => (await api.get('/quotations', { params: { status: 'confirmed', limit: 100 } })).data,
-    enabled: requiresQuotation,
-  })
-
-  const { data: quotationDetail } = useQuery({
-    queryKey: ['quotations', quotationId],
-    queryFn: async () => (await api.get(`/quotations/${quotationId}`)).data,
-    enabled: !!quotationId,
-  })
-
-  useEffect(() => {
-    if (quotationDetail) {
-      const lines = quotationDetail.sections
-        .flatMap((s: any) => s.line_items)
-        .filter((l: any) => l.variant_id && l.remaining_qty > 0)
-        .map((l: any) => ({
-          variant_id: l.variant_id,
-          variant_label: `${l.variant_sku} — ${l.variant_name}`,
-          quotation_line_item_id: l.id,
-          quantity: l.remaining_qty,
-        }))
-      form.setFieldsValue({
-        quotation_id: quotationDetail.id,
-        company_id: quotationDetail.company_id,
-        warehouse_id: quotationDetail.warehouse_id,
-        lines,
-      })
-    }
-  }, [quotationDetail])
-
-  const createMutation = useApiMutation(
-    (values: any) => {
-      const lines = values.lines.map((l: any) => ({
-        variant_id: l.variant_id,
-        quantity: l.quantity,
-        quotation_line_item_id: l.quotation_line_item_id,
-        customer_warranty_start: l.customer_warranty_start
-          ? (dayjs.isDayjs(l.customer_warranty_start)
-              ? l.customer_warranty_start.toISOString()
-              : dayjs(l.customer_warranty_start).toISOString())
-          : undefined,
-        note: l.note,
-      }))
-      const body: any = { ...values, lines }
-      if (isAdjustment) {
-        body.ref_document_type = 'stocktake_result'
-        body.ref_document_id = values.ref_document_id
-      }
-      return api.post('/deliveries', body)
-    },
-    { successMessage: 'Tạo Delivery Order thành công (Draft)', invalidateKey: ['deliveries'], onSuccess: closeAll },
-  )
+  const hook = useDeliveryOrders()
 
   return (
     <div>
-      <PageHeader title="Phiếu xuất kho (Delivery Order)" actionLabel="+ Tạo Delivery Order" onAction={openCreate} />
+      <PageHeader title="Phiếu xuất kho (Delivery Order)" actionLabel="+ Tạo Delivery Order" onAction={hook.openCreate} />
 
       <Table
         rowKey="id"
-        loading={isLoading}
-        dataSource={data?.data}
+        loading={hook.isLoading}
+        dataSource={hook.data?.data}
         pagination={false}
-        onRow={(record: any) => ({ onClick: () => navigate(`/deliveries/${record.id}`), style: { cursor: 'pointer' } })}
+        onRow={(record: any) => ({ onClick: () => hook.navigate(`/deliveries/${record.id}`), style: { cursor: 'pointer' } })}
         columns={[
           { title: 'Mã phiếu', dataIndex: 'code' },
           { title: 'Loại xuất', dataIndex: 'export_type' },
@@ -151,60 +37,60 @@ export default function DeliveryOrdersPage() {
 
       <EntityFormModal
         title="Tạo phiếu xuất kho"
-        open={open}
-        onCancel={closeAll}
-        onFinish={(v) => createMutation.mutate(v)}
-        confirmLoading={createMutation.isPending}
-        form={form}
+        open={hook.open}
+        onCancel={hook.closeAll}
+        onFinish={(v) => hook.createMutation.mutate(v)}
+        confirmLoading={hook.createMutation.isPending}
+        form={hook.form}
         width={1000}
         initialValues={{ lines: [{}] }}
       >
         <Form.Item name="export_type" label="Loại xuất" rules={[{ required: true }]}>
           <Select
-            options={exportTypes?.filter((t: any) => t.is_active).map((t: any) => ({ value: t.key, label: t.label }))}
+            options={hook.exportTypes?.filter((t: any) => t.is_active).map((t: any) => ({ value: t.key, label: t.label }))}
             onChange={() => {
-              form.setFieldValue('company_id', undefined)
-              setQuotationId(undefined)
-              form.setFieldsValue({ quotation_id: undefined, lines: [{}] })
+              hook.form.setFieldValue('company_id', undefined)
+              hook.setQuotationId(undefined)
+              hook.form.setFieldsValue({ quotation_id: undefined, lines: [{}] })
             }}
           />
         </Form.Item>
         <Form.Item name="warehouse_id" label="Kho xuất" rules={[{ required: true }]}>
-          <Select options={warehouses?.map((w: any) => ({ value: w.id, label: `${w.name} (${w.code})` }))} />
+          <Select options={hook.warehouses?.map((w: any) => ({ value: w.id, label: `${w.name} (${w.code})` }))} />
         </Form.Item>
 
-        {requiresCompanyType && requiresCompanyType !== 'none' && (
+        {hook.requiresCompanyType && hook.requiresCompanyType !== 'none' && (
           <Form.Item
             name="company_id"
-            label={requiresCompanyType === 'customer' ? 'Khách hàng' : 'NCC'}
+            label={hook.requiresCompanyType === 'customer' ? 'Khách hàng' : 'NCC'}
             rules={[{ required: true }]}
           >
             <Select
-              options={companies?.data.map((c: any) => ({ value: c.id, label: c.name }))}
-              onChange={() => form.setFieldValue('contact_id', undefined)}
+              options={hook.companies?.data.map((c: any) => ({ value: c.id, label: c.name }))}
+              onChange={() => hook.form.setFieldValue('contact_id', undefined)}
             />
           </Form.Item>
         )}
-        {requiresCompanyType && requiresCompanyType !== 'none' && (
+        {hook.requiresCompanyType && hook.requiresCompanyType !== 'none' && (
           <Form.Item name="contact_id" label="Người liên hệ (tuỳ chọn)">
             <Select
               allowClear
-              disabled={!companyId}
-              placeholder={companyId ? undefined : 'Chọn đối tác trước'}
-              options={companyDetail?.contacts?.map((c: any) => ({ value: c.id, label: c.full_name }))}
+              disabled={!hook.companyId}
+              placeholder={hook.companyId ? undefined : 'Chọn đối tác trước'}
+              options={hook.companyDetail?.contacts?.map((c: any) => ({ value: c.id, label: c.full_name }))}
             />
           </Form.Item>
         )}
 
-        {requiresQuotation && (
+        {hook.requiresQuotation && (
           <Form.Item label="Xuất theo Quotation (bắt buộc)" required>
             <Select
-              value={quotationId}
+              value={hook.quotationId}
               placeholder="Chọn báo giá đã Confirmed"
-              options={confirmedQuotations?.data.map((q: any) => ({ value: q.id, label: `${q.code} — ${q.company_name}` }))}
+              options={hook.confirmedQuotations?.data.map((q: any) => ({ value: q.id, label: `${q.code} — ${q.company_name}` }))}
               onChange={(v) => {
-                setQuotationId(v)
-                if (!v) form.setFieldsValue({ quotation_id: undefined, lines: [{}] })
+                hook.setQuotationId(v)
+                if (!v) hook.form.setFieldsValue({ quotation_id: undefined, lines: [{}] })
               }}
             />
           </Form.Item>
@@ -213,7 +99,7 @@ export default function DeliveryOrdersPage() {
           <Input />
         </Form.Item>
 
-        {isAdjustment && (
+        {hook.isAdjustment && (
           <Form.Item
             name="ref_document_id"
             label="Stocktake Result ID"
@@ -231,7 +117,7 @@ export default function DeliveryOrdersPage() {
           <Input.TextArea rows={2} />
         </Form.Item>
 
-        {requiresQuotation ? (
+        {hook.requiresQuotation ? (
           <Form.List name="lines">
             {(fields) => (
               <Table

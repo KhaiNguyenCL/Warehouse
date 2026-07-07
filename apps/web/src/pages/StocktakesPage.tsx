@@ -1,9 +1,5 @@
-import { useQuery } from '@tanstack/react-query'
 import { Table, Form, Input, Select, Button } from 'antd'
-import { useNavigate } from 'react-router-dom'
-import { api } from '../lib/api'
-import { useApiMutation } from '../hooks/useApiMutation'
-import { useEntityModal } from '../hooks/useEntityModal'
+import { useStocktakes } from '../hooks/useStocktakes'
 import { PageHeader } from '../components/PageHeader'
 import { EntityFormModal } from '../components/EntityFormModal'
 import { StatusTag } from '../components/StatusTag'
@@ -18,42 +14,18 @@ const SCOPE_TYPES = [
 ]
 
 export default function StocktakesPage() {
-  const { open, form, openCreate, close } = useEntityModal()
-  const navigate = useNavigate()
-
-  const { data, isLoading } = useQuery({
-    queryKey: ['stocktakes'],
-    queryFn: async () => (await api.get('/stocktakes')).data,
-  })
-
-  const { data: warehouses } = useQuery({
-    queryKey: ['warehouses'],
-    queryFn: async () => (await api.get('/warehouses')).data,
-  })
-
-  const { data: categories } = useQuery({
-    queryKey: ['categories'],
-    queryFn: async () => (await api.get('/products/categories')).data,
-  })
-
-  const scopeType: string = Form.useWatch('scope_type', form) ?? 'all'
-
-  const createMutation = useApiMutation((values: any) => api.post('/stocktakes', values), {
-    successMessage: 'Tạo kiểm kê thành công (In Progress)',
-    invalidateKey: ['stocktakes'],
-    onSuccess: close,
-  })
+  const hook = useStocktakes()
 
   return (
     <div>
-      <PageHeader title="Kiểm kê (Stocktake)" actionLabel="+ Tạo kiểm kê" onAction={openCreate} />
+      <PageHeader title="Kiểm kê (Stocktake)" actionLabel="+ Tạo kiểm kê" onAction={hook.openCreate} />
 
       <Table
         rowKey="id"
-        loading={isLoading}
-        dataSource={data?.data}
+        loading={hook.isLoading}
+        dataSource={hook.data?.data}
         pagination={false}
-        onRow={(record: any) => ({ onClick: () => navigate(`/stocktakes/${record.id}`), style: { cursor: 'pointer' } })}
+        onRow={(record: any) => ({ onClick: () => hook.navigate(`/stocktakes/${record.id}`), style: { cursor: 'pointer' } })}
         columns={[
           { title: 'Mã kiểm kê', dataIndex: 'code' },
           { title: 'Kho', dataIndex: 'warehouse_name' },
@@ -65,37 +37,37 @@ export default function StocktakesPage() {
 
       <EntityFormModal
         title="Tạo phiếu kiểm kê"
-        open={open}
-        onCancel={close}
-        onFinish={(v) => createMutation.mutate(v)}
-        confirmLoading={createMutation.isPending}
-        form={form}
+        open={hook.open}
+        onCancel={hook.close}
+        onFinish={(v) => hook.createMutation.mutate(v)}
+        confirmLoading={hook.createMutation.isPending}
+        form={hook.form}
         initialValues={{ scope_type: 'all' }}
       >
         <Form.Item name="code" label="Mã kiểm kê" rules={[{ required: true }]}>
           <Input />
         </Form.Item>
         <Form.Item name="warehouse_id" label="Kho" rules={[{ required: true }]}>
-          <Select options={warehouses?.map((w: any) => ({ value: w.id, label: `${w.name} (${w.code})` }))} />
+          <Select options={hook.warehouses?.map((w: any) => ({ value: w.id, label: `${w.name} (${w.code})` }))} />
         </Form.Item>
         <Form.Item name="scope_type" label="Phạm vi" rules={[{ required: true }]}>
-          <Select options={SCOPE_TYPES} onChange={() => form.setFieldValue('scope_ids', undefined)} />
+          <Select options={SCOPE_TYPES} onChange={() => hook.form.setFieldValue('scope_ids', undefined)} />
         </Form.Item>
-        {scopeType === 'by_sku' && (
+        {hook.scopeType === 'by_sku' && (
           <Form.List name="scope_ids">
             {(fields, { add, remove }) => (
               <div className="form-row-full">
                 {fields.map(({ key, name }) => (
-                  <StocktakeSkuPicker key={key} form={form} name={name} remove={() => remove(name)} />
+                  <StocktakeSkuPicker key={key} form={hook.form} name={name} remove={() => remove(name)} />
                 ))}
                 <Button onClick={() => add()}>+ Thêm SKU</Button>
               </div>
             )}
           </Form.List>
         )}
-        {scopeType === 'by_category' && (
+        {hook.scopeType === 'by_category' && (
           <Form.Item name="scope_ids" label="Chọn Category" rules={[{ required: true }]} className="form-row-full">
-            <Select mode="multiple" options={categories?.map((c: any) => ({ value: c.id, label: c.name }))} />
+            <Select mode="multiple" options={hook.categories?.map((c: any) => ({ value: c.id, label: c.name }))} />
           </Form.Item>
         )}
         <Form.Item name="note" label="Ghi chú" className="form-row-full">

@@ -147,6 +147,7 @@ const settingsRoutes: FastifyPluginAsync = async (app) => {
           required: ['name'],
           properties: {
             name:        { type: 'string', minLength: 1 },
+            field_type:  { type: 'string', enum: ['select', 'text'] },
             unit:        { type: 'string' },
             options:     { type: 'array', items: { type: 'string', minLength: 1 } },
             applies_to:  { type: 'string', enum: ['all', 'product'] },
@@ -167,6 +168,7 @@ const settingsRoutes: FastifyPluginAsync = async (app) => {
           type: 'object',
           properties: {
             name:        { type: 'string', minLength: 1 },
+            field_type:  { type: 'string', enum: ['select', 'text'] },
             unit:        { type: ['string', 'null'] },
             options:     { type: 'array', items: { type: 'string', minLength: 1 } },
             applies_to:  { type: 'string', enum: ['all', 'product'] },

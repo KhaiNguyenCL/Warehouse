@@ -1,10 +1,7 @@
 // Quản lý import_types/export_types (Settings) — ReceiptsPage/DeliveryOrdersPage chỉ ĐỌC
 // bảng này để hiện Select; trang này là nơi duy nhất tạo loại mới hoặc sửa requires_*.
-import { useQuery } from '@tanstack/react-query'
 import { Table, Form, Input, Select, Switch, Button, Popconfirm } from 'antd'
-import { api } from '../lib/api'
-import { useApiMutation } from '../hooks/useApiMutation'
-import { useEntityModal } from '../hooks/useEntityModal'
+import { useImportTypes, useExportTypes } from '../hooks/useSettingsTypes'
 import { PageHeader } from '../components/PageHeader'
 import { EntityFormModal } from '../components/EntityFormModal'
 
@@ -32,36 +29,17 @@ export default function SettingsTypesPage() {
 }
 
 function ImportTypesSection() {
-  const { open, editing, form, openCreate, openEdit, close } = useEntityModal()
-
-  const { data, isLoading } = useQuery({
-    queryKey: ['import-types'],
-    queryFn: async () => (await api.get('/settings/import-types')).data,
-  })
-
-  const createMutation = useApiMutation((values: any) => api.post('/settings/import-types', values), {
-    successMessage: 'Tạo loại nhập thành công',
-    invalidateKey: ['import-types'],
-    onSuccess: close,
-  })
-  const updateMutation = useApiMutation(
-    (values: any) => api.patch(`/settings/import-types/${editing.id}`, values),
-    { successMessage: 'Cập nhật thành công', invalidateKey: ['import-types'], onSuccess: close },
-  )
-  const deleteMutation = useApiMutation(
-    (typeId: string) => api.delete(`/settings/import-types/${typeId}`),
-    { successMessage: 'Đã xoá', invalidateKey: ['import-types'] },
-  )
+  const hook = useImportTypes()
 
   return (
     <div>
-      <PageHeader title="Loại nhập kho (import_types)" level={4} actionLabel="+ Tạo loại nhập" onAction={openCreate} />
+      <PageHeader title="Loại nhập kho (import_types)" level={4} actionLabel="+ Tạo loại nhập" onAction={hook.openCreate} />
       <Table
         rowKey="id"
-        loading={isLoading}
-        dataSource={data}
+        loading={hook.isLoading}
+        dataSource={hook.data}
         pagination={false}
-        onRow={(record: any) => ({ onClick: () => openEdit(record), style: { cursor: 'pointer' } })}
+        onRow={(record: any) => ({ onClick: () => hook.openEdit(record), style: { cursor: 'pointer' } })}
         columns={[
           { title: 'Key', dataIndex: 'key' },
           { title: 'Label', dataIndex: 'label' },
@@ -77,7 +55,7 @@ function ImportTypesSection() {
                   title="Xoá loại nhập này?"
                   onConfirm={(e) => {
                     e?.stopPropagation()
-                    deleteMutation.mutate(r.id)
+                    hook.deleteMutation.mutate(r.id)
                   }}
                 >
                   <Button size="small" danger onClick={(e) => e.stopPropagation()}>
@@ -90,14 +68,14 @@ function ImportTypesSection() {
       />
 
       <EntityFormModal
-        title={editing ? `Sửa loại nhập "${editing.label}"` : 'Tạo loại nhập mới'}
-        open={open}
-        onCancel={close}
-        onFinish={(v) => (editing ? updateMutation.mutate(v) : createMutation.mutate(v))}
-        confirmLoading={createMutation.isPending || updateMutation.isPending}
-        form={form}
+        title={hook.editing ? `Sửa loại nhập "${hook.editing.label}"` : 'Tạo loại nhập mới'}
+        open={hook.open}
+        onCancel={hook.close}
+        onFinish={(v) => (hook.editing ? hook.updateMutation.mutate(v) : hook.createMutation.mutate(v))}
+        confirmLoading={hook.createMutation.isPending || hook.updateMutation.isPending}
+        form={hook.form}
       >
-        {!editing && (
+        {!hook.editing && (
           <Form.Item name="key" label="Key" rules={[{ required: true }]} extra="Không sửa được sau khi tạo">
             <Input />
           </Form.Item>
@@ -118,7 +96,7 @@ function ImportTypesSection() {
         <Form.Item name="requires_ref_document" label="Cần tham chiếu" initialValue="none">
           <Select options={REQUIRES_REF_DOCUMENT} />
         </Form.Item>
-        {editing && (
+        {hook.editing && (
           <Form.Item name="is_active" label="Active" valuePropName="checked" initialValue={true}>
             <Switch />
           </Form.Item>
@@ -129,36 +107,17 @@ function ImportTypesSection() {
 }
 
 function ExportTypesSection() {
-  const { open, editing, form, openCreate, openEdit, close } = useEntityModal()
-
-  const { data, isLoading } = useQuery({
-    queryKey: ['export-types'],
-    queryFn: async () => (await api.get('/settings/export-types')).data,
-  })
-
-  const createMutation = useApiMutation((values: any) => api.post('/settings/export-types', values), {
-    successMessage: 'Tạo loại xuất thành công',
-    invalidateKey: ['export-types'],
-    onSuccess: close,
-  })
-  const updateMutation = useApiMutation(
-    (values: any) => api.patch(`/settings/export-types/${editing.id}`, values),
-    { successMessage: 'Cập nhật thành công', invalidateKey: ['export-types'], onSuccess: close },
-  )
-  const deleteMutation = useApiMutation(
-    (typeId: string) => api.delete(`/settings/export-types/${typeId}`),
-    { successMessage: 'Đã xoá', invalidateKey: ['export-types'] },
-  )
+  const hook = useExportTypes()
 
   return (
     <div>
-      <PageHeader title="Loại xuất kho (export_types)" level={4} actionLabel="+ Tạo loại xuất" onAction={openCreate} />
+      <PageHeader title="Loại xuất kho (export_types)" level={4} actionLabel="+ Tạo loại xuất" onAction={hook.openCreate} />
       <Table
         rowKey="id"
-        loading={isLoading}
-        dataSource={data}
+        loading={hook.isLoading}
+        dataSource={hook.data}
         pagination={false}
-        onRow={(record: any) => ({ onClick: () => openEdit(record), style: { cursor: 'pointer' } })}
+        onRow={(record: any) => ({ onClick: () => hook.openEdit(record), style: { cursor: 'pointer' } })}
         columns={[
           { title: 'Key', dataIndex: 'key' },
           { title: 'Label', dataIndex: 'label' },
@@ -174,7 +133,7 @@ function ExportTypesSection() {
                   title="Xoá loại xuất này?"
                   onConfirm={(e) => {
                     e?.stopPropagation()
-                    deleteMutation.mutate(r.id)
+                    hook.deleteMutation.mutate(r.id)
                   }}
                 >
                   <Button size="small" danger onClick={(e) => e.stopPropagation()}>
@@ -187,14 +146,14 @@ function ExportTypesSection() {
       />
 
       <EntityFormModal
-        title={editing ? `Sửa loại xuất "${editing.label}"` : 'Tạo loại xuất mới'}
-        open={open}
-        onCancel={close}
-        onFinish={(v) => (editing ? updateMutation.mutate(v) : createMutation.mutate(v))}
-        confirmLoading={createMutation.isPending || updateMutation.isPending}
-        form={form}
+        title={hook.editing ? `Sửa loại xuất "${hook.editing.label}"` : 'Tạo loại xuất mới'}
+        open={hook.open}
+        onCancel={hook.close}
+        onFinish={(v) => (hook.editing ? hook.updateMutation.mutate(v) : hook.createMutation.mutate(v))}
+        confirmLoading={hook.createMutation.isPending || hook.updateMutation.isPending}
+        form={hook.form}
       >
-        {!editing && (
+        {!hook.editing && (
           <Form.Item name="key" label="Key" rules={[{ required: true }]} extra="Không sửa được sau khi tạo">
             <Input />
           </Form.Item>
@@ -215,7 +174,7 @@ function ExportTypesSection() {
         <Form.Item name="requires_quotation" label="Cần Quotation" valuePropName="checked" initialValue={false}>
           <Switch />
         </Form.Item>
-        {editing && (
+        {hook.editing && (
           <Form.Item name="is_active" label="Active" valuePropName="checked" initialValue={true}>
             <Switch />
           </Form.Item>

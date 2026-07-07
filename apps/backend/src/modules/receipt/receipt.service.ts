@@ -22,6 +22,16 @@ export class ReceiptService {
     return receipt
   }
 
+  async update(id: string, data: Record<string, unknown>) {
+    const receipt = await this.repo.findById(id)
+    if (!receipt) throw { statusCode: 404, message: 'Receipt not found' }
+    if (receipt.status !== 'draft') throw { statusCode: 409, message: 'Chỉ sửa được khi Draft' }
+    const { lines, ...header } = data as any
+    if (Object.keys(header).length) await this.repo.update(id, header)
+    if (Array.isArray(lines) && lines.length) await this.repo.updateLines(lines)
+    return this.repo.findById(id)
+  }
+
   // Tạo receipt — validatePurchaseOrder() PHẢI chạy TRONG transaction này (không phải
   // 1 SELECT rời trước đó) và lock hàng purchase_orders/purchase_order_lines bằng
   // forUpdate(): nếu để check ngoài transaction, 2 request tạo Receipt cùng lúc cho

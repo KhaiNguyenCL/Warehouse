@@ -123,9 +123,9 @@ describe('Inventory', () => {
     await app.db('receipt_lines').insert([
       {
         receipt_id: oldReceipt.id, variant_id: variant.id, quantity: 10, qty_remaining: 4,
-        cost_price: 900000, warranty_months: 12, po_line_id: poLine.id,
+        cost_price: 900000, manufacturer_warranty_months: 12, po_line_id: poLine.id,
       },
-      { receipt_id: newReceipt.id, variant_id: variant.id, quantity: 5, qty_remaining: 5, cost_price: 950000, warranty_months: 24 },
+      { receipt_id: newReceipt.id, variant_id: variant.id, quantity: 5, qty_remaining: 5, cost_price: 950000, manufacturer_warranty_months: 24 },
     ])
 
     const res = await authedInject({
@@ -137,7 +137,7 @@ describe('Inventory', () => {
     expect(lots).toHaveLength(2)
     expect(lots[0].receipt_code).toBe('PN-LOT-OLD')
     expect(Number(lots[0].cost_price)).toBe(900000)
-    expect(lots[0].warranty_months).toBe(12)
+    expect(lots[0].manufacturer_warranty_months).toBe(12)
     expect(lots[0].qty_remaining).toBe(4)
     expect(lots[0].company_name).toBe('NCC Lô Test')
     // Lô đến từ Receipt có po_line_id → trả kèm po_code (liên kết PO tuỳ chọn, mục 9
@@ -167,7 +167,7 @@ describe('Inventory', () => {
       ])
       .returning('*')
     await app.db('serial_numbers').insert([
-      { serial_no: 'INV-SN-A1', variant_id: variant.id, warehouse_id: warehouseId, receipt_line_id: lineA.id, warranty_end: '2027-01-01' },
+      { serial_no: 'INV-SN-A1', variant_id: variant.id, warehouse_id: warehouseId, receipt_line_id: lineA.id, manufacturer_warranty_end: '2027-01-01' },
       { serial_no: 'INV-SN-A2', variant_id: variant.id, warehouse_id: warehouseId, receipt_line_id: lineA.id },
       { serial_no: 'INV-SN-B1', variant_id: variant.id, warehouse_id: warehouseId, receipt_line_id: lineB.id },
     ])
@@ -177,8 +177,8 @@ describe('Inventory', () => {
     const serials = JSON.parse(res.payload)
     expect(serials).toHaveLength(2)
     expect(serials.map((s: any) => s.serial_no)).toEqual(['INV-SN-A1', 'INV-SN-A2'])
-    expect(serials[0].warranty_end).not.toBeNull()
-    expect(serials[1].warranty_end).toBeNull()
+    expect(serials[0].manufacturer_warranty_end).not.toBeNull()
+    expect(serials[1].manufacturer_warranty_end).toBeNull()
   })
 
   it('GET /serials/:id/movements trả về đúng lịch sử di chuyển của 1 SN, sắp theo created_at', async () => {

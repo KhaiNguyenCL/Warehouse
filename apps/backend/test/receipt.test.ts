@@ -100,12 +100,12 @@ describe('Receipt', () => {
         code: 'PN-WARRANTY-001',
         import_type: 'purchase',
         warehouse_id: warehouseId,
-        lines: [{ variant_id: variantId, quantity: 2, cost_price: 100000, warranty_months: 24 }],
+        lines: [{ variant_id: variantId, quantity: 2, cost_price: 100000, manufacturer_warranty_months: 24 }],
       },
     })
     const receipt = JSON.parse(createRes.payload)
     const lineId = receipt.lines[0].id
-    expect(receipt.lines[0].warranty_months).toBe(24)
+    expect(receipt.lines[0].manufacturer_warranty_months).toBe(24)
 
     await authedInject({ method: 'PATCH', url: `/api/v1/receipts/${receipt.id}/submit` })
     await authedInject({ method: 'PATCH', url: `/api/v1/receipts/${receipt.id}/approve` })
@@ -119,10 +119,10 @@ describe('Receipt', () => {
     const createdSerials = await app.db('serial_numbers').whereIn('serial_no', serials)
     expect(createdSerials).toHaveLength(2)
     for (const s of createdSerials) {
-      expect(s.warranty_end).not.toBeNull()
+      expect(s.manufacturer_warranty_end).not.toBeNull()
       const expected = new Date()
       expected.setMonth(expected.getMonth() + 24)
-      const diffDays = Math.abs((new Date(s.warranty_end).getTime() - expected.getTime()) / 86400000)
+      const diffDays = Math.abs((new Date(s.manufacturer_warranty_end).getTime() - expected.getTime()) / 86400000)
       expect(diffDays).toBeLessThan(2) // sai lệch nhỏ do thời điểm chạy test khác completed_at vài ms
     }
   })
@@ -151,7 +151,7 @@ describe('Receipt', () => {
     })
 
     const created = await app.db('serial_numbers').where({ serial_no: serials[0] }).first()
-    expect(created.warranty_end).toBeNull()
+    expect(created.manufacturer_warranty_end).toBeNull()
   })
 
   // Trước đây findAll() thiếu .clearSelect() trước .count() — Postgres lỗi 500 "column

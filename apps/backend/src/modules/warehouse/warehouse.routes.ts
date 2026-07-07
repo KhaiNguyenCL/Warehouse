@@ -44,6 +44,12 @@ const warehouseRoutes: FastifyPluginAsync = async (app) => {
       return await service.update(request.params.id, request.body)
     },
   )
+
+  app.delete<{ Params: { id: string } }>(
+    '/:id',
+    { preHandler: requirePermission('settings.warehouse') },
+    async (request, reply) => { await service.delete(request.params.id); return reply.code(204).send() },
+  )
 }
 
 export default warehouseRoutes

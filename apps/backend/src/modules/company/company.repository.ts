@@ -120,4 +120,12 @@ export class CompanyRepository {
     const [contact] = await trx('contacts').where({ id }).update(data).returning('*')
     return contact
   }
+
+  deleteContact(id: string) {
+    return this.db('contacts').where({ id }).del()
+  }
+
+  deleteCompany(id: string) {
+    return this.db('companies').where({ id }).update({ is_active: false, updated_at: this.db.fn.now() })
+  }
 }

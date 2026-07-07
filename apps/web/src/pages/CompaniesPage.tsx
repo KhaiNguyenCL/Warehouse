@@ -1,65 +1,27 @@
-import { useState } from 'react'
-import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
-import { Table, Input, Select, Tag, Form, Button, Modal, message } from 'antd'
-import { api } from '../lib/api'
-import { useApiMutation } from '../hooks/useApiMutation'
-import { useEntityModal } from '../hooks/useEntityModal'
+import { Table, Input, Select, Tag, Form, Button, Modal, Space, Popconfirm } from 'antd'
+import { useCompanies } from '../hooks/useCompanies'
 import { PageHeader } from '../components/PageHeader'
 import { EntityFormModal } from '../components/EntityFormModal'
 import CustomFieldsPanel from '../components/CustomFieldsPanel'
 import ContactsPanel from '../components/ContactsPanel'
 
 export default function CompaniesPage() {
-  const { open, editing, form, openCreate, openEdit, close } = useEntityModal()
-  const qc = useQueryClient()
-  const [importOpen, setImportOpen] = useState(false)
-  const [bitrixCompanyId, setBitrixCompanyId] = useState('')
-
-  const { data, isLoading } = useQuery({
-    queryKey: ['companies'],
-    queryFn: async () => (await api.get('/companies')).data,
-  })
-
-  const createMutation = useApiMutation((values: any) => api.post('/companies', values), {
-    successMessage: 'Tạo company thành công',
-    invalidateKey: ['companies'],
-    onSuccess: close,
-  })
-
-  const updateMutation = useApiMutation((values: any) => api.patch(`/companies/${editing.id}`, values), {
-    successMessage: 'Cập nhật thành công',
-    invalidateKey: ['companies'],
-    onSuccess: close,
-  })
-
-  // CLAUDE.md mục 12: fetch Company từ Bitrix (chỉ đọc), idempotent theo bitrix_company_id
-  // — import lại nhiều lần chỉ update, không tạo trùng.
-  const importMutation = useMutation({
-    mutationFn: () => api.post(`/bitrix/companies/${bitrixCompanyId}/import`),
-    onSuccess: () => {
-      message.success('Import company từ Bitrix thành công')
-      qc.invalidateQueries({ queryKey: ['companies'] })
-      setImportOpen(false)
-      setBitrixCompanyId('')
-    },
-    onError: (err: any) => message.error(err.response?.data?.error ?? 'Import thất bại'),
-  })
+  const hook = useCompanies()
 
   return (
     <div>
       <PageHeader
         title="Đối tác (Khách hàng / NCC)"
         actionLabel="+ Tạo mới"
-        onAction={openCreate}
-        actions={<Button onClick={() => setImportOpen(true)}>Import từ Bitrix</Button>}
+        onAction={hook.openCreate}
+        actions={<Button onClick={() => hook.setImportOpen(true)}>Import từ Bitrix</Button>}
       />
 
       <Table
         rowKey="id"
-        loading={isLoading}
-        dataSource={data?.data}
+        loading={hook.isLoading}
+        dataSource={hook.data?.data}
         pagination={false}
-        onRow={(record: any) => ({ onClick: () => openEdit(record), style: { cursor: 'pointer' } })}
         columns={[
           { title: 'Mã', dataIndex: 'code' },
           { title: 'Tên', dataIndex: 'name' },
@@ -70,22 +32,34 @@ export default function CompaniesPage() {
               types?.map((t) => <Tag key={t}>{t === 'supplier' ? 'NCC' : 'Khách hàng'}</Tag>),
           },
           { title: 'SĐT', dataIndex: 'phone' },
+          {
+            title: '',
+            width: 140,
+            render: (_: any, record: any) => (
+              <Space onClick={(e) => e.stopPropagation()}>
+                <Button size="small" onClick={() => hook.openEdit(record)}>Sửa</Button>
+                <Popconfirm title="Xoá công ty này?" onConfirm={() => hook.deleteMutation.mutate(record.id)} okText="Xoá" cancelText="Không">
+                  <Button size="small" danger loading={hook.deleteMutation.isPending}>Xoá</Button>
+                </Popconfirm>
+              </Space>
+            ),
+          },
         ]}
       />
 
       <EntityFormModal
-        title={editing ? `Sửa công ty "${editing.name}"` : 'Tạo công ty mới'}
-        okText={editing ? 'Lưu thông tin công ty' : 'Tạo công ty'}
-        open={open}
-        onCancel={close}
-        onFinish={(v) => (editing ? updateMutation.mutate(v) : createMutation.mutate(v))}
-        confirmLoading={createMutation.isPending || updateMutation.isPending}
-        form={form}
+        title={hook.editing ? `Sửa công ty "${hook.editing.name}"` : 'Tạo công ty mới'}
+        okText={hook.editing ? 'Lưu thông tin công ty' : 'Tạo công ty'}
+        open={hook.open}
+        onCancel={hook.close}
+        onFinish={(v) => (hook.editing ? hook.updateMutation.mutate(v) : hook.createMutation.mutate(v))}
+        confirmLoading={hook.createMutation.isPending || hook.updateMutation.isPending}
+        form={hook.form}
         extra={
-          editing && (
+          hook.editing && (
             <>
-              <ContactsPanel companyId={editing.id} />
-              <CustomFieldsPanel objectType="company" objectId={editing.id} />
+              <ContactsPanel companyId={hook.editing.id} />
+              <CustomFieldsPanel objectType="company" objectId={hook.editing.id} />
             </>
           )
         }
@@ -136,16 +110,16 @@ export default function CompaniesPage() {
 
       <Modal
         title="Import công ty từ Bitrix"
-        open={importOpen}
-        onCancel={() => setImportOpen(false)}
-        onOk={() => importMutation.mutate()}
-        okButtonProps={{ disabled: !bitrixCompanyId, loading: importMutation.isPending }}
+        open={hook.importOpen}
+        onCancel={() => hook.setImportOpen(false)}
+        onOk={() => hook.importMutation.mutate()}
+        okButtonProps={{ disabled: !hook.bitrixCompanyId, loading: hook.importMutation.isPending }}
       >
         <Form layout="vertical">
           <Form.Item label="Bitrix Company ID" required>
             <Input
-              value={bitrixCompanyId}
-              onChange={(e) => setBitrixCompanyId(e.target.value)}
+              value={hook.bitrixCompanyId}
+              onChange={(e) => hook.setBitrixCompanyId(e.target.value)}
               placeholder="VD: 123"
             />
           </Form.Item>

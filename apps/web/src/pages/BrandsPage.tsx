@@ -1,41 +1,20 @@
-import { useQuery } from '@tanstack/react-query'
-import { Table, Input, Switch, Tag, Form } from 'antd'
-import { api } from '../lib/api'
-import { useApiMutation } from '../hooks/useApiMutation'
-import { useEntityModal } from '../hooks/useEntityModal'
+import { Table, Input, Switch, Tag, Form, Button, Space, Popconfirm } from 'antd'
+import { useBrands } from '../hooks/useBrands'
 import { PageHeader } from '../components/PageHeader'
 import { EntityFormModal } from '../components/EntityFormModal'
 
 export default function BrandsPage() {
-  const { open, editing, form, openCreate, openEdit, close } = useEntityModal()
-
-  const { data, isLoading } = useQuery({
-    queryKey: ['brands'],
-    queryFn: async () => (await api.get('/products/brands')).data,
-  })
-
-  const createMutation = useApiMutation((values: any) => api.post('/products/brands', values), {
-    successMessage: 'Tạo hãng thành công',
-    invalidateKey: ['brands'],
-    onSuccess: close,
-  })
-
-  const updateMutation = useApiMutation((values: any) => api.patch(`/products/brands/${editing.id}`, values), {
-    successMessage: 'Cập nhật thành công',
-    invalidateKey: ['brands'],
-    onSuccess: close,
-  })
+  const hook = useBrands()
 
   return (
     <div>
-      <PageHeader title="Hãng sản xuất" actionLabel="+ Tạo hãng" onAction={openCreate} />
+      <PageHeader title="Hãng sản xuất" actionLabel="+ Tạo hãng" onAction={hook.openCreate} />
 
       <Table
         rowKey="id"
-        loading={isLoading}
-        dataSource={data}
+        loading={hook.isLoading}
+        dataSource={hook.data}
         pagination={false}
-        onRow={(record: any) => ({ onClick: () => openEdit(record), style: { cursor: 'pointer' } })}
         columns={[
           { title: 'Tên hãng', dataIndex: 'name' },
           { title: 'Mã viết tắt', dataIndex: 'short_code' },
@@ -44,16 +23,28 @@ export default function BrandsPage() {
             dataIndex: 'is_active',
             render: (v: boolean) => <Tag color={v ? 'green' : 'default'}>{v ? 'Có' : 'Không'}</Tag>,
           },
+          {
+            title: '',
+            width: 140,
+            render: (_: any, record: any) => (
+              <Space onClick={(e) => e.stopPropagation()}>
+                <Button size="small" onClick={() => hook.openEdit(record)}>Sửa</Button>
+                <Popconfirm title="Xoá hãng này?" onConfirm={() => hook.deleteMutation.mutate(record.id)} okText="Xoá" cancelText="Không">
+                  <Button size="small" danger loading={hook.deleteMutation.isPending}>Xoá</Button>
+                </Popconfirm>
+              </Space>
+            ),
+          },
         ]}
       />
 
       <EntityFormModal
-        title={editing ? `Sửa hãng "${editing.name}"` : 'Tạo hãng mới'}
-        open={open}
-        onCancel={close}
-        onFinish={(v) => (editing ? updateMutation.mutate(v) : createMutation.mutate(v))}
-        confirmLoading={createMutation.isPending || updateMutation.isPending}
-        form={form}
+        title={hook.editing ? `Sửa hãng "${hook.editing.name}"` : 'Tạo hãng mới'}
+        open={hook.open}
+        onCancel={hook.close}
+        onFinish={(v) => (hook.editing ? hook.updateMutation.mutate(v) : hook.createMutation.mutate(v))}
+        confirmLoading={hook.createMutation.isPending || hook.updateMutation.isPending}
+        form={hook.form}
       >
         <Form.Item name="name" label="Tên hãng" rules={[{ required: true }]}>
           <Input />
@@ -66,7 +57,7 @@ export default function BrandsPage() {
         >
           <Input />
         </Form.Item>
-        {editing && (
+        {hook.editing && (
           <Form.Item name="is_active" label="Active" valuePropName="checked" initialValue={true}>
             <Switch />
           </Form.Item>

@@ -40,7 +40,7 @@ describe('PurchaseOrder', () => {
     return {
       code: 'PO-TEST-001',
       company_id: companyId,
-      lines: [{ variant_id: variantId, quantity: 10, unit_price: 1000000, warranty_months: 24 }],
+      lines: [{ variant_id: variantId, quantity: 10, unit_price: 1000000, manufacturer_warranty_months: 24 }],
       ...overrides,
     }
   }
@@ -54,7 +54,7 @@ describe('PurchaseOrder', () => {
     expect(po.lines[0].variant_id).toBe(variantId)
     expect(Number(po.lines[0].quantity)).toBe(10)
     expect(Number(po.lines[0].unit_price)).toBe(1000000)
-    expect(po.lines[0].warranty_months).toBe(24)
+    expect(po.lines[0].manufacturer_warranty_months).toBe(24)
   })
 
   it('GET /:id trả về remaining_qty = quantity khi chưa có Receipt nào', async () => {

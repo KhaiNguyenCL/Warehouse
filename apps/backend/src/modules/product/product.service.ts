@@ -59,6 +59,12 @@ export class ProductService {
     }
   }
 
+  async deleteCategory(id: string) {
+    const result = await this.repo.countProductsByCategory(id)
+    if (Number(result?.count ?? 0) > 0) throw { statusCode: 409, message: 'Category đang được dùng bởi sản phẩm, không thể xóa' }
+    await this.repo.deleteCategory(id)
+  }
+
   // ─── Brands ────────────────────────────────────────────────────────────
 
   listBrands() {
@@ -79,6 +85,12 @@ export class ProductService {
     } catch (err) {
       mapDbError(err)
     }
+  }
+
+  async deleteBrand(id: string) {
+    const result = await this.repo.countProductsByBrand(id)
+    if (Number(result?.count ?? 0) > 0) throw { statusCode: 409, message: 'Brand đang được dùng bởi sản phẩm, không thể xóa' }
+    await this.repo.deleteBrand(id)
   }
 
   // ─── Products ──────────────────────────────────────────────────────────
@@ -113,6 +125,10 @@ export class ProductService {
   }
 
   // ─── Variants ──────────────────────────────────────────────────────────
+
+  searchVariants(search?: string, productType?: string, limit?: number) {
+    return this.repo.searchVariants(search, productType, limit)
+  }
 
   async addVariant(productId: string, data: CreateVariantBody) {
     const product = await this.repo.findProductById(productId)

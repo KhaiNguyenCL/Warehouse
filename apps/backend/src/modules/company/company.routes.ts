@@ -64,6 +64,18 @@ const companyRoutes: FastifyPluginAsync = async (app) => {
     { schema: updateContactSchema, preHandler: authenticate },
     async (request) => service.updateContact(request.params.id, request.params.contactId, request.body),
   )
+
+  app.delete<{ Params: { id: string; contactId: string } }>(
+    '/:id/contacts/:contactId',
+    { preHandler: authenticate },
+    async (request, reply) => { await service.deleteContact(request.params.id, request.params.contactId); return reply.code(204).send() },
+  )
+
+  app.delete<{ Params: { id: string } }>(
+    '/:id',
+    { preHandler: authenticate },
+    async (request, reply) => { await service.deleteCompany(request.params.id); return reply.code(204).send() },
+  )
 }
 
 export default companyRoutes
