@@ -74,28 +74,10 @@ export class TransferService {
     throw { statusCode: 400, message }
   }
 
-  async submitForApproval(id: string) {
-    return this.db.transaction(async (trx) => {
-      const updated = await this.repo.updateStatus(id, 'draft', 'pending_approval', {}, trx)
-      if (!updated) return this.failTransition(id, trx, 'Chỉ có thể submit từ Draft')
-      return updated
-    })
-  }
-
-  async approve(id: string, approverId: string) {
-    return this.db.transaction(async (trx) => {
-      const updated = await this.repo.updateStatus(
-        id, 'pending_approval', 'approved', { approved_by: approverId, approved_at: trx.fn.now() }, trx,
-      )
-      if (!updated) return this.failTransition(id, trx, 'Chỉ có thể duyệt từ Pending Approval')
-      return updated
-    })
-  }
-
   async complete(id: string, userId: string, body: CompleteTransferBody = {}) {
     const transfer = await this.repo.findById(id)
     if (!transfer) throw { statusCode: 404, message: 'Transfer order not found' }
-    if (transfer.status !== 'approved') throw { statusCode: 400, message: 'Chỉ có thể hoàn thành từ Approved' }
+    if (transfer.status !== 'draft') throw { statusCode: 400, message: 'Chỉ có thể hoàn thành từ Draft' }
 
     const serialsByLine = new Map((body.lines ?? []).map((l) => [l.line_id, l.serials ?? []]))
 
@@ -143,7 +125,7 @@ export class TransferService {
     return this.db.transaction(async (trx) => {
       // Guard THẬT chống race condition — xem giải thích chi tiết ở receipt.service.ts.
       const completed = await this.repo.updateStatus(
-        id, 'approved', 'completed', { completed_at: trx.fn.now() }, trx,
+        id, 'draft', 'completed', { completed_at: trx.fn.now() }, trx,
       )
       if (!completed) {
         throw { statusCode: 400, message: 'Phiếu đã được xử lý bởi 1 yêu cầu khác — vui lòng tải lại' }
@@ -289,7 +271,7 @@ export class TransferService {
 
     return this.db.transaction(async (trx) => {
       const cancelled = await this.repo.updateStatus(
-        id, ['draft', 'pending_approval', 'approved'], 'cancelled', {}, trx,
+        id, ['draft'], 'cancelled', {}, trx,
       )
       if (!cancelled) {
         throw { statusCode: 400, message: 'Không thể huỷ phiếu đã hoàn thành hoặc đã huỷ' }

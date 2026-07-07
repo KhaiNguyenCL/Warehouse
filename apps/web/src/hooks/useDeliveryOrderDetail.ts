@@ -35,9 +35,7 @@ export function useDeliveryOrderDetail(id: string) {
     successMessage: 'Thành công',
     invalidateKey: [['deliveries', id], ['deliveries'], ['inventory']] as any,
   }
-  const submitMutation   = useApiMutation(() => api.patch(`/deliveries/${id}/submit`), actionOptions)
-  const approveMutation  = useApiMutation(() => api.patch(`/deliveries/${id}/approve`), actionOptions)
-  const cancelMutation   = useApiMutation(() => api.patch(`/deliveries/${id}/cancel`), actionOptions)
+  const cancelMutation = useApiMutation(() => api.patch(`/deliveries/${id}/cancel`), actionOptions)
   const editModal = useEntityModal()
   const updateMutation = useApiMutation((values: any) => api.patch(`/deliveries/${id}`, values), {
     successMessage: 'Cập nhật thành công',
@@ -87,7 +85,7 @@ export function useDeliveryOrderDetail(id: string) {
     selectedSNs, setSelectedSNs,
     lineSNs, loadingSNs,
     editModal,
-    submitMutation, approveMutation, cancelMutation, updateMutation, completeMutation,
+    cancelMutation, updateMutation, completeMutation,
     openComplete, submitComplete,
   }
 }

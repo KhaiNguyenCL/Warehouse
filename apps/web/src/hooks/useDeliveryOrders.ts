@@ -1,10 +1,9 @@
-import { useEffect, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { Form } from 'antd'
+import { useEffect, useRef, useState } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { Form, message } from 'antd'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import dayjs from 'dayjs'
 import { api } from '../lib/api'
-import { useApiMutation } from './useApiMutation'
 import { useEntityModal } from './useEntityModal'
 
 export function useDeliveryOrders() {
@@ -13,6 +12,8 @@ export function useDeliveryOrders() {
   const { open, form, openCreate, close } = useEntityModal()
   const [quotationId, setQuotationId] = useState<string | undefined>(quotationIdFromQuery)
   const navigate = useNavigate()
+  const qc = useQueryClient()
+  const goToDetailRef = useRef(false)
 
   function closeAll() {
     close()
@@ -95,8 +96,8 @@ export function useDeliveryOrders() {
     }
   }, [quotationDetail])
 
-  const createMutation = useApiMutation(
-    (values: any) => {
+  const createMutation = useMutation({
+    mutationFn: (values: any) => {
       const lines = values.lines.map((l: any) => ({
         variant_id: l.variant_id,
         quantity: l.quantity,
@@ -115,8 +116,23 @@ export function useDeliveryOrders() {
       }
       return api.post('/deliveries', body)
     },
-    { successMessage: 'Tạo Delivery Order thành công (Draft)', invalidateKey: ['deliveries'], onSuccess: closeAll },
-  )
+    onSuccess: (res: any) => {
+      message.success('Tạo Delivery Order thành công')
+      qc.invalidateQueries({ queryKey: ['deliveries'] })
+      if (goToDetailRef.current) {
+        goToDetailRef.current = false
+        navigate(`/deliveries/${res.data.id}`)
+      } else {
+        closeAll()
+      }
+    },
+    onError: (err: any) => message.error(err.response?.data?.error ?? 'Lỗi'),
+  })
+
+  function createAndGoToDetail() {
+    goToDetailRef.current = true
+    form.submit()
+  }
 
   return {
     open, form, openCreate, closeAll,
@@ -127,6 +143,6 @@ export function useDeliveryOrders() {
     exportType, activeExportType, requiresCompanyType, requiresQuotation, isAdjustment,
     companies, companyDetail, companyId,
     confirmedQuotations,
-    createMutation,
+    createMutation, createAndGoToDetail,
   }
 }

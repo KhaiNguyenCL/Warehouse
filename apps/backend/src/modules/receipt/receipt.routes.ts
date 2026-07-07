@@ -79,28 +79,7 @@ const receiptRoutes: FastifyPluginAsync = async (app) => {
     async (request, reply) => reply.send(await service.update(request.params.id, request.body as Record<string, unknown>)),
   )
 
-  // PATCH /receipts/:id/submit — draft → pending_approval.
-  // Dùng authenticate (chỉ cần đăng nhập) thay vì requirePermission, vì ai tạo phiếu
-  // cũng được tự submit phiếu của mình, không cần quyền approve riêng.
-  app.patch<{ Params: { id: string } }>(
-    '/:id/submit',
-    { preHandler: authenticate },
-    async (request, reply) => {
-      return await service.submitForApproval(request.params.id)
-    },
-  )
-
-  // PATCH /receipts/:id/approve — pending_approval → approved.
-  // Permission receipt.approve — chỉ Admin/Manager có quyền này (xem seed data).
-  app.patch<{ Params: { id: string } }>(
-    '/:id/approve',
-    { preHandler: requirePermission('receipt.approve') },
-    async (request, reply) => {
-      return await service.approve(request.params.id, request.user.sub)
-    },
-  )
-
-  // PATCH /receipts/:id/complete — approved → completed (tồn kho thay đổi thật ở bước này).
+  // PATCH /receipts/:id/complete — draft → completed (tồn kho thay đổi thật ở bước này).
   // Body { lines: [{ line_id, serials }] } — chỉ cần truyền cho dòng hàng storable.
   app.patch<{ Params: { id: string }; Body: CompleteReceiptBody }>(
     '/:id/complete',

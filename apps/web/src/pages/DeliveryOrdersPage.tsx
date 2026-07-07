@@ -1,4 +1,4 @@
-import { Table, Form, Input, Select, Button } from 'antd'
+import { Table, Form, Input, Select, Button, Tooltip } from 'antd'
 import { useDeliveryOrders } from '../hooks/useDeliveryOrders'
 import { PageHeader } from '../components/PageHeader'
 import { EntityFormModal } from '../components/EntityFormModal'
@@ -7,8 +7,6 @@ import DeliveryLineItem from '../components/DeliveryLineItem'
 
 const STATUS_COLOR: Record<string, string> = {
   draft: 'default',
-  pending_approval: 'gold',
-  approved: 'blue',
   completed: 'green',
   cancelled: 'red',
 }
@@ -43,7 +41,15 @@ export default function DeliveryOrdersPage() {
         confirmLoading={hook.createMutation.isPending}
         form={hook.form}
         width={1000}
+        okText="Lưu nháp"
         initialValues={{ lines: [{}] }}
+        footerExtra={
+          <Tooltip title="Tạo xong chuyển thẳng đến trang chi tiết để Complete">
+            <Button onClick={hook.createAndGoToDetail} loading={hook.createMutation.isPending}>
+              Tạo & Complete
+            </Button>
+          </Tooltip>
+        }
       >
         <Form.Item name="export_type" label="Loại xuất" rules={[{ required: true }]}>
           <Select

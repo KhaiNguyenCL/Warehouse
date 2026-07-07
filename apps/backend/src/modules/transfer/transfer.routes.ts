@@ -47,22 +47,6 @@ const transferRoutes: FastifyPluginAsync = async (app) => {
     async (request, reply) => reply.send(await service.update(request.params.id, request.body as Record<string, unknown>)),
   )
 
-  app.patch<{ Params: { id: string } }>(
-    '/:id/submit',
-    { preHandler: authenticate },
-    async (request, reply) => {
-      return await service.submitForApproval(request.params.id)
-    },
-  )
-
-  app.patch<{ Params: { id: string } }>(
-    '/:id/approve',
-    { preHandler: requirePermission('transfer.approve') },
-    async (request, reply) => {
-      return await service.approve(request.params.id, request.user.sub)
-    },
-  )
-
   app.patch<{ Params: { id: string }; Body: CompleteTransferBody }>(
     '/:id/complete',
     { schema: completeTransferSchema, preHandler: requirePermission('transfer.complete') },

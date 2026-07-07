@@ -51,7 +51,7 @@ describe('Transfer', () => {
     return app.inject({ ...opts, headers: { authorization: `Bearer ${token}`, ...(opts.headers as object) } })
   }
 
-  it('luồng đầy đủ: tạo → submit → approve → complete (kèm serial) → kho nguồn -n, kho đích +n', async () => {
+  it('luồng đầy đủ: tạo → complete (kèm serial) → kho nguồn -n, kho đích +n', async () => {
     const app = await getApp()
 
     const createRes = await authedInject({
@@ -69,8 +69,6 @@ describe('Transfer', () => {
     const transfer = JSON.parse(createRes.payload)
     const lineId = transfer.lines[0].id
 
-    await authedInject({ method: 'PATCH', url: `/api/v1/transfers/${transfer.id}/submit` })
-    await authedInject({ method: 'PATCH', url: `/api/v1/transfers/${transfer.id}/approve` })
 
     const serialsToMove = ['TRF-SN-1', 'TRF-SN-2', 'TRF-SN-3', 'TRF-SN-4']
     const completeRes = await authedInject({
@@ -139,8 +137,6 @@ describe('Transfer', () => {
       },
     })
     const transfer = JSON.parse(createRes.payload)
-    await authedInject({ method: 'PATCH', url: `/api/v1/transfers/${transfer.id}/submit` })
-    await authedInject({ method: 'PATCH', url: `/api/v1/transfers/${transfer.id}/approve` })
 
     const completeRes = await authedInject({ method: 'PATCH', url: `/api/v1/transfers/${transfer.id}/complete` })
     expect(completeRes.statusCode).toBe(400)
@@ -167,8 +163,6 @@ describe('Transfer', () => {
     })
     const transfer = JSON.parse(createRes.payload)
     const lineId = transfer.lines[0].id
-    await authedInject({ method: 'PATCH', url: `/api/v1/transfers/${transfer.id}/submit` })
-    await authedInject({ method: 'PATCH', url: `/api/v1/transfers/${transfer.id}/approve` })
 
     const completeRes = await authedInject({
       method: 'PATCH',
@@ -198,8 +192,6 @@ describe('Transfer', () => {
     })
     const transfer = JSON.parse(createRes.payload)
     const lineId = transfer.lines[0].id
-    await authedInject({ method: 'PATCH', url: `/api/v1/transfers/${transfer.id}/submit` })
-    await authedInject({ method: 'PATCH', url: `/api/v1/transfers/${transfer.id}/approve` })
     await authedInject({
       method: 'PATCH',
       url: `/api/v1/transfers/${transfer.id}/complete`,

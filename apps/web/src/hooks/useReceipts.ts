@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useEffect, useRef, useState } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { message } from 'antd'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { api } from '../lib/api'
-import { useApiMutation } from './useApiMutation'
 import { useEntityModal } from './useEntityModal'
 import dayjs from 'dayjs'
 
@@ -12,6 +12,8 @@ export function useReceipts() {
   const { open, form, openCreate, close } = useEntityModal()
   const [poId, setPoId] = useState<string | undefined>(poIdFromQuery)
   const navigate = useNavigate()
+  const qc = useQueryClient()
+  const goToDetailRef = useRef(false)
 
   function closeAll() {
     close()
@@ -80,8 +82,8 @@ export function useReceipts() {
     }
   }, [poDetail])
 
-  const createMutation = useApiMutation(
-    (values: any) => {
+  const createMutation = useMutation({
+    mutationFn: (values: any) => {
       const lines = values.lines.map((l: any) => ({
         variant_id: l.variant_id,
         quantity: l.quantity,
@@ -97,8 +99,23 @@ export function useReceipts() {
       }))
       return api.post('/receipts', { ...values, lines })
     },
-    { successMessage: 'Tạo Receipt thành công (Draft)', invalidateKey: ['receipts'], onSuccess: closeAll },
-  )
+    onSuccess: (res: any) => {
+      message.success('Tạo Receipt thành công')
+      qc.invalidateQueries({ queryKey: ['receipts'] })
+      if (goToDetailRef.current) {
+        goToDetailRef.current = false
+        navigate(`/receipts/${res.data.id}`)
+      } else {
+        closeAll()
+      }
+    },
+    onError: (err: any) => message.error(err.response?.data?.error ?? 'Lỗi'),
+  })
+
+  function createAndGoToDetail() {
+    goToDetailRef.current = true
+    form.submit()
+  }
 
   return {
     open, form, openCreate, closeAll,
@@ -107,6 +124,6 @@ export function useReceipts() {
     data, isLoading,
     importTypes, warehouses, confirmedPOs,
     variantSearch, setVariantSearch, variantOptions,
-    createMutation,
+    createMutation, createAndGoToDetail,
   }
 }

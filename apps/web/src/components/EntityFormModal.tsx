@@ -2,7 +2,7 @@
 // Company/Custom Field...): title, open/onCancel, onOk = form.submit(), confirmLoading,
 // Form layout="vertical" onFinish. Truyền Form.Item làm children — mỗi trang tự quyết
 // field nào, không ép khuôn field.
-import { Modal, Form, FormInstance } from 'antd'
+import { Modal, Form, FormInstance, Button, Space } from 'antd'
 import { ReactNode } from 'react'
 
 export function EntityFormModal({
@@ -17,6 +17,7 @@ export function EntityFormModal({
   extra,
   initialValues,
   okText,
+  footerExtra,
 }: {
   title: string
   open: boolean
@@ -26,20 +27,25 @@ export function EntityFormModal({
   form: FormInstance
   children: ReactNode
   width?: number
-  // Nội dung hiện SAU form nhưng vẫn NẰM TRONG Modal — KHÔNG lồng vào trong <Form> ở
-  // trên, vì 1 số nội dung (vd CustomFieldsPanel) có <Form> riêng của nó, lồng 2 thẻ
-  // <form> HTML vào nhau là invalid và antd sẽ submit sai form.
   extra?: ReactNode
-  // Dùng cho Form.List (vd PurchaseOrdersPage cần lines: [{}] để hiện sẵn 1 dòng trống) —
-  // useEntityModal.openCreate() chỉ resetFields(), không tự set lại initialValues này.
   initialValues?: Record<string, unknown>
   okText?: string
+  // Nút thêm hiện giữa Cancel và OK — dùng cho "Tạo & Complete" ở các trang tạo phiếu.
+  footerExtra?: ReactNode
 }) {
+  const footer = footerExtra ? (
+    <Space style={{ justifyContent: 'flex-end', width: '100%' }}>
+      <Button onClick={onCancel}>Huỷ</Button>
+      {footerExtra}
+      <Button type="primary" loading={confirmLoading} onClick={() => form.submit()}>
+        {okText ?? 'Lưu'}
+      </Button>
+    </Space>
+  ) : undefined
+
   return (
-    <Modal title={title} open={open} onCancel={onCancel} onOk={() => form.submit()} confirmLoading={confirmLoading} width={width ?? 760} okText={okText ?? 'Lưu'}>
+    <Modal title={title} open={open} onCancel={onCancel} onOk={() => form.submit()} confirmLoading={confirmLoading} width={width ?? 760} okText={okText ?? 'Lưu'} footer={footer}>
       <Form form={form} layout="vertical" onFinish={onFinish} initialValues={initialValues}>
-        {/* entity-form-grid (index.css): form dài tự chia 2-3 cột theo độ rộng modal, field
-            dạng textarea hoặc đánh dấu .form-row-full (Form.List...) chiếm nguyên 1 hàng. */}
         <div className="entity-form-grid">{children}</div>
       </Form>
       {extra}

@@ -128,7 +128,7 @@ export class QuotationRepository {
     return { ...quotation, sections: sectionsWithLines }
   }
 
-  // exported_qty (DO completed) + pending_qty (DO draft/pending_approval/approved) cho từng
+  // exported_qty (DO completed) + pending_qty (DO draft) cho từng
   // quotation_line_item — dùng tính remaining_qty (CLAUDE.md mục 6, 16), khoá khi = 0.
   async findLineProgress(lineIds: string[]) {
     const rows = await this.db('delivery_order_lines as dl')
@@ -141,7 +141,7 @@ export class QuotationRepository {
           `COALESCE(SUM(dl.quantity) FILTER (WHERE d.status = 'completed'), 0)::int as exported_qty`,
         ),
         this.db.raw(
-          `COALESCE(SUM(dl.quantity) FILTER (WHERE d.status IN ('draft','pending_approval','approved')), 0)::int as pending_qty`,
+          `COALESCE(SUM(dl.quantity) FILTER (WHERE d.status = 'draft'), 0)::int as pending_qty`,
         ),
       )
 

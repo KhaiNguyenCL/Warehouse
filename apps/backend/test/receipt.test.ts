@@ -35,7 +35,7 @@ describe('Receipt', () => {
     return Array.from({ length: count }, (_, i) => `${prefix}-${i + 1}`)
   }
 
-  it('luồng đầy đủ: tạo → submit → approve → complete (kèm serial) → cập nhật inventory + serial_numbers', async () => {
+  it('luồng đầy đủ: tạo → complete (kèm serial) → cập nhật inventory + serial_numbers', async () => {
     const app = await getApp()
 
     const createRes = await authedInject({
@@ -53,8 +53,6 @@ describe('Receipt', () => {
     expect(receipt.status).toBe('draft')
     const lineId = receipt.lines[0].id   // repository.create() trả luôn line id để dùng ở bước complete
 
-    await authedInject({ method: 'PATCH', url: `/api/v1/receipts/${receipt.id}/submit` })
-    await authedInject({ method: 'PATCH', url: `/api/v1/receipts/${receipt.id}/approve` })
 
     const serials = genSerials('SN-001', 10)
     const completeRes = await authedInject({
@@ -107,8 +105,6 @@ describe('Receipt', () => {
     const lineId = receipt.lines[0].id
     expect(receipt.lines[0].manufacturer_warranty_months).toBe(24)
 
-    await authedInject({ method: 'PATCH', url: `/api/v1/receipts/${receipt.id}/submit` })
-    await authedInject({ method: 'PATCH', url: `/api/v1/receipts/${receipt.id}/approve` })
     const serials = genSerials('SN-WTY', 2)
     await authedInject({
       method: 'PATCH',
@@ -141,8 +137,6 @@ describe('Receipt', () => {
     })
     const receipt = JSON.parse(createRes.payload)
     const lineId = receipt.lines[0].id
-    await authedInject({ method: 'PATCH', url: `/api/v1/receipts/${receipt.id}/submit` })
-    await authedInject({ method: 'PATCH', url: `/api/v1/receipts/${receipt.id}/approve` })
     const serials = genSerials('SN-NOWTY', 1)
     await authedInject({
       method: 'PATCH',
@@ -188,8 +182,6 @@ describe('Receipt', () => {
       },
     })
     const receipt = JSON.parse(createRes.payload)
-    await authedInject({ method: 'PATCH', url: `/api/v1/receipts/${receipt.id}/submit` })
-    await authedInject({ method: 'PATCH', url: `/api/v1/receipts/${receipt.id}/approve` })
 
     // Không truyền body lines — thiếu serial cho dòng storable
     const completeRes = await authedInject({ method: 'PATCH', url: `/api/v1/receipts/${receipt.id}/complete` })
@@ -215,8 +207,6 @@ describe('Receipt', () => {
     })
     const receipt = JSON.parse(createRes.payload)
     const lineId = receipt.lines[0].id
-    await authedInject({ method: 'PATCH', url: `/api/v1/receipts/${receipt.id}/submit` })
-    await authedInject({ method: 'PATCH', url: `/api/v1/receipts/${receipt.id}/approve` })
 
     const completeRes = await authedInject({
       method: 'PATCH',
@@ -239,8 +229,6 @@ describe('Receipt', () => {
     })
     const receipt = JSON.parse(createRes.payload)
     const lineId = receipt.lines[0].id
-    await authedInject({ method: 'PATCH', url: `/api/v1/receipts/${receipt.id}/submit` })
-    await authedInject({ method: 'PATCH', url: `/api/v1/receipts/${receipt.id}/approve` })
 
     const completeRes = await authedInject({
       method: 'PATCH',
@@ -250,38 +238,25 @@ describe('Receipt', () => {
     expect(completeRes.statusCode).toBe(400)
   })
 
-  it('không cho complete khi chưa được approve', async () => {
+  it('complete consumable (không storable) từ draft thành công — không cần serial', async () => {
+    const app = await getApp()
+    const consumableVariant = await app.db('variants').join('products', 'products.id', 'variants.product_id').where('products.product_type', 'consumable').first()
+    if (!consumableVariant) return
     const createRes = await authedInject({
       method: 'POST',
       url: '/api/v1/receipts',
       payload: {
-        code: 'PN-TEST-002',
+        code: 'PN-CONSM-001',
         import_type: 'purchase',
         warehouse_id: warehouseId,
-        lines: [{ variant_id: variantId, quantity: 5, cost_price: 50000 }],
+        lines: [{ variant_id: consumableVariant.id, quantity: 5, cost_price: 50000 }],
       },
     })
     const receipt = JSON.parse(createRes.payload)
-
+    expect(receipt.status).toBe('draft')
     const completeRes = await authedInject({ method: 'PATCH', url: `/api/v1/receipts/${receipt.id}/complete` })
-    expect(completeRes.statusCode).toBe(400)
-  })
-
-  it('không cho approve khi chưa submit (vẫn ở draft)', async () => {
-    const createRes = await authedInject({
-      method: 'POST',
-      url: '/api/v1/receipts',
-      payload: {
-        code: 'PN-TEST-003',
-        import_type: 'purchase',
-        warehouse_id: warehouseId,
-        lines: [{ variant_id: variantId, quantity: 5, cost_price: 50000 }],
-      },
-    })
-    const receipt = JSON.parse(createRes.payload)
-
-    const approveRes = await authedInject({ method: 'PATCH', url: `/api/v1/receipts/${receipt.id}/approve` })
-    expect(approveRes.statusCode).toBe(400)
+    expect(completeRes.statusCode).toBe(200)
+    expect(JSON.parse(completeRes.payload).status).toBe('completed')
   })
 
   // Test này bảo vệ công thức avg_cost ở CLAUDE.md mục 16 — dễ bị code sau sửa sai
@@ -305,8 +280,6 @@ describe('Receipt', () => {
         ).payload,
       )
       const lineId = created.lines[0].id
-      await authedInject({ method: 'PATCH', url: `/api/v1/receipts/${created.id}/submit` })
-      await authedInject({ method: 'PATCH', url: `/api/v1/receipts/${created.id}/approve` })
       await authedInject({
         method: 'PATCH',
         url: `/api/v1/receipts/${created.id}/complete`,
@@ -625,8 +598,6 @@ describe('Receipt', () => {
       })
       const receipt = JSON.parse(createRes.payload)
       const lineId = receipt.lines[0].id
-      await authedInject({ method: 'PATCH', url: `/api/v1/receipts/${receipt.id}/submit` })
-      await authedInject({ method: 'PATCH', url: `/api/v1/receipts/${receipt.id}/approve` })
 
       // Trước Complete: qty_remaining phải là NULL — hàng chưa thật vào kho.
       const beforeComplete = await app.db('receipt_lines').where({ id: lineId }).first()

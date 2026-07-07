@@ -7,8 +7,6 @@ import CustomFieldsPanel from '../components/CustomFieldsPanel'
 
 const STATUS_COLOR: Record<string, string> = {
   draft: 'default',
-  pending_approval: 'gold',
-  approved: 'blue',
   completed: 'green',
   cancelled: 'red',
 }
@@ -36,16 +34,6 @@ export default function TransferOrderDetailPage() {
           <Button onClick={() => hook.editModal.openEdit(hook.data, { note: hook.data.note })}>Sửa</Button>
         )}
         {hook.data.status === 'draft' && (
-          <Button type="primary" onClick={() => hook.submitMutation.mutate()}>
-            Submit
-          </Button>
-        )}
-        {hook.data.status === 'pending_approval' && (
-          <Button type="primary" onClick={() => hook.approveMutation.mutate()}>
-            Approve
-          </Button>
-        )}
-        {hook.data.status === 'approved' && (
           <Button type="primary" onClick={() => hook.setCompleteOpen(true)}>
             Complete
           </Button>

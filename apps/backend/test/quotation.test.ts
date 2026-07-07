@@ -386,8 +386,6 @@ describe('Quotation', () => {
     })
     expect(do1Res.statusCode).toBe(201)
     const do1 = JSON.parse(do1Res.payload)
-    await authedInject({ method: 'PATCH', url: `/api/v1/deliveries/${do1.id}/submit` })
-    await authedInject({ method: 'PATCH', url: `/api/v1/deliveries/${do1.id}/approve` })
     await authedInject({ method: 'PATCH', url: `/api/v1/deliveries/${do1.id}/complete`, payload: {} })
 
     let getRes = await authedInject({ method: 'GET', url: `/api/v1/quotations/${quotation.id}` })
@@ -414,8 +412,6 @@ describe('Quotation', () => {
     })
     expect(do2Res.statusCode).toBe(201)
     const do2 = JSON.parse(do2Res.payload)
-    await authedInject({ method: 'PATCH', url: `/api/v1/deliveries/${do2.id}/submit` })
-    await authedInject({ method: 'PATCH', url: `/api/v1/deliveries/${do2.id}/approve` })
     await authedInject({ method: 'PATCH', url: `/api/v1/deliveries/${do2.id}/complete`, payload: {} })
 
     getRes = await authedInject({ method: 'GET', url: `/api/v1/quotations/${quotation.id}` })

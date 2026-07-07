@@ -52,7 +52,7 @@ describe('Delivery', () => {
     return app.inject({ ...opts, headers: { authorization: `Bearer ${token}`, ...(opts.headers as object) } })
   }
 
-  it('luồng đầy đủ sale: tạo → submit → approve → complete (kèm serial) → trừ tồn kho + serial sold', async () => {
+  it('luồng đầy đủ sale: tạo → complete (kèm serial) → trừ tồn kho + serial sold', async () => {
     const app = await getApp()
     const [company] = await app.db('companies').insert({ code: 'CUST-1', name: 'Khách test' }).returning('*')
     // delivery_orders.quotation_id có FK thật tới quotations — phải tạo 1 quotation
@@ -78,8 +78,6 @@ describe('Delivery', () => {
     const delivery = JSON.parse(createRes.payload)
     const lineId = delivery.lines[0].id
 
-    await authedInject({ method: 'PATCH', url: `/api/v1/deliveries/${delivery.id}/submit` })
-    await authedInject({ method: 'PATCH', url: `/api/v1/deliveries/${delivery.id}/approve` })
 
     const serialsToShip = ['SEED-SN-1', 'SEED-SN-2', 'SEED-SN-3', 'SEED-SN-4']
     const completeRes = await authedInject({
@@ -155,8 +153,6 @@ describe('Delivery', () => {
       },
     })
     const delivery = JSON.parse(createRes.payload)
-    await authedInject({ method: 'PATCH', url: `/api/v1/deliveries/${delivery.id}/submit` })
-    await authedInject({ method: 'PATCH', url: `/api/v1/deliveries/${delivery.id}/approve` })
 
     const completeRes = await authedInject({ method: 'PATCH', url: `/api/v1/deliveries/${delivery.id}/complete` })
     expect(completeRes.statusCode).toBe(400)
@@ -189,8 +185,6 @@ describe('Delivery', () => {
     })
     const delivery = JSON.parse(createRes.payload)
     const lineId = delivery.lines[0].id
-    await authedInject({ method: 'PATCH', url: `/api/v1/deliveries/${delivery.id}/submit` })
-    await authedInject({ method: 'PATCH', url: `/api/v1/deliveries/${delivery.id}/approve` })
 
     // Cố tình dùng serial của variant khác cho dòng hàng của variantId
     const completeRes = await authedInject({
@@ -223,8 +217,6 @@ describe('Delivery', () => {
     })
     const delivery = JSON.parse(createRes.payload)
     const lineId = delivery.lines[0].id
-    await authedInject({ method: 'PATCH', url: `/api/v1/deliveries/${delivery.id}/submit` })
-    await authedInject({ method: 'PATCH', url: `/api/v1/deliveries/${delivery.id}/approve` })
 
     await authedInject({
       method: 'PATCH',
@@ -255,8 +247,6 @@ describe('Delivery', () => {
     })
     const delivery = JSON.parse(createRes.payload)
     const lineId = delivery.lines[0].id
-    await authedInject({ method: 'PATCH', url: `/api/v1/deliveries/${delivery.id}/submit` })
-    await authedInject({ method: 'PATCH', url: `/api/v1/deliveries/${delivery.id}/approve` })
 
     const completeRes = await authedInject({
       method: 'PATCH',
@@ -400,8 +390,6 @@ describe('Delivery', () => {
       expect(createRes.statusCode).toBe(201)
       const delivery = JSON.parse(createRes.payload)
       const lineId = delivery.lines[0].id
-      await authedInject({ method: 'PATCH', url: `/api/v1/deliveries/${delivery.id}/submit` })
-      await authedInject({ method: 'PATCH', url: `/api/v1/deliveries/${delivery.id}/approve` })
       await authedInject({
         method: 'PATCH',
         url: `/api/v1/deliveries/${delivery.id}/complete`,
@@ -449,8 +437,6 @@ describe('Delivery', () => {
       })
       const receipt = JSON.parse(receiptRes.payload)
       const receiptLineId = receipt.lines[0].id
-      await authedInject({ method: 'PATCH', url: `/api/v1/receipts/${receipt.id}/submit` })
-      await authedInject({ method: 'PATCH', url: `/api/v1/receipts/${receipt.id}/approve` })
       await authedInject({
         method: 'PATCH',
         url: `/api/v1/receipts/${receipt.id}/complete`,
@@ -471,8 +457,6 @@ describe('Delivery', () => {
       })
       const delivery = JSON.parse(createRes.payload)
       const lineId = delivery.lines[0].id
-      await authedInject({ method: 'PATCH', url: `/api/v1/deliveries/${delivery.id}/submit` })
-      await authedInject({ method: 'PATCH', url: `/api/v1/deliveries/${delivery.id}/approve` })
       await authedInject({
         method: 'PATCH',
         url: `/api/v1/deliveries/${delivery.id}/complete`,
@@ -503,8 +487,6 @@ describe('Delivery', () => {
           payload: { code, import_type: 'purchase', warehouse_id: warehouseId, lines: [{ variant_id: consumableVariant.id, quantity, cost_price: costPrice }] },
         })
         const receipt = JSON.parse(createRes.payload)
-        await authedInject({ method: 'PATCH', url: `/api/v1/receipts/${receipt.id}/submit` })
-        await authedInject({ method: 'PATCH', url: `/api/v1/receipts/${receipt.id}/approve` })
         await authedInject({ method: 'PATCH', url: `/api/v1/receipts/${receipt.id}/complete`, payload: {} })
         await app.db('receipts').where({ id: receipt.id }).update({ completed_at: completedAt })
         return receipt.lines[0].id as string
@@ -524,8 +506,6 @@ describe('Delivery', () => {
         },
       })
       const delivery = JSON.parse(createRes.payload)
-      await authedInject({ method: 'PATCH', url: `/api/v1/deliveries/${delivery.id}/submit` })
-      await authedInject({ method: 'PATCH', url: `/api/v1/deliveries/${delivery.id}/approve` })
       // payload: {} bắt buộc — schema completeDeliverySchema yêu cầu body type object,
       // bỏ trống hẳn payload (không phải {}) làm Fastify trả 400 "body must be object"
       // trước khi tới được handler.
@@ -551,8 +531,6 @@ describe('Delivery', () => {
       })
       const receipt = JSON.parse(receiptRes.payload)
       const receiptLineId = receipt.lines[0].id
-      await authedInject({ method: 'PATCH', url: `/api/v1/receipts/${receipt.id}/submit` })
-      await authedInject({ method: 'PATCH', url: `/api/v1/receipts/${receipt.id}/approve` })
       await authedInject({
         method: 'PATCH',
         url: `/api/v1/receipts/${receipt.id}/complete`,
@@ -581,8 +559,6 @@ describe('Delivery', () => {
         },
       })
       const delivery = JSON.parse(createRes.payload)
-      await authedInject({ method: 'PATCH', url: `/api/v1/deliveries/${delivery.id}/submit` })
-      await authedInject({ method: 'PATCH', url: `/api/v1/deliveries/${delivery.id}/approve` })
       await authedInject({ method: 'PATCH', url: `/api/v1/deliveries/${delivery.id}/complete`, payload: {} })
 
       const lineAfter = await app.db('receipt_lines').where({ id: receiptLineId }).first()

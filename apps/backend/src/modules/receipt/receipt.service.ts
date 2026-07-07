@@ -1,6 +1,5 @@
-// Service — chứa STATE MACHINE của Receipt: draft → pending_approval → approved → completed
-// (hoặc cancelled ở bất kỳ bước nào trước completed). Mỗi hàm tự kiểm tra status hiện tại
-// hợp lệ để chuyển bước hay không — đây là chỗ enforce nghiệp vụ ở mục 11 CLAUDE.md.
+// Service — chứa STATE MACHINE của Receipt: draft → completed (hoặc cancelled).
+// Không còn bước submit/approve — người tạo phiếu có thể Complete trực tiếp từ Draft.
 import { Knex } from 'knex'
 import { ReceiptRepository } from './receipt.repository'
 import { CreateReceiptBody, ListReceiptQuery, CompleteReceiptBody } from './receipt.schema'
@@ -149,35 +148,12 @@ export class ReceiptService {
     throw { statusCode: 400, message }
   }
 
-  // draft → pending_approval. updateStatus() so khớp status='draft' NGAY TRONG WHERE của
-  // UPDATE — atomic, không còn khoảng hở giữa "check status" và "update status" để 2
-  // request cùng lúc cùng lọt qua (race condition).
-  async submitForApproval(id: string) {
-    return this.db.transaction(async (trx) => {
-      const updated = await this.repo.updateStatus(id, 'draft', 'pending_approval', {}, trx)
-      if (!updated) return this.failTransition(id, trx, 'Chỉ có thể submit từ Draft')
-      return updated
-    })
-  }
-
-  // pending_approval → approved. Theo CLAUDE.md mục 11: 1 cấp duyệt, người approve
-  // được ghi lại (approved_by) để biết ai chịu trách nhiệm — không tự xoá thông tin này.
-  async approve(id: string, approverId: string) {
-    return this.db.transaction(async (trx) => {
-      const updated = await this.repo.updateStatus(
-        id, 'pending_approval', 'approved', { approved_by: approverId, approved_at: trx.fn.now() }, trx,
-      )
-      if (!updated) return this.failTransition(id, trx, 'Chỉ có thể duyệt từ Pending Approval')
-      return updated
-    })
-  }
-
-  // approved → completed. Đây là bước QUAN TRỌNG NHẤT — lúc này tồn kho thật sự thay đổi.
+  // draft → completed. Đây là bước QUAN TRỌNG NHẤT — lúc này tồn kho thật sự thay đổi.
   // Trước khi Complete, hàng "chưa tồn tại" trong kho — chỉ là dữ liệu trên giấy.
   async complete(id: string, userId: string, body: CompleteReceiptBody = {}) {
     const receipt = await this.repo.findById(id)
     if (!receipt) throw { statusCode: 404, message: 'Receipt not found' }
-    if (receipt.status !== 'approved') throw { statusCode: 400, message: 'Chỉ có thể hoàn thành từ Approved' }
+    if (receipt.status !== 'draft') throw { statusCode: 400, message: 'Chỉ có thể hoàn thành từ Draft' }
 
     // Map line_id -> danh sách serial client gửi lên (chỉ cần cho dòng storable)
     const serialsByLine = new Map((body.lines ?? []).map((l) => [l.line_id, l.serials ?? []]))
@@ -217,7 +193,7 @@ export class ReceiptService {
       // complete/cancel khác đã xử lý xong trước khi tới lượt transaction này, update
       // dưới đây khớp 0 dòng, completed = undefined → dừng ngay, không đụng vào inventory.
       const completed = await this.repo.updateStatus(
-        id, 'approved', 'completed', { completed_at: trx.fn.now() }, trx,
+        id, 'draft', 'completed', { completed_at: trx.fn.now() }, trx,
       )
       if (!completed) {
         throw { statusCode: 400, message: 'Phiếu đã được xử lý bởi 1 yêu cầu khác — vui lòng tải lại' }
@@ -348,7 +324,7 @@ export class ReceiptService {
       // Atomic guard: nếu giữa lúc check status ở trên và lúc này, phiếu đã bị complete
       // bởi 1 request khác, whereIn không khớp 'completed' → update dưới đây trả undefined.
       const cancelled = await this.repo.updateStatus(
-        id, ['draft', 'pending_approval', 'approved'], 'cancelled', {}, trx,
+        id, ['draft'], 'cancelled', {}, trx,
       )
       if (!cancelled) {
         throw { statusCode: 400, message: 'Không thể huỷ phiếu đã hoàn thành hoặc đã huỷ' }

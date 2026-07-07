@@ -93,9 +93,9 @@ export class ReportRepository {
   async dashboard() {
     const [pendingReceipts, pendingDeliveries, pendingTransfers, activeStocktakes, expiringQuotations, totalProducts, totalCompanies] =
       await Promise.all([
-        this.db('receipts').where('status', 'pending_approval').count('id as count').first(),
-        this.db('delivery_orders').where('status', 'pending_approval').count('id as count').first(),
-        this.db('transfer_orders').where('status', 'pending_approval').count('id as count').first(),
+        this.db('receipts').where('status', 'draft').count('id as count').first(),
+        this.db('delivery_orders').where('status', 'draft').count('id as count').first(),
+        this.db('transfer_orders').where('status', 'draft').count('id as count').first(),
         this.db('stocktakes').where('status', 'in_progress').count('id as count').first(),
         this.db('quotations')
           .where('status', 'confirmed')

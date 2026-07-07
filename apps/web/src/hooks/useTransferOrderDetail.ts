@@ -17,8 +17,6 @@ export function useTransferOrderDetail(id: string) {
     successMessage: 'Thành công',
     invalidateKey: [['transfers', id], ['transfers'], ['inventory']],
   }
-  const submitMutation = useApiMutation(() => api.patch(`/transfers/${id}/submit`), actionOptions)
-  const approveMutation = useApiMutation(() => api.patch(`/transfers/${id}/approve`), actionOptions)
   const cancelMutation = useApiMutation(() => api.patch(`/transfers/${id}/cancel`), actionOptions)
   const editModal = useEntityModal()
   const updateMutation = useApiMutation((values: any) => api.patch(`/transfers/${id}`, values), {
@@ -49,7 +47,7 @@ export function useTransferOrderDetail(id: string) {
     completeOpen, setCompleteOpen,
     serialsText, setSerialsText,
     editModal,
-    submitMutation, approveMutation, cancelMutation, updateMutation, completeMutation,
+    cancelMutation, updateMutation, completeMutation,
     submitComplete,
   }
 }

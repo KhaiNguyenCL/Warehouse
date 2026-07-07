@@ -1,4 +1,4 @@
-import { Table, Form, Input, Select, InputNumber, DatePicker, Button } from 'antd'
+import { Table, Form, Input, Select, InputNumber, DatePicker, Button, Tooltip } from 'antd'
 import { useReceipts } from '../hooks/useReceipts'
 import { PageHeader } from '../components/PageHeader'
 import { EntityFormModal } from '../components/EntityFormModal'
@@ -6,8 +6,6 @@ import { StatusTag } from '../components/StatusTag'
 
 const STATUS_COLOR: Record<string, string> = {
   draft: 'default',
-  pending_approval: 'gold',
-  approved: 'blue',
   completed: 'green',
   cancelled: 'red',
 }
@@ -41,7 +39,15 @@ export default function ReceiptsPage() {
         confirmLoading={hook.createMutation.isPending}
         form={hook.form}
         width={800}
+        okText="Lưu nháp"
         initialValues={{ import_type: 'purchase', lines: [] }}
+        footerExtra={
+          <Tooltip title="Tạo xong chuyển thẳng đến trang chi tiết để Complete">
+            <Button onClick={hook.createAndGoToDetail} loading={hook.createMutation.isPending}>
+              Tạo & Complete
+            </Button>
+          </Tooltip>
+        }
       >
         <Form.Item name="import_type" label="Loại nhập" rules={[{ required: true }]}>
           <Select options={hook.importTypes?.map((t: any) => ({ value: t.key, label: t.label }))} />

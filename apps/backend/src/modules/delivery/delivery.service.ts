@@ -105,12 +105,12 @@ export class DeliveryService {
       throw { statusCode: 400, message: `Dòng báo giá không thuộc quotation này: ${missing.join(', ')}` }
     }
 
-    // committed_qty = đã xuất (completed) hoặc đang chờ xử lý (draft/pending_approval/approved)
+    // committed_qty = đã xuất (completed) hoặc đang nháp (draft)
     // — DO Cancelled không tính. Đây là exported_qty + pending_qty của quotation.repository.ts.
     const progressRows = await this.db('delivery_order_lines as dl')
       .join('delivery_orders as d', 'd.id', 'dl.delivery_order_id')
       .whereIn('dl.quotation_line_item_id', lineItemIds)
-      .whereIn('d.status', ['draft', 'pending_approval', 'approved', 'completed'])
+      .whereIn('d.status', ['draft', 'completed'])
       .groupBy('dl.quotation_line_item_id')
       .select('dl.quotation_line_item_id', this.db.raw(`SUM(dl.quantity)::int as committed_qty`))
     const committedByLine = new Map(progressRows.map((r: any) => [r.quotation_line_item_id, r.committed_qty]))
@@ -143,28 +143,10 @@ export class DeliveryService {
     throw { statusCode: 400, message }
   }
 
-  async submitForApproval(id: string) {
-    return this.db.transaction(async (trx) => {
-      const updated = await this.repo.updateStatus(id, 'draft', 'pending_approval', {}, trx)
-      if (!updated) return this.failTransition(id, trx, 'Chỉ có thể submit từ Draft')
-      return updated
-    })
-  }
-
-  async approve(id: string, approverId: string) {
-    return this.db.transaction(async (trx) => {
-      const updated = await this.repo.updateStatus(
-        id, 'pending_approval', 'approved', { approved_by: approverId, approved_at: trx.fn.now() }, trx,
-      )
-      if (!updated) return this.failTransition(id, trx, 'Chỉ có thể duyệt từ Pending Approval')
-      return updated
-    })
-  }
-
   async complete(id: string, userId: string, body: CompleteDeliveryBody = {}) {
     const delivery = await this.repo.findById(id)
     if (!delivery) throw { statusCode: 404, message: 'Delivery order not found' }
-    if (delivery.status !== 'approved') throw { statusCode: 400, message: 'Chỉ có thể hoàn thành từ Approved' }
+    if (delivery.status !== 'draft') throw { statusCode: 400, message: 'Chỉ có thể hoàn thành từ Draft' }
 
     // effectiveType = hành vi xử lý serial THẬT (parent_key nếu export_type là type tự tạo
     // qua Settings) — dùng thay cho so sánh literal delivery.export_type === 'adjustment'.
@@ -218,7 +200,7 @@ export class DeliveryService {
     return this.db.transaction(async (trx) => {
       // Guard THẬT chống race condition — xem giải thích chi tiết ở receipt.service.ts.
       const completed = await this.repo.updateStatus(
-        id, 'approved', 'completed', { completed_at: trx.fn.now() }, trx,
+        id, 'draft', 'completed', { completed_at: trx.fn.now() }, trx,
       )
       if (!completed) {
         throw { statusCode: 400, message: 'Phiếu đã được xử lý bởi 1 yêu cầu khác — vui lòng tải lại' }
@@ -514,7 +496,7 @@ export class DeliveryService {
 
     return this.db.transaction(async (trx) => {
       const cancelled = await this.repo.updateStatus(
-        id, ['draft', 'pending_approval', 'approved'], 'cancelled', {}, trx,
+        id, ['draft'], 'cancelled', {}, trx,
       )
       if (!cancelled) {
         throw { statusCode: 400, message: 'Không thể huỷ phiếu đã hoàn thành hoặc đã huỷ' }

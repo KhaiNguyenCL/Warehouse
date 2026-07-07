@@ -115,7 +115,7 @@ export class PurchaseOrderRepository {
     if (rows.length) await trx('field_values').insert(rows)
   }
 
-  // received_qty (Receipt completed) + pending_qty (Receipt draft/pending_approval/approved)
+  // received_qty (Receipt completed) + pending_qty (Receipt draft)
   // cho từng purchase_order_line — dùng tính remaining_qty, đối xứng với
   // quotation.repository.ts::findLineProgress (exported_qty/pending_qty của DO).
   // Nhận trx tuỳ chọn: unconfirm()/cancel() gọi với trx SAU KHI đã forUpdate() khoá
@@ -132,7 +132,7 @@ export class PurchaseOrderRepository {
         'rl.po_line_id',
         runner.raw(`COALESCE(SUM(rl.quantity) FILTER (WHERE r.status = 'completed'), 0)::int as received_qty`),
         runner.raw(
-          `COALESCE(SUM(rl.quantity) FILTER (WHERE r.status IN ('draft','pending_approval','approved')), 0)::int as pending_qty`,
+          `COALESCE(SUM(rl.quantity) FILTER (WHERE r.status = 'draft'), 0)::int as pending_qty`,
         ),
       )
 
