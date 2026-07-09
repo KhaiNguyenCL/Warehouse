@@ -609,3 +609,39 @@ inventory.qty_reserved -= quotation_line.quantity
 - `stocktake_lines.difference` là generated column PostgreSQL — không update thủ công
 - Migration dùng Knex migration (không chạy file SQL thủ công trong production)
 - JWT payload chỉ chứa `{ sub: userId, roleId }` — permission check query DB mỗi request qua middleware
+
+---
+
+## 21. Môi trường phát triển
+
+**PostgreSQL chạy trong Docker** — không cài trực tiếp trên host, không có `psql`/`pg_dump` trong PATH.
+Container: `wms-postgres` (image `postgres:16-alpine`), port `5432:5432`, password `postgres`.
+
+**Export database:**
+```bash
+docker exec wms-postgres pg_dump -U postgres wms_db > wms_db_export_$(date +%Y%m%d).sql
+```
+
+**Restore trên máy mới (Docker):**
+```bash
+# Khởi động container
+docker run -d --name wms-postgres \
+  -e POSTGRES_PASSWORD=postgres \
+  -p 5432:5432 \
+  postgres:16-alpine
+
+# Copy dump vào container rồi restore
+docker cp wms_db_export_YYYYMMDD.sql wms-postgres:/tmp/dump.sql
+docker exec wms-postgres psql -U postgres -c "CREATE DATABASE wms_db;"
+docker exec wms-postgres psql -U postgres wms_db -f /tmp/dump.sql
+```
+
+**Hai database:**
+- `wms_db` — production / development thật
+- `wms_test_db` — chạy test suite (`pnpm test` trong `apps/backend`)
+
+Khi thêm migration mới phải apply cho **cả hai**:
+```bash
+docker exec wms-postgres psql -U postgres wms_db   -c "ALTER TABLE ..."
+docker exec wms-postgres psql -U postgres wms_test_db -c "ALTER TABLE ..."
+```
