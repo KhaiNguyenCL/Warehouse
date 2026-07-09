@@ -39,6 +39,9 @@ export const createDeliverySchema = {
             variant_id:               { type: 'string', format: 'uuid' },
             quantity:                 { type: 'integer', minimum: 1 },
             bundle_id:                { type: 'string', format: 'uuid' },
+            // Số lượng bundle đơn vị mà dòng component này đại diện — bắt buộc khi bundle_id có.
+            // Dùng để tính tiến độ xuất kho theo báo giá ở mức bundle, không phải mức component.
+            bundle_unit_qty:          { type: 'integer', minimum: 1 },
             quotation_line_item_id:   { type: 'string', format: 'uuid' },
             // Ngày bắt đầu BH công ty — tuỳ chọn, nếu null dùng completed_at lúc Complete.
             customer_warranty_start:  { type: 'string', format: 'date-time' },
@@ -101,6 +104,7 @@ export interface CreateDeliveryBody {
     variant_id: string
     quantity: number
     bundle_id?: string
+    bundle_unit_qty?: number
     quotation_line_item_id?: string
     customer_warranty_start?: string
     line_order?: number

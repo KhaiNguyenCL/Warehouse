@@ -107,19 +107,44 @@ export class DeliveryService {
 
     // committed_qty = đã xuất (completed) hoặc đang nháp (draft)
     // — DO Cancelled không tính. Đây là exported_qty + pending_qty của quotation.repository.ts.
-    const progressRows = await this.db('delivery_order_lines as dl')
-      .join('delivery_orders as d', 'd.id', 'dl.delivery_order_id')
-      .whereIn('dl.quotation_line_item_id', lineItemIds)
-      .whereIn('d.status', ['draft', 'completed'])
-      .groupBy('dl.quotation_line_item_id')
-      .select('dl.quotation_line_item_id', this.db.raw(`SUM(dl.quantity)::int as committed_qty`))
-    const committedByLine = new Map(progressRows.map((r: any) => [r.quotation_line_item_id, r.committed_qty]))
+    // Bundle lines: nhiều component lines của cùng 1 bundle trong cùng 1 DO → chỉ đếm 1 lần
+    // theo bundle_unit_qty. Dùng COALESCE(bundle_id||':'||delivery_order_id, id) làm grouping
+    // key để: non-bundle → mỗi line riêng; bundle → mỗi (bundle, DO) riêng.
+    const committedRaw = await this.db.raw<{ rows: Array<{ quotation_line_item_id: string; committed_qty: number }> }>(
+      `SELECT sub.quotation_line_item_id, SUM(sub.effective_qty)::int AS committed_qty
+       FROM (
+         SELECT
+           dl.quotation_line_item_id,
+           MAX(COALESCE(dl.bundle_unit_qty, dl.quantity))::int AS effective_qty
+         FROM delivery_order_lines dl
+         JOIN delivery_orders d ON d.id = dl.delivery_order_id
+         WHERE dl.quotation_line_item_id = ANY(:lineIds)
+           AND d.status IN ('draft', 'completed')
+         GROUP BY
+           dl.quotation_line_item_id,
+           COALESCE(dl.bundle_id::text || ':' || dl.delivery_order_id::text, dl.id::text)
+       ) sub
+       GROUP BY sub.quotation_line_item_id`,
+      { lineIds: lineItemIds },
+    )
+    const committedByLine = new Map(committedRaw.rows.map((r) => [r.quotation_line_item_id, r.committed_qty]))
 
-    // Cộng dồn trường hợp request hiện tại có nhiều dòng cùng tham chiếu 1 quotation_line_item_id.
+    // Cộng dồn đơn vị bundle/qty cho request hiện tại — bundle lines dùng bundle_unit_qty,
+    // non-bundle lines dùng quantity, nhóm theo (quotation_line_item_id, bundle_id).
     const requestedByLine = new Map<string, number>()
+    const seenBundleKey = new Set<string>()
     for (const l of linkedLines) {
-      const key = l.quotation_line_item_id as string
-      requestedByLine.set(key, (requestedByLine.get(key) ?? 0) + l.quantity)
+      const lineKey = l.quotation_line_item_id as string
+      if (l.bundle_id && l.bundle_unit_qty != null) {
+        // Chỉ cộng 1 lần mỗi (quotation_line_item_id, bundle_id) group
+        const bundleKey = `${lineKey}:${l.bundle_id}`
+        if (!seenBundleKey.has(bundleKey)) {
+          seenBundleKey.add(bundleKey)
+          requestedByLine.set(lineKey, (requestedByLine.get(lineKey) ?? 0) + l.bundle_unit_qty)
+        }
+      } else {
+        requestedByLine.set(lineKey, (requestedByLine.get(lineKey) ?? 0) + l.quantity)
+      }
     }
 
     for (const [lineItemId, requestedQty] of requestedByLine) {
@@ -311,6 +336,24 @@ export class DeliveryService {
           await this.applySerialTransition(
             trx, effectiveType, line.id, line.variant_id, delivery.warehouse_id, serials,
           )
+
+          // demo_out / warranty_out: serial chuyển sang kho ảo nên cũng phải cập nhật
+          // inventory tại kho ảo đó để Transfer demo_in/warranty_in sau này tìm thấy
+          // qty_on_hand > 0 (transfer.service kiểm tra trước khi cho complete).
+          if (effectiveType === 'demo_out' || effectiveType === 'warranty_out') {
+            const virtualCode = effectiveType === 'demo_out' ? 'WH-DEMO' : 'WH-BH'
+            const virtualWh = await this.repo.findWarehouseByCode(virtualCode, trx)
+            await trx.raw(
+              `INSERT INTO inventory (variant_id, warehouse_id, qty_on_hand, avg_cost, last_updated)
+               VALUES (:variant_id, :warehouse_id, :qty::int, :cost::numeric, now())
+               ON CONFLICT (variant_id, warehouse_id) DO UPDATE SET
+                 qty_on_hand  = inventory.qty_on_hand + :qty::int,
+                 avg_cost     = (inventory.qty_on_hand * inventory.avg_cost + :qty::int * :cost::numeric)
+                                / (inventory.qty_on_hand + :qty::int),
+                 last_updated = now()`,
+              { variant_id: line.variant_id, warehouse_id: virtualWh.id, qty: line.quantity, cost: inventory?.avg_cost ?? 0 },
+            )
+          }
         } else {
           // Consumable (không có serial) hoặc storable xuất theo "adjustment" (không quét
           // serial cụ thể) — trừ theo FIFO mặc định (CLAUDE.md mục 19).

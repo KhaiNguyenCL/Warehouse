@@ -1,4 +1,4 @@
-import { Table, Form, Input, Select, InputNumber, DatePicker, Button, Tooltip } from 'antd'
+import { Table, Form, Input, Select, InputNumber, DatePicker, Button, Tooltip, Checkbox, Space } from 'antd'
 import { useReceipts } from '../hooks/useReceipts'
 import { PageHeader } from '../components/PageHeader'
 import { EntityFormModal } from '../components/EntityFormModal'
@@ -125,26 +125,51 @@ export default function ReceiptsPage() {
                     ),
                   },
                   {
-                    title: 'BH hãng (T)',
+                    title: 'BH hãng',
                     render: (_: any, f: any) => (
-                      <Form.Item name={[f.name, 'manufacturer_warranty_months']} noStyle>
-                        <InputNumber min={0} style={{ width: 70 }} />
+                      <Form.Item shouldUpdate noStyle>
+                        {({ getFieldValue }) => {
+                          const has = getFieldValue(['lines', f.name, 'has_manufacturer_warranty'])
+                          return (
+                            <Space size={4} wrap>
+                              <Form.Item name={[f.name, 'has_manufacturer_warranty']} valuePropName="checked" noStyle>
+                                <Checkbox>Có</Checkbox>
+                              </Form.Item>
+                              {has && (
+                                <>
+                                  <Form.Item name={[f.name, 'manufacturer_warranty_months']} noStyle>
+                                    <InputNumber min={0} style={{ width: 60 }} placeholder="Tháng" />
+                                  </Form.Item>
+                                  <Form.Item name={[f.name, 'manufacturer_warranty_start']} noStyle>
+                                    <DatePicker style={{ width: 130 }} placeholder="Ngày BH" allowClear />
+                                  </Form.Item>
+                                </>
+                              )}
+                            </Space>
+                          )
+                        }}
                       </Form.Item>
                     ),
                   },
                   {
-                    title: 'Ngày BH hãng',
+                    title: 'BH cty',
                     render: (_: any, f: any) => (
-                      <Form.Item name={[f.name, 'manufacturer_warranty_start']} noStyle>
-                        <DatePicker style={{ width: 130 }} placeholder="Ngày nhập kho" allowClear />
-                      </Form.Item>
-                    ),
-                  },
-                  {
-                    title: 'BH cty (T)',
-                    render: (_: any, f: any) => (
-                      <Form.Item name={[f.name, 'customer_warranty_months']} noStyle>
-                        <InputNumber min={0} style={{ width: 70 }} />
+                      <Form.Item shouldUpdate noStyle>
+                        {({ getFieldValue }) => {
+                          const has = getFieldValue(['lines', f.name, 'has_customer_warranty'])
+                          return (
+                            <Space size={4}>
+                              <Form.Item name={[f.name, 'has_customer_warranty']} valuePropName="checked" noStyle>
+                                <Checkbox>Có</Checkbox>
+                              </Form.Item>
+                              {has && (
+                                <Form.Item name={[f.name, 'customer_warranty_months']} noStyle>
+                                  <InputNumber min={0} style={{ width: 60 }} placeholder="Tháng" />
+                                </Form.Item>
+                              )}
+                            </Space>
+                          )
+                        }}
                       </Form.Item>
                     ),
                   },

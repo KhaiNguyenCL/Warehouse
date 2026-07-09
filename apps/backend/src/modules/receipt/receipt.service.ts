@@ -175,11 +175,20 @@ export class ReceiptService {
         if (new Set(serials).size !== serials.length) {
           throw { statusCode: 400, message: `Danh sách serial cho ${line.variant_name} có giá trị trùng nhau` }
         }
-        // serial_no là unique toàn hệ thống — nếu trùng với serial đã tồn tại (ví dụ
-        // quét nhầm SN cũ), báo 400 rõ nghĩa thay vì để rớt xuống lỗi unique constraint 500.
-        const existing = await this.db('serial_numbers').whereIn('serial_no', serials).pluck('serial_no')
-        if (existing.length > 0) {
-          throw { statusCode: 400, message: `Serial đã tồn tại trong hệ thống: ${existing.join(', ')}` }
+        if (receipt.import_type === 'return_in') {
+          // return_in: serial phải tồn tại VÀ đang status='sold' — hàng đã bán mới được trả.
+          const soldRows = await this.db('serial_numbers')
+            .whereIn('serial_no', serials).where({ status: 'sold' }).pluck('serial_no')
+          const notSold = serials.filter((s) => !soldRows.includes(s))
+          if (notSold.length > 0) {
+            throw { statusCode: 400, message: `Serial không hợp lệ cho return_in (chưa bán hoặc không tồn tại): ${notSold.join(', ')}` }
+          }
+        } else {
+          // Các type khác: serial KHÔNG được trùng với serial đã tồn tại trong hệ thống.
+          const existing = await this.db('serial_numbers').whereIn('serial_no', serials).pluck('serial_no')
+          if (existing.length > 0) {
+            throw { statusCode: 400, message: `Serial đã tồn tại trong hệ thống: ${existing.join(', ')}` }
+          }
         }
       }
     }
@@ -236,30 +245,46 @@ export class ReceiptService {
         let newSerialIds: string[] = []
         if (line.product_type === 'storable') {
           const serials = serialsByLine.get(line.id) ?? []
-          // != null check (không dùng truthy) vì 0 là giá trị hợp lệ ("không bảo hành"
-          // tường minh) — 0 bị falsy sẽ bị coi là null nếu dùng `?` operator (CLAUDE.md §19).
-          // manufacturer_warranty_start: ngày hãng bắt đầu tính BH (tuỳ chọn) — nếu null
-          // thì dùng now() (= completed_at, vì expr này chạy trong cùng transaction).
-          const mfgWarrantyExpr =
-            line.manufacturer_warranty_months != null
-              ? trx.raw(
-                  "?::timestamptz + (?::int * interval '1 month')",
-                  [line.manufacturer_warranty_start ?? trx.raw('now()'), line.manufacturer_warranty_months],
-                )
-              : null
-          const insertedSerials = await trx('serial_numbers')
-            .insert(
-              serials.map((serial_no) => ({
-                serial_no,
-                variant_id:      line.variant_id,
-                warehouse_id:    receipt.warehouse_id,
+          if (receipt.import_type === 'return_in') {
+            // return_in: serial đang status='sold' → UPDATE về active tại kho này,
+            // gắn lại receipt_line_id của lô nhập trả hàng này.
+            const returnedRows = await trx('serial_numbers')
+              .whereIn('serial_no', serials)
+              .update({
                 status:          'active',
+                warehouse_id:    receipt.warehouse_id,
                 receipt_line_id: line.id,
-                manufacturer_warranty_end: mfgWarrantyExpr,
-              })),
-            )
-            .returning('id')
-          newSerialIds = insertedSerials.map((s) => s.id)
+                delivery_line_id: null,
+                updated_at:      trx.fn.now(),
+              })
+              .returning('id')
+            newSerialIds = returnedRows.map((s: { id: string }) => s.id)
+          } else {
+            // != null check (không dùng truthy) vì 0 là giá trị hợp lệ ("không bảo hành"
+            // tường minh) — 0 bị falsy sẽ bị coi là null nếu dùng `?` operator (CLAUDE.md §19).
+            // manufacturer_warranty_start: ngày hãng bắt đầu tính BH (tuỳ chọn) — nếu null
+            // thì dùng now() (= completed_at, vì expr này chạy trong cùng transaction).
+            const mfgWarrantyExpr =
+              line.manufacturer_warranty_months != null
+                ? trx.raw(
+                    "?::timestamptz + (?::int * interval '1 month')",
+                    [line.manufacturer_warranty_start ?? trx.raw('now()'), line.manufacturer_warranty_months],
+                  )
+                : null
+            const insertedSerials = await trx('serial_numbers')
+              .insert(
+                serials.map((serial_no) => ({
+                  serial_no,
+                  variant_id:      line.variant_id,
+                  warehouse_id:    receipt.warehouse_id,
+                  status:          'active',
+                  receipt_line_id: line.id,
+                  manufacturer_warranty_end: mfgWarrantyExpr,
+                })),
+              )
+              .returning('id')
+            newSerialIds = insertedSerials.map((s) => s.id)
+          }
         }
 
         // Ghi lại LỊCH SỬ thay đổi kho (audit trail) — bảng stock_movements không bao giờ

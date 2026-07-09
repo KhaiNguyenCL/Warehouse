@@ -1,5 +1,6 @@
 import { Knex } from 'knex'
 import { ListStocktakeQuery, ScopeType } from './stocktake.schema'
+import { generateDocumentCode } from '../../lib/generateDocumentCode'
 
 // Sản phẩm có theo dõi tồn kho thật (CLAUDE.md mục 4) — service/bundle không có dòng
 // trong kho nên không thể nằm trong phạm vi kiểm kê.
@@ -91,14 +92,15 @@ export class StocktakeRepository {
   }
 
   async create(
-    header: { code: string; warehouse_id: string; scope_type: ScopeType; scope_ids: string[] | null; note?: string },
+    header: { warehouse_id: string; scope_type: ScopeType; scope_ids: string[] | null; note?: string },
     lines: Array<{ variant_id: string; qty_system: number }>,
     userId: string,
     trx: Knex.Transaction,
   ) {
+    const code = await generateDocumentCode(trx, 'stocktake')
     const [stocktake] = await trx('stocktakes')
       .insert({
-        code: header.code,
+        code,
         warehouse_id: header.warehouse_id,
         scope_type: header.scope_type,
         scope_ids: header.scope_ids ? JSON.stringify(header.scope_ids) : null,

@@ -29,7 +29,15 @@ export function useReceiptDetail(id: string) {
   }
   const cancelMutation = useApiMutation(() => api.patch(`/receipts/${id}/cancel`), actionOptions)
   const editModal = useEntityModal()
-  const updateMutation = useApiMutation((values: any) => api.patch(`/receipts/${id}`, values), {
+  const updateMutation = useApiMutation((values: any) => {
+    const lines = values.lines?.map((l: any) => ({
+      id: l.id,
+      cost_price: l.cost_price,
+      manufacturer_warranty_months: l.has_manufacturer_warranty ? l.manufacturer_warranty_months : null,
+      customer_warranty_months: l.has_customer_warranty ? l.customer_warranty_months : null,
+    }))
+    return api.patch(`/receipts/${id}`, { note: values.note, lines })
+  }, {
     successMessage: 'Cập nhật thành công',
     invalidateKey: ['receipts', id],
     onSuccess: editModal.close,

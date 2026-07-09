@@ -52,9 +52,19 @@ export default function QuotationDetailPage() {
             <Button danger>Cancel</Button>
           </Popconfirm>
         )}
-        {hook.data.status === 'confirmed' && (
-          <Button onClick={() => hook.navigate(`/deliveries?quotation_id=${hook.data.id}`)}>Tạo Delivery Order từ báo giá này</Button>
-        )}
+        {hook.data.status === 'confirmed' && (() => {
+          const allDone = hook.data.sections.every((s: any) =>
+            s.line_items.every((l: any) => Number(l.remaining_qty) <= 0)
+          )
+          return (
+            <Button
+              disabled={allDone}
+              onClick={() => hook.navigate(`/deliveries?quotation_id=${hook.data.id}`)}
+            >
+              Tạo Delivery Order từ báo giá này
+            </Button>
+          )
+        })()}
       </Space>
 
       <Space style={{ marginBottom: 16 }}>

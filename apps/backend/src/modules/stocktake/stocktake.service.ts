@@ -35,7 +35,6 @@ export class StocktakeService {
     return this.db.transaction((trx) =>
       this.repo.create(
         {
-          code: data.code,
           warehouse_id: data.warehouse_id,
           scope_type: scopeType,
           scope_ids: data.scope_ids ?? null,

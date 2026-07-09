@@ -6,6 +6,7 @@ const PREFIX: Record<string, string> = {
   transfer_order: 'CK',
   quotation:      'BG',
   purchase_order: 'PO',
+  stocktake:      'KK',
 }
 
 const MASTER_PREFIX: Record<string, string> = {

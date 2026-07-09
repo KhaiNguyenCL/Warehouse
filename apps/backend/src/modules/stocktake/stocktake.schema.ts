@@ -4,9 +4,8 @@ export const SCOPE_TYPES = ['all', 'by_sku', 'by_category'] as const
 export const createStocktakeSchema = {
   body: {
     type: 'object',
-    required: ['code', 'warehouse_id'],
+    required: ['warehouse_id'],
     properties: {
-      code:         { type: 'string', minLength: 1 },
       warehouse_id: { type: 'string', format: 'uuid' },
       scope_type:   { type: 'string', enum: SCOPE_TYPES, default: 'all' },
       // SKU (variant_id) khi scope_type='by_sku', category_id khi scope_type='by_category'.
@@ -57,7 +56,6 @@ export type StocktakeStatus = (typeof STOCKTAKE_STATUSES)[number]
 export type ScopeType = (typeof SCOPE_TYPES)[number]
 
 export interface CreateStocktakeBody {
-  code: string
   warehouse_id: string
   scope_type?: ScopeType
   scope_ids?: string[]

@@ -130,23 +130,34 @@ export class QuotationRepository {
 
   // exported_qty (DO completed) + pending_qty (DO draft) cho từng
   // quotation_line_item — dùng tính remaining_qty (CLAUDE.md mục 6, 16), khoá khi = 0.
+  // Bundle lines: nhiều component lines của cùng bundle trong cùng DO → đếm 1 lần dùng
+  // bundle_unit_qty (xem delivery.service.ts validateQuotationLines cho cùng pattern).
   async findLineProgress(lineIds: string[]) {
-    const rows = await this.db('delivery_order_lines as dl')
-      .join('delivery_orders as d', 'd.id', 'dl.delivery_order_id')
-      .whereIn('dl.quotation_line_item_id', lineIds)
-      .groupBy('dl.quotation_line_item_id')
-      .select(
-        'dl.quotation_line_item_id',
-        this.db.raw(
-          `COALESCE(SUM(dl.quantity) FILTER (WHERE d.status = 'completed'), 0)::int as exported_qty`,
-        ),
-        this.db.raw(
-          `COALESCE(SUM(dl.quantity) FILTER (WHERE d.status = 'draft'), 0)::int as pending_qty`,
-        ),
-      )
+    type ProgressRow = { quotation_line_item_id: string; exported_qty: number; pending_qty: number }
+    const result = await this.db.raw<{ rows: ProgressRow[] }>(
+      `SELECT sub.quotation_line_item_id,
+              COALESCE(SUM(sub.effective_qty) FILTER (WHERE sub.do_status = 'completed'), 0)::int AS exported_qty,
+              COALESCE(SUM(sub.effective_qty) FILTER (WHERE sub.do_status = 'draft'), 0)::int AS pending_qty
+       FROM (
+         SELECT
+           dl.quotation_line_item_id,
+           d.status AS do_status,
+           MAX(COALESCE(dl.bundle_unit_qty, dl.quantity))::int AS effective_qty
+         FROM delivery_order_lines dl
+         JOIN delivery_orders d ON d.id = dl.delivery_order_id
+         WHERE dl.quotation_line_item_id = ANY(:lineIds)
+           AND d.status IN ('draft', 'completed')
+         GROUP BY
+           dl.quotation_line_item_id,
+           d.status,
+           COALESCE(dl.bundle_id::text || ':' || dl.delivery_order_id::text, dl.id::text)
+       ) sub
+       GROUP BY sub.quotation_line_item_id`,
+      { lineIds },
+    )
 
     const map = new Map<string, { exported_qty: number; pending_qty: number }>()
-    for (const r of rows) {
+    for (const r of result.rows) {
       map.set(r.quotation_line_item_id, { exported_qty: r.exported_qty, pending_qty: r.pending_qty })
     }
     return map

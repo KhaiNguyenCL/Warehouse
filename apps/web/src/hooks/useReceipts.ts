@@ -75,7 +75,9 @@ export function useReceipts() {
             po_line_id: l.id,
             quantity: l.remaining_qty,
             cost_price: l.unit_price,
+            has_manufacturer_warranty: l.manufacturer_warranty_months != null,
             manufacturer_warranty_months: l.manufacturer_warranty_months,
+            has_customer_warranty: l.customer_warranty_months != null,
             customer_warranty_months: l.customer_warranty_months,
           })),
       })
@@ -89,13 +91,13 @@ export function useReceipts() {
         quantity: l.quantity,
         cost_price: l.cost_price,
         po_line_id: l.po_line_id,
-        manufacturer_warranty_months: l.manufacturer_warranty_months,
-        manufacturer_warranty_start: l.manufacturer_warranty_start
+        manufacturer_warranty_months: l.has_manufacturer_warranty ? l.manufacturer_warranty_months : undefined,
+        manufacturer_warranty_start: l.has_manufacturer_warranty && l.manufacturer_warranty_start
           ? (dayjs.isDayjs(l.manufacturer_warranty_start)
               ? l.manufacturer_warranty_start.toISOString()
               : dayjs(l.manufacturer_warranty_start).toISOString())
           : undefined,
-        customer_warranty_months: l.customer_warranty_months,
+        customer_warranty_months: l.has_customer_warranty ? l.customer_warranty_months : undefined,
       }))
       return api.post('/receipts', { ...values, lines })
     },

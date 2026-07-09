@@ -1,5 +1,5 @@
 import { useParams } from 'react-router-dom'
-import { Table, Button, Typography, Space, Popconfirm, Modal, Input, Form, InputNumber } from 'antd'
+import { Table, Button, Typography, Space, Popconfirm, Modal, Input, Form, InputNumber, Checkbox, DatePicker } from 'antd'
 import { useReceiptDetail } from '../hooks/useReceiptDetail'
 import { EntityFormModal } from '../components/EntityFormModal'
 import { StatusTag } from '../components/StatusTag'
@@ -35,7 +35,9 @@ export default function ReceiptDetailPage() {
             lines: hook.data.lines.map((l: any) => ({
               id: l.id,
               cost_price: l.cost_price,
+              has_manufacturer_warranty: l.manufacturer_warranty_months != null,
               manufacturer_warranty_months: l.manufacturer_warranty_months,
+              has_customer_warranty: l.customer_warranty_months != null,
               customer_warranty_months: l.customer_warranty_months,
             })),
           })}>Sửa</Button>
@@ -170,18 +172,51 @@ export default function ReceiptDetailPage() {
                   ),
                 },
                 {
-                  title: 'BH hãng (T)',
+                  title: 'BH hãng',
                   render: (_: any, f: any) => (
-                    <Form.Item name={[f.name, 'manufacturer_warranty_months']} noStyle>
-                      <InputNumber min={0} style={{ width: 70 }} />
+                    <Form.Item shouldUpdate noStyle>
+                      {({ getFieldValue }) => {
+                        const has = getFieldValue(['lines', f.name, 'has_manufacturer_warranty'])
+                        return (
+                          <Space size={4} wrap>
+                            <Form.Item name={[f.name, 'has_manufacturer_warranty']} valuePropName="checked" noStyle>
+                              <Checkbox>Có</Checkbox>
+                            </Form.Item>
+                            {has && (
+                              <>
+                                <Form.Item name={[f.name, 'manufacturer_warranty_months']} noStyle>
+                                  <InputNumber min={0} style={{ width: 60 }} placeholder="Tháng" />
+                                </Form.Item>
+                                <Form.Item name={[f.name, 'manufacturer_warranty_start']} noStyle>
+                                  <DatePicker style={{ width: 120 }} placeholder="Ngày BH" allowClear />
+                                </Form.Item>
+                              </>
+                            )}
+                          </Space>
+                        )
+                      }}
                     </Form.Item>
                   ),
                 },
                 {
-                  title: 'BH cty (T)',
+                  title: 'BH cty',
                   render: (_: any, f: any) => (
-                    <Form.Item name={[f.name, 'customer_warranty_months']} noStyle>
-                      <InputNumber min={0} style={{ width: 70 }} />
+                    <Form.Item shouldUpdate noStyle>
+                      {({ getFieldValue }) => {
+                        const has = getFieldValue(['lines', f.name, 'has_customer_warranty'])
+                        return (
+                          <Space size={4}>
+                            <Form.Item name={[f.name, 'has_customer_warranty']} valuePropName="checked" noStyle>
+                              <Checkbox>Có</Checkbox>
+                            </Form.Item>
+                            {has && (
+                              <Form.Item name={[f.name, 'customer_warranty_months']} noStyle>
+                                <InputNumber min={0} style={{ width: 60 }} placeholder="Tháng" />
+                              </Form.Item>
+                            )}
+                          </Space>
+                        )
+                      }}
                     </Form.Item>
                   ),
                 },
