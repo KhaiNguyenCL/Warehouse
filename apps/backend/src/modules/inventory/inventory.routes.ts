@@ -23,6 +23,14 @@ const inventoryRoutes: FastifyPluginAsync = async (app) => {
     async (request) => service.list(request.query),
   )
 
+  // GET /inventory/by-variant — tồn kho tổng hợp theo variant (gộp tất cả kho),
+  // dùng cho tab Tồn kho hiển thị 1 dòng/SKU rồi expand xuống flat SN list.
+  app.get<{ Querystring: ListInventoryQuery }>(
+    '/by-variant',
+    { schema: listInventorySchema, preHandler: requirePermission('report.inventory') },
+    async (request) => service.listByVariant(request.query),
+  )
+
   // GET /inventory/lots — breakdown từng lô (receipt_line) của 1 SKU, giá/bảo hành/
   // qty_remaining riêng từng lần nhập — inventory chỉ có số tổng hợp, không thấy được điều này.
   app.get<{ Querystring: ListLotsQuery }>(

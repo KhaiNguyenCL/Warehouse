@@ -13,12 +13,14 @@ import {
   UpdateContactBody,
 } from './company.schema'
 import { authenticate } from '../../middleware/auth'
+import { ProductRepository } from '../product/product.repository'
 
 // CLAUDE.md không định nghĩa permission key riêng cho company (chỉ có settings.*,
 // quotation.*, receipt.* ...) — companies là dữ liệu nền (KH/NCC) mọi role đã đăng
 // nhập đều cần đọc/ghi được, nên chỉ cần authenticate, không requirePermission.
 const companyRoutes: FastifyPluginAsync = async (app) => {
   const service = new CompanyService(app.db)
+  const productRepo = new ProductRepository(app.db)
 
   // GET /companies?type=customer|supplier&search=...
   app.get<{ Querystring: ListCompanyQuery }>(
@@ -69,6 +71,12 @@ const companyRoutes: FastifyPluginAsync = async (app) => {
     '/:id/contacts/:contactId',
     { preHandler: authenticate },
     async (request, reply) => { await service.deleteContact(request.params.id, request.params.contactId); return reply.code(204).send() },
+  )
+
+  app.get<{ Params: { id: string } }>(
+    '/:id/supplied-variants',
+    { preHandler: authenticate },
+    async (request) => productRepo.findVariantsBySupplier(request.params.id),
   )
 
   app.delete<{ Params: { id: string } }>(

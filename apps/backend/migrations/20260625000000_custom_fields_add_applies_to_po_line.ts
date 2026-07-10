@@ -6,9 +6,12 @@
 import { Knex } from 'knex'
 
 export async function up(knex: Knex): Promise<void> {
-  await knex.schema.alterTable('custom_fields', (table) => {
-    table.boolean('applies_to_po_line').notNullable().defaultTo(false)
-  })
+  const hasCol = await knex.schema.hasColumn('custom_fields', 'applies_to_po_line')
+  if (!hasCol) {
+    await knex.schema.alterTable('custom_fields', (table) => {
+      table.boolean('applies_to_po_line').notNullable().defaultTo(false)
+    })
+  }
 }
 
 export async function down(knex: Knex): Promise<void> {

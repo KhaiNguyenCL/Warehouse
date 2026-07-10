@@ -242,6 +242,27 @@ export class ProductRepository {
     return this.db('variant_suppliers').where({ id }).del()
   }
 
+  findVariantsBySupplier(companyId: string) {
+    return this.db('variant_suppliers as vs')
+      .join('variants as v', 'v.id', 'vs.variant_id')
+      .join('products as p', 'p.id', 'v.product_id')
+      .where('vs.company_id', companyId)
+      .select(
+        'vs.id',
+        'vs.supplier_sku',
+        'vs.supplier_price',
+        'vs.lead_time_days',
+        'vs.is_preferred',
+        'v.id as variant_id',
+        'v.sku',
+        'v.name as variant_name',
+        'p.id as product_id',
+        'p.name as product_name',
+        'p.code as product_code',
+      )
+      .orderBy(['p.name', 'v.sku'])
+  }
+
   // ─── Bundle Items ──────────────────────────────────────────────────────
   // bundle_items.bundle_variant_id = chính variant đang xem (phải product_type='bundle');
   // item_variant_id = SKU con. Join products để service kiểm tra product_type khi validate

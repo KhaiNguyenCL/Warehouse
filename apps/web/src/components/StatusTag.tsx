@@ -3,6 +3,14 @@
 // khác nhau giữa các object) và truyền vào, component không tự đoán màu.
 import { Tag } from 'antd'
 
-export function StatusTag({ status, colorMap }: { status: string; colorMap: Record<string, string> }) {
-  return <Tag color={colorMap[status] ?? 'default'}>{status}</Tag>
+export function StatusTag({
+  status,
+  colorMap,
+  labelMap,
+}: {
+  status: string
+  colorMap: Record<string, string>
+  labelMap?: Record<string, string>
+}) {
+  return <Tag color={colorMap[status] ?? 'default'}>{labelMap?.[status] ?? status}</Tag>
 }

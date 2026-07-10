@@ -19,10 +19,11 @@ export const createTransferSchema = {
           type: 'object',
           required: ['variant_id', 'quantity'],
           properties: {
-            variant_id: { type: 'string', format: 'uuid' },
-            quantity:   { type: 'integer', minimum: 1 },
-            line_order: { type: 'integer' },
-            note:       { type: 'string' },
+            variant_id:        { type: 'string', format: 'uuid' },
+            quantity:          { type: 'integer', minimum: 1 },
+            from_warehouse_id: { type: 'string', format: 'uuid' },
+            line_order:        { type: 'integer' },
+            note:              { type: 'string' },
           },
         },
       },
@@ -71,6 +72,7 @@ export interface CreateTransferBody {
   lines: Array<{
     variant_id: string
     quantity: number
+    from_warehouse_id?: string
     line_order?: number
     note?: string
   }>

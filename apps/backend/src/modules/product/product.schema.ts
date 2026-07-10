@@ -8,7 +8,7 @@ export const createCategorySchema = {
       name:       { type: 'string', minLength: 1 },
       // Dùng gợi ý mã sản phẩm: product.code = category.short_code + brand.short_code.
       short_code: { type: 'string', minLength: 1 },
-      parent_id:  { type: 'string', format: 'uuid' },
+      parent_id:  { type: ['string', 'null'], format: 'uuid' },
     },
   },
 }
@@ -19,7 +19,7 @@ export const updateCategorySchema = {
     properties: {
       name:       { type: 'string', minLength: 1 },
       short_code: { type: 'string', minLength: 1 },
-      parent_id:  { type: 'string', format: 'uuid' },
+      parent_id:  { type: ['string', 'null'], format: 'uuid' },
       is_active:  { type: 'boolean' },
     },
   },
@@ -54,7 +54,7 @@ export const updateBrandSchema = {
 export const createProductSchema = {
   body: {
     type: 'object',
-    required: ['code', 'name', 'product_type', 'category_id', 'brand_id'],
+    required: ['code', 'name', 'product_type', 'category_id'],
     properties: {
       code:         { type: 'string', minLength: 1 },
       name:         { type: 'string', minLength: 1 },

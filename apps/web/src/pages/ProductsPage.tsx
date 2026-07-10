@@ -1,4 +1,4 @@
-import { Table, Input, Select, Form, Popconfirm, Button } from 'antd'
+import { Table, Input, Select, Form, Popconfirm, Button, Divider, InputNumber } from 'antd'
 import { useProducts } from '../hooks/useProducts'
 import { PageHeader } from '../components/PageHeader'
 import { EntityFormModal } from '../components/EntityFormModal'
@@ -10,8 +10,11 @@ const PRODUCT_TYPES = [
   { value: 'bundle', label: 'Bundle' },
 ]
 
+const UNITS = ['Cái', 'Chiếc', 'Bộ', 'Hộp', 'Cuộn', 'Mét', 'Cổng', 'License', 'Gói', 'Dây', 'Lần', 'Giờ', 'Ngày']
+
 export default function ProductsPage() {
   const hook = useProducts()
+  const productType = Form.useWatch('product_type', hook.form)
 
   return (
     <div>
@@ -68,10 +71,9 @@ export default function ProductsPage() {
         <Form.Item
           name="brand_id"
           label="Hãng"
-          rules={[{ required: true }]}
           extra={!hook.brands?.length ? 'Chưa có hãng nào — vào trang Hãng để tạo trước.' : undefined}
         >
-          <Select options={hook.brands?.map((b: any) => ({ value: b.id, label: b.name }))} onChange={() => hook.suggestCode()} />
+          <Select options={hook.brands?.map((b: any) => ({ value: b.id, label: b.name }))} onChange={() => hook.suggestCode()} allowClear />
         </Form.Item>
         <Form.Item
           name="model_number"
@@ -87,10 +89,16 @@ export default function ProductsPage() {
           />
         </Form.Item>
         <Form.Item name="code" label="Mã sản phẩm (tự gợi ý, có thể sửa)" rules={[{ required: true }]}>
-          <Input />
+          <Input onChange={(e) => {
+            if (hook.form.getFieldValue('product_type') === 'service')
+              hook.form.setFieldValue('sku', e.target.value)
+          }} />
         </Form.Item>
         <Form.Item name="name" label="Tên" rules={[{ required: true }]}>
-          <Input />
+          <Input onChange={(e) => {
+            if (hook.form.getFieldValue('product_type') === 'service')
+              hook.form.setFieldValue('variant_name', e.target.value)
+          }} />
         </Form.Item>
         <Form.Item name="name_en" label="Tên (English)">
           <Input />
@@ -104,6 +112,26 @@ export default function ProductsPage() {
         <Form.Item name="image_url" label="URL hình ảnh">
           <Input />
         </Form.Item>
+
+        {productType === 'service' && (
+          <>
+            <Divider orientation="left" style={{ fontSize: 13, color: '#888' }}>Thông tin SKU dịch vụ</Divider>
+            <Form.Item name="sku" label="SKU" rules={[{ required: true, message: 'Nhập SKU cho dịch vụ' }]}
+              extra="Tự điền từ Mã sản phẩm, có thể sửa">
+              <Input />
+            </Form.Item>
+            <Form.Item name="variant_name" label="Tên SKU" rules={[{ required: true, message: 'Nhập tên SKU' }]}
+              extra="Tự điền từ Tên, có thể sửa">
+              <Input />
+            </Form.Item>
+            <Form.Item name="unit" label="Đơn vị" initialValue="Lần">
+              <Select options={UNITS.map((u) => ({ value: u, label: u }))} showSearch allowClear />
+            </Form.Item>
+            <Form.Item name="sale_price" label="Giá dịch vụ">
+              <InputNumber style={{ width: '100%' }} min={0} />
+            </Form.Item>
+          </>
+        )}
       </EntityFormModal>
     </div>
   )

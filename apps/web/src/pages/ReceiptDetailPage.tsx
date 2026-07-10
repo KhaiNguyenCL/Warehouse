@@ -1,6 +1,7 @@
 import { useParams } from 'react-router-dom'
 import { Table, Button, Typography, Space, Popconfirm, Modal, Input, Form, InputNumber, Checkbox, DatePicker } from 'antd'
 import { useReceiptDetail } from '../hooks/useReceiptDetail'
+import { SnScanGrid } from '../components/SnScanGrid'
 import { EntityFormModal } from '../components/EntityFormModal'
 import { StatusTag } from '../components/StatusTag'
 import CustomFieldsPanel from '../components/CustomFieldsPanel'
@@ -80,25 +81,28 @@ export default function ReceiptDetailPage() {
       />
 
       <Modal
-        title="Complete — nhập Serial Number cho từng dòng storable"
+        title="Complete — nhập Serial Number"
         open={hook.completeOpen}
         onCancel={() => hook.setCompleteOpen(false)}
         onOk={hook.submitComplete}
         confirmLoading={hook.completeMutation.isPending}
-        width={600}
+        width={720}
+        styles={{ body: { maxHeight: '70vh', overflowY: 'auto' } }}
       >
         {hook.data.lines
           .filter((l: any) => l.product_type === 'storable')
           .map((l: any) => (
-            <div key={l.id} style={{ marginBottom: 16 }}>
-              <p>
-                {l.variant_name} — cần đúng <strong>{l.quantity}</strong> serial (mỗi dòng 1 serial)
+            <div key={l.id} style={{ marginBottom: 24 }}>
+              <p style={{ fontWeight: 600, marginBottom: 8 }}>
+                {l.sku} — {l.variant_name}
+                <span style={{ fontWeight: 400, color: '#888', marginLeft: 8 }}>
+                  (cần {l.quantity} SN)
+                </span>
               </p>
-              <Input.TextArea
-                rows={4}
-                value={hook.serialsText[l.id] ?? ''}
-                onChange={(e) => hook.setSerialsText((prev) => ({ ...prev, [l.id]: e.target.value }))}
-                placeholder={`SN-001\nSN-002\n...`}
+              <SnScanGrid
+                quantity={l.quantity}
+                rows={hook.serialsRows[l.id] ?? []}
+                onChange={(rows) => hook.setSerialsRows((prev) => ({ ...prev, [l.id]: rows }))}
               />
             </div>
           ))}

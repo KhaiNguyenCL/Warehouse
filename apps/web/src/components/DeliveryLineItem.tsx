@@ -14,6 +14,7 @@ interface Props {
 
 export default function DeliveryLineItem({ name, remove }: Props) {
   const [productId, setProductId] = useState<string | undefined>()
+  const [variantId, setVariantId] = useState<string | undefined>()
 
   const { data: products } = useQuery({
     queryKey: ['products', 'all'],
@@ -26,15 +27,28 @@ export default function DeliveryLineItem({ name, remove }: Props) {
     enabled: !!productId,
   })
 
+  const isService = productDetail?.product_type === 'service'
+
+  const { data: invData } = useQuery({
+    queryKey: ['inventory', 'by-variant', variantId],
+    queryFn: async () =>
+      (await api.get('/inventory/by-variant', { params: { variant_id: variantId, limit: 100 } })).data,
+    enabled: !!variantId && !isService,
+  })
+
+  const breakdown: { name: string; qty: number }[] =
+    invData?.data?.find((r: any) => r.variant_id === variantId)?.warehouse_breakdown ?? []
+
   return (
-    <div style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'baseline' }}>
+    <div style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'baseline', flexWrap: 'wrap' }}>
       <Form.Item label="Sản phẩm" style={{ width: 200 }}>
         <Select
           placeholder="Chọn sản phẩm"
-          options={products?.data
-            .filter((p: any) => p.product_type !== 'service' && p.product_type !== 'bundle')
-            .map((p: any) => ({ value: p.id, label: p.name }))}
-          onChange={(v) => setProductId(v)}
+          options={products?.data.map((p: any) => ({ value: p.id, label: p.name }))}
+          onChange={(v) => {
+            setProductId(v)
+            setVariantId(undefined)
+          }}
         />
       </Form.Item>
       <Form.Item name={[name, 'variant_id']} label="SKU" rules={[{ required: true }]} style={{ width: 220 }}>
@@ -42,8 +56,21 @@ export default function DeliveryLineItem({ name, remove }: Props) {
           placeholder="Chọn SKU"
           disabled={!productId}
           options={productDetail?.variants.map((v: any) => ({ value: v.id, label: `${v.sku} — ${v.name}` }))}
+          onChange={(v) => setVariantId(v)}
         />
       </Form.Item>
+      {variantId && !isService && (
+        <div style={{ alignSelf: 'center', fontSize: 12, color: '#888', minWidth: 160, marginBottom: 8 }}>
+          {breakdown.length === 0
+            ? <span style={{ color: '#ff4d4f' }}>Hết hàng</span>
+            : breakdown.map((w) => (
+                <span key={w.name} style={{ marginRight: 8, whiteSpace: 'nowrap' }}>
+                  {w.name}<span style={{ marginLeft: 2 }}>({w.qty})</span>
+                </span>
+              ))
+          }
+        </div>
+      )}
       <Form.Item name={[name, 'quantity']} label="Số lượng" rules={[{ required: true }]}>
         <InputNumber min={1} />
       </Form.Item>

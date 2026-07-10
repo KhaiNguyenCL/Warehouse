@@ -31,6 +31,12 @@ export default function WarehousesPage() {
             render: (t: string) => <StatusTag status={t} colorMap={TYPE_COLOR} />,
           },
           {
+            title: 'Mặc định',
+            dataIndex: 'is_default',
+            width: 90,
+            render: (v: boolean) => v ? <Switch size="small" checked disabled /> : null,
+          },
+          {
             title: 'Quản lý',
             dataIndex: 'manager_id',
             render: (id: string) => hook.users?.data?.find((u: any) => u.id === id)?.full_name ?? '—',
@@ -78,6 +84,10 @@ export default function WarehousesPage() {
             allowClear
             options={hook.users?.data?.map((u: any) => ({ value: u.id, label: u.full_name }))}
           />
+        </Form.Item>
+        <Form.Item name="is_default" label="Kho mặc định" valuePropName="checked"
+          extra="Tự động chọn kho này khi tạo phiếu nhập/xuất/chuyển">
+          <Switch />
         </Form.Item>
         {hook.editing && (
           <Form.Item name="is_active" label="Active" valuePropName="checked" initialValue={true}>

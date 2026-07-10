@@ -165,7 +165,13 @@ export default function ProductDetailPage() {
           <InputNumber style={{ width: '100%' }} min={0} />
         </Form.Item>
         <Form.Item name="currency" label="Đơn vị tiền" initialValue="VND">
-          <Input maxLength={3} style={{ textTransform: 'uppercase' }} />
+          <Select options={[
+            { value: 'VND', label: 'VND — Việt Nam Đồng' },
+            { value: 'USD', label: 'USD — Đô la Mỹ' },
+            { value: 'EUR', label: 'EUR — Euro' },
+            { value: 'CNY', label: 'CNY — Nhân dân tệ' },
+            { value: 'JPY', label: 'JPY — Yên Nhật' },
+          ]} />
         </Form.Item>
         <Form.Item name="weight_kg" label="Cân nặng (kg)">
           <InputNumber style={{ width: '100%' }} min={0} />
@@ -194,7 +200,7 @@ export default function ProductDetailPage() {
         <Form.Item name="category_id" label="Category" rules={[{ required: true }]}>
           <Select options={hook.categories?.map((c: any) => ({ value: c.id, label: c.name }))} />
         </Form.Item>
-        <Form.Item name="brand_id" label="Hãng" rules={[{ required: true }]}>
+        <Form.Item name="brand_id" label="Hãng">
           <Select options={hook.brands?.map((b: any) => ({ value: b.id, label: b.name }))} />
         </Form.Item>
         <Form.Item name="model_number" label="Mã dòng sản phẩm">

@@ -81,10 +81,12 @@ export class TransferService {
 
     const serialsByLine = new Map((body.lines ?? []).map((l) => [l.line_id, l.serials ?? []]))
 
-    // Validate trước khi mở transaction: đủ tồn ở kho nguồn + đủ serial cho dòng storable
+    // Validate trước khi mở transaction: đủ tồn ở kho nguồn + đủ serial cho dòng storable.
+    // from_warehouse_id ưu tiên theo dòng (line.from_warehouse_id), fallback về header.
     for (const line of transfer.lines) {
+      const lineFromWh = line.from_warehouse_id ?? transfer.from_warehouse_id
       const inventory = await this.db('inventory')
-        .where({ variant_id: line.variant_id, warehouse_id: transfer.from_warehouse_id })
+        .where({ variant_id: line.variant_id, warehouse_id: lineFromWh })
         .first()
       const available = inventory ? inventory.qty_on_hand : 0
       if (available < line.quantity) {
@@ -106,11 +108,9 @@ export class TransferService {
           throw { statusCode: 400, message: `Danh sách serial cho ${line.variant_name} có giá trị trùng nhau` }
         }
 
-        // Phải xác nhận serial thực sự thuộc đúng variant, đang active, và đang ở đúng
-        // kho NGUỒN — tránh chuyển nhầm serial của variant khác / đang ở kho khác.
         const validSerials = await this.db('serial_numbers')
           .whereIn('serial_no', serials)
-          .where({ variant_id: line.variant_id, warehouse_id: transfer.from_warehouse_id, status: 'active' })
+          .where({ variant_id: line.variant_id, warehouse_id: lineFromWh, status: 'active' })
           .pluck('serial_no')
         const invalidSerials = serials.filter((s) => !validSerials.includes(s))
         if (invalidSerials.length > 0) {
@@ -132,13 +132,14 @@ export class TransferService {
       }
 
       for (const line of transfer.lines) {
+        const lineFromWh = line.from_warehouse_id ?? transfer.from_warehouse_id
         const fromInventory = await trx('inventory')
-          .where({ variant_id: line.variant_id, warehouse_id: transfer.from_warehouse_id })
+          .where({ variant_id: line.variant_id, warehouse_id: lineFromWh })
           .first()
 
         // Trừ kho nguồn — không đổi avg_cost (avg_cost chỉ đổi khi NHẬP MỚI, không đổi khi xuất/chuyển)
         await trx('inventory')
-          .where({ variant_id: line.variant_id, warehouse_id: transfer.from_warehouse_id })
+          .where({ variant_id: line.variant_id, warehouse_id: lineFromWh })
           .update({
             qty_on_hand: trx.raw('qty_on_hand - ?::int', [line.quantity]),
             last_updated: trx.fn.now(),
@@ -178,7 +179,7 @@ export class TransferService {
           if (serials.length > 0) {
             const updated = await trx('serial_numbers')
               .whereIn('serial_no', serials)
-              .where({ variant_id: line.variant_id, warehouse_id: transfer.from_warehouse_id, status: 'active' })
+              .where({ variant_id: line.variant_id, warehouse_id: lineFromWh, status: 'active' })
               .update({ warehouse_id: transfer.to_warehouse_id, updated_at: trx.fn.now() })
               .returning('id')
 
@@ -198,7 +199,7 @@ export class TransferService {
             serialIds.flatMap((serialId) => [
               {
                 variant_id: line.variant_id,
-                warehouse_id: transfer.from_warehouse_id,
+                warehouse_id: lineFromWh,
                 serial_id: serialId,
                 movement_type: 'out',
                 quantity: 1,
@@ -224,7 +225,7 @@ export class TransferService {
           await trx('stock_movements').insert([
             {
               variant_id: line.variant_id,
-              warehouse_id: transfer.from_warehouse_id,
+              warehouse_id: lineFromWh,
               movement_type: 'out',
               quantity: line.quantity,
               unit_cost: fromInventory?.avg_cost ?? null,

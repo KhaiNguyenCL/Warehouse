@@ -6,6 +6,7 @@ import {
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import { api } from '../lib/api'
 import { PageHeader } from '../components/PageHeader'
+import { ImeInput } from '../components/ImeInput'
 
 interface AttrDef {
   id: string
@@ -169,8 +170,8 @@ export default function SettingsVariantAttributesPage() {
         okText={editing ? 'Lưu' : 'Tạo'}
       >
         <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
-          <Form.Item name="name" label="Tên thuộc tính" rules={[{ required: true }]}>
-            <Input placeholder="Ví dụ: Số port, RAM, Dung lượng" />
+          <Form.Item name="name" label="Tên thuộc tính" rules={[{ required: true }]} validateTrigger="onBlur">
+            <ImeInput placeholder="Ví dụ: Số port, RAM, Dung lượng" />
           </Form.Item>
 
           <Form.Item name="unit" label="Ký hiệu đơn vị (gắn vào tên SKU)">

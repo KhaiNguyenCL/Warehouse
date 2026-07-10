@@ -79,7 +79,18 @@ export const completeReceiptSchema = {
           required: ['line_id'],
           properties: {
             line_id: { type: 'string', format: 'uuid' },
-            serials: { type: 'array', items: { type: 'string', minLength: 1 } },
+            serials: {
+              type: 'array',
+              items: {
+                type: 'object',
+                required: ['serial_no'],
+                properties: {
+                  serial_no:   { type: 'string', minLength: 1 },
+                  mac_address: { type: 'string' },
+                  note:        { type: 'string' },
+                },
+              },
+            },
           },
         },
       },
@@ -87,8 +98,14 @@ export const completeReceiptSchema = {
   },
 }
 
+export interface SerialInput {
+  serial_no: string
+  mac_address?: string
+  note?: string
+}
+
 export interface CompleteReceiptBody {
-  lines?: Array<{ line_id: string; serials?: string[] }>
+  lines?: Array<{ line_id: string; serials?: SerialInput[] }>
 }
 
 // Interface TypeScript — PHẢI khớp tay với JSON Schema phía trên (Fastify không tự

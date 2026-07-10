@@ -16,6 +16,7 @@ export class InventoryRepository {
         'i.warehouse_id',
         'v.sku',
         'v.name as variant_name',
+        'v.unit',
         'w.code as warehouse_code',
         'w.name as warehouse_name',
         'i.qty_on_hand',
@@ -88,6 +89,52 @@ export class InventoryRepository {
   // Mode "search" (tra ngược theo serial_no, không biết trước SKU/kho/lô): JOIN thêm
   // variants/receipt_lines/receipts để trả đủ context — receipt_line_id có thể NULL (SN
   // tạo qua adjustment không gắn lô) nên dùng leftJoin, không inner join.
+  // Tồn kho tổng hợp theo variant (gộp tất cả kho) — dùng cho tab Tồn kho SKU-level.
+  // 1 dòng/SKU thay vì 1 dòng/SKU+kho như findAll() để user không phải xổ 2 tầng mới thấy SN.
+  async findByVariant(query: ListInventoryQuery) {
+    const { variant_id, warehouse_id, search, page = 1, limit = 20 } = query
+    const offset = (page - 1) * limit
+
+    const base = this.db('inventory as i')
+      .join('variants as v', 'v.id', 'i.variant_id')
+      .join('products as p', 'p.id', 'v.product_id')
+      .groupBy('i.variant_id', 'v.sku', 'v.name', 'v.unit', 'p.product_type')
+      .select(
+        'i.variant_id',
+        'v.sku',
+        'v.name as variant_name',
+        'v.unit',
+        'p.product_type',
+        this.db.raw('SUM(i.qty_on_hand)::int as qty_on_hand'),
+        this.db.raw('SUM(i.qty_reserved)::int as qty_reserved'),
+        this.db.raw('(SUM(i.qty_on_hand) - SUM(i.qty_reserved))::int as qty_available'),
+        this.db.raw('ROUND(AVG(i.avg_cost)::numeric, 0) as avg_cost'),
+        // Danh sách kho có hàng dạng [{name, qty_on_hand}] — hiển thị trực tiếp trên dòng SKU
+        this.db.raw(`
+          (SELECT json_agg(json_build_object('name', w.name, 'qty', i2.qty_on_hand) ORDER BY w.name)
+           FROM inventory i2
+           JOIN warehouses w ON w.id = i2.warehouse_id
+           WHERE i2.variant_id = i.variant_id AND i2.qty_on_hand > 0
+          ) as warehouse_breakdown
+        `),
+      )
+
+    if (variant_id) base.where('i.variant_id', variant_id)
+    if (warehouse_id) base.where('i.warehouse_id', warehouse_id)
+    if (search) {
+      base.where((qb) => {
+        qb.whereILike('v.name', `%${search}%`).orWhereILike('v.sku', `%${search}%`)
+      })
+    }
+
+    const [rows, countResult] = await Promise.all([
+      base.clone().having(this.db.raw('SUM(i.qty_on_hand) > 0')).orderBy('v.sku').limit(limit).offset(offset),
+      base.clone().clearSelect().count(this.db.raw('DISTINCT i.variant_id') as any).first(),
+    ])
+
+    return { data: rows, total: Number(countResult?.count ?? 0), page, limit }
+  }
+
   findSerials(query: ListSerialsQuery) {
     const base = this.db('serial_numbers as sn').leftJoin('warehouses as w', 'w.id', 'sn.warehouse_id')
 
@@ -112,6 +159,30 @@ export class InventoryRepository {
         )
         .orderBy('sn.serial_no')
         .limit(50)
+    }
+
+    // Mode tab Tồn kho: tất cả SN của 1 variant (không lọc kho), kèm kho + phiếu nhập.
+    // Khác mode chọn SN khi xuất kho (cần cả warehouse_id) — đây chỉ cần variant_id.
+    if (query.variant_id && !query.warehouse_id) {
+      return base
+        .leftJoin('receipt_lines as rl', 'rl.id', 'sn.receipt_line_id')
+        .leftJoin('receipts as r', 'r.id', 'rl.receipt_id')
+        .where('sn.variant_id', query.variant_id)
+        .select(
+          'sn.id',
+          'sn.serial_no',
+          'sn.status',
+          'w.name as warehouse_name',
+          'r.code as receipt_code',
+          'r.completed_at',
+          'sn.mac_address',
+          'sn.manufacturer_warranty_end',
+          'sn.customer_warranty_end',
+        )
+        .orderBy([
+          { column: 'r.completed_at', order: 'asc' },
+          { column: 'sn.serial_no', order: 'asc' },
+        ])
     }
 
     // Mode chọn SN cho Complete phiếu xuất — trả tất cả SN active của 1 SKU trong 1 kho,

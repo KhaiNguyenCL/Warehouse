@@ -119,8 +119,14 @@ export function useReceipts() {
     form.submit()
   }
 
+  function openCreateDefault() {
+    const whs = warehouses as any[] | undefined
+    const defaultWh = whs?.find((w) => w.is_default)?.id ?? whs?.[0]?.id
+    openCreate(defaultWh ? { warehouse_id: defaultWh } : undefined)
+  }
+
   return {
-    open, form, openCreate, closeAll,
+    open, form, openCreate: openCreateDefault, closeAll,
     poId, setPoId, poIdFromQuery,
     navigate,
     data, isLoading,

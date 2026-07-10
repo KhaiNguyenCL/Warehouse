@@ -16,10 +16,14 @@ export function useCompanies() {
     queryFn: async () => (await api.get('/companies')).data,
   })
 
-  const createMutation = useApiMutation((values: any) => api.post('/companies', values), {
-    successMessage: 'Tạo company thành công',
-    invalidateKey: ['companies'],
-    onSuccess: close,
+  const createMutation = useMutation({
+    mutationFn: (values: any) => api.post('/companies', values),
+    onSuccess: (res) => {
+      message.success('Tạo công ty thành công — thêm người liên hệ bên dưới nếu cần')
+      qc.invalidateQueries({ queryKey: ['companies'] })
+      openEdit(res.data)
+    },
+    onError: (err: any) => message.error(err.response?.data?.error ?? 'Lỗi'),
   })
 
   const updateMutation = useApiMutation((values: any) => api.patch(`/companies/${editing.id}`, values), {

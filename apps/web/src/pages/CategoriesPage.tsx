@@ -3,8 +3,23 @@ import { useCategories } from '../hooks/useCategories'
 import { PageHeader } from '../components/PageHeader'
 import { EntityFormModal } from '../components/EntityFormModal'
 
+function buildTree(flat: any[]): any[] {
+  const map: Record<string, any> = {}
+  flat.forEach((c) => (map[c.id] = { ...c }))
+  const roots: any[] = []
+  flat.forEach((c) => {
+    if (c.parent_id && map[c.parent_id]) {
+      map[c.parent_id].children = [...(map[c.parent_id].children ?? []), map[c.id]]
+    } else {
+      roots.push(map[c.id])
+    }
+  })
+  return roots
+}
+
 export default function CategoriesPage() {
   const hook = useCategories()
+  const treeData = hook.data ? buildTree(hook.data) : []
 
   return (
     <div>
@@ -13,16 +28,12 @@ export default function CategoriesPage() {
       <Table
         rowKey="id"
         loading={hook.isLoading}
-        dataSource={hook.data}
+        dataSource={treeData}
         pagination={false}
+        expandable={{ defaultExpandAllRows: true }}
         columns={[
           { title: 'Tên', dataIndex: 'name' },
           { title: 'Mã viết tắt', dataIndex: 'short_code' },
-          {
-            title: 'Category cha',
-            dataIndex: 'parent_id',
-            render: (parentId: string) => hook.data?.find((c: any) => c.id === parentId)?.name ?? '—',
-          },
           {
             title: 'Active',
             dataIndex: 'is_active',
@@ -47,11 +58,22 @@ export default function CategoriesPage() {
         title={hook.editing ? `Sửa category "${hook.editing.name}"` : 'Tạo category mới'}
         open={hook.open}
         onCancel={hook.close}
-        onFinish={(v) => (hook.editing ? hook.updateMutation.mutate(v) : hook.createMutation.mutate(v))}
+        onFinish={(v) => {
+          const payload = { ...v, parent_id: v.parent_id || null }
+          hook.editing ? hook.updateMutation.mutate(payload) : hook.createMutation.mutate(payload)
+        }}
         confirmLoading={hook.createMutation.isPending || hook.updateMutation.isPending}
         form={hook.form}
       >
-        <Form.Item name="name" label="Tên category" rules={[{ required: true }]}>
+        <Form.Item
+          name="name"
+          label="Tên category"
+          rules={[{ required: true }]}
+          getValueFromEvent={(e) => {
+            const v = e.target.value
+            return v.charAt(0).toUpperCase() + v.slice(1)
+          }}
+        >
           <Input />
         </Form.Item>
         <Form.Item

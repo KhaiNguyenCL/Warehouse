@@ -9,9 +9,10 @@ export function useEntityModal<T = any>() {
   const [editing, setEditing] = useState<T | null>(null)
   const [form] = Form.useForm()
 
-  function openCreate() {
+  function openCreate(initialValues?: Record<string, unknown>) {
     setEditing(null)
     form.resetFields()
+    if (initialValues) form.setFieldsValue(initialValues)
     setOpen(true)
   }
 

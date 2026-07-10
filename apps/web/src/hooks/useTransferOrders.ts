@@ -44,5 +44,11 @@ export function useTransferOrders() {
     form.submit()
   }
 
-  return { open, form, openCreate, close, navigate, data, isLoading, warehouses, transferType, needsFromWarehouse, createMutation, createAndGoToDetail }
+  function openCreateDefault() {
+    const whs = warehouses as any[] | undefined
+    const defaultWh = whs?.find((w) => w.is_default)?.id ?? whs?.[0]?.id
+    openCreate(defaultWh ? { to_warehouse_id: defaultWh } : undefined)
+  }
+
+  return { open, form, openCreate: openCreateDefault, close, navigate, data, isLoading, warehouses, transferType, needsFromWarehouse, createMutation, createAndGoToDetail }
 }

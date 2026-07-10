@@ -3,11 +3,12 @@ import { useQuery } from '@tanstack/react-query'
 import { api } from '../lib/api'
 import { useApiMutation } from './useApiMutation'
 import { useEntityModal } from './useEntityModal'
+import type { SnRow } from '../components/SnScanGrid'
 
 export function useReceiptDetail(id: string) {
   const [completeOpen, setCompleteOpen] = useState(false)
-  // serialsText[line_id] = textarea content (mỗi dòng text = 1 serial number)
-  const [serialsText, setSerialsText] = useState<Record<string, string>>({})
+  // serialsRows[line_id] = array of { serial_no, mac_address, note } per unit
+  const [serialsRows, setSerialsRows] = useState<Record<string, SnRow[]>>({})
   const [serialsFor, setSerialsFor] = useState<{ line_id: string; label: string } | null>(null)
 
   const { data, isLoading } = useQuery({
@@ -52,10 +53,7 @@ export function useReceiptDetail(id: string) {
       .filter((l: any) => l.product_type === 'storable')
       .map((l: any) => ({
         line_id: l.id,
-        serials: (serialsText[l.id] ?? '')
-          .split('\n')
-          .map((s) => s.trim())
-          .filter(Boolean),
+        serials: (serialsRows[l.id] ?? []).filter((r) => r.serial_no.trim()),
       }))
     completeMutation.mutate({ lines })
   }
@@ -64,7 +62,7 @@ export function useReceiptDetail(id: string) {
     data, isLoading,
     serials, serialsLoading,
     completeOpen, setCompleteOpen,
-    serialsText, setSerialsText,
+    serialsRows, setSerialsRows,
     serialsFor, setSerialsFor,
     editModal,
     cancelMutation, updateMutation, completeMutation,

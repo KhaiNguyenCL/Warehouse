@@ -21,10 +21,10 @@ export function useInventory() {
   }, [snSearchInput])
 
   const { data, isLoading } = useQuery({
-    queryKey: ['inventory', search, warehouseId],
+    queryKey: ['inventory', 'by-variant', search, warehouseId],
     queryFn: async () =>
-      (await api.get('/inventory', { params: { search: search || undefined, warehouse_id: warehouseId, limit: 100 } })).data,
-    refetchInterval: 5000, // tự refetch để thấy số liệu cập nhật ngay sau khi Complete Receipt ở tab khác
+      (await api.get('/inventory/by-variant', { params: { search: search || undefined, warehouse_id: warehouseId, limit: 100 } })).data,
+    refetchInterval: 5000,
   })
 
   const { data: warehouses } = useQuery({

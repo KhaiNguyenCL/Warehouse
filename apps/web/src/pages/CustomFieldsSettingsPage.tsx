@@ -2,6 +2,7 @@ import {
   Tabs, Table, Input, Select, InputNumber, Switch, Tag, Space,
   Popconfirm, Button, Form, Modal,
 } from 'antd'
+import { ImeInput } from '../components/ImeInput'
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import { useVariantAttributesTab, useCustomFieldsTab } from '../hooks/useCustomFieldsSettings'
 import { PageHeader } from '../components/PageHeader'
@@ -97,8 +98,8 @@ function VariantAttributesTab() {
         okText={hook.editing ? 'Lưu' : 'Tạo'}
       >
         <Form form={hook.form} layout="vertical" style={{ marginTop: 16 }}>
-          <Form.Item name="name" label="Tên thuộc tính" rules={[{ required: true }]}>
-            <Input placeholder="Ví dụ: Số port, RAM, Dung lượng" />
+          <Form.Item name="name" label="Tên thuộc tính" rules={[{ required: true }]} validateTrigger="onBlur">
+            <ImeInput placeholder="Ví dụ: Số port, RAM, Dung lượng" />
           </Form.Item>
 
           <Form.Item name="field_type" label="Loại" initialValue="select">

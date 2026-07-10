@@ -9,7 +9,7 @@ export class WarehouseRepository {
     const base = this.db('warehouses').select('*')
 
     if (type) base.where('type', type)
-    if (is_active !== undefined) base.where('is_active', is_active)
+    base.where('is_active', is_active ?? true)
     if (search) {
       base.where((qb) => {
         qb.whereILike('name', `%${search}%`).orWhereILike('code', `%${search}%`)
@@ -28,11 +28,17 @@ export class WarehouseRepository {
   }
 
   async updateWarehouse(id: string, data: UpdateWarehouseBody) {
-    const [row] = await this.db('warehouses')
-      .where({ id })
-      .update({ ...data, updated_at: this.db.fn.now() })
-      .returning('*')
-    return row
+    return this.db.transaction(async (trx) => {
+      // Chỉ 1 kho được là default — nếu set is_default=true cho kho này thì bỏ kho cũ
+      if (data.is_default) {
+        await trx('warehouses').where('is_default', true).update({ is_default: false })
+      }
+      const [row] = await trx('warehouses')
+        .where({ id })
+        .update({ ...data, updated_at: trx.fn.now() })
+        .returning('*')
+      return row
+    })
   }
 
   deleteWarehouse(id: string) {

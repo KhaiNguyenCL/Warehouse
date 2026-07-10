@@ -133,10 +133,6 @@ export class ProductService {
   async addVariant(productId: string, data: CreateVariantBody) {
     const product = await this.repo.findProductById(productId)
     if (!product) throw { statusCode: 404, message: 'Product not found' }
-    if (product.product_type === 'service') {
-      throw { statusCode: 400, message: 'Sản phẩm loại service không có variant' }
-    }
-
     try {
       return await this.repo.createVariant(productId, data)
     } catch (err) {

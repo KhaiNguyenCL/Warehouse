@@ -181,6 +181,9 @@ export class DeliveryService {
     // Validate TRƯỚC khi mở transaction: đủ tồn kho + đủ serial cho dòng storable.
     // adjustment không bắt buộc serial (CLAUDE.md mục 9 ghi "—" ở cột storable SN).
     for (const line of delivery.lines) {
+      // Service không có tồn kho — bỏ qua check inventory và serial
+      if (line.product_type === 'service') continue
+
       const inventory = await this.db('inventory')
         .where({ variant_id: line.variant_id, warehouse_id: delivery.warehouse_id })
         .first()
@@ -232,6 +235,9 @@ export class DeliveryService {
       }
 
       for (const line of delivery.lines) {
+        // Service không ảnh hưởng tồn kho — chỉ ghi nhận trên phiếu, không trừ kho
+        if (line.product_type === 'service') continue
+
         const inventory = await trx('inventory')
           .where({ variant_id: line.variant_id, warehouse_id: delivery.warehouse_id })
           .first()

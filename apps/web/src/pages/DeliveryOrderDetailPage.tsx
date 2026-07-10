@@ -2,10 +2,34 @@ import { useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { Table, Button, Typography, Space, Popconfirm, Modal, Input, Tag, Divider, Form } from 'antd'
 import type { TableRowSelection } from 'antd/es/table/interface'
+import { useQuery } from '@tanstack/react-query'
 import { useDeliveryOrderDetail } from '../hooks/useDeliveryOrderDetail'
 import { EntityFormModal } from '../components/EntityFormModal'
 import { StatusTag } from '../components/StatusTag'
 import CustomFieldsPanel from '../components/CustomFieldsPanel'
+import { api } from '../lib/api'
+
+// Hiện danh sách kho còn hàng của 1 variant — giúp user biết kho nào để chọn
+function WarehouseBreakdown({ variantId, productType }: { variantId: string; productType: string }) {
+  const { data } = useQuery({
+    queryKey: ['inventory', 'by-variant', variantId],
+    queryFn: async () => (await api.get('/inventory/by-variant', { params: { limit: 100 } })).data,
+    enabled: productType !== 'service',
+  })
+  if (productType === 'service') return <span style={{ color: '#aaa', fontSize: 12 }}>Dịch vụ</span>
+  const row = data?.data?.find((r: any) => r.variant_id === variantId)
+  const breakdown: { name: string; qty: number }[] = row?.warehouse_breakdown ?? []
+  if (!breakdown.length) return <span style={{ color: '#ff4d4f', fontSize: 12 }}>Hết hàng</span>
+  return (
+    <span style={{ fontSize: 12 }}>
+      {breakdown.map((w) => (
+        <span key={w.name} style={{ marginRight: 8, whiteSpace: 'nowrap' }}>
+          {w.name}<span style={{ color: '#888', marginLeft: 2 }}>({w.qty})</span>
+        </span>
+      ))}
+    </span>
+  )
+}
 
 const STATUS_COLOR: Record<string, string> = {
   draft: 'default',
@@ -198,11 +222,17 @@ export default function DeliveryOrderDetailPage() {
         dataSource={hook.data.lines}
         pagination={false}
         columns={[
-          { title: 'SKU', dataIndex: 'sku' },
+          { title: 'SKU', dataIndex: 'sku', width: 140 },
           { title: 'Tên', dataIndex: 'variant_name' },
-          { title: 'Product type', dataIndex: 'product_type' },
-          { title: 'Số lượng', dataIndex: 'quantity' },
-          { title: 'Ghi chú', dataIndex: 'note' },
+          { title: 'Loại', dataIndex: 'product_type', width: 100 },
+          { title: 'Số lượng', dataIndex: 'quantity', width: 90 },
+          {
+            title: 'Tồn kho theo kho',
+            render: (_: any, r: any) => (
+              <WarehouseBreakdown variantId={r.variant_id} productType={r.product_type} />
+            ),
+          },
+          { title: 'Ghi chú', dataIndex: 'note', width: 140 },
         ]}
       />
 

@@ -2,7 +2,7 @@
 // Không còn bước submit/approve — người tạo phiếu có thể Complete trực tiếp từ Draft.
 import { Knex } from 'knex'
 import { ReceiptRepository } from './receipt.repository'
-import { CreateReceiptBody, ListReceiptQuery, CompleteReceiptBody } from './receipt.schema'
+import { CreateReceiptBody, ListReceiptQuery, CompleteReceiptBody, SerialInput } from './receipt.schema'
 
 export class ReceiptService {
   private repo: ReceiptRepository
@@ -157,6 +157,8 @@ export class ReceiptService {
 
     // Map line_id -> danh sách serial client gửi lên (chỉ cần cho dòng storable)
     const serialsByLine = new Map((body.lines ?? []).map((l) => [l.line_id, l.serials ?? []]))
+    // Helper: lấy serial_no string từ object input (để dùng chung cho validation)
+    const sns = (serials: SerialInput[]) => serials.map((s) => s.serial_no)
 
     // Validate TRƯỚC khi mở transaction — fail nhanh, không mở transaction chỉ để
     // rollback ngay vì thiếu serial. CLAUDE.md mục 5: storable bắt buộc serial number,
@@ -166,26 +168,25 @@ export class ReceiptService {
     for (const line of receipt.lines) {
       if (line.product_type === 'storable') {
         const serials = serialsByLine.get(line.id) ?? []
+        const serialNos = sns(serials)
         if (serials.length !== line.quantity) {
           throw {
             statusCode: 400,
             message: `Dòng hàng ${line.variant_name} (storable) cần đúng ${line.quantity} serial number, nhận được ${serials.length}`,
           }
         }
-        if (new Set(serials).size !== serials.length) {
+        if (new Set(serialNos).size !== serialNos.length) {
           throw { statusCode: 400, message: `Danh sách serial cho ${line.variant_name} có giá trị trùng nhau` }
         }
         if (receipt.import_type === 'return_in') {
-          // return_in: serial phải tồn tại VÀ đang status='sold' — hàng đã bán mới được trả.
           const soldRows = await this.db('serial_numbers')
-            .whereIn('serial_no', serials).where({ status: 'sold' }).pluck('serial_no')
-          const notSold = serials.filter((s) => !soldRows.includes(s))
+            .whereIn('serial_no', serialNos).where({ status: 'sold' }).pluck('serial_no')
+          const notSold = serialNos.filter((s) => !soldRows.includes(s))
           if (notSold.length > 0) {
             throw { statusCode: 400, message: `Serial không hợp lệ cho return_in (chưa bán hoặc không tồn tại): ${notSold.join(', ')}` }
           }
         } else {
-          // Các type khác: serial KHÔNG được trùng với serial đã tồn tại trong hệ thống.
-          const existing = await this.db('serial_numbers').whereIn('serial_no', serials).pluck('serial_no')
+          const existing = await this.db('serial_numbers').whereIn('serial_no', serialNos).pluck('serial_no')
           if (existing.length > 0) {
             throw { statusCode: 400, message: `Serial đã tồn tại trong hệ thống: ${existing.join(', ')}` }
           }
@@ -245,11 +246,12 @@ export class ReceiptService {
         let newSerialIds: string[] = []
         if (line.product_type === 'storable') {
           const serials = serialsByLine.get(line.id) ?? []
+          const serialNos = sns(serials)
           if (receipt.import_type === 'return_in') {
             // return_in: serial đang status='sold' → UPDATE về active tại kho này,
             // gắn lại receipt_line_id của lô nhập trả hàng này.
             const returnedRows = await trx('serial_numbers')
-              .whereIn('serial_no', serials)
+              .whereIn('serial_no', serialNos)
               .update({
                 status:          'active',
                 warehouse_id:    receipt.warehouse_id,
@@ -259,6 +261,15 @@ export class ReceiptService {
               })
               .returning('id')
             newSerialIds = returnedRows.map((s: { id: string }) => s.id)
+            // Patch mac_address / note cho từng SN nếu có
+            for (const s of serials) {
+              if (s.mac_address || s.note) {
+                await trx('serial_numbers').where({ serial_no: s.serial_no }).update({
+                  ...(s.mac_address !== undefined && { mac_address: s.mac_address || null }),
+                  ...(s.note !== undefined && { note: s.note || null }),
+                })
+              }
+            }
           } else {
             // != null check (không dùng truthy) vì 0 là giá trị hợp lệ ("không bảo hành"
             // tường minh) — 0 bị falsy sẽ bị coi là null nếu dùng `?` operator (CLAUDE.md §19).
@@ -273,8 +284,10 @@ export class ReceiptService {
                 : null
             const insertedSerials = await trx('serial_numbers')
               .insert(
-                serials.map((serial_no) => ({
-                  serial_no,
+                serials.map((s) => ({
+                  serial_no:       s.serial_no,
+                  mac_address:     s.mac_address || null,
+                  note:            s.note || null,
                   variant_id:      line.variant_id,
                   warehouse_id:    receipt.warehouse_id,
                   status:          'active',

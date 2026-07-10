@@ -1,4 +1,4 @@
-import { Table, Form, Input, Select, Button, Tooltip } from 'antd'
+import { Table, Form, Input, Select, Button, Tooltip, Space } from 'antd'
 import { useTransferOrders } from '../hooks/useTransferOrders'
 import { PageHeader } from '../components/PageHeader'
 import { EntityFormModal } from '../components/EntityFormModal'
@@ -21,6 +21,7 @@ const TRANSFER_TYPES = [
 
 export default function TransferOrdersPage() {
   const hook = useTransferOrders()
+  const headerFromWh: string | undefined = Form.useWatch('from_warehouse_id', hook.form)
 
   return (
     <div>
@@ -83,7 +84,25 @@ export default function TransferOrdersPage() {
           {(fields, { add, remove }) => (
             <div className="form-row-full">
               {fields.map(({ key, name }) => (
-                <DeliveryLineItem key={key} name={name} remove={() => remove(name)} />
+                <Space key={key} align="start" style={{ width: '100%', marginBottom: 8 }}>
+                  <DeliveryLineItem name={name} remove={() => remove(name)} />
+                  {hook.needsFromWarehouse && (
+                    <Form.Item
+                      name={[name, 'from_warehouse_id']}
+                      label={name === 0 ? 'Kho nguồn dòng' : undefined}
+                      style={{ minWidth: 180, marginBottom: 0 }}
+                    >
+                      <Select
+                        placeholder={headerFromWh
+                          ? hook.warehouses?.find((w: any) => w.id === headerFromWh)?.name + ' (mặc định)'
+                          : 'Kho nguồn'}
+                        allowClear
+                        options={hook.warehouses?.map((w: any) => ({ value: w.id, label: w.name }))}
+                        size="small"
+                      />
+                    </Form.Item>
+                  )}
+                </Space>
               ))}
               <Button onClick={() => add()}>+ Thêm dòng</Button>
             </div>

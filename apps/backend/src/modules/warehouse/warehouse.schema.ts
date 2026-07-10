@@ -26,6 +26,7 @@ export const updateWarehouseSchema = {
       description: { type: 'string' },
       manager_id:  { type: 'string', format: 'uuid' },
       is_active:   { type: 'boolean' },
+      is_default:  { type: 'boolean' },
     },
   },
 }
@@ -54,6 +55,7 @@ export interface CreateWarehouseBody {
 
 export interface UpdateWarehouseBody extends Partial<CreateWarehouseBody> {
   is_active?: boolean
+  is_default?: boolean
 }
 
 export interface ListWarehouseQuery {

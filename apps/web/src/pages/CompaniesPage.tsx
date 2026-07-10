@@ -4,6 +4,7 @@ import { PageHeader } from '../components/PageHeader'
 import { EntityFormModal } from '../components/EntityFormModal'
 import CustomFieldsPanel from '../components/CustomFieldsPanel'
 import ContactsPanel from '../components/ContactsPanel'
+import SupplierProductsPanel from '../components/SupplierProductsPanel'
 
 export default function CompaniesPage() {
   const hook = useCompanies()
@@ -59,6 +60,9 @@ export default function CompaniesPage() {
           hook.editing && (
             <>
               <ContactsPanel companyId={hook.editing.id} />
+              {hook.editing.types?.includes('supplier') && (
+                <SupplierProductsPanel companyId={hook.editing.id} />
+              )}
               <CustomFieldsPanel objectType="company" objectId={hook.editing.id} />
             </>
           )

@@ -13,13 +13,17 @@ export class InventoryService {
     return this.repo.findAll(query)
   }
 
+  listByVariant(query: ListInventoryQuery) {
+    return this.repo.findByVariant(query)
+  }
+
   lots(query: ListLotsQuery) {
     return this.repo.findLots(query)
   }
 
   serials(query: ListSerialsQuery) {
-    if (!query.receipt_line_id && !query.search && !(query.variant_id && query.warehouse_id)) {
-      throw { statusCode: 400, message: 'Cần truyền receipt_line_id, search, hoặc variant_id+warehouse_id' }
+    if (!query.receipt_line_id && !query.search && !query.variant_id) {
+      throw { statusCode: 400, message: 'Cần truyền receipt_line_id, search, hoặc variant_id' }
     }
     return this.repo.findSerials(query)
   }

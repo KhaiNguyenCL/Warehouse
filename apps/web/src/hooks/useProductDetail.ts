@@ -100,7 +100,7 @@ export function useProductDetail(id: string) {
   function generateSkuSuffix(attrs: AttrValue[]) {
     return attrs
       .filter((a) => a.include_in_sku && a.value)
-      .map((a) => `${a.value}${a.unit ?? ''}`)
+      .map((a) => `${a.value}${a.unit ? ' ' + a.unit : ''}`)
       .join(' ')
   }
 
@@ -116,7 +116,18 @@ export function useProductDetail(id: string) {
 
   function openCreateVariant() {
     buildAttrValuesForModal([])
-    variantModal.openCreate()
+    const ref = data?.variants?.[0]
+    variantModal.openCreate({
+      sku:              data?.code ?? '',
+      name:             data?.name ?? '',
+      unit:             ref?.unit ?? 'Cái',
+      currency:         ref?.currency ?? 'VND',
+      cost_price:       ref?.cost_price ?? undefined,
+      sale_price:       ref?.sale_price ?? undefined,
+      warranty_months:  ref?.warranty_months ?? undefined,
+      weight_kg:        ref?.weight_kg ?? undefined,
+      reorder_point:    ref?.reorder_point ?? 0,
+    })
   }
 
   return {
