@@ -103,10 +103,12 @@ export const listProductSchema = {
 export const createVariantSchema = {
   body: {
     type: 'object',
-    required: ['sku', 'name'],
+    required: ['item_code', 'name'],
     properties: {
-      sku:             { type: 'string', minLength: 1 },
+      item_code:       { type: 'string', minLength: 1 },
       name:            { type: 'string', minLength: 1 },
+      model:           { type: 'string' },
+      part_number:     { type: 'string' },
       unit:            { type: 'string' },
       cost_price:      { type: 'number', minimum: 0 },
       sale_price:      { type: 'number', minimum: 0 },
@@ -122,8 +124,10 @@ export const updateVariantSchema = {
   body: {
     type: 'object',
     properties: {
-      sku:             { type: 'string', minLength: 1 },
+      item_code:       { type: 'string', minLength: 1 },
       name:            { type: 'string', minLength: 1 },
+      model:           { type: 'string' },
+      part_number:     { type: 'string' },
       unit:            { type: 'string' },
       cost_price:      { type: 'number', minimum: 0 },
       sale_price:      { type: 'number', minimum: 0 },
@@ -132,6 +136,30 @@ export const updateVariantSchema = {
       warranty_months: { type: 'integer', minimum: 0 },
       reorder_point:   { type: 'integer', minimum: 0 },
       is_active:       { type: 'boolean' },
+    },
+  },
+}
+
+export const createCustomerPriceSchema = {
+  body: {
+    type: 'object',
+    required: ['company_id', 'price'],
+    properties: {
+      company_id: { type: 'string', format: 'uuid' },
+      price:      { type: 'number', minimum: 0 },
+      currency:   { type: 'string', minLength: 3, maxLength: 3 },
+      note:       { type: 'string' },
+    },
+  },
+}
+
+export const updateCustomerPriceSchema = {
+  body: {
+    type: 'object',
+    properties: {
+      price:    { type: 'number', minimum: 0 },
+      currency: { type: 'string', minLength: 3, maxLength: 3 },
+      note:     { type: 'string' },
     },
   },
 }
@@ -234,8 +262,10 @@ export interface ListProductQuery {
 }
 
 export interface CreateVariantBody {
-  sku: string
+  item_code: string
   name: string
+  model?: string
+  part_number?: string
   unit?: string
   cost_price?: number
   sale_price?: number
@@ -247,6 +277,19 @@ export interface CreateVariantBody {
 
 export interface UpdateVariantBody extends Partial<CreateVariantBody> {
   is_active?: boolean
+}
+
+export interface CreateCustomerPriceBody {
+  company_id: string
+  price: number
+  currency?: string
+  note?: string
+}
+
+export interface UpdateCustomerPriceBody {
+  price?: number
+  currency?: string
+  note?: string
 }
 
 export interface CreateVariantSupplierBody {

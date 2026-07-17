@@ -282,17 +282,22 @@ export class ReceiptService {
                     [line.manufacturer_warranty_start ?? trx.raw('now()'), line.manufacturer_warranty_months],
                   )
                 : null
+            const custWarrantyExpr =
+              line.customer_warranty_months != null
+                ? trx.raw("now() + (?::int * interval '1 month')", [line.customer_warranty_months])
+                : null
             const insertedSerials = await trx('serial_numbers')
               .insert(
                 serials.map((s) => ({
-                  serial_no:       s.serial_no,
-                  mac_address:     s.mac_address || null,
-                  note:            s.note || null,
-                  variant_id:      line.variant_id,
-                  warehouse_id:    receipt.warehouse_id,
-                  status:          'active',
-                  receipt_line_id: line.id,
+                  serial_no:                 s.serial_no,
+                  mac_address:               s.mac_address || null,
+                  note:                      s.note || null,
+                  variant_id:                line.variant_id,
+                  warehouse_id:              receipt.warehouse_id,
+                  status:                    'active',
+                  receipt_line_id:           line.id,
                   manufacturer_warranty_end: mfgWarrantyExpr,
+                  customer_warranty_end:     custWarrantyExpr,
                 })),
               )
               .returning('id')
@@ -334,6 +339,13 @@ export class ReceiptService {
       }
 
       return completed
+    }).catch((err: any) => {
+      // Serial trùng nhau giữa 2 phiếu complete đồng thời → Postgres unique_violation (23505).
+      // Bắt tại đây để trả 400 rõ ràng thay vì để lỗi DB thô tới client.
+      if (err.code === '23505' && err.constraint?.includes('serial')) {
+        throw { statusCode: 400, message: 'Một hoặc nhiều serial number đã tồn tại trong hệ thống (phiếu khác vừa nhập trùng)' }
+      }
+      throw err
     })
   }
 

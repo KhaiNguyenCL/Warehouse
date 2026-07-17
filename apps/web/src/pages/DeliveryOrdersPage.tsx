@@ -1,37 +1,38 @@
 import { Table, Form, Input, Select, Button, Tooltip } from 'antd'
+import { PlusOutlined } from '@ant-design/icons'
 import { useDeliveryOrders } from '../hooks/useDeliveryOrders'
 import { PageHeader } from '../components/PageHeader'
+import { TableCard } from '../components/ui/TableCard'
+import { StatusBadge } from '../components/ui/StatusBadge'
 import { EntityFormModal } from '../components/EntityFormModal'
-import { StatusTag } from '../components/StatusTag'
 import DeliveryLineItem from '../components/DeliveryLineItem'
-
-const STATUS_COLOR: Record<string, string> = {
-  draft: 'default',
-  completed: 'green',
-  cancelled: 'red',
-}
 
 export default function DeliveryOrdersPage() {
   const hook = useDeliveryOrders()
 
   return (
-    <div>
-      <PageHeader title="Phiếu xuất kho (Delivery Order)" actionLabel="+ Tạo Delivery Order" onAction={hook.openCreate} />
-
-      <Table
-        rowKey="id"
-        loading={hook.isLoading}
-        dataSource={hook.data?.data}
-        pagination={false}
-        onRow={(record: any) => ({ onClick: () => hook.navigate(`/deliveries/${record.id}`), style: { cursor: 'pointer' } })}
-        columns={[
-          { title: 'Mã phiếu', dataIndex: 'code' },
-          { title: 'Loại xuất', dataIndex: 'export_type' },
-          { title: 'Khách hàng/NCC', dataIndex: 'company_name' },
-          { title: 'Kho', dataIndex: 'warehouse_name' },
-          { title: 'Trạng thái', dataIndex: 'status', render: (s) => <StatusTag status={s} colorMap={STATUS_COLOR} /> },
-        ]}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <PageHeader
+        title="Phiếu xuất kho"
+        actions={<Button type="primary" icon={<PlusOutlined />} onClick={hook.openCreate}>Tạo phiếu xuất</Button>}
       />
+      <TableCard>
+        <Table
+          rowKey="id"
+          loading={hook.isLoading}
+          dataSource={hook.data?.data}
+          pagination={false}
+          onRow={(record: any) => ({ onClick: () => hook.navigate(`/deliveries/${record.id}`), style: { cursor: 'pointer' } })}
+          columns={[
+            { title: 'STT', width: 52, align: 'center' as const, render: (_: any, __: any, i: number) => i + 1 },
+            { title: 'Mã phiếu', dataIndex: 'code' },
+            { title: 'Loại xuất', dataIndex: 'export_type' },
+            { title: 'Khách hàng/NCC', dataIndex: 'company_name' },
+            { title: 'Kho', dataIndex: 'warehouse_name' },
+            { title: 'Trạng thái', dataIndex: 'status', render: (s: string) => <StatusBadge status={s} /> },
+          ]}
+        />
+      </TableCard>
 
       <EntityFormModal
         title="Tạo phiếu xuất kho"

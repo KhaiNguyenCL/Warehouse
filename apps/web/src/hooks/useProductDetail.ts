@@ -7,7 +7,7 @@ import { useEntityModal } from './useEntityModal'
 interface AttrValue {
   attribute_def_id: string
   name: string
-  field_type: 'select' | 'text'
+  field_type: 'select' | 'text' | 'boolean' | 'date'
   unit: string | null
   options: string[]
   value: string | null
@@ -100,7 +100,10 @@ export function useProductDetail(id: string) {
   function generateSkuSuffix(attrs: AttrValue[]) {
     return attrs
       .filter((a) => a.include_in_sku && a.value)
-      .map((a) => `${a.value}${a.unit ? ' ' + a.unit : ''}`)
+      .map((a) => {
+        const display = a.field_type === 'boolean' ? (a.value === 'true' ? 'Có' : 'Không') : a.value!
+        return `${display}${a.unit ? ' ' + a.unit : ''}`
+      })
       .join(' ')
   }
 
@@ -118,7 +121,7 @@ export function useProductDetail(id: string) {
     buildAttrValuesForModal([])
     const ref = data?.variants?.[0]
     variantModal.openCreate({
-      sku:              data?.code ?? '',
+      item_code:        data?.code ?? '',
       name:             data?.name ?? '',
       unit:             ref?.unit ?? 'Cái',
       currency:         ref?.currency ?? 'VND',

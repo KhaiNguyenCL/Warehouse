@@ -1,11 +1,14 @@
 import { useParams } from 'react-router-dom'
-import { Table, Input, InputNumber, Select, Switch, Tag, Typography, Form, Popconfirm, Button, Checkbox, Divider } from 'antd'
+import { Table, Input, InputNumber, Select, Switch, Tag, Typography, Form, Popconfirm, Button, Checkbox, Divider, DatePicker } from 'antd'
+import dayjs from 'dayjs'
 import { useProductDetail } from '../hooks/useProductDetail'
 import { PageHeader } from '../components/PageHeader'
 import { EntityFormModal } from '../components/EntityFormModal'
 import CustomFieldsPanel from '../components/CustomFieldsPanel'
 import BundleItemsPanel from '../components/BundleItemsPanel'
 import VariantSuppliersPanel from '../components/VariantSuppliersPanel'
+import CustomerPricesPanel from '../components/CustomerPricesPanel'
+import { ImageUpload } from '../components/ImageUpload'
 
 const PRODUCT_TYPES = [
   { value: 'storable', label: 'Storable (có serial)' },
@@ -45,14 +48,17 @@ export default function ProductDetailPage() {
         pagination={false}
         onRow={(record: any) => ({ onClick: () => hook.openEditVariant(record), style: { cursor: 'pointer' } })}
         columns={[
-          { title: 'SKU', dataIndex: 'sku' },
+          { title: 'SKU (HT)', dataIndex: 'sku', width: 90 },
+          { title: 'Mã hàng', dataIndex: 'item_code' },
           { title: 'Tên', dataIndex: 'name' },
+          { title: 'Model', dataIndex: 'model' },
+          { title: 'Part Number', dataIndex: 'part_number' },
           { title: 'Đơn vị', dataIndex: 'unit' },
           { title: 'Giá nhập gợi ý', dataIndex: 'cost_price' },
           { title: 'Giá bán gợi ý', dataIndex: 'sale_price' },
-          { title: 'Bảo hành (tháng)', dataIndex: 'warranty_months' },
+          { title: 'BH (tháng)', dataIndex: 'warranty_months' },
           { title: 'Cân nặng (kg)', dataIndex: 'weight_kg' },
-          { title: 'Điểm đặt lại', dataIndex: 'reorder_point' },
+          { title: 'Đặt lại', dataIndex: 'reorder_point' },
           {
             title: 'Active',
             dataIndex: 'is_active',
@@ -87,6 +93,7 @@ export default function ProductDetailPage() {
                 <BundleItemsPanel productId={id!} variantId={hook.variantModal.editing.id} />
               )}
               <VariantSuppliersPanel productId={id!} variantId={hook.variantModal.editing.id} />
+              <CustomerPricesPanel productId={id!} variantId={hook.variantModal.editing.id} />
               <CustomFieldsPanel objectType="variant" objectId={hook.variantModal.editing.id} />
             </>
           ) : undefined
@@ -107,7 +114,33 @@ export default function ProductDetailPage() {
                       const next = hook.attrValues.map((a, j) => (j === i ? { ...a, value: e.target.value || null } : a))
                       hook.setAttrValues(next)
                       const suffix = hook.generateSkuSuffix(next)
-                      hook.variantModal.form.setFieldValue('sku', suffix ? `${hook.data.code}-${suffix}` : hook.data.code)
+                      hook.variantModal.form.setFieldValue('item_code', suffix ? `${hook.data.code}-${suffix}` : hook.data.code)
+                      hook.variantModal.form.setFieldValue('name', suffix ? `${hook.data.name} ${suffix}` : hook.data.name)
+                    }}
+                  />
+                ) : attr.field_type === 'boolean' ? (
+                  <Switch
+                    checkedChildren="Có"
+                    unCheckedChildren="Không"
+                    checked={attr.value === 'true'}
+                    onChange={(checked) => {
+                      const next = hook.attrValues.map((a, j) => (j === i ? { ...a, value: String(checked) } : a))
+                      hook.setAttrValues(next)
+                      const suffix = hook.generateSkuSuffix(next)
+                      hook.variantModal.form.setFieldValue('item_code', suffix ? `${hook.data.code}-${suffix}` : hook.data.code)
+                      hook.variantModal.form.setFieldValue('name', suffix ? `${hook.data.name} ${suffix}` : hook.data.name)
+                    }}
+                  />
+                ) : attr.field_type === 'date' ? (
+                  <DatePicker
+                    style={{ width: 140 }}
+                    value={attr.value ? dayjs(attr.value) : null}
+                    onChange={(d) => {
+                      const val = d ? d.format('YYYY-MM-DD') : null
+                      const next = hook.attrValues.map((a, j) => (j === i ? { ...a, value: val } : a))
+                      hook.setAttrValues(next)
+                      const suffix = hook.generateSkuSuffix(next)
+                      hook.variantModal.form.setFieldValue('item_code', suffix ? `${hook.data.code}-${suffix}` : hook.data.code)
                       hook.variantModal.form.setFieldValue('name', suffix ? `${hook.data.name} ${suffix}` : hook.data.name)
                     }}
                   />
@@ -122,7 +155,7 @@ export default function ProductDetailPage() {
                       const next = hook.attrValues.map((a, j) => (j === i ? { ...a, value: v ?? null } : a))
                       hook.setAttrValues(next)
                       const suffix = hook.generateSkuSuffix(next)
-                      hook.variantModal.form.setFieldValue('sku', suffix ? `${hook.data.code}-${suffix}` : hook.data.code)
+                      hook.variantModal.form.setFieldValue('item_code', suffix ? `${hook.data.code}-${suffix}` : hook.data.code)
                       hook.variantModal.form.setFieldValue('name', suffix ? `${hook.data.name} ${suffix}` : hook.data.name)
                     }}
                   />
@@ -133,7 +166,7 @@ export default function ProductDetailPage() {
                     const next = hook.attrValues.map((a, j) => (j === i ? { ...a, include_in_sku: e.target.checked } : a))
                     hook.setAttrValues(next)
                     const suffix = hook.generateSkuSuffix(next)
-                    hook.variantModal.form.setFieldValue('sku', suffix ? `${hook.data.code}-${suffix}` : hook.data.code)
+                    hook.variantModal.form.setFieldValue('item_code', suffix ? `${hook.data.code}-${suffix}` : hook.data.code)
                     hook.variantModal.form.setFieldValue('name', suffix ? `${hook.data.name} ${suffix}` : hook.data.name)
                   }}
                 >
@@ -143,11 +176,22 @@ export default function ProductDetailPage() {
             ))}
           </div>
         )}
-        <Form.Item name="sku" label="SKU (tự gợi ý, có thể sửa)" rules={[{ required: true }]}>
+        {hook.variantModal.editing && (
+          <Form.Item label="SKU (hệ thống)">
+            <Input value={hook.variantModal.editing.sku} disabled />
+          </Form.Item>
+        )}
+        <Form.Item name="item_code" label="Mã hàng (tự gợi ý, có thể sửa)" rules={[{ required: true }]}>
           <Input />
         </Form.Item>
         <Form.Item name="name" label="Tên" rules={[{ required: true }]}>
           <Input />
+        </Form.Item>
+        <Form.Item name="model" label="Model (mã nhà sản xuất)">
+          <Input placeholder="VD: SG110-16HP, WS-C2960X-48FPD" />
+        </Form.Item>
+        <Form.Item name="part_number" label="Part Number (mã bên bán cung cấp)">
+          <Input placeholder="VD: C9200L-48P-4X-E" />
         </Form.Item>
         <Form.Item name="unit" label="Đơn vị" initialValue="Cái">
           <Select
@@ -221,8 +265,8 @@ export default function ProductDetailPage() {
         <Form.Item name="description" label="Mô tả">
           <Input.TextArea />
         </Form.Item>
-        <Form.Item name="image_url" label="URL hình ảnh">
-          <Input />
+        <Form.Item name="image_url" label="Hình ảnh">
+          <ImageUpload />
         </Form.Item>
         <Form.Item name="is_active" label="Active" valuePropName="checked" initialValue={true}>
           <Switch />

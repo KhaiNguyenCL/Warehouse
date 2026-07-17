@@ -1,6 +1,8 @@
 import { Table, Form, Input, Button, Popconfirm } from 'antd'
+import { PlusOutlined } from '@ant-design/icons'
 import { useRoles } from '../hooks/useRoles'
-import { PageHeader } from '../components/PageHeader'
+import { PageHeader } from '../components/ui/PageHeader'
+import { TableCard } from '../components/ui/TableCard'
 import { EntityFormModal } from '../components/EntityFormModal'
 import RolePermissionsPanel from '../components/RolePermissionsPanel'
 
@@ -8,38 +10,49 @@ export default function RolesPage() {
   const hook = useRoles()
 
   return (
-    <div>
-      <PageHeader title="Roles & Permissions" actionLabel="+ Tạo role" onAction={hook.openCreate} />
-
-      <Table
-        rowKey="id"
-        loading={hook.isLoading}
-        dataSource={hook.data}
-        pagination={false}
-        onRow={(record: any) => ({ onClick: () => hook.openEdit(record), style: { cursor: 'pointer' } })}
-        columns={[
-          { title: 'Tên', dataIndex: 'name' },
-          { title: 'Mô tả', dataIndex: 'description' },
-          { title: 'Hệ thống', dataIndex: 'is_system', render: (v: boolean) => (v ? 'Có' : '') },
-          {
-            title: '',
-            render: (_: any, r: any) =>
-              !r.is_system && (
-                <Popconfirm
-                  title="Xoá role này? (chỉ xoá được nếu không còn user nào dùng)"
-                  onConfirm={(e) => {
-                    e?.stopPropagation()
-                    hook.deleteMutation.mutate(r.id)
-                  }}
-                >
-                  <Button size="small" danger onClick={(e) => e.stopPropagation()}>
-                    Xoá
-                  </Button>
-                </Popconfirm>
-              ),
-          },
-        ]}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <PageHeader
+        title="Vai trò & Phân quyền"
+        actions={
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => hook.openCreate()}>
+            Tạo role
+          </Button>
+        }
       />
+
+      <TableCard>
+        <Table
+          rowKey="id"
+          loading={hook.isLoading}
+          dataSource={hook.data}
+          pagination={false}
+          onRow={(record: any) => ({ onClick: () => hook.openEdit(record), style: { cursor: 'pointer' } })}
+          columns={[
+            { title: 'STT', width: 52, align: 'center' as const, render: (_: any, __: any, i: number) => i + 1 },
+            { title: 'Tên', dataIndex: 'name' },
+            { title: 'Mô tả', dataIndex: 'description' },
+            { title: 'Hệ thống', dataIndex: 'is_system', render: (v: boolean) => (v ? 'Có' : '') },
+            {
+              title: '',
+              width: 80,
+              render: (_: any, r: any) =>
+                !r.is_system && (
+                  <Popconfirm
+                    title="Xoá role này? (chỉ xoá được nếu không còn user nào dùng)"
+                    onConfirm={(e) => {
+                      e?.stopPropagation()
+                      hook.deleteMutation.mutate(r.id)
+                    }}
+                  >
+                    <Button size="small" danger onClick={(e) => e.stopPropagation()}>
+                      Xoá
+                    </Button>
+                  </Popconfirm>
+                ),
+            },
+          ]}
+        />
+      </TableCard>
 
       <EntityFormModal
         title={hook.editing ? `Sửa role "${hook.editing.name}"` : 'Tạo role mới'}

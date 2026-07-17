@@ -3,7 +3,7 @@
 // — click 1 dòng để load vào form sửa, không có nút xoá.
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Table, Form, Input, Switch, Button, Typography, Space, message } from 'antd'
+import { Table, Form, Input, Switch, Button, Space, message } from 'antd'
 import { api } from '../lib/api'
 import { useApiMutation } from '../hooks/useApiMutation'
 import { useEntityModal } from '../hooks/useEntityModal'
@@ -48,9 +48,8 @@ export default function ContactsPanel({ companyId }: Props) {
   )
 
   return (
-    <div style={{ marginTop: 24, borderTop: '1px solid #f0f0f0', paddingTop: 16 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Typography.Title level={5} style={{ margin: 0 }}>Người liên hệ</Typography.Title>
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
         <Space>
           <Input
             placeholder="Bitrix Contact ID"

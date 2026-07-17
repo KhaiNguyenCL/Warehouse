@@ -1,6 +1,8 @@
 import { Table, Input, Select, Switch, Tag, Form, Button, Space, Popconfirm } from 'antd'
+import { PlusOutlined } from '@ant-design/icons'
 import { useCategories } from '../hooks/useCategories'
 import { PageHeader } from '../components/PageHeader'
+import { TableCard } from '../components/ui/TableCard'
 import { EntityFormModal } from '../components/EntityFormModal'
 
 function buildTree(flat: any[]): any[] {
@@ -22,10 +24,13 @@ export default function CategoriesPage() {
   const treeData = hook.data ? buildTree(hook.data) : []
 
   return (
-    <div>
-      <PageHeader title="Category" actionLabel="+ Tạo category" onAction={hook.openCreate} />
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <PageHeader
+        title="Danh mục sản phẩm"
+        actions={<Button type="primary" icon={<PlusOutlined />} onClick={() => hook.openCreate()}>Tạo mới</Button>}
+      />
 
-      <Table
+      <TableCard><Table
         rowKey="id"
         loading={hook.isLoading}
         dataSource={treeData}
@@ -35,7 +40,7 @@ export default function CategoriesPage() {
           { title: 'Tên', dataIndex: 'name' },
           { title: 'Mã viết tắt', dataIndex: 'short_code' },
           {
-            title: 'Active',
+            title: 'Hoạt động',
             dataIndex: 'is_active',
             render: (v: boolean) => <Tag color={v ? 'green' : 'default'}>{v ? 'Có' : 'Không'}</Tag>,
           },
@@ -45,17 +50,17 @@ export default function CategoriesPage() {
             render: (_: any, record: any) => (
               <Space onClick={(e) => e.stopPropagation()}>
                 <Button size="small" onClick={() => hook.openEdit(record)}>Sửa</Button>
-                <Popconfirm title="Xoá category này?" onConfirm={() => hook.deleteMutation.mutate(record.id)} okText="Xoá" cancelText="Không">
+                <Popconfirm title="Xoá danh mục này?" onConfirm={() => hook.deleteMutation.mutate(record.id)} okText="Xoá" cancelText="Không">
                   <Button size="small" danger loading={hook.deleteMutation.isPending}>Xoá</Button>
                 </Popconfirm>
               </Space>
             ),
           },
         ]}
-      />
+      /></TableCard>
 
       <EntityFormModal
-        title={hook.editing ? `Sửa category "${hook.editing.name}"` : 'Tạo category mới'}
+        title={hook.editing ? `Sửa danh mục "${hook.editing.name}"` : 'Tạo danh mục mới'}
         open={hook.open}
         onCancel={hook.close}
         onFinish={(v) => {
@@ -67,7 +72,7 @@ export default function CategoriesPage() {
       >
         <Form.Item
           name="name"
-          label="Tên category"
+          label="Tên danh mục"
           rules={[{ required: true }]}
           getValueFromEvent={(e) => {
             const v = e.target.value
@@ -84,11 +89,11 @@ export default function CategoriesPage() {
         >
           <Input style={{ textTransform: 'uppercase' }} />
         </Form.Item>
-        <Form.Item name="parent_id" label="Category cha (tuỳ chọn)">
-          <Select options={hook.parentOptions} allowClear placeholder="Không có (category gốc)" />
+        <Form.Item name="parent_id" label="Danh mục cha (tuỳ chọn)">
+          <Select options={hook.parentOptions} allowClear placeholder="Không có (danh mục gốc)" />
         </Form.Item>
         {hook.editing && (
-          <Form.Item name="is_active" label="Active" valuePropName="checked" initialValue={true}>
+          <Form.Item name="is_active" label="Hoạt động" valuePropName="checked" initialValue={true}>
             <Switch />
           </Form.Item>
         )}

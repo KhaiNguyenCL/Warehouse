@@ -1,33 +1,46 @@
-import { Table, Form, Input, Select, Switch, Tag } from 'antd'
+import { Table, Form, Input, Select, Switch, Tag, Button } from 'antd'
+import { PlusOutlined } from '@ant-design/icons'
 import { useUsers } from '../hooks/useUsers'
-import { PageHeader } from '../components/PageHeader'
+import { PageHeader } from '../components/ui/PageHeader'
+import { TableCard } from '../components/ui/TableCard'
 import { EntityFormModal } from '../components/EntityFormModal'
 
 export default function UsersPage() {
   const hook = useUsers()
 
   return (
-    <div>
-      <PageHeader title="Users" actionLabel="+ Tạo user" onAction={hook.openCreate} />
-
-      <Table
-        rowKey="id"
-        loading={hook.isLoading}
-        dataSource={hook.data?.data}
-        pagination={false}
-        onRow={(record: any) => ({ onClick: () => hook.openEdit(record), style: { cursor: 'pointer' } })}
-        columns={[
-          { title: 'Họ tên', dataIndex: 'full_name' },
-          { title: 'Email', dataIndex: 'email' },
-          { title: 'SĐT', dataIndex: 'phone' },
-          { title: 'Role', dataIndex: 'role_name' },
-          {
-            title: 'Active',
-            dataIndex: 'is_active',
-            render: (v: boolean) => <Tag color={v ? 'green' : 'default'}>{v ? 'Có' : 'Không'}</Tag>,
-          },
-        ]}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <PageHeader
+        title="Người dùng"
+        actions={
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => hook.openCreate()}>
+            Tạo user
+          </Button>
+        }
       />
+
+      <TableCard>
+        <Table
+          rowKey="id"
+          loading={hook.isLoading}
+          dataSource={hook.data?.data}
+          pagination={false}
+          onRow={(record: any) => ({ onClick: () => hook.openEdit(record), style: { cursor: 'pointer' } })}
+          columns={[
+            { title: 'STT', width: 52, align: 'center' as const, render: (_: any, __: any, i: number) => i + 1 },
+            { title: 'Họ tên', dataIndex: 'full_name' },
+            { title: 'Email', dataIndex: 'email' },
+            { title: 'SĐT', dataIndex: 'phone' },
+            { title: 'Vai trò', dataIndex: 'role_name' },
+            {
+              title: 'Hoạt động',
+              dataIndex: 'is_active',
+              width: 90,
+              render: (v: boolean) => <Tag color={v ? 'green' : 'default'}>{v ? 'Có' : 'Không'}</Tag>,
+            },
+          ]}
+        />
+      </TableCard>
 
       <EntityFormModal
         title={hook.editing ? `Sửa user "${hook.editing.full_name}"` : 'Tạo user mới'}

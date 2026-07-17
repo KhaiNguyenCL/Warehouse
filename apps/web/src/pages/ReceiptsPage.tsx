@@ -1,6 +1,9 @@
 import { Table, Form, Input, Select, InputNumber, DatePicker, Button, Tooltip, Checkbox, Space } from 'antd'
+import { PlusOutlined } from '@ant-design/icons'
 import { useReceipts } from '../hooks/useReceipts'
 import { PageHeader } from '../components/PageHeader'
+import { TableCard } from '../components/ui/TableCard'
+import { StatusBadge } from '../components/ui/StatusBadge'
 import { EntityFormModal } from '../components/EntityFormModal'
 import { StatusTag } from '../components/StatusTag'
 
@@ -14,22 +17,27 @@ export default function ReceiptsPage() {
   const hook = useReceipts()
 
   return (
-    <div>
-      <PageHeader title="Phiếu nhập kho (Receipt)" actionLabel="+ Tạo Receipt" onAction={hook.openCreate} />
-
-      <Table
-        rowKey="id"
-        loading={hook.isLoading}
-        dataSource={hook.data?.data}
-        pagination={false}
-        onRow={(record: any) => ({ onClick: () => hook.navigate(`/receipts/${record.id}`), style: { cursor: 'pointer' } })}
-        columns={[
-          { title: 'Mã phiếu', dataIndex: 'code' },
-          { title: 'Loại nhập', dataIndex: 'import_type' },
-          { title: 'Kho', dataIndex: 'warehouse_name' },
-          { title: 'Trạng thái', dataIndex: 'status', render: (s) => <StatusTag status={s} colorMap={STATUS_COLOR} /> },
-        ]}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <PageHeader
+        title="Phiếu nhập kho"
+        actions={<Button type="primary" icon={<PlusOutlined />} onClick={hook.openCreate}>Tạo phiếu nhập</Button>}
       />
+      <TableCard>
+        <Table
+          rowKey="id"
+          loading={hook.isLoading}
+          dataSource={hook.data?.data}
+          pagination={false}
+          onRow={(record: any) => ({ onClick: () => hook.navigate(`/receipts/${record.id}`), style: { cursor: 'pointer' } })}
+          columns={[
+            { title: 'STT', width: 52, align: 'center' as const, render: (_: any, __: any, i: number) => i + 1 },
+            { title: 'Mã phiếu', dataIndex: 'code' },
+            { title: 'Loại nhập', dataIndex: 'import_type' },
+            { title: 'Kho', dataIndex: 'warehouse_name' },
+            { title: 'Trạng thái', dataIndex: 'status', render: (s: string) => <StatusBadge status={s} /> },
+          ]}
+        />
+      </TableCard>
 
       <EntityFormModal
         title="Tạo phiếu nhập kho"
@@ -102,7 +110,7 @@ export default function ReceiptsPage() {
                             onSearch={hook.setVariantSearch}
                             options={hook.variantOptions?.map((v: any) => ({
                               value: v.id,
-                              label: `${v.sku} — ${v.name}`,
+                              label: `${v.item_code ?? v.sku} — ${v.name}`,
                             }))}
                           />
                         </Form.Item>

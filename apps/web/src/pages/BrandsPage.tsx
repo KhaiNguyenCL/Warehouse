@@ -1,25 +1,30 @@
 import { Table, Input, Switch, Tag, Form, Button, Space, Popconfirm } from 'antd'
+import { PlusOutlined } from '@ant-design/icons'
 import { useBrands } from '../hooks/useBrands'
 import { PageHeader } from '../components/PageHeader'
+import { TableCard } from '../components/ui/TableCard'
 import { EntityFormModal } from '../components/EntityFormModal'
 
 export default function BrandsPage() {
   const hook = useBrands()
 
   return (
-    <div>
-      <PageHeader title="Hãng sản xuất" actionLabel="+ Tạo hãng" onAction={hook.openCreate} />
-
-      <Table
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <PageHeader
+        title="Thương hiệu"
+        actions={<Button type="primary" icon={<PlusOutlined />} onClick={() => hook.openCreate()}>Tạo mới</Button>}
+      />
+      <TableCard><Table
         rowKey="id"
         loading={hook.isLoading}
         dataSource={hook.data}
         pagination={false}
         columns={[
+          { title: 'STT', width: 52, align: 'center' as const, render: (_: any, __: any, i: number) => i + 1 },
           { title: 'Tên hãng', dataIndex: 'name' },
           { title: 'Mã viết tắt', dataIndex: 'short_code' },
           {
-            title: 'Active',
+            title: 'Hoạt động',
             dataIndex: 'is_active',
             render: (v: boolean) => <Tag color={v ? 'green' : 'default'}>{v ? 'Có' : 'Không'}</Tag>,
           },
@@ -36,7 +41,7 @@ export default function BrandsPage() {
             ),
           },
         ]}
-      />
+      /></TableCard>
 
       <EntityFormModal
         title={hook.editing ? `Sửa hãng "${hook.editing.name}"` : 'Tạo hãng mới'}
@@ -58,7 +63,7 @@ export default function BrandsPage() {
           <Input />
         </Form.Item>
         {hook.editing && (
-          <Form.Item name="is_active" label="Active" valuePropName="checked" initialValue={true}>
+          <Form.Item name="is_active" label="Hoạt động" valuePropName="checked" initialValue={true}>
             <Switch />
           </Form.Item>
         )}

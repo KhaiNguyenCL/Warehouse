@@ -37,7 +37,7 @@ export function useProducts() {
       const productId = res.data?.id
       if (productId && productData.product_type === 'service' && sku) {
         await api.post(`/products/${productId}/variants`, {
-          sku,
+          item_code: sku,
           name: variant_name,
           unit: unit ?? 'Lần',
           sale_price: sale_price ?? null,

@@ -15,6 +15,7 @@ export class InventoryRepository {
         'i.variant_id',
         'i.warehouse_id',
         'v.sku',
+        'v.item_code',
         'v.name as variant_name',
         'v.unit',
         'w.code as warehouse_code',
@@ -32,7 +33,7 @@ export class InventoryRepository {
     if (warehouse_id) base.where('i.warehouse_id', warehouse_id)
     if (search) {
       base.where((qb) => {
-        qb.whereILike('v.name', `%${search}%`).orWhereILike('v.sku', `%${search}%`)
+        qb.whereILike('v.name', `%${search}%`).orWhereILike('v.sku', `%${search}%`).orWhereILike('v.item_code', `%${search}%`)
       })
     }
 
@@ -98,10 +99,11 @@ export class InventoryRepository {
     const base = this.db('inventory as i')
       .join('variants as v', 'v.id', 'i.variant_id')
       .join('products as p', 'p.id', 'v.product_id')
-      .groupBy('i.variant_id', 'v.sku', 'v.name', 'v.unit', 'p.product_type')
+      .groupBy('i.variant_id', 'v.sku', 'v.item_code', 'v.name', 'v.unit', 'p.product_type')
       .select(
         'i.variant_id',
         'v.sku',
+        'v.item_code',
         'v.name as variant_name',
         'v.unit',
         'p.product_type',
@@ -123,12 +125,12 @@ export class InventoryRepository {
     if (warehouse_id) base.where('i.warehouse_id', warehouse_id)
     if (search) {
       base.where((qb) => {
-        qb.whereILike('v.name', `%${search}%`).orWhereILike('v.sku', `%${search}%`)
+        qb.whereILike('v.name', `%${search}%`).orWhereILike('v.sku', `%${search}%`).orWhereILike('v.item_code', `%${search}%`)
       })
     }
 
     const [rows, countResult] = await Promise.all([
-      base.clone().having(this.db.raw('SUM(i.qty_on_hand) > 0')).orderBy('v.sku').limit(limit).offset(offset),
+      base.clone().having(this.db.raw('SUM(i.qty_on_hand) > 0')).orderBy('v.item_code').limit(limit).offset(offset),
       base.clone().clearSelect().count(this.db.raw('DISTINCT i.variant_id') as any).first(),
     ])
 
@@ -277,7 +279,7 @@ export class InventoryRepository {
         .leftJoin('inventory as i', 'i.variant_id', 'v.id')
         .where('v.reorder_point', '>', 0)
         .andWhere('v.is_active', true)
-        .groupBy('v.id', 'v.sku', 'v.name', 'v.reorder_point')
+        .groupBy('v.id', 'v.sku', 'v.item_code', 'v.name', 'v.reorder_point')
         .havingRaw('COALESCE(SUM(i.qty_on_hand), 0) < v.reorder_point')
 
     const [rows, countResult] = await Promise.all([
@@ -285,6 +287,7 @@ export class InventoryRepository {
         .select(
           'v.id as variant_id',
           'v.sku',
+          'v.item_code',
           'v.name as variant_name',
           'v.reorder_point',
           this.db.raw('COALESCE(SUM(i.qty_on_hand), 0)::int as total_qty_on_hand'),

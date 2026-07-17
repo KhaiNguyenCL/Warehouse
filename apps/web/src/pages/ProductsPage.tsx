@@ -1,13 +1,16 @@
 import { Table, Input, Select, Form, Popconfirm, Button, Divider, InputNumber } from 'antd'
+import { ImageUpload } from '../components/ImageUpload'
+import { PlusOutlined } from '@ant-design/icons'
 import { useProducts } from '../hooks/useProducts'
 import { PageHeader } from '../components/PageHeader'
+import { TableCard } from '../components/ui/TableCard'
 import { EntityFormModal } from '../components/EntityFormModal'
 
 const PRODUCT_TYPES = [
-  { value: 'storable', label: 'Storable (có serial)' },
-  { value: 'consumable', label: 'Consumable' },
-  { value: 'service', label: 'Service' },
-  { value: 'bundle', label: 'Bundle' },
+  { value: 'storable', label: 'Lưu kho (có serial)' },
+  { value: 'consumable', label: 'Vật tư tiêu hao' },
+  { value: 'service', label: 'Dịch vụ' },
+  { value: 'bundle', label: 'Gói sản phẩm' },
 ]
 
 const UNITS = ['Cái', 'Chiếc', 'Bộ', 'Hộp', 'Cuộn', 'Mét', 'Cổng', 'License', 'Gói', 'Dây', 'Lần', 'Giờ', 'Ngày']
@@ -17,16 +20,19 @@ export default function ProductsPage() {
   const productType = Form.useWatch('product_type', hook.form)
 
   return (
-    <div>
-      <PageHeader title="Sản phẩm" actionLabel="+ Tạo mới" onAction={hook.openCreate} />
-
-      <Table
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <PageHeader
+        title="Sản phẩm"
+        actions={<Button type="primary" icon={<PlusOutlined />} onClick={() => hook.openCreate()}>Tạo mới</Button>}
+      />
+      <TableCard><Table
         rowKey="id"
         loading={hook.isLoading}
         dataSource={hook.data?.data}
         pagination={false}
         onRow={(record: any) => ({ onClick: () => hook.navigate(`/products/${record.id}`), style: { cursor: 'pointer' } })}
         columns={[
+          { title: 'STT', width: 52, align: 'center' as const, render: (_: any, __: any, i: number) => i + 1 },
           { title: 'Mã', dataIndex: 'code' },
           { title: 'Tên', dataIndex: 'name' },
           { title: 'Loại', dataIndex: 'product_type' },
@@ -50,7 +56,7 @@ export default function ProductsPage() {
             ),
           },
         ]}
-      />
+      /></TableCard>
 
       <EntityFormModal
         title="Tạo sản phẩm mới"
@@ -109,8 +115,8 @@ export default function ProductsPage() {
         <Form.Item name="description" label="Mô tả">
           <Input.TextArea />
         </Form.Item>
-        <Form.Item name="image_url" label="URL hình ảnh">
-          <Input />
+        <Form.Item name="image_url" label="Hình ảnh">
+          <ImageUpload />
         </Form.Item>
 
         {productType === 'service' && (

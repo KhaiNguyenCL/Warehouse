@@ -53,7 +53,7 @@ export default function StocktakeDetailPage() {
         dataSource={hook.data.lines}
         pagination={false}
         columns={[
-          { title: 'SKU', dataIndex: 'sku' },
+          { title: 'Mã hàng', dataIndex: 'item_code' },
           { title: 'Tên', dataIndex: 'variant_name' },
           { title: 'Product type', dataIndex: 'product_type' },
           { title: 'Tồn hệ thống (qty_system)', dataIndex: 'qty_system' },

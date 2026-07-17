@@ -28,6 +28,13 @@ const UPLOAD_DIR = path.resolve(process.cwd(), process.env.CARBONE_TEMPLATE_DIR 
 export const carbonePlugin = fp(async (app: FastifyInstance) => {
   fs.mkdirSync(UPLOAD_DIR, { recursive: true })
 
+  // LibreOffice không có trong PATH trên Windows — inject vào process.env.PATH để Carbone
+  // tìm được soffice khi spawn child process convert xlsx → pdf.
+  const sofficeDir = 'C:\\Program Files\\LibreOffice\\program'
+  if (!process.env.PATH?.includes(sofficeDir)) {
+    process.env.PATH = `${sofficeDir};${process.env.PATH ?? ''}`
+  }
+
   app.decorate('carbone', {
     uploadDir: UPLOAD_DIR,
     render(templatePath: string, data: unknown, options: Record<string, unknown> = {}) {

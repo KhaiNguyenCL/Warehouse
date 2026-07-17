@@ -22,7 +22,7 @@ export const api = axios.create({ baseURL: '/api/v1' })
 api.interceptors.request.use((config) => {
   const token = useAuthStore.getState().token
   if (token) config.headers.Authorization = `Bearer ${token}`
-  if (config.data && typeof config.data === 'object') {
+  if (config.data && typeof config.data === 'object' && !(config.data instanceof FormData)) {
     config.data = stripEmptyStrings(config.data)
   }
   return config

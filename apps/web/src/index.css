@@ -1,9 +1,14 @@
+@import './styles/tokens.css';
+
 /* antd Menu không tự ẩn title của Menu.ItemGroup khi inlineCollapsed=true (hạn chế đã
    biết của antd, group + collapsed sidebar không tương thích sẵn) — ẩn bằng tay để
    sidebar thu gọn chỉ còn icon, không bị vỡ layout vì chữ "Danh mục"/"Giao dịch"... */
-.ant-menu-inline-collapsed .ant-menu-item-group-title {
-  display: none;
-}
+/* Scrollbar mảnh cho sidebar nav */
+.sidebar-nav::-webkit-scrollbar { width: 3px; }
+.sidebar-nav::-webkit-scrollbar-track { background: transparent; }
+.sidebar-nav::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+.sidebar-nav::-webkit-scrollbar-thumb:hover { background: var(--border-md); }
+
 
 /* EntityFormModal (xem component): cố định 3 field/hàng (yêu cầu trực tiếp — auto-fit theo
    độ rộng modal trước đây cho 2 cột với modal mặc định 520px, vẫn bị dài). Field dạng
@@ -20,8 +25,8 @@
   grid-template-columns: repeat(3, 1fr);
   gap: 1px;
   align-items: stretch;
-  background: #e5e7eb;
-  border: 1px solid #e5e7eb;
+  background: var(--border);
+  border: 1px solid var(--border);
 }
 @media (max-width: 700px) {
   .entity-form-grid {
@@ -35,9 +40,9 @@
 }
 .entity-form-grid > .ant-form-item,
 .entity-form-grid > .form-row-full {
-  background: #fff;
+  background: var(--bg-card);
   margin: 0;
-  padding: 12px 16px;
+  padding: 14px 16px;
 }
 .entity-form-grid .ant-form-item:has(textarea),
 .entity-form-grid .form-row-full {
@@ -49,7 +54,7 @@
    nhiêu) — ép mọi label trong grid reserve sẵn chiều cao 2 dòng để input luôn bắt đầu cùng
    1 mức, bất kể label 1 hay 2 dòng. */
 .entity-form-grid .ant-form-item-label {
-  min-height: 44px;
+  min-height: 48px;
   display: flex;
   align-items: flex-end;
 }

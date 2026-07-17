@@ -51,8 +51,8 @@ export class StocktakeRepository {
       .join('variants as v', 'v.id', 'sl.variant_id')
       .join('products as p', 'p.id', 'v.product_id')
       .where('sl.stocktake_id', stocktakeId)
-      .select('sl.*', 'v.sku', 'v.name as variant_name', 'p.product_type')
-      .orderBy('v.sku')
+      .select('sl.*', 'v.sku', 'v.item_code', 'v.name as variant_name', 'p.product_type')
+      .orderBy('v.item_code')
   }
 
   // Snapshot qty_system theo phạm vi (CLAUDE.md mục 19) — lấy lúc TẠO stocktake, không

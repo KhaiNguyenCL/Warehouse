@@ -1,10 +1,8 @@
-// Quản lý document_templates (CLAUDE.md mục 14): upload file Excel, hệ thống detect biến,
-// admin map biến → field. Export thực tế (Xuất Excel/PDF) đã làm ở QuotationDetailPage —
-// trang này chỉ quản lý template + mapping, không export trực tiếp ở đây.
 import { Table, Form, Input, Select, Switch, Button, Modal, Upload, Tag } from 'antd'
-import { UploadOutlined } from '@ant-design/icons'
+import { UploadOutlined, PlusOutlined } from '@ant-design/icons'
 import { useTemplates } from '../hooks/useTemplates'
-import { PageHeader } from '../components/PageHeader'
+import { PageHeader } from '../components/ui/PageHeader'
+import { TableCard } from '../components/ui/TableCard'
 import { EntityFormModal } from '../components/EntityFormModal'
 import TemplateMappingsPanel from '../components/TemplateMappingsPanel'
 
@@ -18,50 +16,68 @@ export default function TemplatesPage() {
   const hook = useTemplates()
 
   return (
-    <div>
-      <PageHeader title="Template báo giá / phiếu" actionLabel="+ Tải lên template" onAction={() => hook.setUploadOpen(true)} />
-
-      <Table
-        rowKey="id"
-        loading={hook.isLoading}
-        dataSource={hook.data?.data}
-        pagination={false}
-        onRow={(record: any) => ({
-          onClick: () => {
-            hook.setDetectedVariables(undefined)
-            hook.openEdit(record)
-          },
-          style: { cursor: 'pointer' },
-        })}
-        columns={[
-          { title: 'Tên', dataIndex: 'name' },
-          { title: 'Loại đối tượng', dataIndex: 'object_type', render: (v) => OBJECT_TYPE_LABEL[v] ?? v },
-          {
-            title: 'Đang dùng',
-            dataIndex: 'is_active',
-            render: (v: boolean, r: any) => (
-              <Switch
-                checked={v}
-                onClick={(_, e) => e.stopPropagation()}
-                onChange={(checked) => hook.toggleMutation.mutate({ id: r.id, field: 'is_active', value: checked })}
-              />
-            ),
-          },
-          {
-            title: 'Mặc định',
-            dataIndex: 'is_default',
-            render: (v: boolean, r: any) =>
-              v ? (
-                <Tag color="blue">Mặc định</Tag>
-              ) : (
-                <Button size="small" onClick={(e) => { e.stopPropagation(); hook.toggleMutation.mutate({ id: r.id, field: 'is_default', value: true }) }}>
-                  Đặt mặc định
-                </Button>
-              ),
-          },
-          { title: 'Ngày tạo', dataIndex: 'created_at', render: (v) => new Date(v).toLocaleString('vi-VN') },
-        ]}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <PageHeader
+        title="Mẫu báo giá / phiếu"
+        actions={
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => hook.setUploadOpen(true)}>
+            Tải lên template
+          </Button>
+        }
       />
+
+      <TableCard>
+        <Table
+          rowKey="id"
+          loading={hook.isLoading}
+          dataSource={hook.data?.data}
+          pagination={false}
+          onRow={(record: any) => ({
+            onClick: () => {
+              hook.setDetectedVariables(undefined)
+              hook.openEdit(record)
+            },
+            style: { cursor: 'pointer' },
+          })}
+          columns={[
+            { title: 'STT', width: 52, align: 'center' as const, render: (_: any, __: any, i: number) => i + 1 },
+            { title: 'Tên', dataIndex: 'name' },
+            { title: 'Loại đối tượng', dataIndex: 'object_type', render: (v) => OBJECT_TYPE_LABEL[v] ?? v },
+            {
+              title: 'Đang dùng',
+              dataIndex: 'is_active',
+              width: 100,
+              render: (v: boolean, r: any) => (
+                <Switch
+                  checked={v}
+                  onClick={(_, e) => e.stopPropagation()}
+                  onChange={(checked) => hook.toggleMutation.mutate({ id: r.id, field: 'is_active', value: checked })}
+                />
+              ),
+            },
+            {
+              title: 'Mặc định',
+              dataIndex: 'is_default',
+              width: 120,
+              render: (v: boolean, r: any) =>
+                v ? (
+                  <Tag color="blue">Mặc định</Tag>
+                ) : (
+                  <Button
+                    size="small"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      hook.toggleMutation.mutate({ id: r.id, field: 'is_default', value: true })
+                    }}
+                  >
+                    Đặt mặc định
+                  </Button>
+                ),
+            },
+            { title: 'Ngày tạo', dataIndex: 'created_at', render: (v) => new Date(v).toLocaleString('vi-VN') },
+          ]}
+        />
+      </TableCard>
 
       <Modal
         title="Tải lên template mới"

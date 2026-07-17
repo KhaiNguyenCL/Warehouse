@@ -47,7 +47,7 @@ export class DeliveryRepository {
       .join('variants as v', 'v.id', 'dl.variant_id')
       .join('products as p', 'p.id', 'v.product_id')
       .where('dl.delivery_order_id', id)
-      .select('dl.*', 'v.sku', 'v.name as variant_name', 'p.name as product_name', 'p.product_type')
+      .select('dl.*', 'v.sku', 'v.item_code', 'v.name as variant_name', 'p.name as product_name', 'p.product_type')
       .orderBy('dl.line_order')
 
     return { ...delivery, lines }

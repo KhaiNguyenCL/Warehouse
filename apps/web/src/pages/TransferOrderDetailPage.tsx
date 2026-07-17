@@ -50,7 +50,7 @@ export default function TransferOrderDetailPage() {
         dataSource={hook.data.lines}
         pagination={false}
         columns={[
-          { title: 'SKU', dataIndex: 'sku' },
+          { title: 'Mã hàng', dataIndex: 'item_code' },
           { title: 'Tên', dataIndex: 'variant_name' },
           { title: 'Product type', dataIndex: 'product_type' },
           { title: 'Số lượng', dataIndex: 'quantity' },

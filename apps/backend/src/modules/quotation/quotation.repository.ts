@@ -102,8 +102,8 @@ export class QuotationRepository {
       .where('li.quotation_id', id)
       .select(
         'li.*',
-        'v.sku as variant_sku', 'v.name as variant_name',
-        'bv.sku as bundle_sku', 'bv.name as bundle_name',
+        'v.sku as variant_sku', 'v.item_code as variant_item_code', 'v.name as variant_name',
+        'bv.sku as bundle_sku', 'bv.item_code as bundle_item_code', 'bv.name as bundle_name',
       )
       .orderBy('li.line_order')
 

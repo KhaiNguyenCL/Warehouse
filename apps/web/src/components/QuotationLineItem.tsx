@@ -62,7 +62,7 @@ export default function QuotationLineItem({ form, sectionName, name, remove }: P
         <Select
           placeholder="Chọn SKU"
           disabled={!productId}
-          options={productDetail?.variants.map((v: any) => ({ value: v.id, label: `${v.sku} — ${v.name}` }))}
+          options={productDetail?.variants.map((v: any) => ({ value: v.id, label: `${v.item_code ?? v.sku} — ${v.name}` }))}
           onChange={onVariantChange}
         />
       </Form.Item>

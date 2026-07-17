@@ -49,7 +49,7 @@ Hệ thống hiện tại **không quản lý được** vòng đời license ch
 
 ---
 
-## UI / UX
+## UI / UX`
 
 **Q: Tab Tồn kho — nên tổ chức theo SKU → Kho → SN hay SKU → SN?**
 **SKU → SN** (phẳng hơn). Field kho đi với từng SN, không cần tầng kho trung gian. Mỗi dòng SN hiển thị: Serial No, Trạng thái, Kho, MAC, Phiếu nhập · Ngày. Click dòng SN → mở drawer chi tiết + lịch sử di chuyển.

@@ -1,43 +1,36 @@
-// Header lặp lại ở đầu mọi trang list: tiêu đề bên trái + nút hành động chính bên phải.
-// Dùng Typography.Title (không phải <h2> thuần) để đồng nhất với các trang detail đã
-// dùng Typography.Title từ trước (ReceiptDetailPage/ProductDetailPage) — antd tự style
-// theo level, không lệ thuộc font-size mặc định của browser cho từng cấp thẻ heading.
-import { Button, Typography } from 'antd'
+// Shim giữ API cũ (actionLabel/onAction/extra/level) nhưng delegate sang ui/PageHeader
+// để tất cả trang đang import từ '../components/PageHeader' không cần sửa.
+import { Button } from 'antd'
 import { ReactNode } from 'react'
+import { PageHeader as UIPageHeader } from './ui/PageHeader'
 
 export function PageHeader({
   title,
-  level = 3,
+  meta,
   actionLabel,
   onAction,
   extra,
   actions,
 }: {
   title: ReactNode
-  level?: 1 | 2 | 3 | 4 | 5
+  meta?: ReactNode
+  level?: number        // không dùng nữa — ui/PageHeader không có level
   actionLabel?: string
   onAction?: () => void
-  extra?: ReactNode
-  // Nút phụ bên cạnh nút hành động chính (VD "Import từ Bitrix" cạnh "+ Tạo mới") — khác
-  // `extra` (nằm bên trái cạnh title), `actions` nằm bên phải cạnh actionLabel.
+  extra?: ReactNode     // hiển thị sau title, trước actions
   actions?: ReactNode
 }) {
-  return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-        <Typography.Title level={level} style={{ margin: 0 }}>
-          {title}
-        </Typography.Title>
-        {extra}
-      </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        {actions}
-        {actionLabel && (
-          <Button type="primary" onClick={onAction}>
-            {actionLabel}
-          </Button>
-        )}
-      </div>
-    </div>
+  const allActions = (
+    <>
+      {extra}
+      {actions}
+      {actionLabel && (
+        <Button type="primary" onClick={onAction}>
+          {actionLabel}
+        </Button>
+      )}
+    </>
   )
+
+  return <UIPageHeader title={title} meta={meta} actions={allActions} />
 }

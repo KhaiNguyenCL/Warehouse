@@ -47,7 +47,7 @@ export class TransferRepository {
       .join('products as p', 'p.id', 'v.product_id')
       .leftJoin('warehouses as wl', 'wl.id', 'tl.from_warehouse_id')
       .where('tl.transfer_order_id', id)
-      .select('tl.*', 'v.sku', 'v.name as variant_name', 'p.product_type', 'wl.name as from_warehouse_name')
+      .select('tl.*', 'v.sku', 'v.item_code', 'v.name as variant_name', 'p.product_type', 'wl.name as from_warehouse_name')
       .orderBy('tl.line_order')
 
     return { ...transfer, lines }

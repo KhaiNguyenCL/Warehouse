@@ -54,7 +54,7 @@ export default function PurchaseOrderDetailPage() {
         dataSource={hook.data.lines}
         pagination={false}
         columns={[
-          { title: 'SKU', dataIndex: 'variant_sku' },
+          { title: 'Mã hàng', dataIndex: 'variant_item_code' },
           { title: 'Tên', dataIndex: 'variant_name' },
           { title: 'Số lượng đặt', dataIndex: 'quantity' },
           { title: 'Đơn giá', dataIndex: 'unit_price' },

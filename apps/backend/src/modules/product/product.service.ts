@@ -14,6 +14,8 @@ import {
   UpdateVariantSupplierBody,
   CreateBundleItemBody,
   UpdateBundleItemBody,
+  CreateCustomerPriceBody,
+  UpdateCustomerPriceBody,
 } from './product.schema'
 
 // Postgres SQLSTATE codes — map sang lỗi nghiệp vụ dễ hiểu thay vì để lộ lỗi DB thô ra API.
@@ -292,6 +294,40 @@ export class ProductService {
       throw { statusCode: 404, message: 'Bundle item not found' }
     }
     await this.repo.deleteBundleItem(itemId)
+  }
+
+  // ─── Customer Prices ───────────────────────────────────────────────────────
+
+  async listCustomerPrices(productId: string, variantId: string) {
+    await this.assertVariantBelongsToProduct(productId, variantId)
+    return this.repo.findCustomerPrices(variantId)
+  }
+
+  async addCustomerPrice(productId: string, variantId: string, data: CreateCustomerPriceBody) {
+    await this.assertVariantBelongsToProduct(productId, variantId)
+    try {
+      return await this.repo.addCustomerPrice(variantId, data)
+    } catch (err) {
+      mapDbError(err)
+    }
+  }
+
+  async updateCustomerPrice(productId: string, variantId: string, priceId: string, data: UpdateCustomerPriceBody) {
+    await this.assertVariantBelongsToProduct(productId, variantId)
+    const existing = await this.repo.findCustomerPriceById(priceId)
+    if (!existing || existing.variant_id !== variantId) {
+      throw { statusCode: 404, message: 'Customer price not found' }
+    }
+    return this.repo.updateCustomerPrice(priceId, data)
+  }
+
+  async deleteCustomerPrice(productId: string, variantId: string, priceId: string) {
+    await this.assertVariantBelongsToProduct(productId, variantId)
+    const existing = await this.repo.findCustomerPriceById(priceId)
+    if (!existing || existing.variant_id !== variantId) {
+      throw { statusCode: 404, message: 'Customer price not found' }
+    }
+    await this.repo.deleteCustomerPrice(priceId)
   }
 
   // ─── Variant Attribute Values ──────────────────────────────────────────────

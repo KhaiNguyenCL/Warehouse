@@ -76,10 +76,11 @@ export class ReportRepository {
   topProducts(from: string | undefined, to: string | undefined, limit: number) {
     return this.revenueBase(from, to)
       .join('variants as v', 'v.id', 'dl.variant_id')
-      .groupBy('v.id', 'v.sku', 'v.name')
+      .groupBy('v.id', 'v.sku', 'v.item_code', 'v.name')
       .select(
         'v.id as variant_id',
         'v.sku',
+        'v.item_code',
         'v.name as variant_name',
         this.db.raw('SUM(dl.quantity)::int as total_qty'),
         this.db.raw('SUM(dl.quantity * qli.unit_price)::numeric as total_revenue'),

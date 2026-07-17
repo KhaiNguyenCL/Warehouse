@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { Table, Tag, Typography } from 'antd'
+import { Table, Tag } from 'antd'
 import { api } from '../lib/api'
 
 export default function SupplierProductsPanel({ companyId }: { companyId: string }) {
@@ -11,8 +11,7 @@ export default function SupplierProductsPanel({ companyId }: { companyId: string
   if (!isLoading && (!data || data.length === 0)) return null
 
   return (
-    <div style={{ marginTop: 24, borderTop: '1px solid #f0f0f0', paddingTop: 16 }}>
-      <Typography.Title level={5} style={{ margin: '0 0 12px' }}>Hàng hóa cung cấp</Typography.Title>
+    <div>
       <Table
         rowKey="id"
         loading={isLoading}
@@ -24,7 +23,7 @@ export default function SupplierProductsPanel({ companyId }: { companyId: string
             title: 'Sản phẩm',
             render: (_: any, r: any) => `${r.product_code} — ${r.product_name}`,
           },
-          { title: 'SKU', dataIndex: 'sku' },
+          { title: 'Mã hàng', dataIndex: 'item_code' },
           { title: 'Tên SKU', dataIndex: 'variant_name' },
           { title: 'SKU của NCC', dataIndex: 'supplier_sku' },
           {

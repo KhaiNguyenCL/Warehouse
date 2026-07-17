@@ -95,7 +95,7 @@ export default function BundleItemsPanel({ productId, variantId }: Props) {
           placeholder="Chọn SKU"
           style={{ width: 220 }}
           disabled={!itemProductId}
-          options={itemProductDetail?.variants.map((v: any) => ({ value: v.id, label: `${v.sku} — ${v.name}` }))}
+          options={itemProductDetail?.variants.map((v: any) => ({ value: v.id, label: `${v.item_code ?? v.sku} — ${v.name}` }))}
           value={itemVariantId}
           onChange={setItemVariantId}
         />

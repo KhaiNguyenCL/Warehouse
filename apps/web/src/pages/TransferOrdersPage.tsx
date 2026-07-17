@@ -1,15 +1,11 @@
 import { Table, Form, Input, Select, Button, Tooltip, Space } from 'antd'
+import { PlusOutlined } from '@ant-design/icons'
 import { useTransferOrders } from '../hooks/useTransferOrders'
 import { PageHeader } from '../components/PageHeader'
+import { TableCard } from '../components/ui/TableCard'
+import { StatusBadge } from '../components/ui/StatusBadge'
 import { EntityFormModal } from '../components/EntityFormModal'
-import { StatusTag } from '../components/StatusTag'
 import DeliveryLineItem from '../components/DeliveryLineItem'
-
-const STATUS_COLOR: Record<string, string> = {
-  draft: 'default',
-  completed: 'green',
-  cancelled: 'red',
-}
 
 const TRANSFER_TYPES = [
   { value: 'transfer', label: 'Chuyển kho thông thường' },
@@ -24,23 +20,28 @@ export default function TransferOrdersPage() {
   const headerFromWh: string | undefined = Form.useWatch('from_warehouse_id', hook.form)
 
   return (
-    <div>
-      <PageHeader title="Phiếu chuyển kho (Transfer Order)" actionLabel="+ Tạo Transfer Order" onAction={hook.openCreate} />
-
-      <Table
-        rowKey="id"
-        loading={hook.isLoading}
-        dataSource={hook.data?.data}
-        pagination={false}
-        onRow={(record: any) => ({ onClick: () => hook.navigate(`/transfers/${record.id}`), style: { cursor: 'pointer' } })}
-        columns={[
-          { title: 'Mã phiếu', dataIndex: 'code' },
-          { title: 'Loại chuyển', dataIndex: 'transfer_type' },
-          { title: 'Kho nguồn', dataIndex: 'from_warehouse_name' },
-          { title: 'Kho đích', dataIndex: 'to_warehouse_name' },
-          { title: 'Trạng thái', dataIndex: 'status', render: (s) => <StatusTag status={s} colorMap={STATUS_COLOR} /> },
-        ]}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <PageHeader
+        title="Phiếu chuyển kho"
+        actions={<Button type="primary" icon={<PlusOutlined />} onClick={hook.openCreate}>Tạo phiếu chuyển</Button>}
       />
+      <TableCard>
+        <Table
+          rowKey="id"
+          loading={hook.isLoading}
+          dataSource={hook.data?.data}
+          pagination={false}
+          onRow={(record: any) => ({ onClick: () => hook.navigate(`/transfers/${record.id}`), style: { cursor: 'pointer' } })}
+          columns={[
+            { title: 'STT', width: 52, align: 'center' as const, render: (_: any, __: any, i: number) => i + 1 },
+            { title: 'Mã phiếu', dataIndex: 'code' },
+            { title: 'Loại chuyển', dataIndex: 'transfer_type' },
+            { title: 'Kho nguồn', dataIndex: 'from_warehouse_name' },
+            { title: 'Kho đích', dataIndex: 'to_warehouse_name' },
+            { title: 'Trạng thái', dataIndex: 'status', render: (s: string) => <StatusBadge status={s} /> },
+          ]}
+        />
+      </TableCard>
 
       <EntityFormModal
         title="Tạo phiếu chuyển kho"

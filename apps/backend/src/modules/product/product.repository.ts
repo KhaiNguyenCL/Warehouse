@@ -13,6 +13,8 @@ import {
   UpdateVariantSupplierBody,
   CreateBundleItemBody,
   UpdateBundleItemBody,
+  CreateCustomerPriceBody,
+  UpdateCustomerPriceBody,
 } from './product.schema'
 
 export class ProductRepository {
@@ -173,21 +175,28 @@ export class ProductRepository {
 
   // ─── Variants ──────────────────────────────────────────────────────────
 
-  createVariant(productId: string, data: CreateVariantBody) {
+  async createVariant(productId: string, data: CreateVariantBody) {
+    const result = await this.db.raw("SELECT nextval('variant_sku_seq') AS nextval")
+    const sku = String(result.rows[0].nextval).padStart(6, '0')
     return this.db('variants')
-      .insert({ ...data, product_id: productId })
+      .insert({ ...data, product_id: productId, sku })
       .returning('*')
-      .then(([row]) => row)
+      .then(([row]: any[]) => row)
   }
 
   searchVariants(search?: string, productType?: string, limit = 50) {
     const q = this.db('variants as v')
       .join('products as p', 'p.id', 'v.product_id')
       .where('p.is_active', true)
-      .select('v.id', 'v.sku', 'v.name', 'v.unit', 'p.name as product_name', 'p.product_type')
+      .select('v.id', 'v.sku', 'v.item_code', 'v.name', 'v.unit', 'p.name as product_name', 'p.product_type')
       .orderBy('v.sku')
       .limit(limit)
-    if (search) q.where((b) => b.whereILike('v.sku', `%${search}%`).orWhereILike('v.name', `%${search}%`).orWhereILike('p.name', `%${search}%`))
+    if (search) q.where((b) =>
+      b.whereILike('v.sku', `%${search}%`)
+       .orWhereILike('v.item_code', `%${search}%`)
+       .orWhereILike('v.name', `%${search}%`)
+       .orWhereILike('p.name', `%${search}%`)
+    )
     if (productType) q.where('p.product_type', productType)
     return q
   }
@@ -255,6 +264,7 @@ export class ProductRepository {
         'vs.is_preferred',
         'v.id as variant_id',
         'v.sku',
+        'v.item_code',
         'v.name as variant_name',
         'p.id as product_id',
         'p.name as product_name',
@@ -328,5 +338,38 @@ export class ProductRepository {
         })),
       )
     }
+  }
+
+  // ─── Customer Prices ──────────────────────────────────────────────────────
+
+  findCustomerPrices(variantId: string) {
+    return this.db('customer_prices as cp')
+      .join('companies as c', 'c.id', 'cp.company_id')
+      .where('cp.variant_id', variantId)
+      .select('cp.*', 'c.name as company_name')
+      .orderBy('c.name')
+  }
+
+  findCustomerPriceById(id: string) {
+    return this.db('customer_prices').where({ id }).first()
+  }
+
+  async addCustomerPrice(variantId: string, data: CreateCustomerPriceBody) {
+    const [row] = await this.db('customer_prices')
+      .insert({ ...data, variant_id: variantId })
+      .returning('*')
+    return row
+  }
+
+  async updateCustomerPrice(id: string, data: UpdateCustomerPriceBody) {
+    const [row] = await this.db('customer_prices')
+      .where({ id })
+      .update({ ...data, updated_at: this.db.fn.now() })
+      .returning('*')
+    return row
+  }
+
+  deleteCustomerPrice(id: string) {
+    return this.db('customer_prices').where({ id }).del()
   }
 }

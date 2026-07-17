@@ -1,35 +1,40 @@
 import { Table, Button, Form, Input, Select } from 'antd'
+import { PlusOutlined } from '@ant-design/icons'
 import { usePurchaseOrders } from '../hooks/usePurchaseOrders'
 import { PageHeader } from '../components/PageHeader'
+import { TableCard } from '../components/ui/TableCard'
+import { StatusBadge } from '../components/ui/StatusBadge'
 import { EntityFormModal } from '../components/EntityFormModal'
-import { StatusTag } from '../components/StatusTag'
 import POLineItem from '../components/POLineItem'
-
-const STATUS_COLOR: Record<string, string> = { draft: 'default', confirmed: 'blue', cancelled: 'red' }
 
 export default function PurchaseOrdersPage() {
   const hook = usePurchaseOrders()
 
   return (
-    <div>
-      <PageHeader title="Purchase Order" actionLabel="+ Tạo PO" onAction={hook.openCreate} />
-
-      <Table
-        rowKey="id"
-        loading={hook.isLoading}
-        dataSource={hook.data?.data}
-        pagination={false}
-        onRow={(record: any) => ({ onClick: () => hook.navigate(`/purchase-orders/${record.id}`), style: { cursor: 'pointer' } })}
-        columns={[
-          { title: 'Mã PO', dataIndex: 'code' },
-          { title: 'NCC', dataIndex: 'company_name' },
-          { title: 'Trạng thái', dataIndex: 'status', render: (s) => <StatusTag status={s} colorMap={STATUS_COLOR} /> },
-          { title: 'Ngày tạo', dataIndex: 'created_at', render: (d) => new Date(d).toLocaleString('vi-VN') },
-        ]}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <PageHeader
+        title="Đơn đặt hàng"
+        actions={<Button type="primary" icon={<PlusOutlined />} onClick={() => hook.openCreate()}>Tạo PO</Button>}
       />
+      <TableCard>
+        <Table
+          rowKey="id"
+          loading={hook.isLoading}
+          dataSource={hook.data?.data}
+          pagination={false}
+          onRow={(record: any) => ({ onClick: () => hook.navigate(`/purchase-orders/${record.id}`), style: { cursor: 'pointer' } })}
+          columns={[
+            { title: 'STT', width: 52, align: 'center' as const, render: (_: any, __: any, i: number) => i + 1 },
+            { title: 'Mã PO', dataIndex: 'code' },
+            { title: 'NCC', dataIndex: 'company_name' },
+            { title: 'Trạng thái', dataIndex: 'status', render: (s: string) => <StatusBadge status={s} /> },
+            { title: 'Ngày tạo', dataIndex: 'created_at', render: (d: string) => new Date(d).toLocaleString('vi-VN') },
+          ]}
+        />
+      </TableCard>
 
       <EntityFormModal
-        title="Tạo Purchase Order mới"
+        title="Tạo đơn đặt hàng mới"
         open={hook.open}
         onCancel={hook.close}
         onFinish={(v) => hook.createMutation.mutate(v)}

@@ -65,7 +65,7 @@ export class ReceiptRepository {
       .join('products as p', 'p.id', 'v.product_id')   // join thêm products để lấy tên sản phẩm hiển thị
       .where('rl.receipt_id', id)
       // p.product_type cần để service biết dòng nào storable (bắt buộc serial) khi Complete
-      .select('rl.*', 'v.sku', 'v.name as variant_name', 'p.name as product_name', 'p.product_type')
+      .select('rl.*', 'v.sku', 'v.item_code', 'v.name as variant_name', 'p.name as product_name', 'p.product_type')
       .orderBy('rl.line_order')
 
     return { ...receipt, lines }   // gộp lines vào object receipt để trả ra 1 response duy nhất
@@ -98,7 +98,7 @@ export class ReceiptRepository {
     return row
   }
 
-  async updateLines(lines: Array<{ id: string; cost_price?: number; manufacturer_warranty_months?: number | null; customer_warranty_months?: number | null }>) {
+  async updateLines(lines: Array<{ id: string; cost_price?: number; manufacturer_warranty_months?: number | null; manufacturer_warranty_start?: string | null; customer_warranty_months?: number | null }>) {
     for (const line of lines) {
       const { id, ...fields } = line
       if (Object.keys(fields).length) {

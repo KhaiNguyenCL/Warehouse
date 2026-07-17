@@ -14,6 +14,8 @@ import {
   updateVariantSupplierSchema,
   createBundleItemSchema,
   updateBundleItemSchema,
+  createCustomerPriceSchema,
+  updateCustomerPriceSchema,
   CreateCategoryBody,
   UpdateCategoryBody,
   CreateBrandBody,
@@ -27,6 +29,8 @@ import {
   UpdateVariantSupplierBody,
   CreateBundleItemBody,
   UpdateBundleItemBody,
+  CreateCustomerPriceBody,
+  UpdateCustomerPriceBody,
 } from './product.schema'
 import { authenticate } from '../../middleware/auth'
 import { requirePermission } from '../../middleware/permission'
@@ -262,6 +266,39 @@ const productRoutes: FastifyPluginAsync = async (app) => {
     { preHandler: requirePermission('settings.products') },
     async (request, reply) => {
       await service.deleteBundleItem(request.params.id, request.params.variantId, request.params.itemId)
+      return reply.code(204).send()
+    },
+  )
+
+  // ─── Customer Prices ─────────────────────────────────────────────────────
+
+  app.get<{ Params: { id: string; variantId: string } }>(
+    '/:id/variants/:variantId/customer-prices',
+    { preHandler: authenticate },
+    async (request) => service.listCustomerPrices(request.params.id, request.params.variantId),
+  )
+
+  app.post<{ Params: { id: string; variantId: string }; Body: CreateCustomerPriceBody }>(
+    '/:id/variants/:variantId/customer-prices',
+    { schema: createCustomerPriceSchema, preHandler: requirePermission('settings.products') },
+    async (request, reply) => {
+      const row = await service.addCustomerPrice(request.params.id, request.params.variantId, request.body)
+      return reply.code(201).send(row)
+    },
+  )
+
+  app.patch<{ Params: { id: string; variantId: string; priceId: string }; Body: UpdateCustomerPriceBody }>(
+    '/:id/variants/:variantId/customer-prices/:priceId',
+    { schema: updateCustomerPriceSchema, preHandler: requirePermission('settings.products') },
+    async (request) =>
+      service.updateCustomerPrice(request.params.id, request.params.variantId, request.params.priceId, request.body),
+  )
+
+  app.delete<{ Params: { id: string; variantId: string; priceId: string } }>(
+    '/:id/variants/:variantId/customer-prices/:priceId',
+    { preHandler: requirePermission('settings.products') },
+    async (request, reply) => {
+      await service.deleteCustomerPrice(request.params.id, request.params.variantId, request.params.priceId)
       return reply.code(204).send()
     },
   )

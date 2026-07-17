@@ -1,11 +1,11 @@
 import { Table, Form, Input, Select, Button } from 'antd'
+import { PlusOutlined } from '@ant-design/icons'
 import { useStocktakes } from '../hooks/useStocktakes'
 import { PageHeader } from '../components/PageHeader'
+import { TableCard } from '../components/ui/TableCard'
+import { StatusBadge } from '../components/ui/StatusBadge'
 import { EntityFormModal } from '../components/EntityFormModal'
-import { StatusTag } from '../components/StatusTag'
 import StocktakeSkuPicker from '../components/StocktakeSkuPicker'
-
-const STATUS_COLOR: Record<string, string> = { in_progress: 'blue', completed: 'green', cancelled: 'red' }
 
 const SCOPE_TYPES = [
   { value: 'all', label: 'Toàn bộ kho' },
@@ -17,23 +17,28 @@ export default function StocktakesPage() {
   const hook = useStocktakes()
 
   return (
-    <div>
-      <PageHeader title="Kiểm kê (Stocktake)" actionLabel="+ Tạo kiểm kê" onAction={hook.openCreate} />
-
-      <Table
-        rowKey="id"
-        loading={hook.isLoading}
-        dataSource={hook.data?.data}
-        pagination={false}
-        onRow={(record: any) => ({ onClick: () => hook.navigate(`/stocktakes/${record.id}`), style: { cursor: 'pointer' } })}
-        columns={[
-          { title: 'Mã kiểm kê', dataIndex: 'code' },
-          { title: 'Kho', dataIndex: 'warehouse_name' },
-          { title: 'Phạm vi', dataIndex: 'scope_type' },
-          { title: 'Trạng thái', dataIndex: 'status', render: (s) => <StatusTag status={s} colorMap={STATUS_COLOR} /> },
-          { title: 'Bắt đầu', dataIndex: 'started_at', render: (d) => new Date(d).toLocaleString('vi-VN') },
-        ]}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <PageHeader
+        title="Kiểm kê kho"
+        actions={<Button type="primary" icon={<PlusOutlined />} onClick={() => hook.openCreate()}>Tạo kiểm kê</Button>}
       />
+      <TableCard>
+        <Table
+          rowKey="id"
+          loading={hook.isLoading}
+          dataSource={hook.data?.data}
+          pagination={false}
+          onRow={(record: any) => ({ onClick: () => hook.navigate(`/stocktakes/${record.id}`), style: { cursor: 'pointer' } })}
+          columns={[
+            { title: 'STT', width: 52, align: 'center' as const, render: (_: any, __: any, i: number) => i + 1 },
+            { title: 'Mã kiểm kê', dataIndex: 'code' },
+            { title: 'Kho', dataIndex: 'warehouse_name' },
+            { title: 'Phạm vi', dataIndex: 'scope_type' },
+            { title: 'Trạng thái', dataIndex: 'status', render: (s: string) => <StatusBadge status={s} /> },
+            { title: 'Bắt đầu', dataIndex: 'started_at', render: (d: string) => new Date(d).toLocaleString('vi-VN') },
+          ]}
+        />
+      </TableCard>
 
       <EntityFormModal
         title="Tạo phiếu kiểm kê"

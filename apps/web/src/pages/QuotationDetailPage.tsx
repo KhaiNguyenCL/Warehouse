@@ -129,7 +129,7 @@ export default function QuotationDetailPage() {
                 title: 'Sản phẩm',
                 render: (_: any, l: any) => l.bundle_name ?? l.variant_name ?? l.description ?? '—',
               },
-              { title: 'SKU', render: (_: any, l: any) => l.bundle_sku ?? l.variant_sku ?? '—' },
+              { title: 'Mã hàng', render: (_: any, l: any) => l.bundle_item_code ?? l.variant_item_code ?? '—' },
               { title: 'SL', dataIndex: 'quantity' },
               { title: 'Đơn giá', dataIndex: 'unit_price' },
               { title: 'VAT (%)', dataIndex: 'vat_percent' },

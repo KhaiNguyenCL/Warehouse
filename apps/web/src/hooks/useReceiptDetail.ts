@@ -35,6 +35,7 @@ export function useReceiptDetail(id: string) {
       id: l.id,
       cost_price: l.cost_price,
       manufacturer_warranty_months: l.has_manufacturer_warranty ? l.manufacturer_warranty_months : null,
+      manufacturer_warranty_start: l.has_manufacturer_warranty ? (l.manufacturer_warranty_start ?? null) : null,
       customer_warranty_months: l.has_customer_warranty ? l.customer_warranty_months : null,
     }))
     return api.patch(`/receipts/${id}`, { note: values.note, lines })

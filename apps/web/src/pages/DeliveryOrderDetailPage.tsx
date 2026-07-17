@@ -222,7 +222,7 @@ export default function DeliveryOrderDetailPage() {
         dataSource={hook.data.lines}
         pagination={false}
         columns={[
-          { title: 'SKU', dataIndex: 'sku', width: 140 },
+          { title: 'Mã hàng', dataIndex: 'item_code', width: 140 },
           { title: 'Tên', dataIndex: 'variant_name' },
           { title: 'Loại', dataIndex: 'product_type', width: 100 },
           { title: 'Số lượng', dataIndex: 'quantity', width: 90 },

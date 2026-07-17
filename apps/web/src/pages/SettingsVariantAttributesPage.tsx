@@ -5,7 +5,8 @@ import {
 } from 'antd'
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import { api } from '../lib/api'
-import { PageHeader } from '../components/PageHeader'
+import { PageHeader } from '../components/ui/PageHeader'
+import { TableCard } from '../components/ui/TableCard'
 import { ImeInput } from '../components/ImeInput'
 
 interface AttrDef {
@@ -81,7 +82,7 @@ export default function SettingsVariantAttributesPage() {
       qc.invalidateQueries({ queryKey: ['variant-attribute-defs'] })
       setModalOpen(false)
     } catch (err: any) {
-      if (err?.errorFields) return // antd validation error
+      if (err?.errorFields) return
       message.error(err?.response?.data?.message ?? 'Lỗi')
     }
   }
@@ -96,70 +97,70 @@ export default function SettingsVariantAttributesPage() {
     }
   }
 
-  const columns = [
-    { title: 'Tên thuộc tính', dataIndex: 'name' },
-    {
-      title: 'Đơn vị',
-      dataIndex: 'unit',
-      width: 80,
-      render: (v: string | null) => v ?? <span style={{ color: '#aaa' }}>—</span>,
-    },
-    {
-      title: 'Các giá trị',
-      dataIndex: 'options',
-      render: (opts: string[]) =>
-        opts.length ? opts.map((o) => <Tag key={o}>{o}</Tag>) : <span style={{ color: '#aaa' }}>Chưa có</span>,
-    },
-    {
-      title: 'Áp dụng',
-      dataIndex: 'applies_to',
-      width: 120,
-      render: (v: string, r: AttrDef) =>
-        v === 'all' ? (
-          <Tag color="blue">Tất cả</Tag>
-        ) : (
-          <span>{r.products.map((p) => p.product_name).join(', ') || <Tag>Chưa chọn SP</Tag>}</span>
-        ),
-    },
-    {
-      title: 'Hoạt động',
-      dataIndex: 'is_active',
-      width: 100,
-      render: (v: boolean) => (v ? <Tag color="green">Có</Tag> : <Tag>Tắt</Tag>),
-    },
-    {
-      title: '',
-      width: 100,
-      render: (_: any, r: AttrDef) => (
-        <Space>
-          <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)} />
-          <Popconfirm title="Xoá thuộc tính này?" onConfirm={() => handleDelete(r.id)} okText="Xoá" cancelText="Không">
-            <Button size="small" danger icon={<DeleteOutlined />} />
-          </Popconfirm>
-        </Space>
-      ),
-    },
-  ]
-
   return (
-    <div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       <PageHeader
         title="Thuộc tính SKU"
-        extra={
+        actions={
           <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
             Thêm thuộc tính
           </Button>
         }
       />
 
-      <Table
-        rowKey="id"
-        dataSource={data}
-        columns={columns}
-        loading={isLoading}
-        pagination={false}
-        size="small"
-      />
+      <TableCard>
+        <Table
+          rowKey="id"
+          dataSource={data}
+          loading={isLoading}
+          pagination={false}
+          size="small"
+          columns={[
+            { title: 'Tên thuộc tính', dataIndex: 'name' },
+            {
+              title: 'Đơn vị',
+              dataIndex: 'unit',
+              width: 80,
+              render: (v: string | null) => v ?? <span style={{ color: '#aaa' }}>—</span>,
+            },
+            {
+              title: 'Các giá trị',
+              dataIndex: 'options',
+              render: (opts: string[]) =>
+                opts.length ? opts.map((o) => <Tag key={o}>{o}</Tag>) : <span style={{ color: '#aaa' }}>Chưa có</span>,
+            },
+            {
+              title: 'Áp dụng',
+              dataIndex: 'applies_to',
+              width: 120,
+              render: (v: string, r: AttrDef) =>
+                v === 'all' ? (
+                  <Tag color="blue">Tất cả</Tag>
+                ) : (
+                  <span>{r.products.map((p) => p.product_name).join(', ') || <Tag>Chưa chọn SP</Tag>}</span>
+                ),
+            },
+            {
+              title: 'Hoạt động',
+              dataIndex: 'is_active',
+              width: 100,
+              render: (v: boolean) => (v ? <Tag color="green">Có</Tag> : <Tag>Tắt</Tag>),
+            },
+            {
+              title: '',
+              width: 100,
+              render: (_: any, r: AttrDef) => (
+                <Space>
+                  <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)} />
+                  <Popconfirm title="Xoá thuộc tính này?" onConfirm={() => handleDelete(r.id)} okText="Xoá" cancelText="Không">
+                    <Button size="small" danger icon={<DeleteOutlined />} />
+                  </Popconfirm>
+                </Space>
+              ),
+            },
+          ]}
+        />
+      </TableCard>
 
       <Modal
         open={modalOpen}
@@ -184,11 +185,7 @@ export default function SettingsVariantAttributesPage() {
             </div>
             <Space wrap>
               {options.map((o) => (
-                <Tag
-                  key={o}
-                  closable
-                  onClose={() => setOptions(options.filter((x) => x !== o))}
-                >
+                <Tag key={o} closable onClose={() => setOptions(options.filter((x) => x !== o))}>
                   {o}
                 </Tag>
               ))}
@@ -201,9 +198,7 @@ export default function SettingsVariantAttributesPage() {
                 placeholder="Nhập giá trị rồi Enter"
                 style={{ width: 200 }}
               />
-              <Button onClick={addOption} icon={<PlusOutlined />}>
-                Thêm
-              </Button>
+              <Button onClick={addOption} icon={<PlusOutlined />}>Thêm</Button>
             </div>
           </div>
 

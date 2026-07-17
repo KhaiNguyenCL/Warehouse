@@ -60,7 +60,7 @@ export default function ReceiptDetailPage() {
         dataSource={hook.data.lines}
         pagination={false}
         columns={[
-          { title: 'SKU', dataIndex: 'sku' },
+          { title: 'Mã hàng', dataIndex: 'item_code' },
           { title: 'Tên', dataIndex: 'variant_name' },
           { title: 'Product type', dataIndex: 'product_type' },
           { title: 'Số lượng', dataIndex: 'quantity' },
@@ -94,7 +94,7 @@ export default function ReceiptDetailPage() {
           .map((l: any) => (
             <div key={l.id} style={{ marginBottom: 24 }}>
               <p style={{ fontWeight: 600, marginBottom: 8 }}>
-                {l.sku} — {l.variant_name}
+                {l.item_code} — {l.variant_name}
                 <span style={{ fontWeight: 400, color: '#888', marginLeft: 8 }}>
                   (cần {l.quantity} SN)
                 </span>
@@ -164,7 +164,7 @@ export default function ReceiptDetailPage() {
                   title: 'SKU',
                   render: (_: any, f: any) => {
                     const line = hook.data?.lines?.[f.name]
-                    return <span style={{ fontSize: 12 }}>{line?.sku} — {line?.variant_name}</span>
+                    return <span style={{ fontSize: 12 }}>{line?.item_code} — {line?.variant_name}</span>
                   },
                 },
                 {

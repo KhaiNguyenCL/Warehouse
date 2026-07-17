@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { useDebounce } from './useDebounce'
 import { Form } from 'antd'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../lib/api'
@@ -11,13 +12,8 @@ export function useQuotations() {
   const navigate = useNavigate()
 
   const [searchInput, setSearchInput] = useState('')
-  const [search, setSearch] = useState('')
   const [status, setStatus] = useState<string | undefined>()
-
-  useEffect(() => {
-    const t = setTimeout(() => setSearch(searchInput), 300)
-    return () => clearTimeout(t)
-  }, [searchInput])
+  const search = useDebounce(searchInput)
 
   const { data, isLoading } = useQuery({
     queryKey: ['quotations', search, status],

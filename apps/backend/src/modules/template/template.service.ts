@@ -46,6 +46,53 @@ function getPath(obj: unknown, fieldPath: string): unknown {
   }, obj)
 }
 
+// detectVariables trả về tên biến Carbone đầy đủ (VD "d.ref_code", "d.line_items[i].sku").
+// Carbone nhận data object và access theo tên không có "d." prefix — "d" chỉ là ký hiệu
+// quy ước trong template, không phải key thực. Mảng dùng chung 1 key ở root (line_items).
+// VD: "d.ref_code" → key "ref_code"; "d.line_items[i].description" → key "line_items".
+function toRenderKey(templateVariable: string): string {
+  return templateVariable
+    .replace(/^d\./, '')   // bỏ "d." prefix
+    .replace(/\[.*$/, '')  // bỏ "[i].xxx" suffix (array variables)
+}
+
+// Mapping tự động cho quotation template: template variable → database field.
+// Array variables (d.line_items[i].*) đều map về 1 entry "line_items" duy nhất.
+const QUOTATION_AUTO_MAPPINGS: Record<string, string> = {
+  'd.ref_code':           'ref_code',
+  'd.created_at':         'created_at',
+  'd.expired_at':         'expired_at',
+  'd.company_name':       'company_name',
+  'd.contact_name':       'contact_name',
+  'd.project_name':       'project_name',
+  'd.delivery_location':  'delivery_location',
+  'd.terms':              'terms',
+  'd.note':               'note',
+  'd.subtotal':           'subtotal',
+  'd.vat_total':          'vat_total',
+  'd.discount':           'discount',
+  'd.grand_total':        'grand_total',
+}
+
+function buildSeedMappings(detectedVariables: string[]) {
+  const result: Array<{ template_variable: string; source_type: 'database'; database_field: string; is_required: boolean }> = []
+  const added = new Set<string>()
+
+  for (const v of detectedVariables) {
+    if (QUOTATION_AUTO_MAPPINGS[v] && !added.has(v)) {
+      result.push({ template_variable: v, source_type: 'database', database_field: QUOTATION_AUTO_MAPPINGS[v], is_required: v === 'd.grand_total' })
+      added.add(v)
+      continue
+    }
+    // Tất cả d.line_items[i].* → 1 entry duy nhất cho key "line_items"
+    if (v.startsWith('d.line_items[') && !added.has('d.line_items')) {
+      result.push({ template_variable: 'd.line_items', source_type: 'database', database_field: 'line_items', is_required: false })
+      added.add('d.line_items')
+    }
+  }
+  return result
+}
+
 export class TemplateService {
   private repo: TemplateRepository
 
@@ -84,6 +131,15 @@ export class TemplateService {
       file_path: storedName,
       created_by: userId,
     })
+
+    // Auto-seed mappings cho quotation — admin không cần map tay các field chuẩn.
+    // Chỉ seed những variable thực sự có trong file template (detected_variables).
+    if (data.object_type === 'quotation' && detected_variables.length > 0) {
+      const seedMaps = buildSeedMappings(detected_variables)
+      if (seedMaps.length > 0) {
+        await this.app.db.transaction((trx) => this.repo.replaceMappings(template.id, seedMaps, trx))
+      }
+    }
 
     return { ...template, detected_variables }
   }
@@ -174,20 +230,24 @@ export class TemplateService {
 
   // source_type='bitrix' để trống (null) — module Bitrix chưa triển khai, không chặn
   // toàn bộ tính năng xuất template vì 1 vài field phụ chưa có nguồn dữ liệu.
+  // template_variable được detect dưới dạng "d.ref_code" — cần strip "d." prefix và
+  // "[i].xxx" suffix trước khi dùng làm key trong renderData (Carbone access data.ref_code,
+  // không phải data['d.ref_code']).
   private buildRenderData(context: Record<string, unknown>, mappings: Array<Record<string, any>>) {
     const renderData: Record<string, unknown> = {}
     const missing: string[] = []
 
     for (const m of mappings) {
+      const key = toRenderKey(m.template_variable)
       if (m.source_type === 'bitrix') {
-        renderData[m.template_variable] = null
+        renderData[key] = null
         continue
       }
       const value = getPath(context, m.database_field)
       if (m.is_required && (value === undefined || value === null)) {
         missing.push(m.template_variable)
       }
-      renderData[m.template_variable] = value ?? null
+      renderData[key] = value ?? null
     }
 
     if (missing.length > 0) {

@@ -1,47 +1,57 @@
-import { Table, Form, Input, Select, InputNumber, Button, Space } from 'antd'
+import { Table, Form, Input, Select, InputNumber, Button } from 'antd'
+import { PlusOutlined, SearchOutlined } from '@ant-design/icons'
 import { useQuotations } from '../hooks/useQuotations'
 import { PageHeader } from '../components/PageHeader'
+import { TableCard, FilterChip } from '../components/ui/TableCard'
+import { StatusBadge } from '../components/ui/StatusBadge'
 import { EntityFormModal } from '../components/EntityFormModal'
-import { StatusTag } from '../components/StatusTag'
 import QuotationSectionItem from '../components/QuotationSectionItem'
 
-const STATUS_COLOR: Record<string, string> = { draft: 'default', confirmed: 'blue', expired: 'gold', cancelled: 'red' }
-const STATUS_OPTIONS = ['draft', 'confirmed', 'expired', 'cancelled'].map((s) => ({ value: s, label: s }))
+const STATUS_OPTIONS = ['draft', 'confirmed', 'expired', 'cancelled'] as const
 
 export default function QuotationsPage() {
   const hook = useQuotations()
 
   return (
-    <div>
-      <PageHeader title="Báo giá (Quotation)" actionLabel="+ Tạo báo giá" onAction={hook.openCreate} />
-
-      <Space style={{ marginBottom: 16 }}>
-        <Input
-          placeholder="Tìm theo mã hoặc tên dự án"
-          allowClear
-          style={{ width: 280 }}
-          value={hook.searchInput}
-          onChange={(e) => hook.setSearchInput(e.target.value)}
-        />
-        <Select allowClear placeholder="Tất cả trạng thái" style={{ width: 200 }} options={STATUS_OPTIONS} onChange={hook.setStatus} />
-      </Space>
-
-      <Table
-        rowKey="id"
-        loading={hook.isLoading}
-        dataSource={hook.data?.data}
-        pagination={false}
-        onRow={(record: any) => ({ onClick: () => hook.navigate(`/quotations/${record.id}`), style: { cursor: 'pointer' } })}
-        columns={[
-          { title: 'Mã báo giá', dataIndex: 'code' },
-          { title: 'Khách hàng', dataIndex: 'company_name' },
-          { title: 'Dự án', dataIndex: 'project_name' },
-          { title: 'Trạng thái', dataIndex: 'status', render: (s) => <StatusTag status={s} colorMap={STATUS_COLOR} /> },
-          { title: 'Tổng tiền', dataIndex: 'grand_total' },
-          { title: 'Hết hạn', dataIndex: 'expired_at', render: (d) => (d ? new Date(d).toLocaleDateString('vi-VN') : '—') },
-          { title: 'Ngày tạo', dataIndex: 'created_at', render: (d) => new Date(d).toLocaleString('vi-VN') },
-        ]}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <PageHeader
+        title="Báo giá"
+        actions={<Button type="primary" icon={<PlusOutlined />} onClick={() => hook.openCreate()}>Tạo báo giá</Button>}
       />
+
+      <TableCard
+        toolbar={STATUS_OPTIONS.map((s) => (
+          <FilterChip key={s} label={<StatusBadge status={s} />} active={hook.status === s} onClick={() => hook.setStatus(hook.status === s ? undefined : s)} />
+        ))}
+        actions={
+          <Input
+            prefix={<SearchOutlined style={{ color: 'var(--text-3)', fontSize: 13 }} />}
+            placeholder="Tìm mã, tên dự án…"
+            allowClear
+            style={{ width: 220, height: 28, fontSize: 13 }}
+            value={hook.searchInput}
+            onChange={(e) => hook.setSearchInput(e.target.value)}
+          />
+        }
+      >
+        <Table
+          rowKey="id"
+          loading={hook.isLoading}
+          dataSource={hook.data?.data}
+          pagination={false}
+          onRow={(record: any) => ({ onClick: () => hook.navigate(`/quotations/${record.id}`), style: { cursor: 'pointer' } })}
+          columns={[
+            { title: 'STT', width: 52, align: 'center' as const, render: (_: any, __: any, i: number) => i + 1 },
+            { title: 'Mã báo giá', dataIndex: 'code' },
+            { title: 'Khách hàng', dataIndex: 'company_name' },
+            { title: 'Dự án', dataIndex: 'project_name' },
+            { title: 'Trạng thái', dataIndex: 'status', render: (s: string) => <StatusBadge status={s} /> },
+            { title: 'Tổng tiền', dataIndex: 'grand_total' },
+            { title: 'Hết hạn', dataIndex: 'expired_at', render: (d: string) => (d ? new Date(d).toLocaleDateString('vi-VN') : '—') },
+            { title: 'Ngày tạo', dataIndex: 'created_at', render: (d: string) => new Date(d).toLocaleString('vi-VN') },
+          ]}
+        />
+      </TableCard>
 
       <EntityFormModal
         title="Tạo báo giá mới"

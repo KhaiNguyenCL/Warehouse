@@ -5,10 +5,9 @@ import {
 import { ImeInput } from '../components/ImeInput'
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import { useVariantAttributesTab, useCustomFieldsTab } from '../hooks/useCustomFieldsSettings'
-import { PageHeader } from '../components/PageHeader'
+import { PageHeader } from '../components/ui/PageHeader'
+import { TableCard } from '../components/ui/TableCard'
 import { EntityFormModal } from '../components/EntityFormModal'
-
-// ─── Tab 1: Thuộc tính SKU ────────────────────────────────────────────────────
 
 const OBJECT_TYPES = [
   { value: 'quotation', label: 'Quotation' },
@@ -33,12 +32,16 @@ function VariantAttributesTab() {
   const hook = useVariantAttributesTab()
 
   const columns = [
+    { title: 'STT', width: 52, align: 'center' as const, render: (_: any, __: any, i: number) => i + 1 },
     { title: 'Tên thuộc tính', dataIndex: 'name' },
     {
       title: 'Loại',
       dataIndex: 'field_type',
       width: 90,
-      render: (v: string) => <Tag>{v === 'text' ? 'Nhập tự do' : 'Danh sách'}</Tag>,
+      render: (v: string) => {
+        const labels: Record<string, string> = { text: 'Nhập tự do', select: 'Danh sách', boolean: 'Có/Không', date: 'Ngày' }
+        return <Tag>{labels[v] ?? v}</Tag>
+      },
     },
     {
       title: 'Đơn vị',
@@ -50,9 +53,10 @@ function VariantAttributesTab() {
       title: 'Các giá trị',
       dataIndex: 'options',
       render: (opts: string[], r: any) =>
-        r.field_type === 'text'
-          ? <span style={{ color: '#aaa' }}>Nhập tự do</span>
-          : opts.length ? opts.map((o) => <Tag key={o}>{o}</Tag>) : <span style={{ color: '#aaa' }}>Chưa có</span>,
+        r.field_type === 'text' ? <span style={{ color: '#aaa' }}>Nhập tự do</span>
+          : r.field_type === 'boolean' ? <span style={{ color: '#aaa' }}>Có / Không</span>
+          : r.field_type === 'date' ? <span style={{ color: '#aaa' }}>Ngày tháng</span>
+          : opts.length ? opts.map((o: string) => <Tag key={o}>{o}</Tag>) : <span style={{ color: '#aaa' }}>Chưa có</span>,
     },
     {
       title: 'Áp dụng',
@@ -83,11 +87,13 @@ function VariantAttributesTab() {
 
   return (
     <>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
-        <Button type="primary" icon={<PlusOutlined />} onClick={hook.openCreate}>Thêm thuộc tính</Button>
-      </div>
-
-      <Table rowKey="id" dataSource={hook.data} columns={columns} loading={hook.isLoading} pagination={false} size="small" />
+      <TableCard
+        actions={
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => hook.openCreate()}>Thêm thuộc tính</Button>
+        }
+      >
+        <Table rowKey="id" dataSource={hook.data} columns={columns} loading={hook.isLoading} pagination={false} size="small" />
+      </TableCard>
 
       <Modal
         open={hook.modalOpen}
@@ -106,6 +112,8 @@ function VariantAttributesTab() {
             <Select options={[
               { value: 'select', label: 'Danh sách (chọn từ giá trị có sẵn)' },
               { value: 'text', label: 'Nhập tự do' },
+              { value: 'boolean', label: 'Có / Không' },
+              { value: 'date', label: 'Ngày' },
             ]} />
           </Form.Item>
 
@@ -170,55 +178,60 @@ function VariantAttributesTab() {
   )
 }
 
-// ─── Tab 2: Custom Field phiếu/đơn ───────────────────────────────────────────
-
 function CustomFieldsTab() {
   const hook = useCustomFieldsTab()
 
   return (
     <>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-        <Select style={{ width: 200 }} value={hook.objectType} onChange={hook.setObjectType} options={OBJECT_TYPES} />
-        <Button type="primary" icon={<PlusOutlined />} onClick={hook.openCreate}>Tạo field</Button>
-      </div>
-
-      <Table
-        rowKey="id"
-        loading={hook.isLoading}
-        dataSource={hook.data}
-        pagination={false}
-        size="small"
-        columns={[
-          { title: 'field_name', dataIndex: 'field_name' },
-          { title: 'Tên hiển thị', dataIndex: 'field_label' },
-          { title: 'Loại', dataIndex: 'field_type' },
-          {
-            title: 'Options',
-            dataIndex: 'options',
-            render: (opts: string[] | null) => opts?.map((o) => <Tag key={o}>{o}</Tag>),
-          },
-          { title: 'Thứ tự', dataIndex: 'sort_order' },
-          {
-            title: 'Active',
-            dataIndex: 'is_active',
-            render: (v: boolean) => <Tag color={v ? 'green' : 'default'}>{v ? 'Có' : 'Không'}</Tag>,
-          },
-          {
-            title: '',
-            render: (_: any, record: any) => (
-              <Space>
-                <Button size="small" icon={<EditOutlined />} onClick={() => hook.openEditField(record)}>Sửa</Button>
-                <Popconfirm title="Xoá field này?" onConfirm={() => hook.deleteMutation.mutate(record.id)}>
-                  <Button size="small" danger icon={<DeleteOutlined />}>Xoá</Button>
-                </Popconfirm>
-              </Space>
-            ),
-          },
-        ]}
-      />
+      <TableCard
+        toolbar={
+          <Select style={{ width: 200 }} value={hook.objectType} onChange={hook.setObjectType} options={OBJECT_TYPES} />
+        }
+        actions={
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => hook.openCreate()}>Tạo field</Button>
+        }
+      >
+        <Table
+          rowKey="id"
+          loading={hook.isLoading}
+          dataSource={hook.data}
+          pagination={false}
+          size="small"
+          columns={[
+            { title: 'STT', width: 52, align: 'center' as const, render: (_: any, __: any, i: number) => i + 1 },
+            { title: 'Tên trường', dataIndex: 'field_name' },
+            { title: 'Nhãn hiển thị', dataIndex: 'field_label' },
+            { title: 'Loại', dataIndex: 'field_type' },
+            {
+              title: 'Options',
+              dataIndex: 'options',
+              render: (opts: string[] | null) => opts?.map((o) => <Tag key={o}>{o}</Tag>),
+            },
+            { title: 'Thứ tự', dataIndex: 'sort_order', width: 80 },
+            {
+              title: 'Hoạt động',
+              dataIndex: 'is_active',
+              width: 80,
+              render: (v: boolean) => <Tag color={v ? 'green' : 'default'}>{v ? 'Có' : 'Không'}</Tag>,
+            },
+            {
+              title: '',
+              width: 120,
+              render: (_: any, record: any) => (
+                <Space>
+                  <Button size="small" icon={<EditOutlined />} onClick={() => hook.openEditField(record)}>Sửa</Button>
+                  <Popconfirm title="Xoá field này?" onConfirm={() => hook.deleteMutation.mutate(record.id)}>
+                    <Button size="small" danger icon={<DeleteOutlined />}>Xoá</Button>
+                  </Popconfirm>
+                </Space>
+              ),
+            },
+          ]}
+        />
+      </TableCard>
 
       <EntityFormModal
-        title={hook.editing ? `Sửa field "${hook.editing.field_name}"` : 'Tạo field mới'}
+        title={hook.editing ? `Sửa trường "${hook.editing.field_name}"` : 'Tạo trường mới'}
         open={hook.open}
         onCancel={hook.close}
         onFinish={hook.submit}
@@ -229,13 +242,13 @@ function CustomFieldsTab() {
           <>
             <Form.Item
               name="field_name"
-              label="field_name (machine key)"
+              label="Tên trường (machine key)"
               rules={[{ required: true, pattern: /^[a-z][a-z0-9_]*$/, message: 'snake_case, bắt đầu bằng chữ thường' }]}
               extra="Không thể sửa sau khi tạo"
             >
               <Input placeholder="vd: warranty_note" />
             </Form.Item>
-            <Form.Item name="field_type" label="Loại field" rules={[{ required: true }]} extra="Không thể sửa sau khi tạo">
+            <Form.Item name="field_type" label="Loại trường" rules={[{ required: true }]} extra="Không thể sửa sau khi tạo">
               <Select options={FIELD_TYPES} />
             </Form.Item>
           </>
@@ -256,7 +269,7 @@ function CustomFieldsTab() {
           <InputNumber style={{ width: '100%' }} />
         </Form.Item>
         {hook.editing && (
-          <Form.Item name="is_active" label="Active" valuePropName="checked" initialValue={true}>
+          <Form.Item name="is_active" label="Hoạt động" valuePropName="checked" initialValue={true}>
             <Switch />
           </Form.Item>
         )}
@@ -265,17 +278,15 @@ function CustomFieldsTab() {
   )
 }
 
-// ─── Page gộp ─────────────────────────────────────────────────────────────────
-
 export default function CustomFieldsSettingsPage() {
   return (
-    <div>
-      <PageHeader title="Custom Field" />
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <PageHeader title="Trường tùy chỉnh" />
       <Tabs
         defaultActiveKey="attr"
         items={[
           { key: 'attr', label: 'Thuộc tính SKU', children: <VariantAttributesTab /> },
-          { key: 'custom', label: 'Custom Field (phiếu/đơn)', children: <CustomFieldsTab /> },
+          { key: 'custom', label: 'Trường tùy chỉnh (phiếu/đơn)', children: <CustomFieldsTab /> },
         ]}
       />
     </div>

@@ -1,10 +1,13 @@
 import { Table, Input, Select, Switch, Form, Button, Space, Popconfirm } from 'antd'
+import { PlusOutlined } from '@ant-design/icons'
 import { useWarehouses } from '../hooks/useWarehouses'
 import { PageHeader } from '../components/PageHeader'
+import { TableCard } from '../components/ui/TableCard'
 import { EntityFormModal } from '../components/EntityFormModal'
 import { StatusTag } from '../components/StatusTag'
 
 const TYPE_COLOR: Record<string, string> = { virtual: 'orange', physical: 'blue' }
+const TYPE_LABEL: Record<string, string> = { physical: 'Vật lý', virtual: 'Ảo' }
 const WAREHOUSE_TYPES = [
   { value: 'physical', label: 'Vật lý' },
   { value: 'virtual', label: 'Ảo (Demo/Bảo hành/Chờ QC...)' },
@@ -14,21 +17,24 @@ export default function WarehousesPage() {
   const hook = useWarehouses()
 
   return (
-    <div>
-      <PageHeader title="Kho" actionLabel="+ Tạo kho" onAction={hook.create} />
-
-      <Table
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <PageHeader
+        title="Kho hàng"
+        actions={<Button type="primary" icon={<PlusOutlined />} onClick={hook.create}>Tạo kho</Button>}
+      />
+      <TableCard><Table
         rowKey="id"
         loading={hook.isLoading}
         dataSource={hook.data}
         pagination={false}
         columns={[
+          { title: 'STT', width: 52, align: 'center' as const, render: (_: any, __: any, i: number) => i + 1 },
           { title: 'Mã', dataIndex: 'code' },
           { title: 'Tên', dataIndex: 'name' },
           {
             title: 'Loại',
             dataIndex: 'type',
-            render: (t: string) => <StatusTag status={t} colorMap={TYPE_COLOR} />,
+            render: (t: string) => <StatusTag status={t} colorMap={TYPE_COLOR} labelMap={TYPE_LABEL} />,
           },
           {
             title: 'Mặc định',
@@ -54,7 +60,7 @@ export default function WarehousesPage() {
             ),
           },
         ]}
-      />
+      /></TableCard>
 
       <EntityFormModal
         title={hook.editing ? `Sửa kho "${hook.editing.name}"` : 'Tạo kho mới'}
@@ -90,7 +96,7 @@ export default function WarehousesPage() {
           <Switch />
         </Form.Item>
         {hook.editing && (
-          <Form.Item name="is_active" label="Active" valuePropName="checked" initialValue={true}>
+          <Form.Item name="is_active" label="Hoạt động" valuePropName="checked" initialValue={true}>
             <Switch />
           </Form.Item>
         )}

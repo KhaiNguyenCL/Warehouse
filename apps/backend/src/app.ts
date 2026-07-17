@@ -4,11 +4,14 @@ import Fastify from 'fastify'
 import cors from '@fastify/cors'
 import jwt from '@fastify/jwt'
 import multipart from '@fastify/multipart'
+import staticFiles from '@fastify/static'
+import { join } from 'path'
 
 import { knexPlugin } from './plugins/knex'
 import { envPlugin } from './plugins/env'
 import { carbonePlugin } from './plugins/carbone'
 import { bitrixPlugin } from './plugins/bitrix'
+import schedulerPlugin from './plugins/scheduler'
 
 // Mỗi module nghiệp vụ export 1 Fastify plugin (xem modules/receipt/receipt.routes.ts
 // làm ví dụ). Import hết vào đây rồi register dưới dạng route có prefix riêng.
@@ -28,6 +31,7 @@ import bitrixRoutes from './modules/bitrix/bitrix.routes'
 import settingsRoutes from './modules/settings/settings.routes'
 import customFieldRoutes from './modules/customfield/customfield.routes'
 import reportRoutes from './modules/report/report.routes'
+import uploadRoutes from './modules/upload/upload.routes'
 
 export async function buildApp() {
   const app = Fastify({
@@ -44,9 +48,13 @@ export async function buildApp() {
   await app.register(knexPlugin)     // kết nối Postgres, gắn app.db cho mọi route dùng
   await app.register(cors, { origin: true })          // cho phép web/mobile gọi API (origin: true = mở cho tất cả, NHỚ siết lại ở production)
   await app.register(jwt, { secret: process.env.JWT_SECRET! })  // bật request.jwtVerify() / app.jwt.sign()
-  await app.register(multipart)      // cho phép upload file (dùng ở module template — upload Excel)
+  await app.register(multipart)      // cho phép upload file (template Excel + ảnh sản phẩm)
+  await app.register(staticFiles, { root: join(process.cwd(), 'uploads'), prefix: '/uploads/' })
   await app.register(carbonePlugin)  // gắn app.carbone — render template Excel/PDF (mục 14)
   await app.register(bitrixPlugin)   // gắn app.bitrix — fetch deal/company/contact (mục 13)
+  if (process.env.NODE_ENV !== 'test') {
+    await app.register(schedulerPlugin) // cron: expire quotation hết hạn mỗi 15 phút
+  }
 
   // Error handler chung — mọi route chỉ cần `throw { statusCode, message }` trong service,
   // không cần try/catch lặp lại ở từng route nữa. Fastify tự bắt lỗi throw từ async handler
@@ -80,6 +88,7 @@ export async function buildApp() {
   await app.register(settingsRoutes,  { prefix: '/api/v1/settings' })
   await app.register(customFieldRoutes, { prefix: '/api/v1/custom-fields' })
   await app.register(reportRoutes,    { prefix: '/api/v1/reports' })
+  await app.register(uploadRoutes,   { prefix: '/api/v1/uploads' })
 
   return app
 }
