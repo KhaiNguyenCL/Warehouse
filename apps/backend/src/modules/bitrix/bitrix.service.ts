@@ -88,46 +88,89 @@ export class BitrixService {
     return updated
   }
 
-  // CLAUDE.md mục 12: "Fetch từ Bitrix API (Company và Contact)" — import 1 company Bitrix
-  // vào bảng companies nội bộ. Idempotent theo bitrix_company_id: gọi lại nhiều lần chỉ
-  // update lại field, không tạo trùng.
+  // CLAUDE.md mục 12: import 1 company Bitrix vào bảng companies nội bộ.
+  // Dedup theo thứ tự ưu tiên:
+  //   1. bitrix_company_id — đã import trước, gọi lại chỉ update
+  //   2. tax_code (MST) — tạo thủ công rồi, gắn bitrix_company_id vào
+  //   3. Không tìm thấy → tạo mới
+  // Sau khi upsert company → tự động upsert Người đại diện thành primary contact.
   async importCompany(bitrixCompanyId: string) {
-    const bxCompany = await this.app.bitrix.getCompany(bitrixCompanyId)
-    const existing = await this.companyRepo.findByBitrixId(bitrixCompanyId)
+    bitrixCompanyId = String(bitrixCompanyId)   // normalize — caller có thể truyền number
+    const bx = await this.app.bitrix.getCompany(bitrixCompanyId)
 
-    const companyType = String(bxCompany.COMPANY_TYPE ?? '').toUpperCase()
-    const types: CompanyType[] = companyType.includes('SUPPLIER') ? ['supplier'] : ['customer']
-    const phone = (bxCompany.PHONE as any[] | undefined)?.[0]?.VALUE
-    const email = (bxCompany.EMAIL as any[] | undefined)?.[0]?.VALUE
+    // ── Map fields ──────────────────────────────────────────────────────────
+    const str = (f: string) => ((bx[f] as string | undefined) ?? '').trim() || undefined
 
-    if (existing) {
-      // CompanyRepository.update() trả về 1 object (không phải array) — khác với
-      // create() trả về tuple từ .returning('*'), không destructure [updated] ở đây.
-      return this.app.db.transaction((trx) =>
-        this.companyRepo.update(
-          existing.id,
-          compact({ name: bxCompany.TITLE ?? existing.name, phone, email, types }),
-          trx,
-        ),
-      )
+    const name       = str('UF_CRM_1666348132682') ?? bx.TITLE?.trim() ?? `BX-${bitrixCompanyId}`
+    const code       = str('UF_CRM_1666346470460')
+    const taxCode    = str('UF_CRM_1665716572711')
+    const address    = str('UF_CRM_1666348162912')
+    const email      = str('UF_CRM_1666348221731')
+    const bankAccount = str('UF_CRM_1665716907464')
+    const bankName   = str('UF_CRM_1665716963770')
+    const phone      = (bx.PHONE as any[] | undefined)?.[0]?.VALUE as string | undefined
+
+    const bxType = String(bx.COMPANY_TYPE ?? '').toUpperCase()
+    const types: CompanyType[] = bxType === 'SUPPLIER' ? ['supplier'] : ['customer']
+
+    const repName     = str('UF_CRM_1666349520942')
+    const repPosition = str('UF_CRM_1666349549274')
+
+    // ── Dedup ───────────────────────────────────────────────────────────────
+    let existing = await this.companyRepo.findByBitrixId(bitrixCompanyId)
+    if (!existing && taxCode && taxCode !== '0') {
+      const byTax = await this.companyRepo.findByTaxCode(taxCode)
+      // Chỉ merge qua tax_code nếu company WMS đó CHƯA link tới Bitrix ID nào khác.
+      // Nếu đã có bitrix_company_id khác → không override, tạo mới.
+      if (byTax && (!byTax.bitrix_company_id || byTax.bitrix_company_id === bitrixCompanyId)) {
+        existing = byTax
+      }
     }
 
-    // Bitrix không có khái niệm "code" nội bộ — sinh code từ ID Bitrix, admin có thể
-    // đổi lại sau qua PATCH /companies/:id như company thường.
-    const code = `BX-${bitrixCompanyId}`
-    return this.app.db.transaction((trx) =>
-      this.companyRepo.create(
-        compact({
-          code,
-          name: bxCompany.TITLE ?? code,
-          phone,
-          email,
-          types,
-          bitrix_company_id: bitrixCompanyId,
-        }) as any,
-        trx,
-      ),
-    )
+    // ── Upsert company ──────────────────────────────────────────────────────
+    const payload = compact({ name, code, phone, email, address, bank_account: bankAccount, bank_name: bankName, tax_code: taxCode, types, bitrix_company_id: bitrixCompanyId })
+
+    let company: any
+    if (existing) {
+      company = await this.app.db.transaction((trx) =>
+        this.companyRepo.update(existing.id, payload, trx),
+      )
+      company = { ...existing, ...company }
+    } else {
+      try {
+        company = await this.app.db.transaction((trx) =>
+          this.companyRepo.create(payload as any, trx),
+        )
+      } catch (err: any) {
+        // Trùng code (2 chi nhánh cùng mã khách hàng trong Bitrix) → dùng code-BxID để phân biệt
+        if (err.constraint === 'companies_code_key' && code) {
+          const fallback = { ...payload, code: `${code}-${bitrixCompanyId}` }
+          company = await this.app.db.transaction((trx) =>
+            this.companyRepo.create(fallback as any, trx),
+          )
+        } else {
+          throw err
+        }
+      }
+    }
+
+    // ── Upsert người đại diện → primary contact ─────────────────────────────
+    if (repName) await this.upsertRepresentative(company.id, repName, repPosition)
+
+    return company
+  }
+
+  // Người đại diện lưu dưới dạng field trên company Bitrix (không phải Contact object riêng)
+  // → không có bitrix_contact_id, dedup bằng cách tìm primary contact hiện tại của company.
+  private async upsertRepresentative(companyId: string, fullName: string, position?: string) {
+    const primary = await this.app.db('contacts').where({ company_id: companyId, is_primary: true }).first()
+    await this.app.db.transaction(async (trx) => {
+      if (primary) {
+        await this.companyRepo.updateContact(primary.id, compact({ full_name: fullName, position }), trx)
+      } else {
+        await this.companyRepo.addContact(companyId, compact({ full_name: fullName, position, is_primary: true }) as any, trx)
+      }
+    })
   }
 
   // Cần company nội bộ để gắn contact vào (contacts.company_id NOT NULL) — ưu tiên
@@ -167,6 +210,96 @@ export class BitrixService {
         trx,
       ),
     )
+  }
+
+  // ─── Sync companies from Bitrix ──────────────────────────────────────────
+
+  // mapBxFields: tái sử dụng cùng logic field mapping với importCompany, để preview
+  // và apply đều ra kết quả nhất quán.
+  private mapBxCompany(bx: any) {
+    const str = (f: string) => ((bx[f] as string | undefined) ?? '').trim() || undefined
+    const name       = str('UF_CRM_1666348132682') ?? bx.TITLE?.trim() ?? `BX-${bx.ID}`
+    const code       = str('UF_CRM_1666346470460')
+    const tax_code   = str('UF_CRM_1665716572711')
+    const address    = str('UF_CRM_1666348162912')
+    const email      = str('UF_CRM_1666348221731')
+    const bank_account = str('UF_CRM_1665716907464')
+    const bank_name  = str('UF_CRM_1665716963770')
+    const rep_name   = str('UF_CRM_1666349520942')
+    const phone      = (bx.PHONE as any[] | undefined)?.[0]?.VALUE as string | undefined
+    const bxType     = String(bx.COMPANY_TYPE ?? '').toUpperCase()
+    const types      = bxType === 'SUPPLIER' ? ['supplier'] : ['customer']
+    return { name, code, tax_code, address, email, bank_account, bank_name, phone, types, rep_name }
+  }
+
+  private diffBxVsWms(wms: any, bxMapped: any) {
+    const FIELDS = ['name', 'phone', 'email', 'tax_code', 'address', 'bank_account', 'bank_name'] as const
+    return FIELDS
+      .filter((f) => {
+        const bxVal = (bxMapped as any)[f] ?? null
+        // Bitrix field trống → không coi là thay đổi, giữ nguyên giá trị WMS.
+        // (compact() trong importCompany cũng bỏ qua undefined → DB sẽ không bị xóa)
+        if (bxVal === null) return false
+        return (wms[f] ?? null) !== bxVal
+      })
+      .map((f) => ({ field: f, old: wms[f] ?? null, new: (bxMapped as any)[f] ?? null }))
+  }
+
+  async syncCompaniesPreview() {
+    const bxList = await this.app.bitrix.listAllCompanies()
+
+    const [withBxId, withTaxNoLink] = await Promise.all([
+      this.app.db('companies').whereNotNull('bitrix_company_id')
+        .select('id', 'code', 'name', 'phone', 'email', 'tax_code', 'address', 'bank_account', 'bank_name', 'bitrix_company_id'),
+      // Chỉ match qua tax_code cho company CHƯA link Bitrix — tránh 1 company WMS bị 2 Bitrix ID "nhận".
+      // Bỏ qua tax_code='0' (placeholder, không phải MST thật).
+      this.app.db('companies').whereNotNull('tax_code').whereNull('bitrix_company_id')
+        .whereNot('tax_code', '0')
+        .select('id', 'code', 'name', 'phone', 'email', 'tax_code', 'address', 'bank_account', 'bank_name', 'bitrix_company_id'),
+    ])
+
+    const byBxId  = new Map<string, any>(withBxId.map((c: any) => [c.bitrix_company_id, c]))
+    const byTax   = new Map<string, any>(withTaxNoLink.map((c: any) => [c.tax_code, c]))
+
+    const new_companies: any[] = []
+    const changed_companies: any[] = []
+    let unchanged_count = 0
+
+    for (const bx of bxList) {
+      const bxId = String(bx.ID)   // Bitrix có thể trả number — normalize sang string
+      const mapped = this.mapBxCompany(bx)
+      const existing = byBxId.get(bxId) ?? (mapped.tax_code ? byTax.get(mapped.tax_code) : undefined)
+
+      if (!existing) {
+        new_companies.push({ bitrix_id: bxId, ...mapped })
+      } else {
+        const changes = this.diffBxVsWms(existing, mapped)
+        if (changes.length > 0) {
+          changed_companies.push({ bitrix_id: bxId, wms_id: existing.id, wms_code: existing.code, name: existing.name, changes })
+        } else {
+          unchanged_count++
+        }
+      }
+    }
+
+    return { new_companies, changed_companies, unchanged_count, total_bitrix: bxList.length }
+  }
+
+  async syncCompaniesApply(bitrixIds: string[]) {
+    let synced = 0
+    const errors: Array<{ bitrix_id: string; error: string }> = []
+
+    for (const id of bitrixIds) {
+      const strId = String(id)   // phòng trường hợp frontend gửi về number
+      try {
+        await this.importCompany(strId)
+        synced++
+      } catch (err: any) {
+        errors.push({ bitrix_id: strId, error: err.message ?? String(err) })
+      }
+    }
+
+    return { synced, errors }
   }
 
   private buildDealUrl(dealId: string) {

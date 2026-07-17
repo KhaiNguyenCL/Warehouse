@@ -1,14 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Table, Input, Select, Space, Tag, Button, Form, Modal, Drawer, Descriptions, Divider, message } from 'antd'
+import { Table, Input, Select, Space, Tag, Button, Form, Drawer, Descriptions, Divider, message } from 'antd'
+import { SearchOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../lib/api'
 import { useInventory } from '../hooks/useInventory'
-import { PageHeader } from '../components/PageHeader'
-import { StatusTag } from '../components/StatusTag'
-
-const SN_STATUS_COLOR: Record<string, string> = { active: 'blue', sold: 'default', disposed: 'red' }
-const SN_STATUS_LABEL: Record<string, string> = { active: 'Trong kho', sold: 'Đã bán', disposed: 'Đã huỷ' }
+import { PageHeader } from '../components/ui/PageHeader'
+import { TableCard } from '../components/ui/TableCard'
+import { StatusBadge } from '../components/ui/StatusBadge'
 
 const REF_DOCUMENT_PATH: Record<string, string> = {
   receipt: '/receipts',
@@ -32,7 +31,6 @@ function fmtReceipt(code: string | null, completedAt: string | null) {
   return `${code} · ${fmt(completedAt)}`
 }
 
-// Drawer chi tiết 1 SN: thông tin + lịch sử di chuyển + nút sửa
 function SnDetailDrawer({
   sn,
   onClose,
@@ -96,7 +94,7 @@ function SnDetailDrawer({
         <>
           <Descriptions column={1} size="small" bordered>
             <Descriptions.Item label="Trạng thái">
-              <StatusTag status={sn.status} colorMap={SN_STATUS_COLOR} labelMap={SN_STATUS_LABEL} />
+              <StatusBadge status={sn.status} />
             </Descriptions.Item>
             <Descriptions.Item label="Kho">{sn.warehouse_name ?? '—'}</Descriptions.Item>
             <Descriptions.Item label="MAC">{sn.mac_address ?? '—'}</Descriptions.Item>
@@ -161,58 +159,7 @@ function SnDetailDrawer({
   )
 }
 
-// Flat SN list của 1 variant — click dòng để mở drawer chi tiết
-function SnTable({ variantId }: { variantId: string }) {
-  const queryKey = ['inventory', 'serials', 'variant', variantId]
-  const { data, isLoading } = useQuery({
-    queryKey,
-    queryFn: async () => (await api.get('/inventory/serials', { params: { variant_id: variantId } })).data,
-  })
-  const [selected, setSelected] = useState<any>(null)
 
-  return (
-    <>
-      <Table
-        rowKey="id"
-        loading={isLoading}
-        dataSource={data}
-        pagination={false}
-        size="small"
-        locale={{ emptyText: 'Không có serial nào' }}
-        onRow={(r) => ({ onClick: () => setSelected(r), style: { cursor: 'pointer' } })}
-        columns={[
-          { title: 'Serial No', dataIndex: 'serial_no', width: 180 },
-          {
-            title: 'Trạng thái',
-            dataIndex: 'status',
-            width: 100,
-            render: (s: string) => <StatusTag status={s} colorMap={SN_STATUS_COLOR} labelMap={SN_STATUS_LABEL} />,
-          },
-          { title: 'Kho', dataIndex: 'warehouse_name', width: 160 },
-          {
-            title: 'MAC',
-            dataIndex: 'mac_address',
-            width: 160,
-            render: (v: string | null) => v ?? <span style={{ color: '#bbb' }}>—</span>,
-          },
-          {
-            title: 'Phiếu nhập · Ngày',
-            render: (_: any, r: any) => (
-              <span style={{ fontFamily: 'monospace', fontSize: 12 }}>
-                {fmtReceipt(r.receipt_code, r.completed_at)}
-              </span>
-            ),
-          },
-          { title: 'Hết BH hãng', dataIndex: 'manufacturer_warranty_end', width: 120, render: fmt },
-          { title: 'Hết BH cty', dataIndex: 'customer_warranty_end', width: 120, render: fmt },
-        ]}
-      />
-      <SnDetailDrawer sn={selected} onClose={() => setSelected(null)} listQueryKey={queryKey} />
-    </>
-  )
-}
-
-// Tra ngược trực tiếp theo serial_no
 function SnSearchTable({ search }: { search: string }) {
   const queryKey = ['inventory', 'serials', 'search', search]
   const { data, isLoading } = useQuery({
@@ -232,12 +179,12 @@ function SnSearchTable({ search }: { search: string }) {
         onRow={(r) => ({ onClick: () => setSelected(r), style: { cursor: 'pointer' } })}
         columns={[
           { title: 'Serial No', dataIndex: 'serial_no' },
-          { title: 'SKU', dataIndex: 'sku' },
+          { title: 'Mã hàng', dataIndex: 'item_code' },
           { title: 'Tên SP', dataIndex: 'variant_name' },
           {
             title: 'Trạng thái',
             dataIndex: 'status',
-            render: (s: string) => <StatusTag status={s} colorMap={SN_STATUS_COLOR} labelMap={SN_STATUS_LABEL} />,
+            render: (s: string) => <StatusBadge status={s} />,
           },
           { title: 'Kho', dataIndex: 'warehouse_name' },
           {
@@ -260,98 +207,122 @@ function SnSearchTable({ search }: { search: string }) {
 
 export default function InventoryPage() {
   const hook = useInventory()
+  const navigate = useNavigate()
 
   return (
-    <div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       <PageHeader title="Tồn kho" />
 
-      <Space style={{ marginBottom: 16 }}>
-        <Input
-          placeholder="Tìm theo SKU hoặc tên sản phẩm"
-          allowClear
-          style={{ width: 280 }}
-          value={hook.searchInput}
-          onChange={(e) => hook.setSearchInput(e.target.value)}
-        />
-        <Select
-          allowClear
-          placeholder="Tất cả kho"
-          style={{ width: 220 }}
-          options={hook.warehouses?.map((w: any) => ({ value: w.id, label: w.name }))}
-          onChange={hook.setWarehouseId}
-        />
-        <Input
-          placeholder="Tra SN (không cần biết trước SKU/kho)"
-          allowClear
-          style={{ width: 300 }}
-          value={hook.snSearchInput}
-          onChange={(e) => hook.setSnSearchInput(e.target.value)}
-        />
-      </Space>
-
-      {hook.snSearch ? (
-        <SnSearchTable search={hook.snSearch} />
-      ) : (
-        <Table
-          rowKey="variant_id"
-          loading={hook.isLoading}
-          dataSource={hook.data?.data}
-          pagination={false}
-          columns={[
-            { title: 'SKU', dataIndex: 'sku', width: 160 },
-            { title: 'Tên sản phẩm', dataIndex: 'variant_name' },
-            {
-              title: 'Tồn kho',
-              dataIndex: 'qty_on_hand',
-              width: 110,
-              align: 'right' as const,
-              render: (v: number, r: any) => `${v}${r.unit ? ' ' + r.unit : ''}`,
-            },
-            {
-              title: 'Đang giữ',
-              dataIndex: 'qty_reserved',
-              width: 110,
-              align: 'right' as const,
-              render: (v: number, r: any) => v ? `${v}${r.unit ? ' ' + r.unit : ''}` : '—',
-            },
-            {
-              title: 'Khả dụng',
-              dataIndex: 'qty_available',
-              width: 110,
-              align: 'right' as const,
-              render: (v: number, r: any) => (
-                <strong style={{ color: v > 0 ? '#52c41a' : '#ff4d4f' }}>
-                  {v}{r.unit ? ' ' + r.unit : ''}
-                </strong>
-              ),
-            },
-            {
-              title: 'Kho',
-              dataIndex: 'warehouse_breakdown',
-              render: (wh: { name: string; qty: number }[] | null) => {
-                if (!wh?.length) return '—'
-                return wh.map((w) => (
-                  <span key={w.name} style={{ marginRight: 8, whiteSpace: 'nowrap' }}>
-                    {w.name}
-                    <span style={{ color: '#888', fontSize: 11, marginLeft: 3 }}>({w.qty})</span>
-                  </span>
-                ))
+      <TableCard
+        toolbar={
+          <Select
+            allowClear
+            placeholder="Tất cả kho"
+            style={{ width: 220 }}
+            options={hook.warehouses?.map((w: any) => ({ value: w.id, label: w.name }))}
+            onChange={hook.setWarehouseId}
+          />
+        }
+        actions={
+          <Space>
+            <Input
+              prefix={<SearchOutlined style={{ color: 'var(--text-3)', fontSize: 13 }} />}
+              placeholder="Tìm SKU / tên sản phẩm"
+              allowClear
+              style={{ width: 220, height: 28, fontSize: 13 }}
+              value={hook.searchInput}
+              onChange={(e) => hook.setSearchInput(e.target.value)}
+            />
+            <Input
+              prefix={<SearchOutlined style={{ color: 'var(--text-3)', fontSize: 13 }} />}
+              placeholder="Tra SN (không cần biết SKU)"
+              allowClear
+              style={{ width: 240, height: 28, fontSize: 13 }}
+              value={hook.snSearchInput}
+              onChange={(e) => hook.setSnSearchInput(e.target.value)}
+            />
+          </Space>
+        }
+      >
+        {hook.snSearch ? (
+          <SnSearchTable search={hook.snSearch} />
+        ) : (
+          <Table
+            rowKey="variant_id"
+            loading={hook.isLoading}
+            dataSource={hook.data?.data}
+            pagination={false}
+            columns={[
+              { title: 'STT', width: 52, align: 'center' as const, render: (_: any, __: any, i: number) => i + 1 },
+              { title: 'Mã hàng', dataIndex: 'item_code', width: 160 },
+              { title: 'Tên sản phẩm', dataIndex: 'variant_name' },
+              {
+                title: 'Tồn kho',
+                dataIndex: 'qty_on_hand',
+                width: 110,
+                align: 'right' as const,
+                render: (v: number, r: any) => `${v}${r.unit ? ' ' + r.unit : ''}`,
               },
-            },
-            {
-              title: 'Giá vốn TB',
-              dataIndex: 'avg_cost',
-              width: 130,
-              align: 'right' as const,
-              render: (v: number) => (v ? Number(v).toLocaleString('vi-VN') + ' ₫' : '—'),
-            },
-          ]}
-          expandable={{
-            expandedRowRender: (r: any) => <SnTable variantId={r.variant_id} />,
-            rowExpandable: (r: any) => r.product_type === 'storable',
-          }}
-        />
-      )}
+              {
+                title: 'Đang giữ',
+                dataIndex: 'qty_reserved',
+                width: 110,
+                align: 'right' as const,
+                render: (v: number, r: any) => v ? `${v}${r.unit ? ' ' + r.unit : ''}` : '—',
+              },
+              {
+                title: 'Khả dụng',
+                dataIndex: 'qty_available',
+                width: 110,
+                align: 'right' as const,
+                render: (v: number, r: any) => (
+                  <strong style={{ color: v > 0 ? '#52c41a' : '#ff4d4f' }}>
+                    {v}{r.unit ? ' ' + r.unit : ''}
+                  </strong>
+                ),
+              },
+              {
+                title: 'Kho',
+                dataIndex: 'warehouse_breakdown',
+                render: (wh: { name: string; qty: number }[] | null) => {
+                  if (!wh?.length) return '—'
+                  return wh.map((w) => (
+                    <span key={w.name} style={{ marginRight: 8, whiteSpace: 'nowrap' }}>
+                      {w.name}
+                      <span style={{ color: '#888', fontSize: 11, marginLeft: 3 }}>({w.qty})</span>
+                    </span>
+                  ))
+                },
+              },
+              {
+                title: 'Giá vốn TB',
+                dataIndex: 'avg_cost',
+                width: 130,
+                align: 'right' as const,
+                render: (v: number) => (v ? Number(v).toLocaleString('vi-VN') + ' ₫' : '—'),
+              },
+              {
+                title: '',
+                width: 90,
+                onCell: () => ({ onClick: (e: React.MouseEvent) => e.stopPropagation() }),
+                render: (_: any, r: any) =>
+                  r.product_type === 'storable' ? (
+                    <Button
+                      size="small"
+                      onClick={() =>
+                        navigate(
+                          `/inventory/serials/${r.variant_id}?code=${encodeURIComponent(r.item_code ?? '')}&name=${encodeURIComponent(r.variant_name ?? '')}`
+                        )
+                      }
+                    >
+                      Xem SN
+                    </Button>
+                  ) : null,
+              },
+            ]}
+          />
+        )}
+      </TableCard>
     </div>
   )
 }

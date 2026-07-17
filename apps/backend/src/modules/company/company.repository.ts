@@ -56,6 +56,12 @@ export class CompanyRepository {
     return this.db('companies').where({ bitrix_company_id: bitrixCompanyId }).first()
   }
 
+  findByTaxCode(taxCode: string) {
+    // Không lọc is_active — Bitrix sync cần dedup kể cả company đã soft-delete,
+    // tránh tạo bản ghi trùng khi công ty tạm bị vô hiệu hóa trong WMS.
+    return this.db('companies').where({ tax_code: taxCode }).first()
+  }
+
   async findById(id: string) {
     const company = await this.db('companies').where({ id }).first()
     if (!company) return null

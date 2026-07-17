@@ -77,6 +77,41 @@ export class BitrixClient {
   listContacts(filter: Record<string, string> = {}) {
     return this.call<BitrixContact[]>('crm.contact.list', filter)
   }
+
+  // Fetch toàn bộ companies từ Bitrix với các UF field cần thiết, xử lý pagination.
+  // Bitrix trả tối đa 50 bản ghi/lần; dùng json.next làm offset cho lần kế tiếp.
+  async listAllCompanies(): Promise<BitrixCompany[]> {
+    if (!this.webhookUrl) throw { statusCode: 503, message: 'BITRIX_WEBHOOK_URL chưa được cấu hình' }
+
+    const SELECT = [
+      'ID', 'TITLE', 'COMPANY_TYPE', 'PHONE',
+      'UF_CRM_1666348132682', 'UF_CRM_1666346470460', 'UF_CRM_1665716572711',
+      'UF_CRM_1666348162912', 'UF_CRM_1666348221731', 'UF_CRM_1665716907464',
+      'UF_CRM_1665716963770', 'UF_CRM_1666349520942', 'UF_CRM_1666349549274',
+    ]
+
+    const all: BitrixCompany[] = []
+    let start = 0
+
+    while (true) {
+      const parts: string[] = [`start=${start}`]
+      SELECT.forEach((f, i) => parts.push(`SELECT%5B${i}%5D=${encodeURIComponent(f)}`))
+      const url = `${this.webhookUrl.replace(/\/$/, '')}/crm.company.list?${parts.join('&')}`
+
+      let res: Response
+      try { res = await fetch(url) } catch (err: any) {
+        throw { statusCode: 502, message: `Không gọi được Bitrix API: ${err.message}` }
+      }
+      const json: any = await res.json()
+      if (json.error) throw { statusCode: 502, message: `Bitrix API lỗi: ${json.error_description ?? json.error}` }
+
+      all.push(...(json.result ?? []))
+      if (!json.next) break
+      start = Number(json.next)
+    }
+
+    return all
+  }
 }
 
 export const bitrixPlugin = fp(async (app: FastifyInstance) => {

@@ -50,6 +50,16 @@ const bitrixRoutes: FastifyPluginAsync = async (app) => {
     },
   )
 
+  // Sync toàn bộ danh sách company từ Bitrix: fetch, so sánh với DB, trả về diff.
+  app.get('/companies/sync-preview', { preHandler: authenticate }, () => service.syncCompaniesPreview())
+
+  // Áp dụng sync cho các bitrix_id đã chọn (idempotent — tạo mới hoặc update).
+  app.post<{ Body: { bitrix_ids: string[] } }>(
+    '/companies/sync-apply',
+    { preHandler: authenticate },
+    (request) => service.syncCompaniesApply(request.body.bitrix_ids),
+  )
+
   app.post<{ Params: { bitrixContactId: string }; Body: ImportContactBody }>(
     '/contacts/:bitrixContactId/import',
     { schema: importContactSchema, preHandler: authenticate },

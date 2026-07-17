@@ -3,6 +3,7 @@ import { useAuthStore } from './store/auth'
 import AppLayout from './layout/AppLayout'
 import LoginPage from './pages/LoginPage'
 import CompaniesPage from './pages/CompaniesPage'
+import CompanyDetailPage from './pages/CompanyDetailPage'
 import CategoriesPage from './pages/CategoriesPage'
 import BrandsPage from './pages/BrandsPage'
 import ProductsPage from './pages/ProductsPage'
@@ -13,6 +14,7 @@ import PurchaseOrderDetailPage from './pages/PurchaseOrderDetailPage'
 import ReceiptsPage from './pages/ReceiptsPage'
 import ReceiptDetailPage from './pages/ReceiptDetailPage'
 import InventoryPage from './pages/InventoryPage'
+import InventorySerialsPage from './pages/InventorySerialsPage'
 import CustomFieldsSettingsPage from './pages/CustomFieldsSettingsPage'
 import QuotationsPage from './pages/QuotationsPage'
 import QuotationDetailPage from './pages/QuotationDetailPage'
@@ -45,6 +47,7 @@ const routes: RouteObject[] = [
         children: [
           { path: '/', element: <Navigate to="/companies" replace /> },
           { path: '/companies', element: <CompaniesPage /> },
+          { path: '/companies/:id', element: <CompanyDetailPage /> },
           { path: '/categories', element: <CategoriesPage /> },
           { path: '/brands', element: <BrandsPage /> },
           { path: '/products', element: <ProductsPage /> },
@@ -55,6 +58,7 @@ const routes: RouteObject[] = [
           { path: '/receipts', element: <ReceiptsPage /> },
           { path: '/receipts/:id', element: <ReceiptDetailPage /> },
           { path: '/inventory', element: <InventoryPage /> },
+          { path: '/inventory/serials/:variantId', element: <InventorySerialsPage /> },
           { path: '/quotations', element: <QuotationsPage /> },
           { path: '/quotations/:id', element: <QuotationDetailPage /> },
           { path: '/deliveries', element: <DeliveryOrdersPage /> },
