@@ -113,7 +113,7 @@ export default function SettingsVariantAttributesPage() {
           rowKey="id"
           dataSource={data}
           loading={isLoading}
-          pagination={false}
+          pagination={{ pageSize: 20, showSizeChanger: false, hideOnSinglePage: true }}
           size="small"
           columns={[
             { title: 'Tên thuộc tính', dataIndex: 'name' },

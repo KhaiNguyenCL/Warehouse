@@ -1,6 +1,6 @@
-import { Table, Input, Select, Form, Popconfirm, Button, Divider, InputNumber } from 'antd'
+import { Table, Input, Select, Form, Popconfirm, Button, Divider, InputNumber, Switch } from 'antd'
 import { ImageUpload } from '../components/ImageUpload'
-import { PlusOutlined } from '@ant-design/icons'
+import { PlusOutlined, EditOutlined } from '@ant-design/icons'
 import { useProducts } from '../hooks/useProducts'
 import { PageHeader } from '../components/PageHeader'
 import { TableCard } from '../components/ui/TableCard'
@@ -29,7 +29,7 @@ export default function ProductsPage() {
         rowKey="id"
         loading={hook.isLoading}
         dataSource={hook.data?.data}
-        pagination={false}
+        pagination={{ current: hook.page, pageSize: 20, total: hook.data?.total, onChange: hook.setPage, showSizeChanger: false, showTotal: (t) => `Tổng ${t}` }}
         onRow={(record: any) => ({ onClick: () => hook.navigate(`/products/${record.id}`), style: { cursor: 'pointer' } })}
         columns={[
           { title: 'STT', width: 52, align: 'center' as const, render: (_: any, __: any, i: number) => i + 1 },
@@ -39,20 +39,24 @@ export default function ProductsPage() {
           { title: 'Category', dataIndex: 'category_name' },
           { title: 'Hãng', dataIndex: 'brand_name' },
           {
-            title: '',
-            width: 80,
+            title: 'Hành động',
+            width: 130,
+            align: 'center' as const,
             onCell: () => ({ onClick: (e: React.MouseEvent) => e.stopPropagation() }),
             render: (_: any, record: any) => (
-              <Popconfirm
-                title="Xóa sản phẩm này?"
-                description="Không thể xóa nếu còn tồn kho."
-                okText="Xóa"
-                okButtonProps={{ danger: true }}
-                cancelText="Hủy"
-                onConfirm={() => hook.deleteMutation.mutate(record.id)}
-              >
-                <Button danger size="small" loading={hook.deleteMutation.isPending}>Xóa</Button>
-              </Popconfirm>
+              <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
+                <Button size="small" icon={<EditOutlined />} onClick={() => hook.editModal.openEdit(record)}>Sửa</Button>
+                <Popconfirm
+                  title="Xóa sản phẩm này?"
+                  description="Không thể xóa nếu còn tồn kho."
+                  okText="Xóa"
+                  okButtonProps={{ danger: true }}
+                  cancelText="Hủy"
+                  onConfirm={() => hook.deleteMutation.mutate(record.id)}
+                >
+                  <Button danger size="small" loading={hook.deleteMutation.isPending}>Xóa</Button>
+                </Popconfirm>
+              </div>
             ),
           },
         ]}
@@ -72,14 +76,14 @@ export default function ProductsPage() {
           rules={[{ required: true }]}
           extra={!hook.categories?.length ? 'Chưa có category nào — vào trang Category để tạo trước.' : undefined}
         >
-          <Select options={hook.categories?.map((c: any) => ({ value: c.id, label: c.name }))} onChange={() => hook.suggestCode()} />
+          <Select showSearch optionFilterProp="label" options={hook.categories?.map((c: any) => ({ value: c.id, label: c.name }))} onChange={() => hook.suggestCode()} />
         </Form.Item>
         <Form.Item
           name="brand_id"
           label="Hãng"
           extra={!hook.brands?.length ? 'Chưa có hãng nào — vào trang Hãng để tạo trước.' : undefined}
         >
-          <Select options={hook.brands?.map((b: any) => ({ value: b.id, label: b.name }))} onChange={() => hook.suggestCode()} allowClear />
+          <Select showSearch optionFilterProp="label" options={hook.brands?.map((b: any) => ({ value: b.id, label: b.name }))} onChange={() => hook.suggestCode()} allowClear />
         </Form.Item>
         <Form.Item
           name="model_number"
@@ -138,6 +142,47 @@ export default function ProductsPage() {
             </Form.Item>
           </>
         )}
+      </EntityFormModal>
+
+      {/* ── Modal sửa sản phẩm ── */}
+      <EntityFormModal
+        title={hook.editModal.editing ? `Sửa — ${hook.editModal.editing.name}` : ''}
+        open={hook.editModal.open}
+        onCancel={hook.editModal.close}
+        onFinish={(v) => hook.updateMutation.mutate(v)}
+        confirmLoading={hook.updateMutation.isPending}
+        form={hook.editModal.form}
+      >
+        <Form.Item name="category_id" label="Category" rules={[{ required: true }]}>
+          <Select options={hook.categories?.map((c: any) => ({ value: c.id, label: c.name }))} />
+        </Form.Item>
+        <Form.Item name="brand_id" label="Hãng">
+          <Select options={hook.brands?.map((b: any) => ({ value: b.id, label: b.name }))} allowClear />
+        </Form.Item>
+        <Form.Item name="model_number" label="Mã dòng sản phẩm">
+          <Input />
+        </Form.Item>
+        <Form.Item name="code" label="Mã sản phẩm" rules={[{ required: true }]}>
+          <Input />
+        </Form.Item>
+        <Form.Item name="name" label="Tên" rules={[{ required: true }]} className="form-row-full">
+          <Input />
+        </Form.Item>
+        <Form.Item name="name_en" label="Tên (English)" className="form-row-full">
+          <Input />
+        </Form.Item>
+        <Form.Item name="product_type" label="Loại" rules={[{ required: true }]}>
+          <Select options={PRODUCT_TYPES} />
+        </Form.Item>
+        <Form.Item name="description" label="Mô tả" className="form-row-full">
+          <Input.TextArea rows={2} />
+        </Form.Item>
+        <Form.Item name="image_url" label="Hình ảnh" className="form-row-full">
+          <ImageUpload />
+        </Form.Item>
+        <Form.Item name="is_active" label="Active" valuePropName="checked">
+          <Switch />
+        </Form.Item>
       </EntityFormModal>
     </div>
   )

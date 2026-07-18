@@ -2,10 +2,11 @@
 // Render trong slot `extra` của EntityFormModal sửa SKU, có Form riêng. Click 1 dòng để sửa,
 // nút Xoá riêng (backend có DELETE, khác Contact).
 import { useQuery } from '@tanstack/react-query'
-import { Table, Form, Input, InputNumber, Select, Switch, Button, Typography } from 'antd'
+import { Table, Form, Input, InputNumber, Select, Switch, Button } from 'antd'
 import { api } from '../lib/api'
 import { useApiMutation } from '../hooks/useApiMutation'
 import { useEntityModal } from '../hooks/useEntityModal'
+import { fw } from '../styles/fieldWidths'
 
 interface Props {
   productId: string
@@ -43,9 +44,7 @@ export default function VariantSuppliersPanel({ productId, variantId }: Props) {
   )
 
   return (
-    <div style={{ marginTop: 24, borderTop: '1px solid #f0f0f0', paddingTop: 16 }}>
-      <Typography.Title level={5}>NCC cung cấp SKU này</Typography.Title>
-
+    <div>
       <Table
         rowKey="id"
         loading={isLoading}
@@ -85,8 +84,10 @@ export default function VariantSuppliersPanel({ productId, variantId }: Props) {
       >
         <Form.Item name="company_id" rules={[{ required: true, message: 'Bắt buộc' }]}>
           <Select
+            showSearch
+            optionFilterProp="label"
             placeholder="Chọn NCC"
-            style={{ width: 180 }}
+            style={{ width: fw.company }}
             options={companies?.data.map((c: any) => ({ value: c.id, label: c.name }))}
           />
         </Form.Item>

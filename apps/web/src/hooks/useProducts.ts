@@ -10,9 +10,11 @@ export function useProducts() {
   const [modelCode, setModelCode] = useState('')
   const navigate = useNavigate()
 
+  const [page, setPage] = useState(1)
+
   const { data, isLoading } = useQuery({
-    queryKey: ['products'],
-    queryFn: async () => (await api.get('/products')).data,
+    queryKey: ['products', page],
+    queryFn: async () => (await api.get('/products', { params: { page, limit: 20 } })).data,
   })
 
   const { data: categories } = useQuery({
@@ -24,6 +26,13 @@ export function useProducts() {
     queryKey: ['brands'],
     queryFn: async () => (await api.get('/products/brands')).data,
   })
+
+  const editModal = useEntityModal()
+
+  const updateMutation = useApiMutation(
+    (values: any) => api.patch(`/products/${editModal.editing?.id}`, values),
+    { successMessage: 'Cập nhật thành công', invalidateKey: ['products'], onSuccess: editModal.close },
+  )
 
   const deleteMutation = useApiMutation((id: string) => api.delete(`/products/${id}`), {
     successMessage: 'Đã xóa sản phẩm',
@@ -78,8 +87,10 @@ export function useProducts() {
 
   return {
     open, form, openCreate,
+    editModal, updateMutation,
     modelCode, setModelCode,
     navigate,
+    page, setPage,
     data, isLoading,
     categories, brands,
     deleteMutation, createMutation,

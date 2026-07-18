@@ -53,6 +53,8 @@ export default function QuotationLineItem({ form, sectionName, name, remove }: P
     <div style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'baseline', flexWrap: 'wrap' }}>
       <Form.Item label="Sản phẩm" style={{ width: 200 }}>
         <Select
+          showSearch
+          optionFilterProp="label"
           placeholder="Chọn sản phẩm"
           options={products?.data.map((p: any) => ({ value: p.id, label: `${p.name} (${p.product_type})` }))}
           onChange={(v) => setProductId(v)}
@@ -60,6 +62,8 @@ export default function QuotationLineItem({ form, sectionName, name, remove }: P
       </Form.Item>
       <Form.Item label="SKU" style={{ width: 200 }}>
         <Select
+          showSearch
+          optionFilterProp="label"
           placeholder="Chọn SKU"
           disabled={!productId}
           options={productDetail?.variants.map((v: any) => ({ value: v.id, label: `${v.item_code ?? v.sku} — ${v.name}` }))}

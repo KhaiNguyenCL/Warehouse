@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
-import { Table, Form, InputNumber, Select, Input, Button, Typography } from 'antd'
+import { Table, Form, InputNumber, Select, Input, Button } from 'antd'
 import { api } from '../lib/api'
+import { fw } from '../styles/fieldWidths'
 import { useApiMutation } from '../hooks/useApiMutation'
 import { useEntityModal } from '../hooks/useEntityModal'
 
@@ -40,9 +41,7 @@ export default function CustomerPricesPanel({ productId, variantId }: Props) {
   )
 
   return (
-    <div style={{ marginTop: 24, borderTop: '1px solid #f0f0f0', paddingTop: 16 }}>
-      <Typography.Title level={5}>Giá cố định theo khách hàng</Typography.Title>
-
+    <div>
       <Table
         rowKey="id"
         loading={isLoading}
@@ -86,7 +85,7 @@ export default function CustomerPricesPanel({ productId, variantId }: Props) {
           <Form.Item name="company_id" rules={[{ required: true, message: 'Bắt buộc' }]}>
             <Select
               placeholder="Chọn khách hàng"
-              style={{ width: 220 }}
+              style={{ width: fw.company }}
               showSearch
               optionFilterProp="label"
               options={companies?.data.map((c: any) => ({ value: c.id, label: c.name }))}
@@ -103,7 +102,7 @@ export default function CustomerPricesPanel({ productId, variantId }: Props) {
           ]} />
         </Form.Item>
         <Form.Item name="note">
-          <Input placeholder="Ghi chú" style={{ width: 160 }} />
+          <Input placeholder="Ghi chú" style={{ width: fw.note }} />
         </Form.Item>
         <Form.Item>
           <Button type="primary" htmlType="submit" loading={createMutation.isPending || updateMutation.isPending}>

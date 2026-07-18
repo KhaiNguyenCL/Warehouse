@@ -1,11 +1,9 @@
-// Quản lý sản phẩm con của 1 variant loại "bundle" — CLAUDE.md mục 4: bundle gồm nhiều
-// sản phẩm con với quantity riêng, không lồng bundle trong bundle. Render trong slot
-// `extra` của EntityFormModal (ngoài <Form> chính) vì có Form riêng, giống CustomFieldsPanel.
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Table, Select, InputNumber, Button, Typography, Space } from 'antd'
+import { Table, Select, InputNumber, Button, Space } from 'antd'
 import { api } from '../lib/api'
 import { useApiMutation } from '../hooks/useApiMutation'
+import { fw } from '../styles/fieldWidths'
 
 interface Props {
   productId: string
@@ -13,7 +11,6 @@ interface Props {
 }
 
 export default function BundleItemsPanel({ productId, variantId }: Props) {
-  const [itemProductId, setItemProductId] = useState<string | undefined>()
   const [itemVariantId, setItemVariantId] = useState<string | undefined>()
   const [quantity, setQuantity] = useState<number>(1)
 
@@ -22,15 +19,9 @@ export default function BundleItemsPanel({ productId, variantId }: Props) {
     queryFn: async () => (await api.get(`/products/${productId}/variants/${variantId}/bundle-items`)).data,
   })
 
-  const { data: products } = useQuery({
-    queryKey: ['products', 'all'],
-    queryFn: async () => (await api.get('/products', { params: { limit: 100 } })).data,
-  })
-
-  const { data: itemProductDetail } = useQuery({
-    queryKey: ['products', itemProductId],
-    queryFn: async () => (await api.get(`/products/${itemProductId}`)).data,
-    enabled: !!itemProductId,
+  const { data: allVariants } = useQuery({
+    queryKey: ['products', 'variants', 'all'],
+    queryFn: async () => (await api.get('/products/variants', { params: { limit: 200 } })).data,
   })
 
   const invalidate = { invalidateKey: ['products', productId, 'variants', variantId, 'bundle-items'] }
@@ -40,11 +31,7 @@ export default function BundleItemsPanel({ productId, variantId }: Props) {
     {
       successMessage: 'Thêm sản phẩm con thành công',
       ...invalidate,
-      onSuccess: () => {
-        setItemProductId(undefined)
-        setItemVariantId(undefined)
-        setQuantity(1)
-      },
+      onSuccess: () => { setItemVariantId(undefined); setQuantity(1) },
     },
   )
 
@@ -53,10 +40,28 @@ export default function BundleItemsPanel({ productId, variantId }: Props) {
     { successMessage: 'Đã xoá', ...invalidate },
   )
 
-  return (
-    <div style={{ marginTop: 24, borderTop: '1px solid #f0f0f0', paddingTop: 16 }}>
-      <Typography.Title level={5}>Sản phẩm con trong bundle</Typography.Title>
+  // Group variants by product_name, loại bỏ bundle/service và chính sản phẩm hiện tại
+  const groupedOptions = (() => {
+    if (!allVariants) return []
+    const eligible = allVariants.filter(
+      (v: any) => v.product_type !== 'bundle' && v.product_type !== 'service',
+    )
+    const groups = new Map<string, { label: string; options: any[] }>()
+    for (const v of eligible) {
+      if (!groups.has(v.product_name)) {
+        groups.set(v.product_name, { label: v.product_name, options: [] })
+      }
+      groups.get(v.product_name)!.options.push({
+        value: v.id,
+        label: `${v.item_code ?? v.sku}${v.name ? ` — ${v.name}` : ''}`,
+        searchText: `${v.product_name} ${v.item_code ?? ''} ${v.sku} ${v.name ?? ''}`.toLowerCase(),
+      })
+    }
+    return Array.from(groups.values())
+  })()
 
+  return (
+    <div>
       <Table
         rowKey="id"
         loading={isLoading}
@@ -70,9 +75,7 @@ export default function BundleItemsPanel({ productId, variantId }: Props) {
           {
             title: '',
             render: (_: any, r: any) => (
-              <Button size="small" danger onClick={() => deleteMutation.mutate(r.id)}>
-                Xoá
-              </Button>
+              <Button size="small" danger onClick={() => deleteMutation.mutate(r.id)}>Xoá</Button>
             ),
           },
         ]}
@@ -80,27 +83,26 @@ export default function BundleItemsPanel({ productId, variantId }: Props) {
 
       <Space style={{ marginTop: 12 }}>
         <Select
-          placeholder="Chọn sản phẩm con"
-          style={{ width: 200 }}
-          options={products?.data
-            .filter((p: any) => p.id !== productId && p.product_type !== 'bundle')
-            .map((p: any) => ({ value: p.id, label: p.name }))}
-          value={itemProductId}
-          onChange={(v) => {
-            setItemProductId(v)
-            setItemVariantId(undefined)
-          }}
-        />
-        <Select
-          placeholder="Chọn SKU"
-          style={{ width: 220 }}
-          disabled={!itemProductId}
-          options={itemProductDetail?.variants.map((v: any) => ({ value: v.id, label: `${v.item_code ?? v.sku} — ${v.name}` }))}
+          showSearch
+          placeholder="Tìm sản phẩm / SKU..."
+          style={{ width: fw.sku + fw.product }}
           value={itemVariantId}
           onChange={setItemVariantId}
+          filterOption={(input, option) => {
+            if (option && 'searchText' in option) {
+              return (option.searchText as string).includes(input.toLowerCase())
+            }
+            return false
+          }}
+          options={groupedOptions}
         />
-        <InputNumber min={1} value={quantity} onChange={(v) => setQuantity(v ?? 1)} />
-        <Button type="primary" disabled={!itemVariantId} loading={addMutation.isPending} onClick={() => addMutation.mutate()}>
+        <InputNumber min={1} value={quantity} onChange={(v) => setQuantity(v ?? 1)} style={{ width: 80 }} />
+        <Button
+          type="primary"
+          disabled={!itemVariantId}
+          loading={addMutation.isPending}
+          onClick={() => addMutation.mutate()}
+        >
           + Thêm
         </Button>
       </Space>

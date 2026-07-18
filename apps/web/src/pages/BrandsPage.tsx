@@ -18,10 +18,10 @@ export default function BrandsPage() {
         rowKey="id"
         loading={hook.isLoading}
         dataSource={hook.data}
-        pagination={false}
+        pagination={{ pageSize: 20, showSizeChanger: false, hideOnSinglePage: true }}
         columns={[
           { title: 'STT', width: 52, align: 'center' as const, render: (_: any, __: any, i: number) => i + 1 },
-          { title: 'Tên hãng', dataIndex: 'name' },
+          { title: 'Tên hãng', dataIndex: 'name', width: 260 },
           { title: 'Mã viết tắt', dataIndex: 'short_code' },
           {
             title: 'Hoạt động',
@@ -51,7 +51,7 @@ export default function BrandsPage() {
         confirmLoading={hook.createMutation.isPending || hook.updateMutation.isPending}
         form={hook.form}
       >
-        <Form.Item name="name" label="Tên hãng" rules={[{ required: true }]}>
+        <Form.Item name="name" label="Tên hãng" rules={[{ required: true }]} className="form-row-full">
           <Input />
         </Form.Item>
         <Form.Item

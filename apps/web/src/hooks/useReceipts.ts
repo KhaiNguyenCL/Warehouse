@@ -27,9 +27,11 @@ export function useReceipts() {
     }
   }, [poIdFromQuery])
 
+  const [page, setPage] = useState(1)
+
   const { data, isLoading } = useQuery({
-    queryKey: ['receipts'],
-    queryFn: async () => (await api.get('/receipts')).data,
+    queryKey: ['receipts', page],
+    queryFn: async () => (await api.get('/receipts', { params: { page, limit: 20 } })).data,
   })
 
   const { data: importTypes } = useQuery({
@@ -129,6 +131,7 @@ export function useReceipts() {
     open, form, openCreate: openCreateDefault, closeAll,
     poId, setPoId, poIdFromQuery,
     navigate,
+    page, setPage,
     data, isLoading,
     importTypes, warehouses, confirmedPOs,
     variantSearch, setVariantSearch, variantOptions,

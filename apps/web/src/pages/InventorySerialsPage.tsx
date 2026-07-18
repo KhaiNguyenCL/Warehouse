@@ -190,7 +190,7 @@ export default function InventorySerialsPage() {
           rowKey="id"
           loading={isLoading}
           dataSource={data}
-          pagination={false}
+          pagination={{ pageSize: 20, showSizeChanger: false, hideOnSinglePage: true, showTotal: (t) => `Tổng ${t}` }}
           locale={{ emptyText: 'Không có serial nào' }}
           onRow={(r) => ({ onClick: () => setSelected(r), style: { cursor: 'pointer' } })}
           columns={[

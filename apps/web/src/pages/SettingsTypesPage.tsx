@@ -44,7 +44,7 @@ function ImportTypesSection() {
           rowKey="id"
           loading={hook.isLoading}
           dataSource={hook.data}
-          pagination={false}
+          pagination={{ pageSize: 20, showSizeChanger: false, hideOnSinglePage: true }}
           onRow={(record: any) => ({ onClick: () => hook.openEdit(record), style: { cursor: 'pointer' } })}
           columns={[
             { title: 'STT', width: 52, align: 'center' as const, render: (_: any, __: any, i: number) => i + 1 },
@@ -125,7 +125,7 @@ function ExportTypesSection() {
           rowKey="id"
           loading={hook.isLoading}
           dataSource={hook.data}
-          pagination={false}
+          pagination={{ pageSize: 20, showSizeChanger: false, hideOnSinglePage: true }}
           onRow={(record: any) => ({ onClick: () => hook.openEdit(record), style: { cursor: 'pointer' } })}
           columns={[
             { title: 'STT', width: 52, align: 'center' as const, render: (_: any, __: any, i: number) => i + 1 },

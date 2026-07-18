@@ -31,7 +31,7 @@ export default function TemplatesPage() {
           rowKey="id"
           loading={hook.isLoading}
           dataSource={hook.data?.data}
-          pagination={false}
+          pagination={{ pageSize: 20, showSizeChanger: false, hideOnSinglePage: true }}
           onRow={(record: any) => ({
             onClick: () => {
               hook.setDetectedVariables(undefined)

@@ -29,9 +29,11 @@ export function useDeliveryOrders() {
     }
   }, [quotationIdFromQuery])
 
+  const [page, setPage] = useState(1)
+
   const { data, isLoading } = useQuery({
-    queryKey: ['deliveries'],
-    queryFn: async () => (await api.get('/deliveries')).data,
+    queryKey: ['deliveries', page],
+    queryFn: async () => (await api.get('/deliveries', { params: { page, limit: 20 } })).data,
   })
 
   const { data: exportTypes } = useQuery({
@@ -144,6 +146,7 @@ export function useDeliveryOrders() {
     open, form, openCreate: openCreateDefault, closeAll,
     quotationId, setQuotationId, quotationIdFromQuery,
     navigate,
+    page, setPage,
     data, isLoading,
     exportTypes, warehouses,
     exportType, activeExportType, requiresCompanyType, requiresQuotation, isAdjustment,

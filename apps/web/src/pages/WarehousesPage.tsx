@@ -26,7 +26,7 @@ export default function WarehousesPage() {
         rowKey="id"
         loading={hook.isLoading}
         dataSource={hook.data}
-        pagination={false}
+        pagination={{ pageSize: 20, showSizeChanger: false, hideOnSinglePage: true }}
         columns={[
           { title: 'STT', width: 52, align: 'center' as const, render: (_: any, __: any, i: number) => i + 1 },
           { title: 'Mã', dataIndex: 'code' },

@@ -11,13 +11,17 @@ export function useQuotations() {
   const { open, form, openCreate, close } = useEntityModal()
   const navigate = useNavigate()
 
-  const [searchInput, setSearchInput] = useState('')
-  const [status, setStatus] = useState<string | undefined>()
+  const [searchInput, _setSearchInput] = useState('')
+  const [status, _setStatus] = useState<string | undefined>()
+  const [page, setPage] = useState(1)
   const search = useDebounce(searchInput)
 
+  function setSearchInput(v: string) { _setSearchInput(v); setPage(1) }
+  function setStatus(v: string | undefined) { _setStatus(v); setPage(1) }
+
   const { data, isLoading } = useQuery({
-    queryKey: ['quotations', search, status],
-    queryFn: async () => (await api.get('/quotations', { params: { search: search || undefined, status, limit: 100 } })).data,
+    queryKey: ['quotations', search, status, page],
+    queryFn: async () => (await api.get('/quotations', { params: { search: search || undefined, status, page, limit: 20 } })).data,
   })
 
   const { data: companies } = useQuery({
@@ -48,6 +52,7 @@ export function useQuotations() {
     navigate,
     searchInput, setSearchInput,
     status, setStatus,
+    page, setPage,
     data, isLoading,
     companies, companyId, companyDetail,
     warehouses,

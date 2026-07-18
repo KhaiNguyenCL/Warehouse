@@ -1,5 +1,12 @@
 @import './styles/tokens.css';
 
+/* Ngăn scroll trong dropdown lan lên page khi cuộn hết danh sách */
+.ant-select-dropdown,
+.ant-dropdown,
+.ant-picker-dropdown {
+  overscroll-behavior: contain;
+}
+
 /* antd Menu không tự ẩn title của Menu.ItemGroup khi inlineCollapsed=true (hạn chế đã
    biết của antd, group + collapsed sidebar không tương thích sẵn) — ẩn bằng tay để
    sidebar thu gọn chỉ còn icon, không bị vỡ layout vì chữ "Danh mục"/"Giao dịch"... */
@@ -64,4 +71,23 @@
    set width riêng, hẹp hơn 280px nên rule này không đổi gì ở đó). */
 .entity-form-grid .ant-select-selector {
   max-width: 280px;
+}
+
+/* Layout compact cho form không cần kẻ ô — 2 cột, không viền, spacing chuẩn. */
+.entity-form-compact {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 16px;
+}
+.entity-form-compact > .ant-form-item {
+  margin-bottom: 16px;
+}
+.entity-form-compact > .ant-form-item:has(textarea),
+.entity-form-compact > .form-row-full {
+  grid-column: 1 / -1;
+}
+@media (max-width: 480px) {
+  .entity-form-compact {
+    grid-template-columns: 1fr;
+  }
 }

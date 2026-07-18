@@ -17,7 +17,7 @@ interface CustomFieldDef {
   is_active: boolean
 }
 
-export default function CustomFieldsPanel({ objectType, objectId }: { objectType: string; objectId: string }) {
+export default function CustomFieldsPanel({ objectType, objectId, inline }: { objectType: string; objectId: string; inline?: boolean }) {
   const [form] = Form.useForm()
   const qc = useQueryClient()
 
@@ -74,24 +74,39 @@ export default function CustomFieldsPanel({ objectType, objectId }: { objectType
     saveMutation.mutate({ values: payload })
   }
 
+  const formContent = (
+    <Form form={form} layout="vertical" onFinish={submit}>
+      {activeFields.map((f) => (
+        <Form.Item key={f.id} name={f.id} label={f.field_label}>
+          {f.field_type === 'text' && <Input />}
+          {f.field_type === 'number' && <InputNumber style={{ width: '100%' }} />}
+          {f.field_type === 'date' && <DatePicker style={{ width: '100%' }} />}
+          {f.field_type === 'select' && (
+            <Select options={(f.options ?? []).map((o) => ({ value: o, label: o }))} allowClear />
+          )}
+          {f.field_type === 'boolean' && <Switch />}
+        </Form.Item>
+      ))}
+      <Button type="primary" htmlType="submit" loading={saveMutation.isPending}>
+        Lưu
+      </Button>
+    </Form>
+  )
+
+  if (inline) {
+    return (
+      <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-2)', marginBottom: 10 }}>
+          Thông tin bổ sung
+        </div>
+        {formContent}
+      </div>
+    )
+  }
+
   return (
     <Card title="Thông tin bổ sung (Custom Field)" size="small" style={{ marginTop: 16 }}>
-      <Form form={form} layout="vertical" onFinish={submit}>
-        {activeFields.map((f) => (
-          <Form.Item key={f.id} name={f.id} label={f.field_label}>
-            {f.field_type === 'text' && <Input />}
-            {f.field_type === 'number' && <InputNumber style={{ width: '100%' }} />}
-            {f.field_type === 'date' && <DatePicker style={{ width: '100%' }} />}
-            {f.field_type === 'select' && (
-              <Select options={(f.options ?? []).map((o) => ({ value: o, label: o }))} allowClear />
-            )}
-            {f.field_type === 'boolean' && <Switch />}
-          </Form.Item>
-        ))}
-        <Button type="primary" htmlType="submit" loading={saveMutation.isPending}>
-          Lưu
-        </Button>
-      </Form>
+      {formContent}
     </Card>
   )
 }

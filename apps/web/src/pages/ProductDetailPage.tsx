@@ -1,24 +1,14 @@
-import { useParams } from 'react-router-dom'
-import { Table, Input, InputNumber, Select, Switch, Tag, Typography, Form, Popconfirm, Button, Checkbox, Divider, DatePicker } from 'antd'
+import { useParams, useNavigate } from 'react-router-dom'
+import { Table, Input, InputNumber, Select, Switch, Tag, Typography, Form, Checkbox, Divider, DatePicker } from 'antd'
 import dayjs from 'dayjs'
 import { useProductDetail } from '../hooks/useProductDetail'
 import { PageHeader } from '../components/PageHeader'
 import { EntityFormModal } from '../components/EntityFormModal'
 import CustomFieldsPanel from '../components/CustomFieldsPanel'
-import BundleItemsPanel from '../components/BundleItemsPanel'
-import VariantSuppliersPanel from '../components/VariantSuppliersPanel'
-import CustomerPricesPanel from '../components/CustomerPricesPanel'
-import { ImageUpload } from '../components/ImageUpload'
-
-const PRODUCT_TYPES = [
-  { value: 'storable', label: 'Storable (có serial)' },
-  { value: 'consumable', label: 'Consumable' },
-  { value: 'service', label: 'Service' },
-  { value: 'bundle', label: 'Bundle' },
-]
 
 export default function ProductDetailPage() {
   const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
   const hook = useProductDetail(id!)
 
   if (hook.isLoading || !hook.data) return null
@@ -31,8 +21,6 @@ export default function ProductDetailPage() {
             {hook.data.name} <Typography.Text type="secondary">({hook.data.product_type})</Typography.Text>
           </>
         }
-        actionLabel="Sửa thông tin"
-        onAction={() => hook.productModal.openEdit(hook.data)}
       />
 
       <PageHeader
@@ -46,7 +34,7 @@ export default function ProductDetailPage() {
         rowKey="id"
         dataSource={hook.data.variants}
         pagination={false}
-        onRow={(record: any) => ({ onClick: () => hook.openEditVariant(record), style: { cursor: 'pointer' } })}
+        onRow={(record: any) => ({ onClick: () => navigate(`/products/${id}/variants/${record.id}`), style: { cursor: 'pointer' } })}
         columns={[
           { title: 'SKU (HT)', dataIndex: 'sku', width: 90 },
           { title: 'Mã hàng', dataIndex: 'item_code' },
@@ -68,36 +56,12 @@ export default function ProductDetailPage() {
       />
 
       <EntityFormModal
-        title={hook.variantModal.editing ? `Sửa SKU "${hook.variantModal.editing.sku}"` : 'Thêm SKU mới'}
+        title="Thêm SKU mới"
         open={hook.variantModal.open}
         onCancel={hook.variantModal.close}
         onFinish={hook.submitVariant}
-        confirmLoading={hook.createVariant.isPending || hook.updateVariant.isPending}
+        confirmLoading={hook.createVariant.isPending}
         form={hook.variantModal.form}
-        extra={
-          hook.variantModal.editing ? (
-            <>
-              <div style={{ marginTop: 16, display: 'flex', justifyContent: 'flex-end' }}>
-                <Popconfirm
-                  title={`Xóa SKU "${hook.variantModal.editing?.sku}"?`}
-                  description="Không thể xóa nếu còn tồn kho hoặc serial number."
-                  okText="Xóa"
-                  okButtonProps={{ danger: true }}
-                  cancelText="Hủy"
-                  onConfirm={() => hook.deleteVariantMutation.mutate(hook.variantModal.editing.id)}
-                >
-                  <Button danger loading={hook.deleteVariantMutation.isPending}>Xóa SKU này</Button>
-                </Popconfirm>
-              </div>
-              {hook.data.product_type === 'bundle' && (
-                <BundleItemsPanel productId={id!} variantId={hook.variantModal.editing.id} />
-              )}
-              <VariantSuppliersPanel productId={id!} variantId={hook.variantModal.editing.id} />
-              <CustomerPricesPanel productId={id!} variantId={hook.variantModal.editing.id} />
-              <CustomFieldsPanel objectType="variant" objectId={hook.variantModal.editing.id} />
-            </>
-          ) : undefined
-        }
       >
         {hook.attrValues.length > 0 && (
           <div style={{ marginBottom: 16 }}>
@@ -176,11 +140,6 @@ export default function ProductDetailPage() {
             ))}
           </div>
         )}
-        {hook.variantModal.editing && (
-          <Form.Item label="SKU (hệ thống)">
-            <Input value={hook.variantModal.editing.sku} disabled />
-          </Form.Item>
-        )}
         <Form.Item name="item_code" label="Mã hàng (tự gợi ý, có thể sửa)" rules={[{ required: true }]}>
           <Input />
         </Form.Item>
@@ -225,51 +184,6 @@ export default function ProductDetailPage() {
         </Form.Item>
         <Form.Item name="reorder_point" label="Điểm đặt lại (cảnh báo tồn thấp)" initialValue={0}>
           <InputNumber style={{ width: '100%' }} min={0} />
-        </Form.Item>
-        {hook.variantModal.editing && (
-          <Form.Item name="is_active" label="Active" valuePropName="checked" initialValue={true}>
-            <Switch />
-          </Form.Item>
-        )}
-      </EntityFormModal>
-
-      <EntityFormModal
-        title={`Sửa thông tin sản phẩm "${hook.data.code}"`}
-        open={hook.productModal.open}
-        onCancel={hook.productModal.close}
-        onFinish={(v) => hook.updateProduct.mutate(v)}
-        confirmLoading={hook.updateProduct.isPending}
-        form={hook.productModal.form}
-      >
-        <Form.Item name="category_id" label="Category" rules={[{ required: true }]}>
-          <Select options={hook.categories?.map((c: any) => ({ value: c.id, label: c.name }))} />
-        </Form.Item>
-        <Form.Item name="brand_id" label="Hãng">
-          <Select options={hook.brands?.map((b: any) => ({ value: b.id, label: b.name }))} />
-        </Form.Item>
-        <Form.Item name="model_number" label="Mã dòng sản phẩm">
-          <Input />
-        </Form.Item>
-        <Form.Item name="code" label="Mã sản phẩm" rules={[{ required: true }]}>
-          <Input />
-        </Form.Item>
-        <Form.Item name="name" label="Tên" rules={[{ required: true }]}>
-          <Input />
-        </Form.Item>
-        <Form.Item name="name_en" label="Tên (English)">
-          <Input />
-        </Form.Item>
-        <Form.Item name="product_type" label="Loại" rules={[{ required: true }]}>
-          <Select options={PRODUCT_TYPES} />
-        </Form.Item>
-        <Form.Item name="description" label="Mô tả">
-          <Input.TextArea />
-        </Form.Item>
-        <Form.Item name="image_url" label="Hình ảnh">
-          <ImageUpload />
-        </Form.Item>
-        <Form.Item name="is_active" label="Active" valuePropName="checked" initialValue={true}>
-          <Switch />
         </Form.Item>
       </EntityFormModal>
 

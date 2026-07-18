@@ -6,22 +6,43 @@ import { api } from '../lib/api'
 import { useApiMutation } from './useApiMutation'
 import { useEntityModal } from './useEntityModal'
 
+async function saveCustomFieldValues(objectId: string, custom: Record<string, any>) {
+  const values = Object.entries(custom)
+    .filter(([, v]) => v != null && v !== '')
+    .map(([field_id, value]) => ({ field_id, value: String(value) }))
+  if (values.length > 0) {
+    await api.put('/custom-fields/values', { values }, { params: { object_type: 'company', object_id: objectId } })
+  }
+}
+
 export type CompanyTypeFilter = 'all' | 'customer' | 'supplier'
 
 export function useCompanies() {
   const { open, editing, form, openCreate, openEdit, close } = useEntityModal()
   const qc = useQueryClient()
 
+  const { data: customFieldDefs = [] } = useQuery<any[]>({
+    queryKey: ['custom-fields', 'company'],
+    queryFn: async () => (await api.get('/custom-fields', { params: { object_type: 'company' } })).data,
+    staleTime: 60_000,
+  })
+
   // ── Filters ───────────────────────────────────────────
-  const [typeFilter, setTypeFilter] = useState<CompanyTypeFilter>('all')
-  const [search, setSearch] = useState('')
-  const debouncedSearch = useDebounce(search)
+  const [_typeFilter, _setTypeFilter] = useState<CompanyTypeFilter>('all')
+  const [_search, _setSearch] = useState('')
+  const [page, setPage] = useState(1)
+  const debouncedSearch = useDebounce(_search)
+
+  const typeFilter = _typeFilter
+  function setTypeFilter(v: CompanyTypeFilter) { _setTypeFilter(v); setPage(1) }
+  const search = _search
+  function setSearch(v: string) { _setSearch(v); setPage(1) }
 
   // ── Data ──────────────────────────────────────────────
   const { data, isLoading } = useQuery({
-    queryKey: ['companies', typeFilter, debouncedSearch],
+    queryKey: ['companies', typeFilter, debouncedSearch, page],
     queryFn: async () => {
-      const params: Record<string, any> = { limit: 100 }
+      const params: Record<string, any> = { page, limit: 20 }
       if (typeFilter !== 'all') params.type = typeFilter
       if (debouncedSearch.trim()) params.search = debouncedSearch.trim()
       return (await api.get('/companies', { params })).data
@@ -72,7 +93,12 @@ export function useCompanies() {
 
   // ── Mutations ──────────────────────────────────────────
   const createMutation = useMutation({
-    mutationFn: (values: any) => api.post('/companies', values),
+    mutationFn: async (allValues: any) => {
+      const { custom, ...companyData } = allValues
+      const company = (await api.post('/companies', companyData)).data
+      if (custom) await saveCustomFieldValues(company.id, custom)
+      return company
+    },
     onSuccess: () => {
       message.success('Tạo công ty thành công')
       qc.invalidateQueries({ queryKey: ['companies'] })
@@ -81,14 +107,20 @@ export function useCompanies() {
     onError: (err: any) => message.error(err.response?.data?.error ?? 'Lỗi'),
   })
 
-  const updateMutation = useApiMutation(
-    (values: any) => api.patch(`/companies/${editing.id}`, values),
-    {
-      successMessage: 'Cập nhật thành công',
-      invalidateKey: ['companies'],
-      onSuccess: close,
+  const updateMutation = useMutation({
+    mutationFn: async (allValues: any) => {
+      const { custom, ...companyData } = allValues
+      const company = (await api.patch(`/companies/${editing.id}`, companyData)).data
+      if (custom) await saveCustomFieldValues(editing.id, custom)
+      return company
     },
-  )
+    onSuccess: () => {
+      message.success('Cập nhật thành công')
+      qc.invalidateQueries({ queryKey: ['companies'] })
+      close()
+    },
+    onError: (err: any) => message.error(err.response?.data?.error ?? 'Lỗi'),
+  })
 
   const deleteMutation = useApiMutation(
     (id: string) => api.delete(`/companies/${id}`),
@@ -100,6 +132,7 @@ export function useCompanies() {
     open, editing, form, openCreate, openEdit, close,
     // list
     data, isLoading,
+    page, setPage,
     // filters
     typeFilter, setTypeFilter,
     search, setSearch,
@@ -110,5 +143,7 @@ export function useCompanies() {
     syncPreview, previewLoading,
     selectedBxIds, setSelectedBxIds,
     openSync, syncMutation,
+    // custom fields
+    customFieldDefs,
   }
 }

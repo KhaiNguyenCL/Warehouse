@@ -75,6 +75,8 @@ export default function POLineItem({ form, name, remove }: Props) {
     <div style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'baseline', flexWrap: 'wrap' }}>
       <Form.Item label="Sản phẩm" style={{ width: 200 }}>
         <Select
+          showSearch
+          optionFilterProp="label"
           placeholder="Chọn sản phẩm"
           options={products?.data
             .filter((p: any) => p.product_type !== 'service')
@@ -84,6 +86,8 @@ export default function POLineItem({ form, name, remove }: Props) {
       </Form.Item>
       <Form.Item name={[name, 'variant_id']} label="SKU" rules={[{ required: true }]} style={{ width: 200 }}>
         <Select
+          showSearch
+          optionFilterProp="label"
           placeholder="Chọn SKU"
           disabled={!productId}
           options={productDetail?.variants.map((v: any) => ({ value: v.id, label: `${v.item_code ?? v.sku} — ${v.name}` }))}

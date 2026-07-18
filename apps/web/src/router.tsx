@@ -8,6 +8,7 @@ import CategoriesPage from './pages/CategoriesPage'
 import BrandsPage from './pages/BrandsPage'
 import ProductsPage from './pages/ProductsPage'
 import ProductDetailPage from './pages/ProductDetailPage'
+import VariantDetailPage from './pages/VariantDetailPage'
 import WarehousesPage from './pages/WarehousesPage'
 import PurchaseOrdersPage from './pages/PurchaseOrdersPage'
 import PurchaseOrderDetailPage from './pages/PurchaseOrderDetailPage'
@@ -45,13 +46,14 @@ const routes: RouteObject[] = [
       {
         element: <AppLayout />,
         children: [
-          { path: '/', element: <Navigate to="/companies" replace /> },
+          { path: '/', element: <Navigate to="/reports" replace /> },
           { path: '/companies', element: <CompaniesPage /> },
           { path: '/companies/:id', element: <CompanyDetailPage /> },
           { path: '/categories', element: <CategoriesPage /> },
           { path: '/brands', element: <BrandsPage /> },
           { path: '/products', element: <ProductsPage /> },
           { path: '/products/:id', element: <ProductDetailPage /> },
+          { path: '/products/:productId/variants/:variantId', element: <VariantDetailPage /> },
           { path: '/warehouses', element: <WarehousesPage /> },
           { path: '/purchase-orders', element: <PurchaseOrdersPage /> },
           { path: '/purchase-orders/:id', element: <PurchaseOrderDetailPage /> },

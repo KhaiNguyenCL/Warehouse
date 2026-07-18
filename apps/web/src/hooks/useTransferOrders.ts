@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Form, message } from 'antd'
 import { useNavigate } from 'react-router-dom'
@@ -11,9 +11,11 @@ export function useTransferOrders() {
   const qc = useQueryClient()
   const goToDetailRef = useRef(false)
 
+  const [page, setPage] = useState(1)
+
   const { data, isLoading } = useQuery({
-    queryKey: ['transfers'],
-    queryFn: async () => (await api.get('/transfers')).data,
+    queryKey: ['transfers', page],
+    queryFn: async () => (await api.get('/transfers', { params: { page, limit: 20 } })).data,
   })
 
   const { data: warehouses } = useQuery({
@@ -50,5 +52,5 @@ export function useTransferOrders() {
     openCreate(defaultWh ? { to_warehouse_id: defaultWh } : undefined)
   }
 
-  return { open, form, openCreate: openCreateDefault, close, navigate, data, isLoading, warehouses, transferType, needsFromWarehouse, createMutation, createAndGoToDetail }
+  return { open, form, openCreate: openCreateDefault, close, navigate, page, setPage, data, isLoading, warehouses, transferType, needsFromWarehouse, createMutation, createAndGoToDetail }
 }

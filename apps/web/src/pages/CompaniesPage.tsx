@@ -1,9 +1,11 @@
 import { useNavigate } from 'react-router-dom'
-import { Table, Input, Select, Form, Button, Modal, Space, Tag, Checkbox, Spin, Tooltip } from 'antd'
+import { Table, Input, Select, Form, Button, Modal, Space, Tag, Checkbox, Spin, Tooltip, InputNumber, DatePicker, Switch } from 'antd'
 import { SearchOutlined, PlusOutlined, SyncOutlined } from '@ant-design/icons'
 import { useCompanies } from '../hooks/useCompanies'
 import { EntityFormModal } from '../components/EntityFormModal'
 import { PageHeader, TableCard, FilterChip, CodeText } from '../components/ui'
+
+import { COUNTRIES } from '../constants/countries'
 
 // ── Type badge ──────────────────────────────────────────
 function TypeBadge({ type }: { type: 'customer' | 'supplier' }) {
@@ -60,7 +62,7 @@ export default function CompaniesPage() {
           rowKey="id"
           loading={hook.isLoading}
           dataSource={hook.data?.data}
-          pagination={false}
+          pagination={{ current: hook.page, pageSize: 20, total: hook.data?.total, onChange: hook.setPage, showSizeChanger: false, showTotal: (t) => `Tổng ${t}` }}
           size="small"
           onRow={(record) => ({
             onClick: () => navigate(`/companies/${record.id}`),
@@ -124,20 +126,17 @@ export default function CompaniesPage() {
         confirmLoading={hook.createMutation.isPending || hook.updateMutation.isPending}
         form={hook.form}
       >
+        <Form.Item name="name" label="Tên công ty" rules={[{ required: true }]} className="form-row-full">
+          <Input />
+        </Form.Item>
         <Form.Item name="code" label="Mã" extra="Để trống → tự sinh CTY-XXXX">
           <Input placeholder="CTY-0001" />
         </Form.Item>
-        <Form.Item name="name" label="Tên công ty" rules={[{ required: true }]}>
-          <Input />
-        </Form.Item>
         <Form.Item name="types" label="Loại" rules={[{ required: true }]}>
-          <Select
-            mode="multiple"
-            options={[
-              { value: 'supplier',  label: 'NCC (Nhà cung cấp)' },
-              { value: 'customer',  label: 'Khách hàng' },
-            ]}
-          />
+          <Select mode="multiple" options={[
+            { value: 'customer', label: 'Khách hàng' },
+            { value: 'supplier', label: 'NCC (Nhà cung cấp)' },
+          ]} />
         </Form.Item>
         <Form.Item name="phone" label="Số điện thoại">
           <Input />
@@ -149,10 +148,7 @@ export default function CompaniesPage() {
           <Input />
         </Form.Item>
         <Form.Item name="country" label="Quốc gia" initialValue="VN">
-          <Input maxLength={2} style={{ textTransform: 'uppercase', width: 80 }} />
-        </Form.Item>
-        <Form.Item name="address" label="Địa chỉ">
-          <Input />
+          <Select showSearch optionFilterProp="label" options={COUNTRIES} />
         </Form.Item>
         <Form.Item name="bank_account" label="Số tài khoản">
           <Input />
@@ -160,18 +156,34 @@ export default function CompaniesPage() {
         <Form.Item name="bank_name" label="Ngân hàng">
           <Input />
         </Form.Item>
-        <Form.Item name="bitrix_company_id" label="Bitrix Company ID">
+        <Form.Item name="address" label="Địa chỉ" className="form-row-full">
           <Input />
         </Form.Item>
         <Form.Item name="note" label="Ghi chú">
           <Input.TextArea rows={2} />
         </Form.Item>
+        {hook.customFieldDefs.map((cf: any) => (
+          <Form.Item key={cf.id} name={['custom', cf.id]} label={cf.field_label} className="form-row-full">
+            <CustomFieldInput cf={cf} />
+          </Form.Item>
+        ))}
       </EntityFormModal>
 
       {/* ── Sync Bitrix modal ── */}
       <SyncBitrixModal hook={hook} />
     </div>
   )
+}
+
+function CustomFieldInput({ cf, value, onChange }: { cf: any; value?: any; onChange?: (v: any) => void }) {
+  if (cf.field_type === 'boolean') return <Switch checked={!!value} onChange={onChange} />
+  if (cf.field_type === 'number') return <InputNumber variant="filled" value={value} onChange={onChange} style={{ width: '100%' }} />
+  if (cf.field_type === 'date') return <DatePicker variant="filled" value={value} onChange={onChange} style={{ width: '100%' }} />
+  if (cf.field_type === 'select') return (
+    <Select variant="filled" value={value} onChange={onChange}
+      options={(cf.options ?? []).map((o: string) => ({ value: o, label: o }))} />
+  )
+  return <Input variant="filled" value={value} onChange={(e) => onChange?.(e.target.value)} />
 }
 
 const FIELD_LABEL: Record<string, string> = {
@@ -228,6 +240,9 @@ function SyncBitrixModal({ hook }: { hook: any }) {
             <span>Mới: <strong style={{ color: '#15803d' }}>{newList.length}</strong></span>
             <span>Có thay đổi: <strong style={{ color: '#d97706' }}>{changedList.length}</strong></span>
             <span>Không đổi: <strong>{preview.unchanged_count}</strong></span>
+            {preview.locked_count > 0 && (
+              <span>Đã khoá: <strong style={{ color: '#d97706' }}>{preview.locked_count}</strong></span>
+            )}
           </div>
 
           {/* ── new companies ── */}

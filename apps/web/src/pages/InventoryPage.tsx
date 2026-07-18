@@ -174,7 +174,7 @@ function SnSearchTable({ search }: { search: string }) {
         rowKey="id"
         loading={isLoading}
         dataSource={data}
-        pagination={false}
+        pagination={{ pageSize: 20, showSizeChanger: false, hideOnSinglePage: true, showTotal: (t) => `Tổng ${t}` }}
         locale={{ emptyText: 'Không tìm thấy Serial No nào khớp' }}
         onRow={(r) => ({ onClick: () => setSelected(r), style: { cursor: 'pointer' } })}
         columns={[
@@ -251,7 +251,7 @@ export default function InventoryPage() {
             rowKey="variant_id"
             loading={hook.isLoading}
             dataSource={hook.data?.data}
-            pagination={false}
+            pagination={{ current: hook.page, pageSize: 20, total: hook.data?.total, onChange: hook.setPage, showSizeChanger: false, showTotal: (t) => `Tổng ${t}` }}
             columns={[
               { title: 'STT', width: 52, align: 'center' as const, render: (_: any, __: any, i: number) => i + 1 },
               { title: 'Mã hàng', dataIndex: 'item_code', width: 160 },

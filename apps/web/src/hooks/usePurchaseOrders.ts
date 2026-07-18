@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Form } from 'antd'
 import { useNavigate } from 'react-router-dom'
@@ -9,9 +10,11 @@ export function usePurchaseOrders() {
   const { open, form, openCreate, close } = useEntityModal()
   const navigate = useNavigate()
 
+  const [page, setPage] = useState(1)
+
   const { data, isLoading } = useQuery({
-    queryKey: ['purchase-orders'],
-    queryFn: async () => (await api.get('/purchase-orders')).data,
+    queryKey: ['purchase-orders', page],
+    queryFn: async () => (await api.get('/purchase-orders', { params: { page, limit: 20 } })).data,
   })
 
   const { data: companies } = useQuery({
@@ -33,5 +36,5 @@ export function usePurchaseOrders() {
     onSuccess: close,
   })
 
-  return { open, form, openCreate, close, navigate, data, isLoading, companies, companyId, companyDetail, createMutation }
+  return { open, form, openCreate, close, navigate, page, setPage, data, isLoading, companies, companyId, companyDetail, createMutation }
 }

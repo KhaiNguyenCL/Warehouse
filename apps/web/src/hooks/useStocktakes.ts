@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Form } from 'antd'
 import { useNavigate } from 'react-router-dom'
@@ -9,9 +10,11 @@ export function useStocktakes() {
   const { open, form, openCreate, close } = useEntityModal()
   const navigate = useNavigate()
 
+  const [page, setPage] = useState(1)
+
   const { data, isLoading } = useQuery({
-    queryKey: ['stocktakes'],
-    queryFn: async () => (await api.get('/stocktakes')).data,
+    queryKey: ['stocktakes', page],
+    queryFn: async () => (await api.get('/stocktakes', { params: { page, limit: 20 } })).data,
   })
 
   const { data: warehouses } = useQuery({
@@ -32,5 +35,5 @@ export function useStocktakes() {
     onSuccess: close,
   })
 
-  return { open, form, openCreate, close, navigate, data, isLoading, warehouses, categories, scopeType, createMutation }
+  return { open, form, openCreate, close, navigate, page, setPage, data, isLoading, warehouses, categories, scopeType, createMutation }
 }

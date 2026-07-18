@@ -21,7 +21,7 @@ export default function PurchaseOrdersPage() {
           rowKey="id"
           loading={hook.isLoading}
           dataSource={hook.data?.data}
-          pagination={false}
+          pagination={{ current: hook.page, pageSize: 20, total: hook.data?.total, onChange: hook.setPage, showSizeChanger: false, showTotal: (t) => `Tổng ${t}` }}
           onRow={(record: any) => ({ onClick: () => hook.navigate(`/purchase-orders/${record.id}`), style: { cursor: 'pointer' } })}
           columns={[
             { title: 'STT', width: 52, align: 'center' as const, render: (_: any, __: any, i: number) => i + 1 },

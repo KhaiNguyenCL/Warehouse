@@ -116,6 +116,7 @@ export const createVariantSchema = {
       weight_kg:       { type: 'number', minimum: 0 },
       warranty_months: { type: 'integer', minimum: 0 },
       reorder_point:   { type: 'integer', minimum: 0 },
+      image_url:       { type: 'string' },
     },
   },
 }
@@ -136,6 +137,7 @@ export const updateVariantSchema = {
       warranty_months: { type: 'integer', minimum: 0 },
       reorder_point:   { type: 'integer', minimum: 0 },
       is_active:       { type: 'boolean' },
+      image_url:       { type: 'string' },
     },
   },
 }
