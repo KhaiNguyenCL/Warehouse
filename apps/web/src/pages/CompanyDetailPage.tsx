@@ -1,10 +1,11 @@
 import { useParams, useNavigate } from 'react-router-dom'
-import { Button, Input, Select, Popconfirm, Tag, Space, Skeleton } from 'antd'
-import { ArrowLeftOutlined, EditOutlined, SaveOutlined, CloseOutlined, DeleteOutlined } from '@ant-design/icons'
+import { Button, Input, Select, Popconfirm, Tag, Space, Skeleton, Tooltip } from 'antd'
+
+import { COUNTRIES } from '../constants/countries'
+import { ArrowLeftOutlined, EditOutlined, SaveOutlined, CloseOutlined, DeleteOutlined, LockFilled, UnlockOutlined } from '@ant-design/icons'
 import { useCompany } from '../hooks/useCompany'
 import ContactsPanel from '../components/ContactsPanel'
 import SupplierProductsPanel from '../components/SupplierProductsPanel'
-import CustomFieldsPanel from '../components/CustomFieldsPanel'
 import { PageHeader, InfoGrid, InfoField, CodeText } from '../components/ui'
 
 function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
@@ -64,6 +65,7 @@ function EditField({
           rows={2}
           size="small"
           {...inputProps}
+          style={{ maxWidth: '50%', ...(inputProps.style ?? {}) }}
         />
       ) : (
         <Input
@@ -71,6 +73,7 @@ function EditField({
           onChange={(e) => onChange(field, e.target.value)}
           size="small"
           {...inputProps}
+          style={{ maxWidth: '50%', ...(inputProps.style ?? {}) }}
         />
       )}
     </div>
@@ -94,7 +97,7 @@ export default function CompanyDetailPage() {
   )
 
   return (
-    <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 20 }}>
+    <div style={{ padding: '10px 20px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
 
       {/* ── Breadcrumb ── */}
       <button
@@ -146,6 +149,13 @@ export default function CompanyDetailPage() {
               </>
             ) : (
               <>
+                <Tooltip title={company?.sync_locked ? 'Đang khoá sync Bitrix — nhấn để mở khoá' : 'Mở khoá sync Bitrix'}>
+                  <Button
+                    icon={company?.sync_locked ? <LockFilled style={{ color: '#d97706' }} /> : <UnlockOutlined />}
+                    loading={hook.toggleLockMutation.isPending}
+                    onClick={() => hook.toggleLockMutation.mutate(undefined)}
+                  />
+                </Tooltip>
                 <Button icon={<EditOutlined />} onClick={hook.startEdit}>
                   Sửa
                 </Button>
@@ -180,7 +190,7 @@ export default function CompanyDetailPage() {
               <Select
                 mode="multiple"
                 size="small"
-                style={{ width: '100%' }}
+                style={{ width: '100%', maxWidth: '50%' }}
                 value={hook.editValues.types ?? []}
                 onChange={(v) => onFieldChange('types', v)}
                 options={[
@@ -192,8 +202,18 @@ export default function CompanyDetailPage() {
             <EditField label="Số điện thoại" field="phone"    editValues={hook.editValues} onChange={onFieldChange} />
             <EditField label="Email"          field="email"    editValues={hook.editValues} onChange={onFieldChange} />
             <EditField label="Mã số thuế"     field="tax_code" editValues={hook.editValues} onChange={onFieldChange} />
-            <EditField label="Quốc gia"       field="country"  editValues={hook.editValues} onChange={onFieldChange}
-              inputProps={{ maxLength: 2, style: { textTransform: 'uppercase', width: 80 } }} />
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-2)', marginBottom: 4 }}>Quốc gia</div>
+              <Select
+                size="small"
+                showSearch
+                optionFilterProp="label"
+                style={{ maxWidth: '50%' }}
+                value={hook.editValues.country ?? undefined}
+                onChange={(v) => onFieldChange('country', v)}
+                options={COUNTRIES}
+              />
+            </div>
             <EditField label="Số tài khoản"   field="bank_account" editValues={hook.editValues} onChange={onFieldChange} />
             <EditField label="Ngân hàng"       field="bank_name"    editValues={hook.editValues} onChange={onFieldChange} />
             <EditField label="Địa chỉ" field="address" editValues={hook.editValues} onChange={onFieldChange} full />
@@ -229,10 +249,6 @@ export default function CompanyDetailPage() {
         </SectionCard>
       )}
 
-      {/* ── Thông tin khác ── */}
-      <SectionCard title="Thông tin khác">
-        {id && <CustomFieldsPanel objectType="company" objectId={id} />}
-      </SectionCard>
     </div>
   )
 }

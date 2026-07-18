@@ -1,21 +1,14 @@
-// Quản lý Contact của 1 Company — render trong slot `extra` của EntityFormModal (ngoài
-// <Form> chính, có Form riêng). Backend chỉ có POST (tạo) + PATCH (sửa), không có DELETE
-// — click 1 dòng để load vào form sửa, không có nút xoá.
-import { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Table, Form, Input, Switch, Button, Space, message } from 'antd'
+import { useQuery } from '@tanstack/react-query'
+import { Table, Input, Switch, Button, Modal, Form } from 'antd'
+import { PlusOutlined } from '@ant-design/icons'
 import { api } from '../lib/api'
 import { useApiMutation } from '../hooks/useApiMutation'
 import { useEntityModal } from '../hooks/useEntityModal'
 
-interface Props {
-  companyId: string
-}
+interface Props { companyId: string }
 
 export default function ContactsPanel({ companyId }: Props) {
-  const { editing, form, openCreate, openEdit, close } = useEntityModal()
-  const qc = useQueryClient()
-  const [bitrixContactId, setBitrixContactId] = useState('')
+  const { open, editing, form, openCreate, openEdit, close } = useEntityModal()
 
   const { data: company, isLoading } = useQuery({
     queryKey: ['companies', companyId],
@@ -24,47 +17,24 @@ export default function ContactsPanel({ companyId }: Props) {
 
   const invalidate = { invalidateKey: ['companies', companyId] }
 
-  // CLAUDE.md mục 12: import Contact từ Bitrix, gắn vào company hiện tại (company_id
-  // override — không cần dựa vào deal.COMPANY_ID resolve).
-  const importMutation = useMutation({
-    mutationFn: () => api.post(`/bitrix/contacts/${bitrixContactId}/import`, { company_id: companyId }),
-    onSuccess: () => {
-      message.success('Import contact từ Bitrix thành công')
-      qc.invalidateQueries({ queryKey: ['companies', companyId] })
-      setBitrixContactId('')
-    },
-    onError: (err: any) => message.error(err.response?.data?.error ?? 'Import thất bại'),
-  })
-
-  const createMutation = useApiMutation((values: any) => api.post(`/companies/${companyId}/contacts`, values), {
-    successMessage: 'Thêm người liên hệ thành công',
-    ...invalidate,
-    onSuccess: close,
-  })
+  const createMutation = useApiMutation(
+    (values: any) => api.post(`/companies/${companyId}/contacts`, values),
+    { successMessage: 'Thêm người liên hệ thành công', ...invalidate, onSuccess: close },
+  )
 
   const updateMutation = useApiMutation(
-    (values: any) => api.patch(`/companies/${companyId}/contacts/${editing.id}`, values),
+    (values: any) => api.patch(`/companies/${companyId}/contacts/${editing?.id}`, values),
     { successMessage: 'Cập nhật thành công', ...invalidate, onSuccess: close },
   )
 
+  const pending = createMutation.isPending || updateMutation.isPending
+
   return (
-    <div>
+    <>
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
-        <Space>
-          <Input
-            placeholder="Bitrix Contact ID"
-            style={{ width: 160 }}
-            value={bitrixContactId}
-            onChange={(e) => setBitrixContactId(e.target.value)}
-          />
-          <Button
-            disabled={!bitrixContactId}
-            loading={importMutation.isPending}
-            onClick={() => importMutation.mutate()}
-          >
-            Import từ Bitrix
-          </Button>
-        </Space>
+        <Button size="small" icon={<PlusOutlined />} onClick={() => openCreate()}>
+          Thêm người liên hệ
+        </Button>
       </div>
 
       <Table
@@ -75,46 +45,52 @@ export default function ContactsPanel({ companyId }: Props) {
         size="small"
         onRow={(record: any) => ({ onClick: () => openEdit(record), style: { cursor: 'pointer' } })}
         columns={[
-          { title: 'Họ tên', dataIndex: 'full_name' },
+          { title: 'Họ tên',  dataIndex: 'full_name' },
           { title: 'Chức vụ', dataIndex: 'position' },
-          { title: 'SĐT', dataIndex: 'phone' },
-          { title: 'Email', dataIndex: 'email' },
-          { title: 'Chính', dataIndex: 'is_primary', render: (v: boolean) => (v ? 'Có' : '') },
+          { title: 'SĐT',     dataIndex: 'phone' },
+          { title: 'Email',   dataIndex: 'email' },
+          {
+            title: 'Chính',
+            dataIndex: 'is_primary',
+            width: 70,
+            align: 'center' as const,
+            render: (v: boolean) => (v ? 'Có' : ''),
+          },
         ]}
       />
 
-      <Form
-        form={form}
-        layout="inline"
-        style={{ marginTop: 12, flexWrap: 'wrap', gap: 8 }}
-        onFinish={(v) => (editing ? updateMutation.mutate(v) : createMutation.mutate(v))}
+      <Modal
+        title={editing ? 'Sửa người liên hệ' : 'Thêm người liên hệ'}
+        open={open}
+        onCancel={close}
+        okText={editing ? 'Lưu' : 'Thêm'}
+        onOk={() => form.submit()}
+        confirmLoading={pending}
+        destroyOnClose
       >
-        <Form.Item name="full_name" rules={[{ required: true, message: 'Bắt buộc' }]}>
-          <Input placeholder="Họ tên" style={{ width: 160 }} />
-        </Form.Item>
-        <Form.Item name="position">
-          <Input placeholder="Chức vụ" style={{ width: 140 }} />
-        </Form.Item>
-        <Form.Item name="phone">
-          <Input placeholder="SĐT" style={{ width: 120 }} />
-        </Form.Item>
-        <Form.Item name="email" rules={[{ type: 'email', message: 'Email không hợp lệ' }]}>
-          <Input placeholder="Email" style={{ width: 160 }} />
-        </Form.Item>
-        <Form.Item name="is_primary" valuePropName="checked">
-          <Switch checkedChildren="Chính" unCheckedChildren="Phụ" />
-        </Form.Item>
-        <Form.Item>
-          <Button type="primary" htmlType="submit" loading={createMutation.isPending || updateMutation.isPending}>
-            {editing ? 'Lưu' : '+ Thêm'}
-          </Button>
-        </Form.Item>
-        {editing && (
-          <Form.Item>
-            <Button onClick={() => openCreate()}>Huỷ sửa</Button>
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={(v) => (editing ? updateMutation.mutate(v) : createMutation.mutate(v))}
+          style={{ marginTop: 8 }}
+        >
+          <Form.Item name="full_name" label="Họ tên" rules={[{ required: true, message: 'Bắt buộc' }]}>
+            <Input />
           </Form.Item>
-        )}
-      </Form>
-    </div>
+          <Form.Item name="position" label="Chức vụ">
+            <Input />
+          </Form.Item>
+          <Form.Item name="phone" label="Số điện thoại">
+            <Input />
+          </Form.Item>
+          <Form.Item name="email" label="Email" rules={[{ type: 'email', message: 'Email không hợp lệ' }]}>
+            <Input />
+          </Form.Item>
+          <Form.Item name="is_primary" label="Liên hệ chính" valuePropName="checked">
+            <Switch checkedChildren="Chính" unCheckedChildren="Phụ" />
+          </Form.Item>
+        </Form>
+      </Modal>
+    </>
   )
 }

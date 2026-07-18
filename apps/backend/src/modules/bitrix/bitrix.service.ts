@@ -128,6 +128,9 @@ export class BitrixService {
     }
 
     // ── Upsert company ──────────────────────────────────────────────────────
+    // Company đã bị khoá sync → không ghi đè, trả về nguyên bản
+    if (existing?.sync_locked) return existing
+
     const payload = compact({ name, code, phone, email, address, bank_account: bankAccount, bank_name: bankName, tax_code: taxCode, types, bitrix_company_id: bitrixCompanyId })
 
     let company: any
@@ -250,12 +253,10 @@ export class BitrixService {
 
     const [withBxId, withTaxNoLink] = await Promise.all([
       this.app.db('companies').whereNotNull('bitrix_company_id')
-        .select('id', 'code', 'name', 'phone', 'email', 'tax_code', 'address', 'bank_account', 'bank_name', 'bitrix_company_id'),
-      // Chỉ match qua tax_code cho company CHƯA link Bitrix — tránh 1 company WMS bị 2 Bitrix ID "nhận".
-      // Bỏ qua tax_code='0' (placeholder, không phải MST thật).
+        .select('id', 'code', 'name', 'phone', 'email', 'tax_code', 'address', 'bank_account', 'bank_name', 'bitrix_company_id', 'sync_locked'),
       this.app.db('companies').whereNotNull('tax_code').whereNull('bitrix_company_id')
         .whereNot('tax_code', '0')
-        .select('id', 'code', 'name', 'phone', 'email', 'tax_code', 'address', 'bank_account', 'bank_name', 'bitrix_company_id'),
+        .select('id', 'code', 'name', 'phone', 'email', 'tax_code', 'address', 'bank_account', 'bank_name', 'bitrix_company_id', 'sync_locked'),
     ])
 
     const byBxId  = new Map<string, any>(withBxId.map((c: any) => [c.bitrix_company_id, c]))
@@ -264,14 +265,17 @@ export class BitrixService {
     const new_companies: any[] = []
     const changed_companies: any[] = []
     let unchanged_count = 0
+    let locked_count = 0
 
     for (const bx of bxList) {
-      const bxId = String(bx.ID)   // Bitrix có thể trả number — normalize sang string
+      const bxId = String(bx.ID)
       const mapped = this.mapBxCompany(bx)
       const existing = byBxId.get(bxId) ?? (mapped.tax_code ? byTax.get(mapped.tax_code) : undefined)
 
       if (!existing) {
         new_companies.push({ bitrix_id: bxId, ...mapped })
+      } else if (existing.sync_locked) {
+        locked_count++
       } else {
         const changes = this.diffBxVsWms(existing, mapped)
         if (changes.length > 0) {
@@ -282,7 +286,7 @@ export class BitrixService {
       }
     }
 
-    return { new_companies, changed_companies, unchanged_count, total_bitrix: bxList.length }
+    return { new_companies, changed_companies, unchanged_count, locked_count, total_bitrix: bxList.length }
   }
 
   async syncCompaniesApply(bitrixIds: string[]) {

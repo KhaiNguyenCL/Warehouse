@@ -18,6 +18,7 @@ export function EntityFormModal({
   initialValues,
   okText,
   footerExtra,
+  formLayout = 'compact',
 }: {
   title: string
   open: boolean
@@ -30,8 +31,8 @@ export function EntityFormModal({
   extra?: ReactNode
   initialValues?: Record<string, unknown>
   okText?: string
-  // Nút thêm hiện giữa Cancel và OK — dùng cho "Tạo & Complete" ở các trang tạo phiếu.
   footerExtra?: ReactNode
+  formLayout?: 'grid' | 'compact'
 }) {
   const footer = footerExtra ? (
     <Space style={{ justifyContent: 'flex-end', width: '100%' }}>
@@ -46,7 +47,7 @@ export function EntityFormModal({
   return (
     <Modal title={title} open={open} onCancel={onCancel} onOk={() => form.submit()} confirmLoading={confirmLoading} width={width ?? 760} okText={okText ?? 'Lưu'} footer={footer}>
       <Form form={form} layout="vertical" onFinish={onFinish} initialValues={initialValues}>
-        <div className="entity-form-grid">{children}</div>
+        <div className={formLayout === 'compact' ? 'entity-form-compact' : 'entity-form-grid'}>{children}</div>
       </Form>
       {extra}
     </Modal>

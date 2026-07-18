@@ -26,7 +26,7 @@ export class CompanyRepository {
     }
     if (search) {
       base.where((qb) => {
-        qb.whereILike('c.name', `%${search}%`).orWhereILike('c.code', `%${search}%`)
+        qb.whereILike('c.name', `%${search}%`).orWhereILike('c.code', `%${search}%`).orWhereILike('c.tax_code', `%${search}%`)
       })
     }
 

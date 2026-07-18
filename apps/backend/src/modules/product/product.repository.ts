@@ -23,10 +23,14 @@ export class ProductRepository {
   // ─── Categories ────────────────────────────────────────────────────────
 
   findAllCategories() {
-    return this.db('categories').where('is_active', true).orderBy('name')
+    return this.db('categories as c')
+      .leftJoin('users as u', 'u.id', 'c.created_by')
+      .where('c.is_active', true)
+      .orderBy('c.name')
+      .select('c.*', 'u.full_name as created_by_name')
   }
 
-  createCategory(data: CreateCategoryBody) {
+  createCategory(data: CreateCategoryBody & { created_by?: string }) {
     return this.db('categories').insert(data).returning('*').then(([row]) => row)
   }
 
@@ -42,10 +46,14 @@ export class ProductRepository {
   // ─── Brands ────────────────────────────────────────────────────────────
 
   findAllBrands() {
-    return this.db('brands').where('is_active', true).orderBy('name')
+    return this.db('brands as b')
+      .leftJoin('users as u', 'u.id', 'b.created_by')
+      .where('b.is_active', true)
+      .orderBy('b.name')
+      .select('b.*', 'u.full_name as created_by_name')
   }
 
-  createBrand(data: CreateBrandBody) {
+  createBrand(data: CreateBrandBody & { created_by?: string }) {
     return this.db('brands').insert(data).returning('*').then(([row]) => row)
   }
 

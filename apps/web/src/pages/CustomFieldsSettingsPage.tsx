@@ -92,7 +92,7 @@ function VariantAttributesTab() {
           <Button type="primary" icon={<PlusOutlined />} onClick={() => hook.openCreate()}>Thêm thuộc tính</Button>
         }
       >
-        <Table rowKey="id" dataSource={hook.data} columns={columns} loading={hook.isLoading} pagination={false} size="small" />
+        <Table rowKey="id" dataSource={hook.data} columns={columns} loading={hook.isLoading} pagination={{ pageSize: 20, showSizeChanger: false, hideOnSinglePage: true }} size="small" />
       </TableCard>
 
       <Modal
@@ -195,7 +195,7 @@ function CustomFieldsTab() {
           rowKey="id"
           loading={hook.isLoading}
           dataSource={hook.data}
-          pagination={false}
+          pagination={{ pageSize: 20, showSizeChanger: false, hideOnSinglePage: true }}
           size="small"
           columns={[
             { title: 'STT', width: 52, align: 'center' as const, render: (_: any, __: any, i: number) => i + 1 },

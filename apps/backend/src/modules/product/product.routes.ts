@@ -50,7 +50,7 @@ const productRoutes: FastifyPluginAsync = async (app) => {
     '/categories',
     { schema: createCategorySchema, preHandler: requirePermission('settings.products') },
     async (request, reply) => {
-      const category = await service.createCategory(request.body)
+      const category = await service.createCategory({ ...request.body, created_by: request.user.sub })
       return reply.code(201).send(category)
     },
   )
@@ -77,7 +77,7 @@ const productRoutes: FastifyPluginAsync = async (app) => {
     '/brands',
     { schema: createBrandSchema, preHandler: requirePermission('settings.products') },
     async (request, reply) => {
-      const brand = await service.createBrand(request.body)
+      const brand = await service.createBrand({ ...request.body, created_by: request.user.sub })
       return reply.code(201).send(brand)
     },
   )

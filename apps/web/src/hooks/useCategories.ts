@@ -23,13 +23,30 @@ export function useCategories() {
     onSuccess: close,
   })
 
-  // Category cha — loại bỏ chính nó khỏi danh sách chọn (không tự làm cha của mình).
-  const parentOptions = data?.filter((c: any) => c.id !== editing?.id).map((c: any) => ({ value: c.id, label: c.name }))
+  // Build tree cho TreeSelect — loại bỏ chính nó và các con của nó (không tự làm cha của mình).
+  function buildParentTree(flat: any[], excludeId?: string): any[] {
+    if (!flat) return []
+    const allowed = excludeId
+      ? flat.filter((c) => c.id !== excludeId && c.parent_id !== excludeId)
+      : flat
+    const map: Record<string, any> = {}
+    allowed.forEach((c) => (map[c.id] = { value: c.id, title: c.name }))
+    const roots: any[] = []
+    allowed.forEach((c) => {
+      if (c.parent_id && map[c.parent_id]) {
+        map[c.parent_id].children = [...(map[c.parent_id].children ?? []), map[c.id]]
+      } else {
+        roots.push(map[c.id])
+      }
+    })
+    return roots
+  }
+  const parentTreeData = buildParentTree(data, editing?.id)
 
   const deleteMutation = useApiMutation((id: string) => api.delete(`/products/categories/${id}`), {
     successMessage: 'Đã xoá category',
     invalidateKey: ['categories'],
   })
 
-  return { open, editing, form, openCreate, openEdit, close, data, isLoading, createMutation, updateMutation, deleteMutation, parentOptions }
+  return { open, editing, form, openCreate, openEdit, close, data, isLoading, createMutation, updateMutation, deleteMutation, parentTreeData }
 }

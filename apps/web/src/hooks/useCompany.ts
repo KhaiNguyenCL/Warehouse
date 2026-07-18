@@ -38,12 +38,26 @@ export function useCompany(id: string) {
     return et !== ct
   }, [editing, editValues, company])
 
+  const PATCH_FIELDS = ['name', 'code', 'phone', 'email', 'tax_code', 'country',
+    'address', 'bank_account', 'bank_name', 'note', 'bitrix_company_id', 'types', 'sync_locked'] as const
+
   const updateMutation = useApiMutation(
-    (values: any) => api.patch(`/companies/${id}`, values),
+    (values: any) => {
+      const payload = Object.fromEntries(PATCH_FIELDS.map((f) => [f, values[f]]))
+      return api.patch(`/companies/${id}`, payload)
+    },
     {
       successMessage: 'Cập nhật thành công',
       invalidateKey: ['companies', id],
       onSuccess: () => setEditing(false),
+    },
+  )
+
+  const toggleLockMutation = useApiMutation(
+    () => api.patch(`/companies/${id}`, { sync_locked: !company?.sync_locked }),
+    {
+      successMessage: company?.sync_locked ? 'Đã mở khoá sync' : 'Đã khoá khỏi sync Bitrix',
+      invalidateKey: ['companies', id],
     },
   )
 
@@ -63,6 +77,6 @@ export function useCompany(id: string) {
     company, isLoading, isSupplier, isCustomer,
     editing, editValues, setEditValues, isDirty,
     startEdit, cancelEdit,
-    updateMutation, deleteMutation,
+    updateMutation, toggleLockMutation, deleteMutation,
   }
 }

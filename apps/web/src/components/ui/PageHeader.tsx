@@ -17,7 +17,6 @@ export function PageHeader({ title, meta, actions }: Props) {
         display: 'flex',
         alignItems: 'center',
         gap: 12,
-        marginBottom: 20,
       }}
     >
       <div style={{ flex: 1, minWidth: 0 }}>

@@ -44,6 +44,7 @@ export const updateCompanySchema = {
       bitrix_company_id: { type: 'string' },
       note:         { type: 'string' },
       is_active:    { type: 'boolean' },
+      sync_locked:  { type: 'boolean' },
       types: {
         type: 'array',
         items: { type: 'string', enum: COMPANY_TYPES },
@@ -117,6 +118,7 @@ export interface CreateCompanyBody {
 export interface UpdateCompanyBody extends Partial<Omit<CreateCompanyBody, 'types'>> {
   types?: CompanyType[]
   is_active?: boolean
+  sync_locked?: boolean
 }
 
 export interface ListCompanyQuery {
