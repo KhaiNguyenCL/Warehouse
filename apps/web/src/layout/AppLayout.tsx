@@ -29,7 +29,7 @@ const SECTIONS = [
     key: 'transactions',
     label: 'Giao dịch',
     items: [
-      { key: '/purchase-orders', icon: <AuditOutlined />,    label: 'Đơn đặt hàng' },
+      { key: '/purchase-orders', icon: <AuditOutlined />,    label: 'Phiếu mua hàng' },
       { key: '/receipts',        icon: <InboxOutlined />,    label: 'Phiếu nhập kho' },
       { key: '/quotations',      icon: <FileTextOutlined />, label: 'Báo giá' },
       { key: '/deliveries',      icon: <InboxOutlined />,    label: 'Phiếu xuất kho' },

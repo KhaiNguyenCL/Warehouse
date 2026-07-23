@@ -99,14 +99,14 @@ export class PurchaseOrderService {
 
   // ─── State machine ─────────────────────────────────────────────────────
 
-  async confirm(id: string) {
+  async confirm(id: string, userId: string) {
     return this.db.transaction(async (trx) => {
       const current = await this.repo.lockForUpdate(id, trx)
       if (!current) throw { statusCode: 404, message: 'Purchase Order not found' }
       if (current.status !== 'draft') {
         throw { statusCode: 400, message: 'Chỉ có thể xác nhận từ Draft' }
       }
-      return this.repo.updateStatus(id, 'draft', 'confirmed', {}, trx)
+      return this.repo.updateStatus(id, 'draft', 'confirmed', { confirmed_by: userId }, trx)
     })
   }
 
@@ -164,6 +164,19 @@ export class PurchaseOrderService {
       }
       return this.repo.updateStatus(id, current.status, 'cancelled', {}, trx)
     })
+  }
+
+  // Soft-delete — chỉ cho phép khi không có receipt nào liên kết (received_qty = pending_qty = 0).
+  async delete(id: string) {
+    const po = await this.repo.findById(id)
+    if (!po) throw { statusCode: 404, message: 'Purchase Order not found' }
+
+    const hasLinkedReceipts = await this.db('receipts').where({ po_id: id }).first()
+    if (hasLinkedReceipts) {
+      throw { statusCode: 400, message: 'Không thể xoá PO đang có phiếu nhập kho liên kết' }
+    }
+
+    return this.repo.softDelete(id)
   }
 
   private assertNoReceiptActivity(po: any, action: string) {

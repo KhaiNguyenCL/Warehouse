@@ -1,63 +1,77 @@
-// 1 dòng trong Form.List của PO/Receipt create modal — cascading Select: chọn Product
-// trước, Variant (SKU) sau (vì API không có endpoint "list tất cả variant" — phải đi
-// qua product). Khi chọn variant, tự điền unit_price/warranty_months từ giá trị gợi ý
-// mặc định trên variant (cost_price/warranty_months) — đúng tinh thần đã thống nhất:
-// variant chỉ là default, PO line lưu giá trị riêng, sửa độc lập sau đó.
+// 1 dòng trong Form.List của PO create page — chọn SKU qua VariantSelect (OptGroup theo
+// sản phẩm, tìm kiếm theo mã/tên). Khi chọn variant tự điền unit_price/warranty_months từ
+// cost_price/warranty_months mặc định của variant (user sửa được độc lập sau đó).
 //
-// Custom field của variant có applies_to_po_line=true cũng theo đúng tinh thần này: chọn
-// variant → tự điền giá trị custom field hiện tại của SKU làm gợi ý, nhưng lưu riêng theo
-// custom_field_values của dòng PO (field_values với object_type="purchase_order_line") —
-// sửa giá trị mặc định trên SKU sau đó KHÔNG ảnh hưởng PO đã tạo.
-import { useState } from 'react'
+// Custom field có applies_to_po_line=true: chọn variant → prefill từ giá trị hiện tại của
+// SKU đó làm gợi ý; lưu riêng theo custom_field_values của dòng PO.
 import { useQuery } from '@tanstack/react-query'
-import { Form, Select, InputNumber, Input, DatePicker, Switch, Button } from 'antd'
+import { Form, InputNumber, Input, DatePicker, Switch, Select, Button, Popover, Tooltip } from 'antd'
+import { DeleteOutlined, EditOutlined } from '@ant-design/icons'
 import type { FormInstance } from 'antd'
 import dayjs from 'dayjs'
 import { api } from '../lib/api'
+import VariantSelect, { type VariantData } from './VariantSelect'
+
+// Formatter/parser dùng chung cho các field tiền — thêm dấu , mỗi 3 chữ số
+const priceFormatter = (v: number | undefined) =>
+  v != null ? String(v).replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''
+const priceParser = (v: string | undefined) =>
+  (v ? Number(v.replace(/,/g, '')) : undefined) as number
+
+function fmtTotal(n: number) {
+  return Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+}
+
+const CTRL_KEYS = ['Backspace', 'Delete', 'Tab', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End']
+
+// Chặn ký tự không phải số nguyên
+function blockNonInteger(e: React.KeyboardEvent<HTMLInputElement>) {
+  if (!/^\d$/.test(e.key) && !CTRL_KEYS.includes(e.key) && !(e.ctrlKey || e.metaKey))
+    e.preventDefault()
+}
+
+// Chặn ký tự không phải số thực (cho phép thêm dấu .)
+function blockNonDecimal(e: React.KeyboardEvent<HTMLInputElement>) {
+  if (!/^\d$/.test(e.key) && e.key !== '.' && !CTRL_KEYS.includes(e.key) && !(e.ctrlKey || e.metaKey))
+    e.preventDefault()
+}
 
 interface Props {
   form: FormInstance
   name: number
   remove: () => void
+  showLabel?: boolean
 }
 
-export default function POLineItem({ form, name, remove }: Props) {
-  const [productId, setProductId] = useState<string | undefined>()
-
-  const { data: products } = useQuery({
-    queryKey: ['products', 'all'],
-    queryFn: async () => (await api.get('/products', { params: { limit: 100 } })).data,
-  })
-
-  const { data: productDetail } = useQuery({
-    queryKey: ['products', productId],
-    queryFn: async () => (await api.get(`/products/${productId}`)).data,
-    enabled: !!productId,
-  })
-
+export default function POLineItem({ form, name, remove, showLabel = true }: Props) {
   const { data: variantCustomFields } = useQuery({
     queryKey: ['custom-fields', 'variant'],
     queryFn: async () => (await api.get('/custom-fields', { params: { object_type: 'variant' } })).data,
   })
   const poLineFields = (variantCustomFields ?? []).filter((f: any) => f.is_active && f.applies_to_po_line)
 
-  async function onVariantChange(variantId: string) {
-    const variant = productDetail?.variants.find((v: any) => v.id === variantId)
+  const note  = Form.useWatch(['lines', name, 'note'],        form)
+  const qty   = Form.useWatch(['lines', name, 'quantity'],    form) ?? 0
+  const price = Form.useWatch(['lines', name, 'unit_price'],  form) ?? 0
+  const vat   = Form.useWatch(['lines', name, 'vat_percent'], form) ?? 0
+  const total = qty && price ? qty * price * (1 + vat / 100) : null
+
+  async function onSelectVariant(variant: VariantData | null) {
     if (!variant) return
 
     const lines = form.getFieldValue('lines')
     lines[name] = {
       ...lines[name],
-      variant_id: variantId,
+      variant_id: variant.id,
       unit_price: variant.cost_price ?? lines[name]?.unit_price,
-      manufacturer_warranty_months: variant.manufacturer_warranty_months ?? lines[name]?.manufacturer_warranty_months,
-      customer_warranty_months: variant.customer_warranty_months ?? lines[name]?.customer_warranty_months,
+      manufacturer_warranty_months: variant.warranty_months ?? lines[name]?.manufacturer_warranty_months,
+      customer_warranty_months: variant.warranty_months ?? lines[name]?.customer_warranty_months,
     }
     form.setFieldValue('lines', lines)
 
     if (poLineFields.length > 0) {
       const { data: variantValues } = await api.get('/custom-fields/values', {
-        params: { object_type: 'variant', object_id: variantId },
+        params: { object_type: 'variant', object_id: variant.id },
       })
       const lines2 = form.getFieldValue('lines')
       lines2[name] = {
@@ -71,43 +85,49 @@ export default function POLineItem({ form, name, remove }: Props) {
     }
   }
 
+  // Dùng label=' ' (khoảng trắng) trên hàng đầu để AntD tự căn button ngang với input
+  const lbl = (text: string) => (showLabel ? text : null)
+  const btnLabel = showLabel ? ' ' : null
+
+  const inputStyle = { width: '100%', fontSize: 15 }
+
   return (
-    <div style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'baseline', flexWrap: 'wrap' }}>
-      <Form.Item label="Sản phẩm" style={{ width: 200 }}>
-        <Select
-          showSearch
-          optionFilterProp="label"
-          placeholder="Chọn sản phẩm"
-          options={products?.data
-            .filter((p: any) => p.product_type !== 'service')
-            .map((p: any) => ({ value: p.id, label: p.name }))}
-          onChange={(v) => setProductId(v)}
-        />
+    <div style={{ display: 'flex', gap: 8, width: '100%', marginBottom: 0, alignItems: 'flex-start', flexWrap: 'nowrap' }}>
+      <Form.Item name={[name, 'variant_id']} label={lbl('Mã hàng / SKU')} style={{ flex: 2, minWidth: 0 }}>
+        <VariantSelect excludeTypes={['service']} onSelectVariant={onSelectVariant} style={{ ...inputStyle }} />
       </Form.Item>
-      <Form.Item name={[name, 'variant_id']} label="SKU" rules={[{ required: true }]} style={{ width: 200 }}>
-        <Select
-          showSearch
-          optionFilterProp="label"
-          placeholder="Chọn SKU"
-          disabled={!productId}
-          options={productDetail?.variants.map((v: any) => ({ value: v.id, label: `${v.item_code ?? v.sku} — ${v.name}` }))}
-          onChange={onVariantChange}
-        />
+
+      <Form.Item name={[name, 'quantity']} label={lbl('SL')} style={{ flex: '0 0 72px' }}>
+        <InputNumber controls={false} precision={0} onKeyDown={blockNonInteger} style={inputStyle} />
       </Form.Item>
-      <Form.Item name={[name, 'quantity']} label="Số lượng" rules={[{ required: true }]}>
-        <InputNumber min={1} />
+
+      <Form.Item name={[name, 'unit_price']} label={lbl('Đơn giá')} style={{ flex: '0 0 120px' }}>
+        <InputNumber controls={false} formatter={priceFormatter} parser={priceParser} onKeyDown={blockNonInteger} style={inputStyle} />
       </Form.Item>
-      <Form.Item name={[name, 'unit_price']} label="Đơn giá" rules={[{ required: true }]}>
-        <InputNumber min={0} style={{ width: 140 }} />
+
+      <Form.Item name={[name, 'vat_percent']} label={lbl('VAT %')} style={{ flex: '0 0 68px' }}>
+        <InputNumber controls={false} precision={1} placeholder="—" onKeyDown={blockNonDecimal} style={inputStyle} />
       </Form.Item>
-      <Form.Item name={[name, 'manufacturer_warranty_months']} label="BH hãng (tháng)">
-        <InputNumber min={0} style={{ width: 120 }} />
+
+      <Form.Item label={lbl('Thành tiền')} style={{ flex: '0 0 130px' }}>
+        <div style={{
+          height: 32, border: '1px solid var(--border, #d9d9d9)', borderRadius: 6,
+          padding: '0 11px', display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
+          background: 'var(--surface-2, rgba(0,0,0,0.02))', fontSize: 15, color: 'var(--text-2, #555)',
+          whiteSpace: 'nowrap',
+        }}>
+          {total != null
+            ? fmtTotal(total)
+            : <span style={{ color: 'var(--text-3, #bbb)' }}>—</span>}
+        </div>
       </Form.Item>
-      <Form.Item name={[name, 'customer_warranty_months']} label="BH công ty (tháng)">
-        <InputNumber min={0} style={{ width: 120 }} />
+
+      <Form.Item name={[name, 'manufacturer_warranty_months']} label={lbl('BH hãng')} style={{ flex: '0 0 76px' }}>
+        <InputNumber controls={false} precision={0} placeholder="—" onKeyDown={blockNonInteger} style={inputStyle} />
       </Form.Item>
-      <Form.Item name={[name, 'note']} label="Ghi chú dòng">
-        <Input style={{ width: 160 }} />
+
+      <Form.Item name={[name, 'customer_warranty_months']} label={lbl('BH công ty')} style={{ flex: '0 0 86px' }}>
+        <InputNumber controls={false} precision={0} placeholder="—" onKeyDown={blockNonInteger} style={inputStyle} />
       </Form.Item>
 
       {poLineFields.map((f: any, i: number) => (
@@ -117,7 +137,7 @@ export default function POLineItem({ form, name, remove }: Props) {
           </Form.Item>
           <Form.Item
             name={[name, 'custom_field_values', i, 'value']}
-            label={f.field_label}
+            label={lbl(f.field_label)}
             getValueFromEvent={(eventValue: any) => encodeCustomFieldValue(f.field_type, eventValue)}
             getValueProps={(value: any) => decodeCustomFieldValue(f.field_type, value)}
           >
@@ -126,9 +146,27 @@ export default function POLineItem({ form, name, remove }: Props) {
         </span>
       ))}
 
-      <Button danger onClick={remove}>
-        Xoá
-      </Button>
+      {/* Nút ghi chú + xoá — căn ngang với ô input nhờ label=' ' */}
+      <Form.Item label={btnLabel} style={{ flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, height: 32 }}>
+          <Popover
+            trigger="click"
+            placement="top"
+            content={
+              <Form.Item name={[name, 'note']} noStyle>
+                <Input.TextArea rows={3} style={{ width: 220 }} placeholder="Ghi chú dòng..." />
+              </Form.Item>
+            }
+          >
+            <Tooltip title="Ghi chú">
+              <Button icon={<EditOutlined />} size="small" type={note ? 'primary' : 'text'} />
+            </Tooltip>
+          </Popover>
+          <Tooltip title="Xoá dòng">
+            <Button danger icon={<DeleteOutlined />} size="small" onClick={remove} />
+          </Tooltip>
+        </div>
+      </Form.Item>
     </div>
   )
 }
@@ -136,7 +174,7 @@ export default function POLineItem({ form, name, remove }: Props) {
 function renderCustomFieldInput(field: any) {
   switch (field.field_type) {
     case 'number':
-      return <InputNumber style={{ width: 120 }} />
+      return <InputNumber controls={false} style={{ width: 120 }} />
     case 'date':
       return <DatePicker style={{ width: 140 }} />
     case 'boolean':
@@ -148,13 +186,7 @@ function renderCustomFieldInput(field: any) {
   }
 }
 
-// Widget trả value theo kiểu native của nó (dayjs cho DatePicker, boolean cho Switch,...)
-// — encode về string đúng định dạng customfield.service.ts::validateCustomFieldValue mong
-// đợi (giống logic CustomFieldsPanel.tsx::submit()), để custom_field_values gửi lên API
-// luôn đúng kiểu mà không cần transform thêm ở submit handler của trang cha.
 function encodeCustomFieldValue(fieldType: string, eventValue: any): string | null {
-  // Input/Input.TextArea (field_type="text") gọi onChange với native event, không phải
-  // value trực tiếp như DatePicker/Switch/Select/InputNumber — phải bóc e.target.value.
   if (eventValue && typeof eventValue === 'object' && 'target' in eventValue) {
     eventValue = eventValue.target.value
   }
@@ -164,8 +196,6 @@ function encodeCustomFieldValue(fieldType: string, eventValue: any): string | nu
   return String(eventValue)
 }
 
-// Ngược lại với encodeCustomFieldValue — decode string đã lưu (hoặc gợi ý từ giá trị
-// variant) về kiểu native widget cần để hiển thị.
 function decodeCustomFieldValue(fieldType: string, value: string | null | undefined) {
   if (fieldType === 'boolean') return { checked: value === 'true' }
   if (value === null || value === undefined || value === '') {

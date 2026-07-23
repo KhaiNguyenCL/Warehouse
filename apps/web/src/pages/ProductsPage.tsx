@@ -1,6 +1,6 @@
-import { Table, Input, Select, Form, Popconfirm, Button, Divider, InputNumber, Switch } from 'antd'
+import { Table, Input, Select, Form, Popconfirm, Button, Divider, InputNumber } from 'antd'
 import { ImageUpload } from '../components/ImageUpload'
-import { PlusOutlined, EditOutlined } from '@ant-design/icons'
+import { PlusOutlined, EditOutlined, UnorderedListOutlined } from '@ant-design/icons'
 import { useProducts } from '../hooks/useProducts'
 import { PageHeader } from '../components/PageHeader'
 import { TableCard } from '../components/ui/TableCard'
@@ -25,43 +25,57 @@ export default function ProductsPage() {
         title="Sản phẩm"
         actions={<Button type="primary" icon={<PlusOutlined />} onClick={() => hook.openCreate()}>Tạo mới</Button>}
       />
-      <TableCard><Table
-        rowKey="id"
-        loading={hook.isLoading}
-        dataSource={hook.data?.data}
-        pagination={{ current: hook.page, pageSize: 20, total: hook.data?.total, onChange: hook.setPage, showSizeChanger: false, showTotal: (t) => `Tổng ${t}` }}
-        onRow={(record: any) => ({ onClick: () => hook.navigate(`/products/${record.id}`), style: { cursor: 'pointer' } })}
-        columns={[
-          { title: 'STT', width: 52, align: 'center' as const, render: (_: any, __: any, i: number) => i + 1 },
-          { title: 'Mã', dataIndex: 'code' },
-          { title: 'Tên', dataIndex: 'name' },
-          { title: 'Loại', dataIndex: 'product_type' },
-          { title: 'Category', dataIndex: 'category_name' },
-          { title: 'Hãng', dataIndex: 'brand_name' },
-          {
-            title: 'Hành động',
-            width: 130,
-            align: 'center' as const,
-            onCell: () => ({ onClick: (e: React.MouseEvent) => e.stopPropagation() }),
-            render: (_: any, record: any) => (
-              <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
-                <Button size="small" icon={<EditOutlined />} onClick={() => hook.editModal.openEdit(record)}>Sửa</Button>
-                <Popconfirm
-                  title="Xóa sản phẩm này?"
-                  description="Không thể xóa nếu còn tồn kho."
-                  okText="Xóa"
-                  okButtonProps={{ danger: true }}
-                  cancelText="Hủy"
-                  onConfirm={() => hook.deleteMutation.mutate(record.id)}
-                >
-                  <Button danger size="small" loading={hook.deleteMutation.isPending}>Xóa</Button>
-                </Popconfirm>
-              </div>
-            ),
-          },
-        ]}
-      /></TableCard>
+      <TableCard>
+        <Table
+          rowKey="id"
+          loading={hook.isLoading}
+          dataSource={hook.data?.data}
+          pagination={{ current: hook.page, pageSize: 20, total: hook.data?.total, onChange: hook.setPage, showSizeChanger: false, showTotal: (t) => `Tổng ${t}` }}
+          columns={[
+            { title: 'STT', width: 52, align: 'center' as const, render: (_: any, __: any, i: number) => (hook.page - 1) * 20 + i + 1 },
+            { title: 'Mã', dataIndex: 'code', width: 160 },
+            { title: 'Tên', dataIndex: 'name' },
+            { title: 'Loại', dataIndex: 'product_type', width: 130 },
+            { title: 'Category', dataIndex: 'category_name', width: 130 },
+            { title: 'Hãng', dataIndex: 'brand_name', width: 110 },
+            {
+              title: 'Hành động',
+              width: 180,
+              align: 'center' as const,
+              render: (_: any, record: any) => (
+                <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
+                  <Button
+                    size="small"
+                    icon={<EditOutlined />}
+                    onClick={() => hook.navigate(`/products/${record.id}?edit=1`)}
+                  >
+                    Sửa
+                  </Button>
+                  <Button
+                    size="small"
+                    icon={<UnorderedListOutlined />}
+                    onClick={() => hook.navigate(`/products/${record.id}`)}
+                  >
+                    Xem SKU
+                  </Button>
+                  <Popconfirm
+                    title="Xóa sản phẩm này?"
+                    description="Không thể xóa nếu còn tồn kho."
+                    okText="Xóa"
+                    okButtonProps={{ danger: true }}
+                    cancelText="Hủy"
+                    onConfirm={() => hook.deleteMutation.mutate(record.id)}
+                  >
+                    <Button danger size="small" loading={hook.deleteMutation.isPending}>Xóa</Button>
+                  </Popconfirm>
+                </div>
+              ),
+            },
+          ]}
+        />
+      </TableCard>
 
+      {/* ── Modal tạo sản phẩm mới ── */}
       <EntityFormModal
         title="Tạo sản phẩm mới"
         open={hook.open}
@@ -144,46 +158,6 @@ export default function ProductsPage() {
         )}
       </EntityFormModal>
 
-      {/* ── Modal sửa sản phẩm ── */}
-      <EntityFormModal
-        title={hook.editModal.editing ? `Sửa — ${hook.editModal.editing.name}` : ''}
-        open={hook.editModal.open}
-        onCancel={hook.editModal.close}
-        onFinish={(v) => hook.updateMutation.mutate(v)}
-        confirmLoading={hook.updateMutation.isPending}
-        form={hook.editModal.form}
-      >
-        <Form.Item name="category_id" label="Category" rules={[{ required: true }]}>
-          <Select options={hook.categories?.map((c: any) => ({ value: c.id, label: c.name }))} />
-        </Form.Item>
-        <Form.Item name="brand_id" label="Hãng">
-          <Select options={hook.brands?.map((b: any) => ({ value: b.id, label: b.name }))} allowClear />
-        </Form.Item>
-        <Form.Item name="model_number" label="Mã dòng sản phẩm">
-          <Input />
-        </Form.Item>
-        <Form.Item name="code" label="Mã sản phẩm" rules={[{ required: true }]}>
-          <Input />
-        </Form.Item>
-        <Form.Item name="name" label="Tên" rules={[{ required: true }]} className="form-row-full">
-          <Input />
-        </Form.Item>
-        <Form.Item name="name_en" label="Tên (English)" className="form-row-full">
-          <Input />
-        </Form.Item>
-        <Form.Item name="product_type" label="Loại" rules={[{ required: true }]}>
-          <Select options={PRODUCT_TYPES} />
-        </Form.Item>
-        <Form.Item name="description" label="Mô tả" className="form-row-full">
-          <Input.TextArea rows={2} />
-        </Form.Item>
-        <Form.Item name="image_url" label="Hình ảnh" className="form-row-full">
-          <ImageUpload />
-        </Form.Item>
-        <Form.Item name="is_active" label="Active" valuePropName="checked">
-          <Switch />
-        </Form.Item>
-      </EntityFormModal>
     </div>
   )
 }

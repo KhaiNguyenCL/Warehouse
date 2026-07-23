@@ -21,12 +21,16 @@ export const createQuotationSchema = {
     properties: {
       company_id:        { type: 'string', format: 'uuid' },
       contact_id:        { type: 'string', format: 'uuid' },
+      quote_number:      { type: 'string' },
+      quote_date:        { type: 'string', format: 'date' },
       project_name:      { type: 'string' },
       delivery_location: { type: 'string' },
       warehouse_id:      { type: 'string', format: 'uuid' },
       valid_days:        { type: 'integer', minimum: 1 },
       terms:             { type: 'string' },
+      note:              { type: 'string' },
       discount:          { type: 'number', minimum: 0 },
+      bitrix_deal_id:    { type: 'string' },
       sections: {
         type: 'array',
         minItems: 1,
@@ -58,12 +62,16 @@ export const updateQuotationSchema = {
     properties: {
       company_id:        { type: 'string', format: 'uuid' },
       contact_id:        { type: 'string', format: 'uuid' },
+      quote_number:      { type: 'string' },
+      quote_date:        { type: 'string', format: 'date' },
       project_name:      { type: 'string' },
       delivery_location: { type: 'string' },
       warehouse_id:      { type: 'string', format: 'uuid' },
       valid_days:        { type: 'integer', minimum: 1 },
       terms:             { type: 'string' },
+      note:              { type: 'string' },
       discount:          { type: 'number', minimum: 0 },
+      bitrix_deal_id:    { type: 'string' },
       sections: {
         type: 'array',
         minItems: 1,
@@ -127,12 +135,16 @@ export interface QuotationSectionInput {
 export interface CreateQuotationBody {
   company_id: string
   contact_id?: string
+  quote_number?: string
+  quote_date?: string
   project_name?: string
   delivery_location?: string
   warehouse_id?: string
   valid_days?: number
   terms?: string
+  note?: string
   discount?: number
+  bitrix_deal_id?: string
   sections: QuotationSectionInput[]
 }
 

@@ -1,11 +1,11 @@
-// 1 dòng nhập tay trong Form.List "lines" của DeliveryOrdersPage — dùng cho export_type
-// KHÔNG xuất phát từ Quotation (internal/demo_out/warranty_out/return_out/dispose/
-// adjustment). Cascading Select Product → Variant giống POLineItem, không cần unit_price
-// (Delivery Order không lưu giá — đó là việc của Quotation).
+// 1 dòng trong Form.List "lines" của DO create — export_type không xuất phát từ Quotation
+// (internal/demo_out/warranty_out/return_out/dispose/adjustment). Dùng VariantSelect thay
+// cho 2-step Product→SKU; khi chọn variant hiện breakdown tồn kho theo từng kho.
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Form, Select, InputNumber, Input, Button, DatePicker } from 'antd'
+import { Form, InputNumber, Input, Button, DatePicker } from 'antd'
 import { api } from '../lib/api'
+import VariantSelect, { type VariantData } from './VariantSelect'
 
 interface Props {
   name: number
@@ -13,21 +13,8 @@ interface Props {
 }
 
 export default function DeliveryLineItem({ name, remove }: Props) {
-  const [productId, setProductId] = useState<string | undefined>()
   const [variantId, setVariantId] = useState<string | undefined>()
-
-  const { data: products } = useQuery({
-    queryKey: ['products', 'all'],
-    queryFn: async () => (await api.get('/products', { params: { limit: 100 } })).data,
-  })
-
-  const { data: productDetail } = useQuery({
-    queryKey: ['products', productId],
-    queryFn: async () => (await api.get(`/products/${productId}`)).data,
-    enabled: !!productId,
-  })
-
-  const isService = productDetail?.product_type === 'service'
+  const [isService, setIsService] = useState(false)
 
   const { data: invData } = useQuery({
     queryKey: ['inventory', 'by-variant', variantId],
@@ -39,29 +26,15 @@ export default function DeliveryLineItem({ name, remove }: Props) {
   const breakdown: { name: string; qty: number }[] =
     invData?.data?.find((r: any) => r.variant_id === variantId)?.warehouse_breakdown ?? []
 
+  function onSelectVariant(variant: VariantData | null) {
+    setVariantId(variant?.id)
+    setIsService(variant?.product_type === 'service')
+  }
+
   return (
-    <div style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'baseline', flexWrap: 'wrap' }}>
-      <Form.Item label="Sản phẩm" style={{ width: 200 }}>
-        <Select
-          showSearch
-          optionFilterProp="label"
-          placeholder="Chọn sản phẩm"
-          options={products?.data.map((p: any) => ({ value: p.id, label: p.name }))}
-          onChange={(v) => {
-            setProductId(v)
-            setVariantId(undefined)
-          }}
-        />
-      </Form.Item>
-      <Form.Item name={[name, 'variant_id']} label="SKU" rules={[{ required: true }]} style={{ width: 220 }}>
-        <Select
-          showSearch
-          optionFilterProp="label"
-          placeholder="Chọn SKU"
-          disabled={!productId}
-          options={productDetail?.variants.map((v: any) => ({ value: v.id, label: `${v.item_code ?? v.sku} — ${v.name}` }))}
-          onChange={(v) => setVariantId(v)}
-        />
+    <div style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'flex-start', flexWrap: 'nowrap' }}>
+      <Form.Item name={[name, 'variant_id']} label="Mã hàng / SKU" rules={[{ required: true }]} style={{ minWidth: 260 }}>
+        <VariantSelect onSelectVariant={onSelectVariant} style={{ width: '100%' }} />
       </Form.Item>
       {variantId && !isService && (
         <div style={{ alignSelf: 'center', fontSize: 12, color: '#888', minWidth: 160, marginBottom: 8 }}>

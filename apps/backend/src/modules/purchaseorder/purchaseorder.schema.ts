@@ -4,6 +4,7 @@ const lineItemProperties = {
   variant_id:                    { type: 'string', format: 'uuid' },
   quantity:                      { type: 'integer', minimum: 1 },
   unit_price:                    { type: 'number', minimum: 0 },
+  vat_percent:                   { type: 'number', minimum: 0, maximum: 100 },
   manufacturer_warranty_months:  { type: 'integer', minimum: 0 },
   customer_warranty_months:      { type: 'integer', minimum: 0 },
   line_order:      { type: 'integer' },
@@ -29,10 +30,18 @@ export const createPurchaseOrderSchema = {
     type: 'object',
     required: ['company_id', 'lines'],
     properties: {
-      company_id:     { type: 'string', format: 'uuid' },
-      contact_id:     { type: 'string', format: 'uuid' },
-      bitrix_deal_id: { type: 'string' },
-      note:           { type: 'string' },
+      company_id:       { type: 'string', format: 'uuid' },
+      contact_id:       { type: 'string', format: 'uuid' },
+      bitrix_deal_id:   { type: 'string' },
+      bitrix_deal_url:  { type: 'string' },
+      deal_title:       { type: 'string' },
+      deal_amount:      { type: 'number', minimum: 0 },
+      contract_number:    { type: 'string' },
+      region:             { type: 'string' },
+      delivery_location:  { type: 'string' },
+      start_date:         { type: 'string', format: 'date' },
+      end_date:           { type: 'string', format: 'date' },
+      note:               { type: 'string' },
       lines: {
         type: 'array',
         minItems: 1,
@@ -50,10 +59,18 @@ export const updatePurchaseOrderSchema = {
   body: {
     type: 'object',
     properties: {
-      company_id:     { type: 'string', format: 'uuid' },
-      contact_id:     { type: 'string', format: 'uuid' },
-      bitrix_deal_id: { type: 'string' },
-      note:           { type: 'string' },
+      company_id:       { type: 'string', format: 'uuid' },
+      contact_id:       { type: 'string', format: 'uuid' },
+      bitrix_deal_id:   { type: 'string' },
+      bitrix_deal_url:  { type: 'string' },
+      deal_title:       { type: 'string' },
+      deal_amount:      { type: 'number', minimum: 0 },
+      contract_number:    { type: 'string' },
+      region:             { type: 'string' },
+      delivery_location:  { type: 'string' },
+      start_date:         { type: 'string', format: 'date' },
+      end_date:           { type: 'string', format: 'date' },
+      note:               { type: 'string' },
       lines: {
         type: 'array',
         minItems: 1,
@@ -86,6 +103,7 @@ export interface PurchaseOrderLineInput {
   variant_id: string
   quantity: number
   unit_price: number
+  vat_percent?: number
   manufacturer_warranty_months?: number
   customer_warranty_months?: number
   line_order?: number

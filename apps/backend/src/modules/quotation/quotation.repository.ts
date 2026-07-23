@@ -31,15 +31,19 @@ export interface ComputedSection {
 export interface ComputedQuotation {
   company_id: string
   contact_id?: string
+  quote_number?: string
+  quote_date?: string
   project_name?: string
   delivery_location?: string
   warehouse_id?: string
   valid_days?: number
   terms?: string
+  note?: string
   discount: number
   subtotal: number
   vat_total: number
   grand_total: number
+  bitrix_deal_id?: string
   sections: ComputedSection[]
 }
 

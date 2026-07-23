@@ -18,6 +18,7 @@ export const createReceiptSchema = {
       po_id:             { type: 'string', format: 'uuid' },
       ref_document_type: { type: 'string' },
       ref_document_id:   { type: 'string', format: 'uuid' },
+      received_date:     { type: 'string', format: 'date' },
       note:              { type: 'string' },
       // lines = mảng các dòng hàng nhập — mỗi receipt phải có ÍT NHẤT 1 dòng (minItems: 1)
       lines: {
@@ -119,6 +120,7 @@ export interface CreateReceiptBody {
   po_id?: string
   ref_document_type?: string
   ref_document_id?: string
+  received_date?: string
   note?: string
   lines: Array<{
     variant_id: string

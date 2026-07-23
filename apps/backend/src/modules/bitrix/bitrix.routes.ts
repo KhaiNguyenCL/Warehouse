@@ -24,11 +24,35 @@ const bitrixRoutes: FastifyPluginAsync = async (app) => {
     (request) => service.replaceMappings(request.body.mappings),
   )
 
+  // Merge crm.deal.fields (standard) + crm.deal.userfield.list (custom UF_CRM_*)
+  // thành 1 map { [fieldKey]: { title, type } } — dùng cho Settings mapping UI.
+  app.get('/deal-fields', { preHandler: authenticate }, async () => {
+    const [standard, userFields] = await Promise.all([
+      app.bitrix.getDealFields(),
+      app.bitrix.getDealUserFields(),
+    ])
+    const result: Record<string, { title: string; type: string }> = { ...standard }
+    for (const uf of userFields) {
+      const label = typeof uf.EDIT_FORM_LABEL === 'string'
+        ? uf.EDIT_FORM_LABEL
+        : (uf.EDIT_FORM_LABEL?.ru ?? uf.EDIT_FORM_LABEL?.en ?? uf.FIELD_NAME)
+      result[uf.FIELD_NAME] = { title: label, type: uf.USER_TYPE_ID }
+    }
+    return result
+  })
+
   // Proxy đọc 1 deal Bitrix — chủ yếu để UI preview trước khi sync vào quotation.
   app.get<{ Params: { dealId: string } }>(
     '/deals/:dealId',
     { preHandler: authenticate },
     (request) => service.getDeal(request.params.dealId),
+  )
+
+  // Resolve deal → WMS company/contact (nếu đã import). Dùng cho form tạo PO.
+  app.get<{ Params: { dealId: string } }>(
+    '/deals/:dealId/resolve',
+    { preHandler: authenticate },
+    (request) => service.resolveDeal(request.params.dealId),
   )
 
   // body.deal_id optional — nếu quotation đã có bitrix_deal_id từ lần sync trước,

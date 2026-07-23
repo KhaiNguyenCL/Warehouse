@@ -16,7 +16,6 @@ interface AttrValue {
 
 export function useProductDetail(id: string) {
   const variantModal = useEntityModal()
-  const productModal = useEntityModal()
   const [attrValues, setAttrValues] = useState<AttrValue[]>([])
 
   const { data, isLoading } = useQuery({
@@ -73,7 +72,6 @@ export function useProductDetail(id: string) {
   const updateProduct = useApiMutation((values: any) => api.patch(`/products/${id}`, values), {
     successMessage: 'Cập nhật sản phẩm thành công',
     invalidateKey: ['products', id],
-    onSuccess: productModal.close,
   })
 
   function buildAttrValuesForModal(existingValues: any[] = []) {
@@ -134,7 +132,7 @@ export function useProductDetail(id: string) {
   }
 
   return {
-    variantModal, productModal,
+    variantModal,
     attrValues, setAttrValues,
     data, isLoading,
     categories, brands, attrDefs,

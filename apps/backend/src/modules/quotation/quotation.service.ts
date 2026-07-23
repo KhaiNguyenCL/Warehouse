@@ -118,15 +118,19 @@ export class QuotationService {
     const computed = {
       company_id: data.company_id,
       contact_id: data.contact_id,
+      quote_number: data.quote_number,
+      quote_date: data.quote_date,
       project_name: data.project_name,
       delivery_location: data.delivery_location,
       warehouse_id: data.warehouse_id,
       valid_days: data.valid_days,
       terms: data.terms,
+      note: data.note,
       discount,
       subtotal,
       vat_total,
       grand_total,
+      bitrix_deal_id: data.bitrix_deal_id,
       sections,
     }
 

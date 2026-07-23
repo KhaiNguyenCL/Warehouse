@@ -62,6 +62,19 @@ export class BitrixClient {
     return this.call<BitrixDeal>('crm.deal.get', { id: dealId })
   }
 
+  getDealFields() {
+    return this.call<Record<string, { title: string; type: string }>>('crm.deal.fields')
+  }
+
+  getDealUserFields() {
+    return this.call<Array<{
+      FIELD_NAME: string
+      EDIT_FORM_LABEL: string | Record<string, string>
+      USER_TYPE_ID: string
+      LIST?: Array<{ ID: string; VALUE: string }>
+    }>>('crm.deal.userfield.list')
+  }
+
   getCompany(companyId: string) {
     return this.call<BitrixCompany>('crm.company.get', { id: companyId })
   }

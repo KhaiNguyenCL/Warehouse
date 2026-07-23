@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Table, Select, InputNumber, Button, Space } from 'antd'
+import { Table, InputNumber, Button, Space } from 'antd'
 import { api } from '../lib/api'
 import { useApiMutation } from '../hooks/useApiMutation'
 import { fw } from '../styles/fieldWidths'
+import VariantSelect from './VariantSelect'
 
 interface Props {
   productId: string
@@ -17,11 +18,6 @@ export default function BundleItemsPanel({ productId, variantId }: Props) {
   const { data: items, isLoading } = useQuery({
     queryKey: ['products', productId, 'variants', variantId, 'bundle-items'],
     queryFn: async () => (await api.get(`/products/${productId}/variants/${variantId}/bundle-items`)).data,
-  })
-
-  const { data: allVariants } = useQuery({
-    queryKey: ['products', 'variants', 'all'],
-    queryFn: async () => (await api.get('/products/variants', { params: { limit: 200 } })).data,
   })
 
   const invalidate = { invalidateKey: ['products', productId, 'variants', variantId, 'bundle-items'] }
@@ -39,26 +35,6 @@ export default function BundleItemsPanel({ productId, variantId }: Props) {
     (itemId: string) => api.delete(`/products/${productId}/variants/${variantId}/bundle-items/${itemId}`),
     { successMessage: 'Đã xoá', ...invalidate },
   )
-
-  // Group variants by product_name, loại bỏ bundle/service và chính sản phẩm hiện tại
-  const groupedOptions = (() => {
-    if (!allVariants) return []
-    const eligible = allVariants.filter(
-      (v: any) => v.product_type !== 'bundle' && v.product_type !== 'service',
-    )
-    const groups = new Map<string, { label: string; options: any[] }>()
-    for (const v of eligible) {
-      if (!groups.has(v.product_name)) {
-        groups.set(v.product_name, { label: v.product_name, options: [] })
-      }
-      groups.get(v.product_name)!.options.push({
-        value: v.id,
-        label: `${v.item_code ?? v.sku}${v.name ? ` — ${v.name}` : ''}`,
-        searchText: `${v.product_name} ${v.item_code ?? ''} ${v.sku} ${v.name ?? ''}`.toLowerCase(),
-      })
-    }
-    return Array.from(groups.values())
-  })()
 
   return (
     <div>
@@ -82,19 +58,12 @@ export default function BundleItemsPanel({ productId, variantId }: Props) {
       />
 
       <Space style={{ marginTop: 12 }}>
-        <Select
-          showSearch
-          placeholder="Tìm sản phẩm / SKU..."
+        <VariantSelect
           style={{ width: fw.sku + fw.product }}
           value={itemVariantId}
           onChange={setItemVariantId}
-          filterOption={(input, option) => {
-            if (option && 'searchText' in option) {
-              return (option.searchText as string).includes(input.toLowerCase())
-            }
-            return false
-          }}
-          options={groupedOptions}
+          excludeTypes={['bundle', 'service']}
+          placeholder="Tìm sản phẩm / SKU..."
         />
         <InputNumber min={1} value={quantity} onChange={(v) => setQuantity(v ?? 1)} style={{ width: 80 }} />
         <Button

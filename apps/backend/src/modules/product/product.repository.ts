@@ -196,7 +196,11 @@ export class ProductRepository {
     const q = this.db('variants as v')
       .join('products as p', 'p.id', 'v.product_id')
       .where('p.is_active', true)
-      .select('v.id', 'v.sku', 'v.item_code', 'v.name', 'v.unit', 'p.name as product_name', 'p.product_type')
+      .select(
+        'v.id', 'v.sku', 'v.item_code', 'v.name', 'v.unit',
+        'v.cost_price', 'v.sale_price', 'v.warranty_months',
+        'p.name as product_name', 'p.product_type',
+      )
       .orderBy('v.sku')
       .limit(limit)
     if (search) q.where((b) =>

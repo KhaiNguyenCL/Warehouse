@@ -14,6 +14,13 @@ import BundleItemsPanel from '../components/BundleItemsPanel'
 import CustomFieldsPanel from '../components/CustomFieldsPanel'
 
 const UNITS = ['Cái', 'Chiếc', 'Bộ', 'Hộp', 'Cuộn', 'Mét', 'Cổng', 'License', 'Gói', 'Dây', 'Lần', 'Giờ', 'Ngày']
+
+const moneyProps = {
+  controls: false,
+  style: { width: '100%' },
+  formatter: (v: any) => (v != null && v !== '' ? String(v).replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''),
+  parser:    (v: any) => (v ? v.replace(/,/g, '') : ''),
+}
 const CURRENCIES = [
   { value: 'VND', label: 'VND' },
   { value: 'USD', label: 'USD' },
@@ -39,13 +46,34 @@ function SectionCard({ title, children }: { title: string; children: React.React
   )
 }
 
-function InfoRow({ label, value }: { label: string; value?: React.ReactNode }) {
+const labelStyle: React.CSSProperties = {
+  fontSize: 12,
+  color: 'var(--text-2)',
+  fontWeight: 600,
+  marginBottom: 4,
+  textTransform: 'uppercase',
+  letterSpacing: '0.4px',
+}
+
+const valueStyle: React.CSSProperties = {
+  fontSize: 14,
+  color: 'var(--text-1)',
+  minHeight: 32,
+  display: 'flex',
+  alignItems: 'center',
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <div style={{ fontSize: 12, color: 'var(--text-2)', fontWeight: 600, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.4px' }}>{label}</div>
-      <div style={{ fontSize: 14, color: 'var(--text-1)' }}>{value ?? <span style={{ color: 'var(--text-3)' }}>—</span>}</div>
+      <div style={labelStyle}>{label}</div>
+      <div style={valueStyle}>{children}</div>
     </div>
   )
+}
+
+function Val({ v }: { v?: React.ReactNode }) {
+  return v != null && v !== '' ? <>{v}</> : <span style={{ color: 'var(--text-3)' }}>—</span>
 }
 
 export default function VariantDetailPage() {
@@ -74,14 +102,10 @@ export default function VariantDetailPage() {
       currency:        hook.variant?.currency ?? 'VND',
       weight_kg:       hook.variant?.weight_kg,
       warranty_months: hook.variant?.warranty_months,
-      reorder_point:   hook.variant?.reorder_point ?? 0,
+      reorder_point:   hook.variant?.reorder_point ?? undefined,
       is_active:       hook.variant?.is_active ?? true,
     })
     setIsEditing(true)
-  }
-
-  function cancelEdit() {
-    setIsEditing(false)
   }
 
   async function saveEdit() {
@@ -117,7 +141,7 @@ export default function VariantDetailPage() {
         actions={
           isEditing ? (
             <>
-              <Button onClick={cancelEdit}>Huỷ</Button>
+              <Button onClick={() => setIsEditing(false)}>Huỷ</Button>
               <Button type="primary" loading={hook.updateVariant.isPending} onClick={saveEdit}>Lưu</Button>
             </>
           ) : (
@@ -136,64 +160,125 @@ export default function VariantDetailPage() {
         }
       />
 
-      {/* ── Thông tin cơ bản ── */}
+      {/* ── Thông tin SKU ── */}
       <SectionCard title="Thông tin SKU">
-        {isEditing ? (
-          <Form form={form} layout="vertical" className="entity-form-compact">
-            <Form.Item name="item_code" label="Mã hàng" rules={[{ required: true }]}>
-              <Input />
-            </Form.Item>
-            <Form.Item name="name" label="Tên" rules={[{ required: true }]}>
-              <Input />
-            </Form.Item>
-            <Form.Item name="model" label="Model (mã nhà SX)">
-              <Input placeholder="VD: SG110-16HP" />
-            </Form.Item>
-            <Form.Item name="part_number" label="Part Number">
-              <Input placeholder="VD: C9200L-48P-4X-E" />
-            </Form.Item>
-            <Form.Item name="unit" label="Đơn vị">
-              <Select options={UNITS.map((u) => ({ value: u, label: u }))} showSearch allowClear />
-            </Form.Item>
-            <Form.Item name="currency" label="Tiền tệ">
-              <Select options={CURRENCIES} />
-            </Form.Item>
-            <Form.Item name="cost_price" label="Giá nhập gợi ý">
-              <InputNumber style={{ width: '100%' }} min={0} />
-            </Form.Item>
-            <Form.Item name="sale_price" label="Giá bán gợi ý">
-              <InputNumber style={{ width: '100%' }} min={0} />
-            </Form.Item>
-            <Form.Item name="weight_kg" label="Cân nặng (kg)">
-              <InputNumber style={{ width: '100%' }} min={0} />
-            </Form.Item>
-            <Form.Item name="warranty_months" label="Bảo hành gợi ý (tháng)">
-              <InputNumber style={{ width: '100%' }} min={0} />
-            </Form.Item>
-            <Form.Item name="reorder_point" label="Điểm đặt lại">
-              <InputNumber style={{ width: '100%' }} min={0} />
-            </Form.Item>
-            <Form.Item name="is_active" label="Active" valuePropName="checked">
-              <Switch />
-            </Form.Item>
-          </Form>
-        ) : (
+        <Form form={form} layout="vertical" style={{ marginBottom: 0 }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '14px 24px' }}>
-            <InfoRow label="SKU (hệ thống)" value={<span style={{ fontFamily: 'monospace', fontSize: 12 }}>{v.sku}</span>} />
-            <InfoRow label="Mã hàng" value={v.item_code} />
-            <InfoRow label="Tên" value={v.name} />
-            <InfoRow label="Model" value={v.model} />
-            <InfoRow label="Part Number" value={v.part_number} />
-            <InfoRow label="Đơn vị" value={v.unit} />
-            <InfoRow label="Tiền tệ" value={v.currency} />
-            <InfoRow label="Giá nhập gợi ý" value={v.cost_price != null ? Number(v.cost_price).toLocaleString('vi-VN') : undefined} />
-            <InfoRow label="Giá bán gợi ý" value={v.sale_price != null ? Number(v.sale_price).toLocaleString('vi-VN') : undefined} />
-            <InfoRow label="Cân nặng (kg)" value={v.weight_kg} />
-            <InfoRow label="Bảo hành gợi ý" value={v.warranty_months != null ? `${v.warranty_months} tháng` : undefined} />
-            <InfoRow label="Điểm đặt lại" value={v.reorder_point} />
-            <InfoRow label="Trạng thái" value={<Tag color={v.is_active ? 'green' : 'default'}>{v.is_active ? 'Active' : 'Inactive'}</Tag>} />
+
+            <Field label="SKU (hệ thống)">
+              <span style={{ fontFamily: 'monospace', fontSize: 12 }}><Val v={v.sku} /></span>
+            </Field>
+
+            <Field label="Mã hàng">
+              {isEditing
+                ? <Form.Item name="item_code" noStyle rules={[{ required: true }]}>
+                    <Input style={{ width: '100%' }} />
+                  </Form.Item>
+                : <Val v={v.item_code} />
+              }
+            </Field>
+
+            <Field label="Tên">
+              {isEditing
+                ? <Form.Item name="name" noStyle rules={[{ required: true }]}>
+                    <Input style={{ width: '100%' }} />
+                  </Form.Item>
+                : <Val v={v.name} />
+              }
+            </Field>
+
+            <Field label="Model (mã nhà SX)">
+              {isEditing
+                ? <Form.Item name="model" noStyle>
+                    <Input style={{ width: '100%' }} placeholder="VD: SG110-16HP" />
+                  </Form.Item>
+                : <Val v={v.model} />
+              }
+            </Field>
+
+            <Field label="Part Number">
+              {isEditing
+                ? <Form.Item name="part_number" noStyle>
+                    <Input style={{ width: '100%' }} placeholder="VD: C9200L-48P-4X-E" />
+                  </Form.Item>
+                : <Val v={v.part_number} />
+              }
+            </Field>
+
+            <Field label="Đơn vị">
+              {isEditing
+                ? <Form.Item name="unit" noStyle>
+                    <Select options={UNITS.map((u) => ({ value: u, label: u }))} showSearch allowClear style={{ width: '100%' }} />
+                  </Form.Item>
+                : <Val v={v.unit} />
+              }
+            </Field>
+
+            <Field label="Tiền tệ">
+              {isEditing
+                ? <Form.Item name="currency" noStyle>
+                    <Select options={CURRENCIES} style={{ width: '100%' }} />
+                  </Form.Item>
+                : <Val v={v.currency} />
+              }
+            </Field>
+
+            <Field label="Giá nhập gợi ý">
+              {isEditing
+                ? <Form.Item name="cost_price" noStyle>
+                    <InputNumber {...moneyProps} />
+                  </Form.Item>
+                : <Val v={v.cost_price != null ? Number(v.cost_price).toLocaleString('en-US') : undefined} />
+              }
+            </Field>
+
+            <Field label="Giá bán gợi ý">
+              {isEditing
+                ? <Form.Item name="sale_price" noStyle>
+                    <InputNumber {...moneyProps} />
+                  </Form.Item>
+                : <Val v={v.sale_price != null ? Number(v.sale_price).toLocaleString('en-US') : undefined} />
+              }
+            </Field>
+
+            <Field label="Cân nặng (kg)">
+              {isEditing
+                ? <Form.Item name="weight_kg" noStyle>
+                    <InputNumber controls={false} style={{ width: '100%' }} min={0} />
+                  </Form.Item>
+                : <Val v={v.weight_kg} />
+              }
+            </Field>
+
+            <Field label="Bảo hành gợi ý">
+              {isEditing
+                ? <Form.Item name="warranty_months" noStyle>
+                    <InputNumber controls={false} style={{ width: '100%' }} min={0} addonAfter="tháng" />
+                  </Form.Item>
+                : <Val v={v.warranty_months != null ? `${v.warranty_months} tháng` : undefined} />
+              }
+            </Field>
+
+            <Field label="Điểm đặt lại">
+              {isEditing
+                ? <Form.Item name="reorder_point" noStyle>
+                    <InputNumber controls={false} style={{ width: '100%' }} min={0} />
+                  </Form.Item>
+                : <Val v={v.reorder_point} />
+              }
+            </Field>
+
+            <Field label="Trạng thái">
+              {isEditing
+                ? <Form.Item name="is_active" noStyle valuePropName="checked">
+                    <Switch checkedChildren="Active" unCheckedChildren="Inactive" />
+                  </Form.Item>
+                : <Tag color={v.is_active ? 'green' : 'default'}>{v.is_active ? 'Active' : 'Inactive'}</Tag>
+              }
+            </Field>
+
           </div>
-        )}
+        </Form>
         <CustomFieldsPanel objectType="variant" objectId={variantId!} inline />
       </SectionCard>
 
@@ -223,8 +308,8 @@ export default function VariantDetailPage() {
                   ) : (
                     <Select style={{ width: 160 }} allowClear value={attr.value ?? undefined}
                       options={attr.options.map((o) => ({ value: o, label: `${o}${attr.unit ?? ''}` }))}
-                      onChange={(v) => {
-                        const next = hook.attrValues.map((a, j) => (j === i ? { ...a, value: v ?? null } : a))
+                      onChange={(val) => {
+                        const next = hook.attrValues.map((a, j) => (j === i ? { ...a, value: val ?? null } : a))
                         hook.setAttrValues(next)
                       }}
                     />
@@ -266,7 +351,6 @@ export default function VariantDetailPage() {
       <SectionCard title="Giá theo khách hàng">
         <CustomerPricesPanel productId={productId!} variantId={variantId!} />
       </SectionCard>
-
     </div>
   )
 }

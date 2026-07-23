@@ -46,7 +46,7 @@ const purchaseOrderRoutes: FastifyPluginAsync = async (app) => {
   app.patch<{ Params: { id: string } }>(
     '/:id/confirm',
     { preHandler: requirePermission('purchase_order.confirm') },
-    async (request) => service.confirm(request.params.id),
+    async (request) => service.confirm(request.params.id, request.user.sub),
   )
 
   // PATCH /purchase-orders/:id/unconfirm — Confirmed → Draft để sửa.
@@ -62,6 +62,16 @@ const purchaseOrderRoutes: FastifyPluginAsync = async (app) => {
     '/:id/cancel',
     { preHandler: authenticate },
     async (request) => service.cancel(request.params.id, request.user.sub, request.user.roleId),
+  )
+
+  // DELETE /purchase-orders/:id — soft delete, chỉ được khi không có receipt liên kết.
+  app.delete<{ Params: { id: string } }>(
+    '/:id',
+    { preHandler: requirePermission('purchase_order.edit') },
+    async (request, reply) => {
+      await service.delete(request.params.id)
+      return reply.code(204).send()
+    },
   )
 }
 

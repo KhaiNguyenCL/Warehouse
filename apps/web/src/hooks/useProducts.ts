@@ -27,13 +27,6 @@ export function useProducts() {
     queryFn: async () => (await api.get('/products/brands')).data,
   })
 
-  const editModal = useEntityModal()
-
-  const updateMutation = useApiMutation(
-    (values: any) => api.patch(`/products/${editModal.editing?.id}`, values),
-    { successMessage: 'Cập nhật thành công', invalidateKey: ['products'], onSuccess: editModal.close },
-  )
-
   const deleteMutation = useApiMutation((id: string) => api.delete(`/products/${id}`), {
     successMessage: 'Đã xóa sản phẩm',
     invalidateKey: ['products'],
@@ -65,9 +58,6 @@ export function useProducts() {
     },
   )
 
-  // Gợi ý mã sản phẩm = category.short_code + brand.short_code + mã dòng sản phẩm (tự nhập) —
-  // mã dòng sản phẩm dùng để phân biệt các dòng SP khác nhau của cùng category+brand (VD: Cisco
-  // có nhiều dòng switch SG110/SG350 — chỉ category+brand sẽ bị trùng mã, cần thêm phần này).
   function suggestCode(overrideModelCode?: string) {
     const categoryId = form.getFieldValue('category_id')
     const brandId = form.getFieldValue('brand_id')
@@ -87,7 +77,6 @@ export function useProducts() {
 
   return {
     open, form, openCreate,
-    editModal, updateMutation,
     modelCode, setModelCode,
     navigate,
     page, setPage,

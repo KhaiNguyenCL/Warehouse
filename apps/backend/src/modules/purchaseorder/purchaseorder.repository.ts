@@ -19,6 +19,8 @@ export class PurchaseOrderRepository {
     const base = this.db('purchase_orders as po')
       .leftJoin('companies as c', 'c.id', 'po.company_id')
       .leftJoin('users as u', 'u.id', 'po.created_by')
+      .leftJoin('users as uc', 'uc.id', 'po.confirmed_by')
+      .whereNull('po.deleted_at')
 
     if (status) base.where('po.status', status)
     if (company_id) base.where('po.company_id', company_id)
@@ -28,9 +30,15 @@ export class PurchaseOrderRepository {
       base
         .clone()
         .select(
-          'po.id', 'po.code', 'po.status', 'po.bitrix_deal_id', 'po.created_at',
+          'po.id', 'po.code', 'po.status', 'po.bitrix_deal_id', 'po.deal_title', 'po.created_at',
           'c.name as company_name',
           'u.full_name as created_by_name',
+          'uc.full_name as confirmed_by_name',
+          this.db.raw(`(
+            SELECT COALESCE(SUM(pol.quantity * pol.unit_price * (1 + COALESCE(pol.vat_percent, 0) / 100)), 0)
+            FROM purchase_order_lines pol
+            WHERE pol.purchase_order_id = po.id
+          ) as total_amount`),
         )
         .orderBy('po.created_at', 'desc')
         .limit(limit)
@@ -46,6 +54,7 @@ export class PurchaseOrderRepository {
       .leftJoin('companies as c', 'c.id', 'po.company_id')
       .leftJoin('contacts as ct', 'ct.id', 'po.contact_id')
       .where('po.id', id)
+      .whereNull('po.deleted_at')
       .select('po.*', 'c.name as company_name', 'ct.full_name as contact_name')
       .first()
 
@@ -239,5 +248,13 @@ export class PurchaseOrderRepository {
 
   lockForUpdate(id: string, trx: Knex.Transaction) {
     return trx('purchase_orders').where({ id }).forUpdate().first()
+  }
+
+  async softDelete(id: string) {
+    const [row] = await this.db('purchase_orders')
+      .where({ id })
+      .update({ deleted_at: this.db.fn.now(), updated_at: this.db.fn.now() })
+      .returning('id')
+    return row
   }
 }

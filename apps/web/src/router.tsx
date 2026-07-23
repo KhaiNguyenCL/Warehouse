@@ -9,16 +9,18 @@ import BrandsPage from './pages/BrandsPage'
 import ProductsPage from './pages/ProductsPage'
 import ProductDetailPage from './pages/ProductDetailPage'
 import VariantDetailPage from './pages/VariantDetailPage'
+import VariantCreatePage from './pages/VariantCreatePage'
 import WarehousesPage from './pages/WarehousesPage'
 import PurchaseOrdersPage from './pages/PurchaseOrdersPage'
-import PurchaseOrderDetailPage from './pages/PurchaseOrderDetailPage'
+import PurchaseOrderCreatePage from './pages/PurchaseOrderCreatePage'
 import ReceiptsPage from './pages/ReceiptsPage'
-import ReceiptDetailPage from './pages/ReceiptDetailPage'
+import ReceiptFormPage from './pages/ReceiptFormPage'
 import InventoryPage from './pages/InventoryPage'
 import InventorySerialsPage from './pages/InventorySerialsPage'
 import CustomFieldsSettingsPage from './pages/CustomFieldsSettingsPage'
 import QuotationsPage from './pages/QuotationsPage'
 import QuotationDetailPage from './pages/QuotationDetailPage'
+import QuotationCreatePage from './pages/QuotationCreatePage'
 import DeliveryOrdersPage from './pages/DeliveryOrdersPage'
 import DeliveryOrderDetailPage from './pages/DeliveryOrderDetailPage'
 import TransferOrdersPage from './pages/TransferOrdersPage'
@@ -53,15 +55,19 @@ const routes: RouteObject[] = [
           { path: '/brands', element: <BrandsPage /> },
           { path: '/products', element: <ProductsPage /> },
           { path: '/products/:id', element: <ProductDetailPage /> },
+          { path: '/products/:productId/variants/new', element: <VariantCreatePage /> },
           { path: '/products/:productId/variants/:variantId', element: <VariantDetailPage /> },
           { path: '/warehouses', element: <WarehousesPage /> },
           { path: '/purchase-orders', element: <PurchaseOrdersPage /> },
-          { path: '/purchase-orders/:id', element: <PurchaseOrderDetailPage /> },
+          { path: '/purchase-orders/new', element: <PurchaseOrderCreatePage /> },
+          { path: '/purchase-orders/:id', element: <PurchaseOrderCreatePage /> },
           { path: '/receipts', element: <ReceiptsPage /> },
-          { path: '/receipts/:id', element: <ReceiptDetailPage /> },
+          { path: '/receipts/new', element: <ReceiptFormPage /> },
+          { path: '/receipts/:id', element: <ReceiptFormPage /> },
           { path: '/inventory', element: <InventoryPage /> },
           { path: '/inventory/serials/:variantId', element: <InventorySerialsPage /> },
           { path: '/quotations', element: <QuotationsPage /> },
+          { path: '/quotations/new', element: <QuotationCreatePage /> },
           { path: '/quotations/:id', element: <QuotationDetailPage /> },
           { path: '/deliveries', element: <DeliveryOrdersPage /> },
           { path: '/deliveries/:id', element: <DeliveryOrderDetailPage /> },

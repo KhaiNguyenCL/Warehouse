@@ -11,11 +11,10 @@ function compact<T extends Record<string, unknown>>(obj: T): Partial<T> {
   return Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined)) as Partial<T>
 }
 
-// Chỉ những field TEXT, tự do sửa ở Draft mới được phép ghi đè từ Bitrix — không cho map
-// vào field tính toán (subtotal/grand_total...), trạng thái, hay company_id/contact_id
-// (việc liên kết company/contact theo bitrix_company_id là 1 bài toán resolve riêng,
-// chưa nằm trong phạm vi sync field đơn giản này).
-const ALLOWED_QUOTATION_FIELDS = ['project_name', 'delivery_location', 'terms']
+// Chỉ những field được phép ghi đè từ Bitrix — không cho map vào field tính toán
+// (subtotal/grand_total...) hay trạng thái.
+// company_id / contact_id được resolve đặc biệt (Bitrix ID → WMS UUID) trong syncQuotation.
+const ALLOWED_QUOTATION_FIELDS = ['project_name', 'delivery_location', 'terms', 'company_id', 'contact_id']
 
 export class BitrixService {
   private repo: BitrixRepository
@@ -50,8 +49,73 @@ export class BitrixService {
     return this.app.bitrix.getDeal(dealId)
   }
 
+  // Fetch deal rồi resolve COMPANY_ID/CONTACT_ID sang WMS company/contact.
+  // Nếu contact chưa có bitrix_contact_id trong WMS → tự import luôn (idempotent).
+  // Dùng cho form tạo PO: nhập Deal ID → auto-fill NCC + người liên hệ.
+  async resolveDeal(dealId: string) {
+    const deal = await this.app.bitrix.getDeal(dealId)
+
+    const company = deal.COMPANY_ID
+      ? await this.companyRepo.findByBitrixId(String(deal.COMPANY_ID))
+      : null
+
+    let contact = null
+    if (deal.CONTACT_ID) {
+      const bxContactId = String(deal.CONTACT_ID)
+      contact = await this.companyRepo.findContactByBitrixId(bxContactId)
+      if (!contact) {
+        // Contact chưa import → import on-the-fly, gắn vào company nếu đã resolve được
+        try {
+          contact = await this.importContact(bxContactId, company?.id)
+        } catch {
+          // Import thất bại (VD: company chưa có trong WMS) — bỏ qua, không block
+        }
+      }
+    }
+
+    // Enum ID → label cho UF_CRM_1659681090 (Khu vực).
+    // Nguồn: crm.deal.userfield.list, field UF_CRM_1659681090, LIST[].
+    const REGION_MAP: Record<string, string> = {
+      '85': 'Hồ Chí Minh', '86': 'Hà Nội', '164': 'Đồng Nai (Biên Hòa)',
+      '113': 'Bình Dương', '174': 'Bình Định', '158': 'Phú Quốc',
+      '166': 'Lâm Đồng (Đà Lạt)', '109': 'Khánh Hòa (Nha Trang)', '87': 'Đà Nẵng',
+      '112': 'Hội An', '110': 'Hải Phòng', '169': 'Lào Cai (Sapa)',
+      '168': 'Huế', '167': 'Quảng Ninh (Hạ Long)', '111': 'Hưng Yên',
+      '160': 'VIETNAM', '161': 'CAMBODIA', '176': 'Tiền Giang',
+      '177': 'An Giang', '180': 'Long An', '181': 'Ninh Bình',
+      '234': 'Nghệ An', '182': 'Tây Ninh', '186': 'Đồng Nai', '188': 'Hà Tĩnh',
+    }
+
+    const regionId    = deal['UF_CRM_1659681090'] as string | undefined
+    const contractRaw = deal['UF_CRM_1659680859'] as string | undefined
+    const addressRaw  = deal['UF_CRM_1659680918'] as string | undefined
+
+    // BEGINDATE/CLOSEDATE là ISO datetime — chỉ lấy phần date (YYYY-MM-DD)
+    const toDate = (v: unknown) => typeof v === 'string' ? v.slice(0, 10) : null
+
+    return {
+      bitrix_company_id:  deal.COMPANY_ID ? String(deal.COMPANY_ID) : null,
+      bitrix_contact_id:  deal.CONTACT_ID ? String(deal.CONTACT_ID) : null,
+      company:            company ? { id: company.id, name: company.name } : null,
+      contact:            contact ? { id: contact.id, full_name: contact.full_name } : null,
+      deal_title:         (deal.TITLE as string | undefined) || null,
+      deal_amount:        deal.OPPORTUNITY ? Number(deal.OPPORTUNITY) : null,
+      deal_url:           this.buildDealUrl(dealId),
+      contract_number:    contractRaw?.trim() || null,
+      region:             (regionId && REGION_MAP[regionId]) || null,
+      delivery_location:  addressRaw?.trim() || null,
+      start_date:         toDate(deal.BEGINDATE),
+      end_date:           toDate(deal.CLOSEDATE),
+    }
+  }
+
   // CLAUDE.md mục 13: "Bấm Sync lại → ghi đè toàn bộ field được map (không hỏi lại)".
   // Chỉ cho sync khi quotation còn Draft — cùng quy tắc với update() thường (mục 6).
+  //
+  // Xử lý đặc biệt:
+  // - company_id: resolve Bitrix COMPANY_ID → WMS UUID qua bitrix_company_id
+  // - contact_id: resolve Bitrix CONTACT_ID → WMS UUID (import on-the-fly nếu chưa có)
+  // - Enum/list fields (UF_CRM_*): resolve numeric ID → label qua crm.deal.userfield.list
   async syncQuotation(quotationId: string, dealIdInput?: string) {
     const quotation = await this.repo.findQuotationById(quotationId)
     if (!quotation) throw { statusCode: 404, message: 'Quotation not found' }
@@ -62,21 +126,65 @@ export class BitrixService {
     const dealId = dealIdInput ?? quotation.bitrix_deal_id
     if (!dealId) throw { statusCode: 400, message: 'Thiếu Bitrix Deal ID' }
 
-    const deal = await this.app.bitrix.getDeal(dealId)
-    const mappings = await this.repo.findMappings()
+    const [deal, mappings, userFields] = await Promise.all([
+      this.app.bitrix.getDeal(dealId),
+      this.repo.findMappings(),
+      this.app.bitrix.getDealUserFields(),
+    ])
 
-    const needCompany = mappings.some((m) => m.bitrix_object === 'company')
-    const needContact = mappings.some((m) => m.bitrix_object === 'contact')
-    const company = needCompany && deal.COMPANY_ID ? await this.app.bitrix.getCompany(deal.COMPANY_ID) : null
-    const contact = needContact && deal.CONTACT_ID ? await this.app.bitrix.getContact(deal.CONTACT_ID) : null
+    // Build ID→label lookup for enumeration-type UF fields
+    const enumLookup = new Map<string, Map<string, string>>()
+    for (const uf of userFields) {
+      if (uf.USER_TYPE_ID === 'enumeration' && uf.LIST?.length) {
+        enumLookup.set(uf.FIELD_NAME, new Map(uf.LIST.map((o) => [String(o.ID), String(o.VALUE)])))
+      }
+    }
 
-    const sourceByObject: Record<string, Record<string, unknown> | null> = { deal, company, contact }
+    // Fetch Bitrix company/contact objects only if mappings actually need them for
+    // non-special fields (company_id/contact_id are handled separately below)
+    const needBxCompany = mappings.some((m) => m.bitrix_object === 'company' && m.quotation_field !== 'company_id')
+    const needBxContact = mappings.some((m) => m.bitrix_object === 'contact' && m.quotation_field !== 'contact_id')
+    const [bxCompany, bxContact] = await Promise.all([
+      needBxCompany && deal.COMPANY_ID ? this.app.bitrix.getCompany(String(deal.COMPANY_ID)) : Promise.resolve(null),
+      needBxContact && deal.CONTACT_ID ? this.app.bitrix.getContact(String(deal.CONTACT_ID)) : Promise.resolve(null),
+    ])
+    const sourceByObject: Record<string, Record<string, unknown> | null> = { deal, company: bxCompany, contact: bxContact }
 
     const payload: Record<string, unknown> = {}
+
     for (const m of mappings) {
-      const source = sourceByObject[m.bitrix_object]
-      if (!source) continue
-      payload[m.quotation_field] = source[m.bitrix_field] ?? null
+      if (m.quotation_field === 'company_id') {
+        // Resolve Bitrix COMPANY_ID → WMS UUID; skip if not found (don't nullify existing link)
+        const bxCompanyId = deal.COMPANY_ID ? String(deal.COMPANY_ID) : null
+        if (bxCompanyId) {
+          const wmsCompany = await this.companyRepo.findByBitrixId(bxCompanyId)
+          if (wmsCompany) payload.company_id = wmsCompany.id
+        }
+      } else if (m.quotation_field === 'contact_id') {
+        // Resolve Bitrix CONTACT_ID → WMS UUID; import on-the-fly if needed
+        const bxContactId = deal.CONTACT_ID ? String(deal.CONTACT_ID) : null
+        if (bxContactId) {
+          let wmsContact = await this.companyRepo.findContactByBitrixId(bxContactId)
+          if (!wmsContact) {
+            try {
+              const wmsCompany = deal.COMPANY_ID ? await this.companyRepo.findByBitrixId(String(deal.COMPANY_ID)) : null
+              wmsContact = await this.importContact(bxContactId, wmsCompany?.id)
+            } catch {
+              // import failed (company not in WMS yet) — skip, don't nullify existing link
+            }
+          }
+          if (wmsContact) payload.contact_id = wmsContact.id
+        }
+      } else {
+        const source = sourceByObject[m.bitrix_object]
+        if (!source) continue
+        let value: unknown = source[m.bitrix_field] ?? null
+        // Resolve enum ID → label
+        if (typeof value === 'string' && value !== '' && enumLookup.has(m.bitrix_field)) {
+          value = enumLookup.get(m.bitrix_field)!.get(value) ?? value
+        }
+        payload[m.quotation_field] = value
+      }
     }
 
     const [updated] = await this.repo.updateQuotation(quotationId, {
@@ -89,11 +197,6 @@ export class BitrixService {
   }
 
   // CLAUDE.md mục 12: import 1 company Bitrix vào bảng companies nội bộ.
-  // Dedup theo thứ tự ưu tiên:
-  //   1. bitrix_company_id — đã import trước, gọi lại chỉ update
-  //   2. tax_code (MST) — tạo thủ công rồi, gắn bitrix_company_id vào
-  //   3. Không tìm thấy → tạo mới
-  // Sau khi upsert company → tự động upsert Người đại diện thành primary contact.
   async importCompany(bitrixCompanyId: string) {
     bitrixCompanyId = String(bitrixCompanyId)   // normalize — caller có thể truyền number
     const bx = await this.app.bitrix.getCompany(bitrixCompanyId)

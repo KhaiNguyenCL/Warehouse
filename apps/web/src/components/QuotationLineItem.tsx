@@ -1,12 +1,10 @@
-// 1 dòng trong Form.List "line_items" lồng trong Form.List "sections" — cascading Select
-// Product → Variant giống POLineItem, nhưng thêm logic: nếu Product chọn là loại "bundle"
-// thì lưu vào field bundle_id (không phải variant_id); nếu là "service" thì ép is_reserved
-// = false + disable (CLAUDE.md mục 4/7 — service không bao giờ giữ chỗ kho).
+// 1 dòng trong Form.List "line_items" lồng trong Form.List "sections" — dùng VariantSelect
+// thay cho 2-step Product→SKU. Routing: bundle → bundle_id, còn lại → variant_id (hidden
+// fields). Service → ép is_reserved=false và disable switch (CLAUDE.md mục 4/7).
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { Form, Select, InputNumber, Input, Button, Switch } from 'antd'
+import { Form, InputNumber, Input, Button, Switch } from 'antd'
 import type { FormInstance } from 'antd'
-import { api } from '../lib/api'
+import VariantSelect, { type VariantData } from './VariantSelect'
 
 interface Props {
   form: FormInstance
@@ -16,66 +14,33 @@ interface Props {
 }
 
 export default function QuotationLineItem({ form, sectionName, name, remove }: Props) {
-  const [productId, setProductId] = useState<string | undefined>()
-
-  const { data: products } = useQuery({
-    queryKey: ['products', 'all'],
-    queryFn: async () => (await api.get('/products', { params: { limit: 100 } })).data,
-  })
-
-  const { data: productDetail } = useQuery({
-    queryKey: ['products', productId],
-    queryFn: async () => (await api.get(`/products/${productId}`)).data,
-    enabled: !!productId,
-  })
+  const [isService, setIsService] = useState(false)
 
   function path(field: string) {
     return ['sections', sectionName, 'line_items', name, field]
   }
 
-  function onVariantChange(variantId: string) {
-    const variant = productDetail?.variants.find((v: any) => v.id === variantId)
+  function onSelectVariant(variant: VariantData | null) {
     if (!variant) return
-    const isBundle = productDetail.product_type === 'bundle'
-    const isService = productDetail.product_type === 'service'
+    const isBundle = variant.product_type === 'bundle'
+    const isSvc = variant.product_type === 'service'
+    setIsService(isSvc)
 
     form.setFields([
-      { name: path('variant_id'), value: isBundle ? undefined : variantId },
-      { name: path('bundle_id'), value: isBundle ? variantId : undefined },
+      { name: path('variant_id'), value: isBundle ? undefined : variant.id },
+      { name: path('bundle_id'), value: isBundle ? variant.id : undefined },
       { name: path('unit_price'), value: variant.sale_price ?? variant.cost_price },
-      { name: path('is_reserved'), value: !isService },
+      { name: path('is_reserved'), value: !isSvc },
     ])
   }
 
-  const isService = productDetail?.product_type === 'service'
-
   return (
-    <div style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'baseline', flexWrap: 'wrap' }}>
-      <Form.Item label="Sản phẩm" style={{ width: 200 }}>
-        <Select
-          showSearch
-          optionFilterProp="label"
-          placeholder="Chọn sản phẩm"
-          options={products?.data.map((p: any) => ({ value: p.id, label: `${p.name} (${p.product_type})` }))}
-          onChange={(v) => setProductId(v)}
-        />
+    <div style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'flex-start', flexWrap: 'nowrap' }}>
+      <Form.Item label="Mã hàng / SKU" style={{ minWidth: 260 }}>
+        <VariantSelect onSelectVariant={onSelectVariant} style={{ width: '100%' }} />
       </Form.Item>
-      <Form.Item label="SKU" style={{ width: 200 }}>
-        <Select
-          showSearch
-          optionFilterProp="label"
-          placeholder="Chọn SKU"
-          disabled={!productId}
-          options={productDetail?.variants.map((v: any) => ({ value: v.id, label: `${v.item_code ?? v.sku} — ${v.name}` }))}
-          onChange={onVariantChange}
-        />
-      </Form.Item>
-      <Form.Item name={[name, 'variant_id']} hidden>
-        <Input />
-      </Form.Item>
-      <Form.Item name={[name, 'bundle_id']} hidden>
-        <Input />
-      </Form.Item>
+      <Form.Item name={[name, 'variant_id']} hidden><Input /></Form.Item>
+      <Form.Item name={[name, 'bundle_id']} hidden><Input /></Form.Item>
       <Form.Item name={[name, 'description']} label="Mô tả (hiện trên báo giá)" style={{ width: 220 }}>
         <Input />
       </Form.Item>
