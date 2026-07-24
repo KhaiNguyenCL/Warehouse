@@ -14,7 +14,11 @@ function compact<T extends Record<string, unknown>>(obj: T): Partial<T> {
 // Chỉ những field được phép ghi đè từ Bitrix — không cho map vào field tính toán
 // (subtotal/grand_total...) hay trạng thái.
 // company_id / contact_id được resolve đặc biệt (Bitrix ID → WMS UUID) trong syncQuotation.
-const ALLOWED_QUOTATION_FIELDS = ['project_name', 'delivery_location', 'terms', 'company_id', 'contact_id']
+const ALLOWED_QUOTATION_FIELDS = [
+  'company_id', 'contact_id', 'quote_number', 'quote_date',
+  'project_name', 'delivery_location', 'warehouse_id',
+  'valid_days', 'discount', 'terms', 'note', 'bitrix_deal_id',
+]
 
 export class BitrixService {
   private repo: BitrixRepository
@@ -112,6 +116,55 @@ export class BitrixService {
   // CLAUDE.md mục 13: "Bấm Sync lại → ghi đè toàn bộ field được map (không hỏi lại)".
   // Chỉ cho sync khi quotation còn Draft — cùng quy tắc với update() thường (mục 6).
   //
+  // Preview những gì sync sẽ điền vào quotation (không update DB).
+  // Trả về array { quotation_field, raw_value, resolved_value, skipped, reason }
+  async previewSync(dealId: string) {
+    const [deal, mappings, userFields] = await Promise.all([
+      this.app.bitrix.getDeal(dealId),
+      this.repo.findMappings(),
+      this.app.bitrix.getDealUserFields(),
+    ])
+
+    const enumLookup = new Map<string, Map<string, string>>()
+    for (const uf of userFields) {
+      if (uf.USER_TYPE_ID === 'enumeration' && uf.LIST?.length) {
+        enumLookup.set(uf.FIELD_NAME, new Map(uf.LIST.map((o) => [String(o.ID), String(o.VALUE)])))
+      }
+    }
+
+    // form_value = giá trị thực sự dùng để set vào form (UUID cho company/contact)
+    // resolved_value = human-readable để hiển thị trong bảng preview
+    const rows: Array<{ quotation_field: string; bitrix_field: string; raw_value: unknown; resolved_value: unknown; form_value: unknown; skipped: boolean; reason?: string }> = []
+
+    for (const m of mappings) {
+      if (m.quotation_field === 'company_id') {
+        const bxId = deal.COMPANY_ID ? String(deal.COMPANY_ID) : null
+        if (!bxId) { rows.push({ quotation_field: 'company_id', bitrix_field: 'COMPANY_ID', raw_value: null, resolved_value: null, form_value: null, skipped: true, reason: 'Deal không có COMPANY_ID' }); continue }
+        const wms = await this.companyRepo.findByBitrixId(bxId)
+        rows.push({ quotation_field: 'company_id', bitrix_field: 'COMPANY_ID', raw_value: bxId, resolved_value: wms ? `${wms.name} (${wms.id})` : null, form_value: wms?.id ?? null, skipped: !wms, reason: wms ? undefined : 'Company chưa được import vào WMS' })
+      } else if (m.quotation_field === 'contact_id') {
+        const bxId = deal.CONTACT_ID ? String(deal.CONTACT_ID) : null
+        if (!bxId) { rows.push({ quotation_field: 'contact_id', bitrix_field: 'CONTACT_ID', raw_value: null, resolved_value: null, form_value: null, skipped: true, reason: 'Deal không có CONTACT_ID' }); continue }
+        const wms = await this.companyRepo.findContactByBitrixId(bxId)
+        rows.push({ quotation_field: 'contact_id', bitrix_field: 'CONTACT_ID', raw_value: bxId, resolved_value: wms ? `${wms.full_name} (${wms.id})` : null, form_value: wms?.id ?? null, skipped: !wms, reason: wms ? undefined : 'Contact chưa được import vào WMS' })
+      } else {
+        const source: Record<string, unknown> = m.bitrix_object === 'deal' ? deal : {}
+        let raw: unknown = source[m.bitrix_field]
+        if (Array.isArray(raw)) raw = raw[0] ?? null
+        if (raw !== null && typeof raw === 'object' && 'VALUE' in (raw as any)) raw = (raw as any).VALUE ?? null
+        if (raw === null || raw === undefined || raw === '') {
+          rows.push({ quotation_field: m.quotation_field, bitrix_field: m.bitrix_field, raw_value: raw ?? null, resolved_value: null, form_value: null, skipped: true, reason: 'Field trống trong Deal Bitrix' })
+          continue
+        }
+        const strVal = String(raw)
+        const resolved = enumLookup.has(m.bitrix_field) ? (enumLookup.get(m.bitrix_field)!.get(strVal) ?? raw) : raw
+        rows.push({ quotation_field: m.quotation_field, bitrix_field: m.bitrix_field, raw_value: raw, resolved_value: resolved, form_value: resolved, skipped: false })
+      }
+    }
+
+    return { deal_id: dealId, deal_title: deal.TITLE, rows }
+  }
+
   // Xử lý đặc biệt:
   // - company_id: resolve Bitrix COMPANY_ID → WMS UUID qua bitrix_company_id
   // - contact_id: resolve Bitrix CONTACT_ID → WMS UUID (import on-the-fly nếu chưa có)
@@ -178,10 +231,20 @@ export class BitrixService {
       } else {
         const source = sourceByObject[m.bitrix_object]
         if (!source) continue
-        let value: unknown = source[m.bitrix_field] ?? null
+        let raw: unknown = source[m.bitrix_field]
+        // Bitrix đôi khi trả enum value dưới dạng array — lấy phần tử đầu
+        if (Array.isArray(raw)) raw = raw[0] ?? null
+        // Money/currency type trả về object { VALUE, CURRENCY } — lấy VALUE
+        if (raw !== null && typeof raw === 'object' && 'VALUE' in (raw as any)) {
+          raw = (raw as any).VALUE ?? null
+        }
+        // Bỏ qua nếu không có giá trị — không ghi null đè lên field hiện tại
+        if (raw === null || raw === undefined || raw === '') continue
+        let value: unknown = raw
         // Resolve enum ID → label
-        if (typeof value === 'string' && value !== '' && enumLookup.has(m.bitrix_field)) {
-          value = enumLookup.get(m.bitrix_field)!.get(value) ?? value
+        const strVal = String(raw)
+        if (enumLookup.has(m.bitrix_field)) {
+          value = enumLookup.get(m.bitrix_field)!.get(strVal) ?? raw
         }
         payload[m.quotation_field] = value
       }

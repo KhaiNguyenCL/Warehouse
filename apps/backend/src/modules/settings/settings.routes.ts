@@ -135,6 +135,33 @@ const settingsRoutes: FastifyPluginAsync = async (app) => {
     return reply.code(204).send()
   })
 
+  // ─── Quotation Term Templates ────────────────────────────────────────────────
+  app.get('/term-templates', { preHandler: authenticate }, () => service.listTermTemplates())
+
+  app.post<{ Body: { name: string; content: string; sort_order?: number } }>(
+    '/term-templates',
+    {
+      schema: { body: { type: 'object', required: ['name', 'content'], properties: { name: { type: 'string', minLength: 1 }, content: { type: 'string' }, sort_order: { type: 'integer' } } } },
+      preHandler: authenticate,
+    },
+    async (request, reply) => reply.code(201).send(await service.createTermTemplate(request.body)),
+  )
+
+  app.patch<{ Params: { id: string }; Body: { name?: string; content?: string; sort_order?: number } }>(
+    '/term-templates/:id',
+    {
+      schema: { body: { type: 'object', properties: { name: { type: 'string', minLength: 1 }, content: { type: 'string' }, sort_order: { type: 'integer' } } } },
+      preHandler: authenticate,
+    },
+    (request) => service.updateTermTemplate(request.params.id, request.body),
+  )
+
+  app.delete<{ Params: { id: string } }>(
+    '/term-templates/:id',
+    { preHandler: authenticate },
+    async (request, reply) => { await service.deleteTermTemplate(request.params.id); return reply.code(204).send() },
+  )
+
   // ─── Variant Attribute Defs ──────────────────────────────────────────────────
   app.get('/variant-attribute-defs', { preHandler: authenticate }, () => service.listVariantAttributeDefs())
 

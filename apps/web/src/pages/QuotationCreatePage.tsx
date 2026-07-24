@@ -1,10 +1,12 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Form, Input, InputNumber, Select, Button, DatePicker } from 'antd'
-import { ArrowLeftOutlined } from '@ant-design/icons'
+import { ArrowLeftOutlined, SyncOutlined } from '@ant-design/icons'
 import { useQuery } from '@tanstack/react-query'
 import dayjs from 'dayjs'
 import { api } from '../lib/api'
 import { useApiMutation } from '../hooks/useApiMutation'
+import { useTermTemplates } from '../hooks/useTermTemplates'
 import { PageHeader } from '../components/ui/PageHeader'
 import QuotationSectionItem from '../components/QuotationSectionItem'
 
@@ -56,6 +58,10 @@ const moneyProps = {
 export default function QuotationCreatePage() {
   const navigate = useNavigate()
   const [form] = Form.useForm()
+  const [dealInput, setDealInput] = useState('')
+  const [bitrixLoading, setBitrixLoading] = useState(false)
+  const [bitrixError, setBitrixError] = useState<string | null>(null)
+  const [bitrixInfo, setBitrixInfo] = useState<string | null>(null)
 
   const { data: companies } = useQuery({
     queryKey: ['companies', 'customer'],
@@ -71,6 +77,50 @@ export default function QuotationCreatePage() {
     queryKey: ['warehouses'],
     queryFn: async () => (await api.get('/warehouses')).data,
   })
+  const { data: termTemplates } = useTermTemplates()
+
+  async function fetchFromBitrix() {
+    if (!dealInput.trim()) return
+    const dealId = dealInput.trim()
+    setBitrixLoading(true)
+    setBitrixError(null)
+    setBitrixInfo(null)
+    try {
+      // Gọi song song: resolve (company/contact UUID) + preview-sync (tất cả mapping)
+      const [resolveRes, previewRes] = await Promise.all([
+        api.get(`/bitrix/deals/${dealId}/resolve`),
+        api.get(`/bitrix/deals/${dealId}/preview-sync`).catch(() => null),
+      ])
+      const d = resolveRes.data
+      const patch: Record<string, any> = { bitrix_deal_id: dealId }
+
+      // Base fields từ resolve (luôn có, không phụ thuộc mapping)
+      if (d.company?.id)       patch.company_id = d.company.id
+      if (d.contact?.id)       patch.contact_id = d.contact.id
+      if (d.deal_title)        patch.project_name = d.deal_title
+      if (d.delivery_location) patch.delivery_location = d.delivery_location
+
+      // Overlay từ preview-sync (áp mapping đã cấu hình, ghi đè base fields nếu có)
+      if (previewRes?.data?.rows) {
+        for (const row of previewRes.data.rows) {
+          if (!row.skipped && row.form_value != null && row.form_value !== '') {
+            patch[row.quotation_field] = row.form_value
+          }
+        }
+      }
+
+      form.setFieldsValue(patch)
+
+      const filled = Object.entries(patch)
+        .filter(([k, v]) => k !== 'bitrix_deal_id' && v != null && v !== '')
+        .map(([k, v]) => `${k}: ${v}`)
+      setBitrixInfo(filled.length ? `Đã điền ${filled.length} field` : 'Fetch thành công — không có field nào match')
+    } catch (err: any) {
+      setBitrixError(err?.response?.data?.message ?? 'Không fetch được Deal')
+    } finally {
+      setBitrixLoading(false)
+    }
+  }
 
   const createMutation = useApiMutation(
     (values: any) => api.post('/quotations', values),
@@ -114,6 +164,29 @@ export default function QuotationCreatePage() {
         <SectionCard title="Thông tin báo giá">
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '14px 24px' }}>
 
+            {/* Row 1: Bitrix Deal ID + Fetch — Số báo giá — Ngày báo giá */}
+            <div>
+              <div style={labelStyle}>Bitrix Deal ID</div>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <Input
+                  placeholder="Deal ID (tuỳ chọn)"
+                  value={dealInput}
+                  onChange={(e) => setDealInput(e.target.value)}
+                  onPressEnter={fetchFromBitrix}
+                  style={{ flex: 1, minWidth: 0 }}
+                />
+                <Button
+                  icon={<SyncOutlined />}
+                  loading={bitrixLoading}
+                  onClick={fetchFromBitrix}
+                  disabled={!dealInput.trim()}
+                  title="Fetch & điền form từ Bitrix"
+                />
+              </div>
+              {bitrixError && <div style={{ color: '#f5222d', fontSize: 12, marginTop: 4 }}>{bitrixError}</div>}
+              {bitrixInfo  && <div style={{ color: '#52c41a', fontSize: 12, marginTop: 4 }}>{bitrixInfo}</div>}
+            </div>
+
             <Field label="Số báo giá">
               <Form.Item name="quote_number" noStyle>
                 <Input style={{ width: '100%' }} placeholder="VD: BG-2026-001" />
@@ -126,6 +199,7 @@ export default function QuotationCreatePage() {
               </Form.Item>
             </Field>
 
+            {/* Row 2: Khách hàng — Người liên hệ */}
             <Field label="Khách hàng">
               <Form.Item name="company_id" noStyle rules={[{ required: true, message: 'Bắt buộc chọn khách hàng' }]}>
                 <Select
@@ -148,15 +222,25 @@ export default function QuotationCreatePage() {
               </Form.Item>
             </Field>
 
-            <Field label="Tên dự án">
+            <div /> {/* spacer */}
+
+            {/* Row 3: Tên dự án (full width) */}
+            <Field label="Tên dự án" span={3}>
               <Form.Item name="project_name" noStyle>
                 <Input style={{ width: '100%' }} placeholder="Tên dự án / công trình" />
               </Form.Item>
             </Field>
 
+            {/* Row 4: Địa điểm giao hàng — Hiệu lực — Kho xuất */}
             <Field label="Địa điểm giao hàng">
               <Form.Item name="delivery_location" noStyle>
                 <Input style={{ width: '100%' }} />
+              </Form.Item>
+            </Field>
+
+            <Field label="Hiệu lực (ngày)">
+              <Form.Item name="valid_days" noStyle>
+                <InputNumber controls={false} min={1} style={{ width: '100%' }} />
               </Form.Item>
             </Field>
 
@@ -170,29 +254,38 @@ export default function QuotationCreatePage() {
               </Form.Item>
             </Field>
 
-            <Field label="Hiệu lực (ngày)">
-              <Form.Item name="valid_days" noStyle>
-                <InputNumber controls={false} min={1} style={{ width: '100%' }} />
-              </Form.Item>
-            </Field>
+            {/* Row 5: Mẫu điều khoản (full width) */}
+            <div style={{ gridColumn: '1 / -1' }}>
+              <div style={labelStyle}>Điều khoản</div>
+              <div style={valueStyle}>
+                <Select
+                  allowClear
+                  placeholder="Chọn mẫu điều khoản (tuỳ chọn)"
+                  style={{ width: '100%' }}
+                  options={termTemplates?.map((t) => ({ value: t.id, label: t.name }))}
+                  onChange={(id) => {
+                    const tpl = termTemplates?.find((t) => t.id === id)
+                    if (tpl) form.setFieldValue('terms', tpl.content)
+                  }}
+                />
+              </div>
+            </div>
 
-            <Field label="Giảm giá">
-              <Form.Item name="discount" noStyle>
-                <InputNumber {...moneyProps} />
-              </Form.Item>
-            </Field>
-
-            <Field label="Điều khoản" span={3}>
+            {/* Row 6: Nội dung điều khoản (full width) */}
+            <div style={{ gridColumn: '1 / -1' }}>
+              <div style={labelStyle}>Nội dung điều khoản</div>
               <Form.Item name="terms" noStyle>
-                <Input.TextArea rows={2} style={{ width: '100%' }} placeholder="Điều khoản thanh toán, giao hàng..." />
+                <Input.TextArea rows={4} style={{ width: '100%' }} placeholder="Nội dung điều khoản (có thể chỉnh sửa sau khi chọn mẫu)..." />
               </Form.Item>
-            </Field>
+            </div>
 
-            <Field label="Ghi chú" span={3}>
+            {/* Row 7: Ghi chú (full width) */}
+            <div style={{ gridColumn: '1 / -1' }}>
+              <div style={labelStyle}>Ghi chú</div>
               <Form.Item name="note" noStyle>
                 <Input.TextArea rows={2} style={{ width: '100%' }} />
               </Form.Item>
-            </Field>
+            </div>
 
           </div>
         </SectionCard>

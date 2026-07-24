@@ -244,4 +244,28 @@ export class SettingsService {
     if (!existing) throw { statusCode: 404, message: 'Attribute def not found' }
     await this.repo.deleteVariantAttributeDef(id)
   }
+
+  // ─── Quotation Term Templates ─────────────────────────────────────────────
+
+  listTermTemplates() {
+    return this.db('quotation_term_templates').orderBy('sort_order').orderBy('name')
+  }
+
+  async createTermTemplate(data: { name: string; content: string; sort_order?: number }) {
+    const [row] = await this.db('quotation_term_templates')
+      .insert({ ...data, sort_order: data.sort_order ?? 0, created_at: this.db.fn.now(), updated_at: this.db.fn.now() })
+      .returning('*')
+    return row
+  }
+
+  async updateTermTemplate(id: string, data: { name?: string; content?: string; sort_order?: number }) {
+    const [row] = await this.db('quotation_term_templates')
+      .where({ id }).update({ ...data, updated_at: this.db.fn.now() }).returning('*')
+    if (!row) throw { statusCode: 404, message: 'Term template not found' }
+    return row
+  }
+
+  async deleteTermTemplate(id: string) {
+    await this.db('quotation_term_templates').where({ id }).del()
+  }
 }

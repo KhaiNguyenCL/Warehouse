@@ -5,6 +5,7 @@ import {
 import dayjs from 'dayjs'
 import { ArrowLeftOutlined, EditOutlined } from '@ant-design/icons'
 import { useQuotationDetail } from '../hooks/useQuotationDetail'
+import { useTermTemplates } from '../hooks/useTermTemplates'
 import { PageHeader } from '../components/ui/PageHeader'
 import { StatusBadge } from '../components/ui/StatusBadge'
 import CustomFieldsPanel from '../components/CustomFieldsPanel'
@@ -56,6 +57,7 @@ function fmt(n: any) {
 export default function QuotationDetailPage() {
   const { id } = useParams<{ id: string }>()
   const hook = useQuotationDetail(id!)
+  const { data: termTemplates } = useTermTemplates()
 
   if (hook.isLoading || !hook.data) return <Skeleton active style={{ padding: 20 }} />
 
@@ -205,32 +207,33 @@ export default function QuotationDetailPage() {
               }
             </Field>
 
-            <Field label="Giảm giá">
-              {hook.isEditing
-                ? <Form.Item name="discount" noStyle>
-                    <InputNumber
-                      controls={false} min={0} style={{ width: '100%' }}
-                      formatter={(v: any) => (v != null && v !== '' ? String(v).replace(/\B(?=(\d{3})+(?!\d))/g, ',') : '')}
-                      parser={(v: any) => (v ? v.replace(/,/g, '') : '')}
-                    />
-                  </Form.Item>
-                : <Val v={q.discount != null ? fmt(q.discount) : undefined} />
-              }
-            </Field>
-
             <Field label="Hết hạn">
               <Val v={q.expired_at ? new Date(q.expired_at).toLocaleDateString('vi-VN') : undefined} />
             </Field>
 
             <div style={{ gridColumn: '1 / -1' }}>
-              <Field label="Điều khoản">
-                {hook.isEditing
-                  ? <Form.Item name="terms" noStyle>
-                      <Input.TextArea rows={2} style={{ width: '100%' }} />
-                    </Form.Item>
-                  : <Val v={q.terms} />
-                }
-              </Field>
+              {hook.isEditing ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <div style={{ fontSize: 12, color: 'var(--text-2)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px' }}>Điều khoản</div>
+                  <Select
+                    allowClear
+                    placeholder="Chọn mẫu điều khoản (tuỳ chọn)"
+                    style={{ width: '100%' }}
+                    options={termTemplates?.map((t) => ({ value: t.id, label: t.name }))}
+                    onChange={(id) => {
+                      const tpl = termTemplates?.find((t) => t.id === id)
+                      if (tpl) hook.form.setFieldValue('terms', tpl.content)
+                    }}
+                  />
+                  <Form.Item name="terms" noStyle>
+                    <Input.TextArea rows={4} style={{ width: '100%' }} placeholder="Nội dung điều khoản (có thể chỉnh sửa sau khi chọn mẫu)..." />
+                  </Form.Item>
+                </div>
+              ) : (
+                <Field label="Điều khoản">
+                  <Val v={q.terms} />
+                </Field>
+              )}
             </div>
 
             <div style={{ gridColumn: '1 / -1' }}>

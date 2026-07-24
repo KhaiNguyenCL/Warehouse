@@ -55,6 +55,13 @@ const bitrixRoutes: FastifyPluginAsync = async (app) => {
     (request) => service.resolveDeal(request.params.dealId),
   )
 
+  // Preview những giá trị sẽ được sync vào quotation — không update DB, chỉ trả kết quả để debug.
+  app.get<{ Params: { dealId: string } }>(
+    '/deals/:dealId/preview-sync',
+    { preHandler: authenticate },
+    (request) => service.previewSync(request.params.dealId),
+  )
+
   // body.deal_id optional — nếu quotation đã có bitrix_deal_id từ lần sync trước,
   // bấm "Sync lại" không cần gửi lại deal_id (CLAUDE.md mục 13).
   app.post<{ Params: { id: string }; Body: SyncQuotationBody }>(

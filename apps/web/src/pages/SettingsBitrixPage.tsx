@@ -1,17 +1,24 @@
 import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Form, Select, Button, Typography, Space, Input, Table, Tag, Alert } from 'antd'
-import { MinusCircleOutlined, PlusOutlined, SearchOutlined } from '@ant-design/icons'
+import { Form, Select, Button, Typography, Space, Input, Table, Tag, Alert, Badge } from 'antd'
+import { MinusCircleOutlined, PlusOutlined, SearchOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons'
 import { api } from '../lib/api'
 import { useApiMutation } from '../hooks/useApiMutation'
 import { PageHeader } from '../components/ui/PageHeader'
 
 const QUOTATION_FIELD_OPTIONS = [
-  { value: 'company_id',        label: 'Khách hàng (company_id)' },
-  { value: 'contact_id',        label: 'Người liên hệ (contact_id)' },
-  { value: 'project_name',      label: 'Tên dự án (project_name)' },
-  { value: 'delivery_location', label: 'Địa điểm giao hàng (delivery_location)' },
-  { value: 'terms',             label: 'Điều khoản (terms)' },
+  { value: 'company_id',        label: 'Khách hàng' },
+  { value: 'contact_id',        label: 'Người liên hệ' },
+  { value: 'quote_number',      label: 'Số báo giá' },
+  { value: 'quote_date',        label: 'Ngày báo giá' },
+  { value: 'project_name',      label: 'Tên dự án' },
+  { value: 'delivery_location', label: 'Địa điểm giao hàng' },
+  { value: 'warehouse_id',      label: 'Kho xuất' },
+  { value: 'valid_days',        label: 'Hiệu lực (ngày)' },
+  { value: 'discount',          label: 'Giảm giá' },
+  { value: 'terms',             label: 'Điều khoản' },
+  { value: 'note',              label: 'Ghi chú' },
+  { value: 'bitrix_deal_id',    label: 'Bitrix Deal ID' },
 ]
 
 const BITRIX_OBJECT_OPTIONS = [
@@ -42,6 +49,67 @@ function dealToRows(obj: Record<string, unknown>, prefix = ''): { key: string; v
   return Object.entries(obj)
     .filter(([, v]) => v !== null && v !== '' && !Array.isArray(v) && typeof v !== 'object')
     .map(([k, v]) => ({ key: prefix ? `${prefix}.${k}` : k, value: String(v), label: '' }))
+}
+
+function PreviewSyncTable({ dealId }: { dealId: string }) {
+  const { data, isFetching, error } = useQuery({
+    queryKey: ['bitrix-preview-sync', dealId],
+    queryFn: async () => (await api.get(`/bitrix/deals/${dealId}/preview-sync`)).data,
+    retry: false,
+  })
+  if (isFetching) return <Typography.Text type="secondary">Đang tính toán...</Typography.Text>
+  if (error) return <Alert type="error" message={(error as any)?.response?.data?.message ?? 'Lỗi preview'} />
+  if (!data) return null
+  return (
+    <>
+      <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>
+        Deal: <b>{data.deal_title || data.deal_id}</b>
+      </Typography.Text>
+      <Table
+        rowKey="quotation_field"
+        dataSource={data.rows}
+        pagination={false}
+        size="small"
+        columns={[
+          {
+            title: 'Field báo giá',
+            dataIndex: 'quotation_field',
+            width: 180,
+            render: (v: string) => <Tag style={{ fontFamily: 'monospace' }}>{v}</Tag>,
+          },
+          {
+            title: 'Bitrix Field',
+            dataIndex: 'bitrix_field',
+            width: 200,
+            render: (v: string) => <Tag color="blue" style={{ fontFamily: 'monospace', fontSize: 11 }}>{v}</Tag>,
+          },
+          {
+            title: 'Giá trị thô (Bitrix)',
+            dataIndex: 'raw_value',
+            width: 200,
+            render: (v: any) => v == null
+              ? <span style={{ color: 'var(--text-3)', fontSize: 12 }}>null — field trống hoặc không tồn tại trong deal này</span>
+              : <span style={{ fontSize: 12, color: 'var(--text-2)', wordBreak: 'break-all' }}>
+                  {String(v)} <Tag style={{ fontSize: 10, marginLeft: 4 }}>{typeof v}</Tag>
+                </span>,
+          },
+          {
+            title: 'Giá trị sau resolve',
+            dataIndex: 'resolved_value',
+            render: (v: any) => <span style={{ fontSize: 13, color: 'var(--text-1)', fontWeight: 600 }}>{v == null ? '—' : String(v)}</span>,
+          },
+          {
+            title: 'Trạng thái',
+            dataIndex: 'skipped',
+            width: 160,
+            render: (skipped: boolean, row: any) => skipped
+              ? <span style={{ color: '#ff4d4f', fontSize: 12 }}><CloseCircleOutlined /> {row.reason}</span>
+              : <span style={{ color: '#52c41a', fontSize: 12 }}><CheckCircleOutlined /> Sẽ được điền</span>,
+          },
+        ]}
+      />
+    </>
+  )
 }
 
 export default function SettingsBitrixPage() {
@@ -157,6 +225,13 @@ export default function SettingsBitrixPage() {
           />
         )}
       </SectionCard>
+
+      {/* ── Preview Sync ── */}
+      {fetchDealId && (
+        <SectionCard title="Kiểm tra sync — giá trị sẽ được điền">
+          <PreviewSyncTable dealId={fetchDealId} />
+        </SectionCard>
+      )}
 
       {/* ── Field Mapping ── */}
       <SectionCard title="Cấu hình mapping">

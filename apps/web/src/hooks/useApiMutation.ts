@@ -14,10 +14,14 @@ export function useApiMutation<TVariables = void>(
   // invalidateKey nhận 1 key hoặc nhiều key — vd các action Submit/Approve/Complete/
   // Cancel ở trang detail (ReceiptDetailPage/PurchaseOrderDetailPage) luôn cần invalidate
   // CẢ query detail (['receipts', id]) VÀ query list (['receipts']) cùng lúc.
-  options: { successMessage: string; invalidateKey: QueryKey | QueryKey[]; onSuccess?: (data: any) => void },
+  options: { successMessage: string; invalidateKey?: QueryKey | QueryKey[]; onSuccess?: (data: any) => void },
 ) {
   const qc = useQueryClient()
-  const keys = Array.isArray(options.invalidateKey[0]) ? (options.invalidateKey as QueryKey[]) : [options.invalidateKey as QueryKey]
+  const keys = options.invalidateKey == null
+    ? []
+    : Array.isArray(options.invalidateKey[0])
+      ? (options.invalidateKey as QueryKey[])
+      : [options.invalidateKey as QueryKey]
   return useMutation({
     mutationFn,
     onSuccess: (data: any) => {

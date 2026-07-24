@@ -52,7 +52,7 @@ const SECTIONS = [
       { key: '/settings/roles',         icon: <SettingOutlined />, label: 'Vai trò & Quyền' },
       { key: '/settings/users',         icon: <UserOutlined />,    label: 'Người dùng' },
       { key: '/settings/types',         icon: <SettingOutlined />, label: 'Loại nhập/xuất' },
-      { key: '/settings/templates',     icon: <FileTextOutlined />,label: 'Mẫu báo giá' },
+      { key: '/settings/templates',     icon: <FileTextOutlined />,label: 'Cài đặt báo giá' },
       { key: '/settings/bitrix',        icon: <SettingOutlined />, label: 'Đồng bộ Bitrix' },
       { key: '/settings/custom-fields', icon: <SettingOutlined />, label: 'Trường tùy chỉnh' },
     ],

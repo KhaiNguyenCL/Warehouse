@@ -1,8 +1,7 @@
-// 1 section trong Form.List "sections" — chứa Form.List lồng "line_items" (mỗi dòng dùng
-// QuotationLineItem). Card-style để phân biệt rõ ranh giới giữa các section trên UI.
-import { Form, Input, Button, Card } from 'antd'
+import { Form, Input, Button } from 'antd'
+import { DeleteOutlined } from '@ant-design/icons'
 import type { FormInstance } from 'antd'
-import QuotationLineItem from './QuotationLineItem'
+import QuotationLineItem, { QuotationLineHeader } from './QuotationLineItem'
 
 interface Props {
   form: FormInstance
@@ -12,21 +11,52 @@ interface Props {
 
 export default function QuotationSectionItem({ form, name, remove }: Props) {
   return (
-    <Card size="small" style={{ marginBottom: 12 }} title={`Section ${name + 1}`} extra={<Button danger size="small" onClick={remove}>Xoá section</Button>}>
-      <Form.Item name={[name, 'name']} label="Tên section" rules={[{ required: true }]}>
-        <Input placeholder="VD: Thiết bị mạng" />
-      </Form.Item>
+    <div style={{
+      border: '1px solid var(--border)',
+      borderRadius: 8,
+      marginBottom: 12,
+      overflow: 'hidden',
+    }}>
+      {/* Header — tên nhóm inline */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        padding: '6px 12px',
+        background: 'var(--bg-hover)',
+        borderBottom: '1px solid var(--border)',
+      }}>
+        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-2)', whiteSpace: 'nowrap', flexShrink: 0 }}>
+          Nhóm {name + 1}
+        </span>
+        <Form.Item name={[name, 'name']} noStyle rules={[{ required: true, message: 'Nhập tên nhóm' }]}>
+          <Input placeholder="Tên nhóm (VD: Thiết bị mạng)" style={{ maxWidth: 280 }} />
+        </Form.Item>
+        <Button
+          type="text"
+          danger
+          icon={<DeleteOutlined />}
+          onClick={remove}
+          style={{ marginLeft: 'auto', flexShrink: 0 }}
+        />
+      </div>
 
-      <Form.List name={[name, 'line_items']}>
-        {(fields, { add, remove: removeLine }) => (
-          <>
-            {fields.map(({ key, name: lineName }) => (
-              <QuotationLineItem key={key} form={form} sectionName={name} name={lineName} remove={() => removeLine(lineName)} />
-            ))}
-            <Button onClick={() => add()}>+ Thêm dòng</Button>
-          </>
-        )}
-      </Form.List>
-    </Card>
+      {/* Body */}
+      <div style={{ padding: '10px 12px 8px' }}>
+        <Form.List name={[name, 'line_items']}>
+          {(fields, { add, remove: removeLine }) => (
+            <>
+              <QuotationLineHeader />
+              {fields.map(({ key, name: lineName }) => (
+                <QuotationLineItem key={key} form={form} sectionName={name} name={lineName} remove={() => removeLine(lineName)} />
+              ))}
+              <Button size="small" style={{ marginTop: 4 }} onClick={() => add()}>
+                + Thêm dòng
+              </Button>
+            </>
+          )}
+        </Form.List>
+      </div>
+    </div>
   )
 }
