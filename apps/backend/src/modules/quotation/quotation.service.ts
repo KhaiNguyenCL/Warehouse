@@ -15,6 +15,13 @@ function round2(n: number) {
   return Math.round(n * 100) / 100
 }
 
+function computeExpiredAt(quoteDate: string | null | undefined, validDays: number | null | undefined): Date | null {
+  if (!quoteDate || validDays == null) return null
+  const d = new Date(quoteDate)
+  d.setDate(d.getDate() + Number(validDays))
+  return d
+}
+
 // CLAUDE.md mục 16: line_total = quantity*unit_price; vat_amount = line_total*vat_percent/100;
 // section.subtotal = SUM(line_total + vat_amount). serviceVariantIds dùng để ép is_reserved=false
 // cho dòng service (mục 7: "Service luôn false, disabled") bất kể client gửi gì lên.
@@ -131,6 +138,7 @@ export class QuotationService {
       subtotal,
       vat_total,
       grand_total,
+      expired_at: computeExpiredAt(data.quote_date, data.valid_days),
       bitrix_deal_id: data.bitrix_deal_id,
       sections,
     }
@@ -152,7 +160,13 @@ export class QuotationService {
     }
 
     const { sections, discount, ...rest } = data
-    const header: Record<string, unknown> = { ...rest }
+    const header: Record<string, unknown> = {
+      ...rest,
+      expired_at: computeExpiredAt(
+        data.quote_date ?? existing.quote_date,
+        data.valid_days ?? existing.valid_days,
+      ),
+    }
     let computedSections: ComputedSection[] | undefined
 
     if (sections) {
@@ -238,9 +252,9 @@ export class QuotationService {
       }
     }
 
-    const expiredAt = quotation.valid_days
-      ? new Date(Date.now() + quotation.valid_days * 24 * 60 * 60 * 1000)
-      : null
+    // Dùng expired_at đã tính từ quote_date+valid_days lúc create/update; fallback tính lại nếu null
+    const expiredAt = quotation.expired_at
+      ?? computeExpiredAt(quotation.quote_date, quotation.valid_days)
 
     return this.db.transaction(async (trx) => {
       const confirmed = await this.repo.updateStatus(id, 'draft', 'confirmed', { expired_at: expiredAt }, trx)

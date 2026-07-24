@@ -3,7 +3,8 @@ import {
   Form, Input, InputNumber, Select, Button, Tag, Popconfirm, Table, Skeleton,
   DatePicker,
 } from 'antd'
-import { ArrowLeftOutlined, EditOutlined, SyncOutlined } from '@ant-design/icons'
+import { ArrowLeftOutlined, EditOutlined, SyncOutlined, FileExcelOutlined, FilePdfOutlined } from '@ant-design/icons'
+import dayjs from 'dayjs'
 import { useQuotationDetail } from '../hooks/useQuotationDetail'
 import { useTermTemplates } from '../hooks/useTermTemplates'
 import { PageHeader } from '../components/ui/PageHeader'
@@ -54,6 +55,13 @@ export default function QuotationDetailPage() {
   const hook = useQuotationDetail(id!)
   const { data: termTemplates } = useTermTemplates()
 
+  // Computed expiry preview trong edit mode
+  const watchQuoteDate = Form.useWatch('quote_date', hook.form)
+  const watchValidDays = Form.useWatch('valid_days', hook.form)
+  const computedExpiry = watchQuoteDate && watchValidDays
+    ? dayjs(watchQuoteDate).add(Number(watchValidDays), 'day').format('DD/MM/YYYY')
+    : null
+
   if (!hook.isNew && (hook.isLoading || !hook.data)) return <Skeleton active style={{ padding: 20 }} />
 
   const q = hook.data
@@ -61,8 +69,25 @@ export default function QuotationDetailPage() {
   const isConfirmed = q?.status === 'confirmed'
   const allDone = q?.sections?.every((s: any) => s.line_items?.every((l: any) => Number(l.remaining_qty) <= 0))
 
+  const exportActions = !hook.isNew && !hook.isEditing ? (
+    <>
+      <Select
+        placeholder="Chọn template xuất"
+        style={{ width: 200 }}
+        size="small"
+        options={hook.templates?.data?.map((t: any) => ({ value: t.id, label: t.name }))}
+        onChange={hook.setTemplateId}
+        notFoundContent="Chưa có template"
+      />
+      <Button size="small" icon={<FileExcelOutlined />} loading={hook.exporting}
+        disabled={!hook.templateId} onClick={() => hook.handleExport('xlsx')}>Excel</Button>
+      <Button size="small" icon={<FilePdfOutlined />} loading={hook.exporting}
+        disabled={!hook.templateId} onClick={() => hook.handleExport('pdf')}>PDF</Button>
+    </>
+  ) : null
+
   return (
-    <div style={{ padding: '10px 20px 40px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+    <div style={{ padding: '10px 20px 40px', display: 'flex', flexDirection: 'column', gap: 20 }}>
       <PageHeader
         title={
           <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -83,6 +108,7 @@ export default function QuotationDetailPage() {
             </>
           ) : (
             <>
+              {exportActions}
               {isDraft && <Button icon={<EditOutlined />} onClick={hook.startEdit}>Sửa</Button>}
               {isDraft && !hook.isNew && (
                 <Button type="primary" loading={hook.confirmMutation.isPending} onClick={() => hook.confirmMutation.mutate()}>
@@ -115,7 +141,7 @@ export default function QuotationDetailPage() {
 
         {/* ── Thông tin báo giá ── */}
         <SectionCard title="Thông tin báo giá">
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '14px 24px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '18px 24px' }}>
 
             {/* Row 1: Bitrix ID+Fetch | Số báo giá | Ngày báo giá */}
             <div>
@@ -204,39 +230,38 @@ export default function QuotationDetailPage() {
             </Field>
 
             <Field label="Hết hạn">
-              <Val v={q?.expired_at ? new Date(q.expired_at).toLocaleDateString('vi-VN') : undefined} />
+              {hook.isEditing
+                ? <span style={{ fontSize: 14, color: computedExpiry ? 'var(--text-1)' : 'var(--text-3)' }}>
+                    {computedExpiry ?? '— nhập Ngày BG + Hiệu lực'}
+                  </span>
+                : <Val v={q?.expired_at ? new Date(q.expired_at).toLocaleDateString('vi-VN') : undefined} />}
             </Field>
 
-            {/* Row 5: Mẫu điều khoản (full width) */}
-            {hook.isEditing && (
-              <div style={{ gridColumn: '1 / -1' }}>
-                <div style={labelStyle}>Điều khoản</div>
-                <div style={valueStyle}>
-                  <Select allowClear placeholder="Chọn mẫu điều khoản (tuỳ chọn)" style={{ width: '100%' }}
+            {/* Điều khoản: label 1 lần, Select chọn mẫu + TextArea */}
+            <div style={{ gridColumn: '1 / -1' }}>
+              <div style={labelStyle}>Điều khoản</div>
+              {hook.isEditing ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <Select
+                    allowClear
+                    placeholder="Chọn mẫu điều khoản (tuỳ chọn)"
+                    style={{ width: '100%' }}
                     options={termTemplates?.map((t) => ({ value: t.id, label: t.name }))}
                     onChange={(tid) => {
                       const tpl = termTemplates?.find((t) => t.id === tid)
                       if (tpl) hook.form.setFieldValue('terms', tpl.content)
-                    }} />
-                </div>
-              </div>
-            )}
-
-            {/* Row 6: Nội dung điều khoản */}
-            <div style={{ gridColumn: '1 / -1' }}>
-              {hook.isEditing ? (
-                <>
-                  <div style={labelStyle}>Nội dung điều khoản</div>
+                    }}
+                  />
                   <Form.Item name="terms" noStyle>
                     <Input.TextArea rows={4} style={{ width: '100%' }} placeholder="Nội dung điều khoản..." />
                   </Form.Item>
-                </>
+                </div>
               ) : (
-                <Field label="Điều khoản"><Val v={q?.terms} /></Field>
+                <div style={{ ...valueStyle, whiteSpace: 'pre-wrap' }}><Val v={q?.terms} /></div>
               )}
             </div>
 
-            {/* Row 7: Ghi chú */}
+            {/* Ghi chú */}
             <div style={{ gridColumn: '1 / -1' }}>
               <Field label="Ghi chú">
                 {hook.isEditing
@@ -253,53 +278,6 @@ export default function QuotationDetailPage() {
             </div>
           )}
         </SectionCard>
-
-        {/* ── Bitrix CRM (chỉ hiện với báo giá đã có) ── */}
-        {!hook.isNew && (
-          <SectionCard title="Tích hợp Bitrix CRM">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-              {q?.bitrix_deal_id ? (
-                <span style={{ fontSize: 14 }}>
-                  Deal{' '}
-                  {q.bitrix_deal_url
-                    ? <a href={q.bitrix_deal_url} target="_blank" rel="noreferrer">#{q.bitrix_deal_id}</a>
-                    : <>#{q.bitrix_deal_id}</>}
-                  {q.bitrix_synced_at && (
-                    <span style={{ color: 'var(--text-3)', marginLeft: 8, fontSize: 12 }}>
-                      đồng bộ lúc {new Date(q.bitrix_synced_at).toLocaleString('vi-VN')}
-                    </span>
-                  )}
-                </span>
-              ) : (
-                <span style={{ color: 'var(--text-3)', fontSize: 14 }}>Chưa đồng bộ Bitrix</span>
-              )}
-              {isDraft && (
-                <>
-                  <Input placeholder={q?.bitrix_deal_id ? 'Để trống = sync lại deal cũ' : 'Nhập Bitrix Deal ID'}
-                    style={{ width: 220 }} value={hook.dealId} onChange={(e) => hook.setDealId(e.target.value)} />
-                  <Button loading={hook.syncMutation.isPending} disabled={!hook.dealId && !q?.bitrix_deal_id}
-                    onClick={() => hook.syncMutation.mutate()}>
-                    {q?.bitrix_deal_id ? 'Sync lại' : 'Đồng bộ'}
-                  </Button>
-                </>
-              )}
-            </div>
-          </SectionCard>
-        )}
-
-        {/* ── Xuất báo giá (chỉ hiện với báo giá đã có) ── */}
-        {!hook.isNew && (
-          <SectionCard title="Xuất báo giá">
-            <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-              <Select placeholder="Chọn template" style={{ width: 260 }}
-                options={hook.templates?.data?.map((t: any) => ({ value: t.id, label: t.name }))}
-                onChange={hook.setTemplateId}
-                notFoundContent="Chưa có template — tạo ở Settings > Cài đặt báo giá" />
-              <Button loading={hook.exporting} disabled={!hook.templateId} onClick={() => hook.handleExport('xlsx')}>Xuất Excel</Button>
-              <Button loading={hook.exporting} disabled={!hook.templateId} onClick={() => hook.handleExport('pdf')}>Xuất PDF</Button>
-            </div>
-          </SectionCard>
-        )}
 
         {/* ── Danh sách sản phẩm ── */}
         {hook.isEditing ? (
