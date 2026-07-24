@@ -59,11 +59,15 @@ function toRenderKey(templateVariable: string): string {
 // Mapping tự động cho quotation template: template variable → database field.
 // Array variables (d.line_items[i].*) đều map về 1 entry "line_items" duy nhất.
 const QUOTATION_AUTO_MAPPINGS: Record<string, string> = {
-  'd.ref_code':           'ref_code',
-  'd.created_at':         'created_at',
+  'd.code':               'code',
+  'd.quote_number':       'quote_number',
+  'd.quote_date':         'quote_date',
   'd.expired_at':         'expired_at',
+  'd.valid_days':         'valid_days',
+  'd.created_at':         'created_at',
   'd.company_name':       'company_name',
   'd.contact_name':       'contact_name',
+  'd.warehouse_name':     'warehouse_name',
   'd.project_name':       'project_name',
   'd.delivery_location':  'delivery_location',
   'd.terms':              'terms',
@@ -72,6 +76,7 @@ const QUOTATION_AUTO_MAPPINGS: Record<string, string> = {
   'd.vat_total':          'vat_total',
   'd.discount':           'discount',
   'd.grand_total':        'grand_total',
+  'd.bitrix_deal_id':     'bitrix_deal_id',
 }
 
 function buildSeedMappings(detectedVariables: string[]) {
@@ -204,26 +209,42 @@ export class TemplateService {
     // section vào 1 mảng phẳng (kèm section_name) thay vì giữ cấu trúc sections lồng nhau.
     const line_items = quotation.sections.flatMap((s: any) =>
       s.line_items.map((li: any) => ({
-        section_name: s.name,
-        description: li.description ?? li.bundle_name ?? li.variant_name,
-        sku: li.variant_sku ?? li.bundle_sku ?? null,
-        unit: li.unit,
-        quantity: Number(li.quantity),
-        unit_price: Number(li.unit_price),
-        vat_percent: Number(li.vat_percent),
-        vat_amount: Number(li.vat_amount),
-        line_total: Number(li.line_total),
-        warranty: li.warranty,
-        note: li.note,
+        section_name:  s.name,
+        description:   li.description ?? li.bundle_name ?? li.variant_name,
+        sku:           li.variant_sku ?? li.bundle_sku ?? null,
+        item_code:     li.variant_item_code ?? li.bundle_item_code ?? null,
+        unit:          li.unit,
+        quantity:      Number(li.quantity),
+        unit_price:    Number(li.unit_price),
+        vat_percent:   Number(li.vat_percent),
+        line_total:    Number(li.line_total),
+        vat_amount:    Number(li.vat_amount),
+        total_amount:  Number(li.total_amount ?? 0),
+        warranty:      li.warranty,
+        note:          li.note,
       })),
     )
 
     return {
       ...quotation,
-      subtotal: Number(quotation.subtotal),
-      vat_total: Number(quotation.vat_total),
-      discount: Number(quotation.discount),
-      grand_total: Number(quotation.grand_total),
+      code:              quotation.code,
+      quote_number:      quotation.quote_number,
+      quote_date:        quotation.quote_date,
+      expired_at:        quotation.expired_at,
+      valid_days:        quotation.valid_days,
+      company_name:      quotation.company_name,
+      contact_name:      quotation.contact_name,
+      warehouse_name:    quotation.warehouse_name,
+      project_name:      quotation.project_name,
+      delivery_location: quotation.delivery_location,
+      terms:             quotation.terms,
+      note:              quotation.note,
+      bitrix_deal_id:    quotation.bitrix_deal_id,
+      subtotal:          Number(quotation.subtotal),
+      vat_total:         Number(quotation.vat_total),
+      discount:          Number(quotation.discount),
+      grand_total:       Number(quotation.grand_total),
+      created_at:        quotation.created_at,
       line_items,
     }
   }

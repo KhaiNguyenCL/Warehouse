@@ -15,11 +15,12 @@ function round2(n: number) {
   return Math.round(n * 100) / 100
 }
 
-function computeExpiredAt(quoteDate: string | null | undefined, validDays: number | null | undefined): Date | null {
+function computeExpiredAt(quoteDate: string | Date | null | undefined, validDays: number | null | undefined): string | null {
   if (!quoteDate || validDays == null) return null
-  const d = new Date(quoteDate)
-  d.setDate(d.getDate() + Number(validDays))
-  return d
+  const base = typeof quoteDate === 'string' ? quoteDate : quoteDate.toISOString().slice(0, 10)
+  const d = new Date(base + 'T00:00:00Z')
+  d.setUTCDate(d.getUTCDate() + Number(validDays))
+  return d.toISOString().slice(0, 10)
 }
 
 // CLAUDE.md mục 16: line_total = quantity*unit_price; vat_amount = line_total*vat_percent/100;

@@ -1,20 +1,89 @@
-// Editor mapping biến template ↔ field (CLAUDE.md mục 14: "Admin map biến với database
-// field hoặc Bitrix field"). PUT /:id/mappings luôn REPLACE TOÀN BỘ — không có create/update/
-// delete riêng từng dòng — nên dùng 1 Form.List + 1 nút "Lưu mapping" duy nhất, giống cách
-// RolePermissionsPanel lưu permission_keys.
 import { useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Form, Input, Select, Switch, Button, Typography, Space } from 'antd'
-import { MinusCircleOutlined, PlusOutlined } from '@ant-design/icons'
+import { Form, Input, Select, Switch, Button, Typography, Space, Tag, Tooltip } from 'antd'
+import { MinusCircleOutlined, PlusOutlined, InfoCircleOutlined } from '@ant-design/icons'
 import { api } from '../lib/api'
 import { useApiMutation } from '../hooks/useApiMutation'
 
 interface Props {
   templateId: string
-  // Biến vừa detect lúc upload (chỉ có ngay sau khi upload xong — backend không lưu lại
-  // detected_variables, nên lúc mở mapping của 1 template đã tồn tại từ trước sẽ không có).
   detectedVariables?: string[]
 }
+
+// Danh sách field có sẵn trong context báo giá — dùng để gợi ý khi map
+const QUOTATION_DB_FIELDS = [
+  {
+    label: 'Thông tin chung',
+    options: [
+      { value: 'code',              label: 'code — Mã báo giá (tự sinh)' },
+      { value: 'quote_number',      label: 'quote_number — Số báo giá' },
+      { value: 'quote_date',        label: 'quote_date — Ngày báo giá' },
+      { value: 'expired_at',        label: 'expired_at — Ngày hết hạn' },
+      { value: 'valid_days',        label: 'valid_days — Hiệu lực (ngày)' },
+      { value: 'created_at',        label: 'created_at — Ngày tạo' },
+    ],
+  },
+  {
+    label: 'Khách hàng',
+    options: [
+      { value: 'company_name',      label: 'company_name — Tên khách hàng' },
+      { value: 'contact_name',      label: 'contact_name — Người liên hệ' },
+    ],
+  },
+  {
+    label: 'Dự án / Giao hàng',
+    options: [
+      { value: 'project_name',      label: 'project_name — Tên dự án' },
+      { value: 'delivery_location', label: 'delivery_location — Địa điểm giao hàng' },
+      { value: 'warehouse_name',    label: 'warehouse_name — Kho xuất' },
+    ],
+  },
+  {
+    label: 'Điều khoản & Ghi chú',
+    options: [
+      { value: 'terms',             label: 'terms — Điều khoản' },
+      { value: 'note',              label: 'note — Ghi chú' },
+    ],
+  },
+  {
+    label: 'Tổng tiền',
+    options: [
+      { value: 'subtotal',          label: 'subtotal — Tạm tính' },
+      { value: 'vat_total',         label: 'vat_total — Tiền VAT' },
+      { value: 'discount',          label: 'discount — Giảm giá' },
+      { value: 'grand_total',       label: 'grand_total — Tổng cộng' },
+    ],
+  },
+  {
+    label: 'Bitrix',
+    options: [
+      { value: 'bitrix_deal_id',    label: 'bitrix_deal_id — Bitrix Deal ID' },
+    ],
+  },
+  {
+    label: 'Dòng sản phẩm (dùng {d.line_items[i].field})',
+    options: [
+      { value: 'line_items',        label: 'line_items — Toàn bộ mảng dòng SP' },
+    ],
+  },
+]
+
+// Sub-field của line_items — chỉ để hiển thị tham khảo
+const LINE_ITEM_SUBFIELDS = [
+  { variable: 'line_items[i].section_name',  label: 'Tên nhóm' },
+  { variable: 'line_items[i].description',   label: 'Mô tả sản phẩm' },
+  { variable: 'line_items[i].sku',           label: 'Mã SKU' },
+  { variable: 'line_items[i].item_code',     label: 'Item code' },
+  { variable: 'line_items[i].unit',          label: 'Đơn vị' },
+  { variable: 'line_items[i].quantity',      label: 'Số lượng' },
+  { variable: 'line_items[i].unit_price',    label: 'Đơn giá' },
+  { variable: 'line_items[i].vat_percent',   label: 'VAT%' },
+  { variable: 'line_items[i].line_total',    label: 'Thành tiền' },
+  { variable: 'line_items[i].vat_amount',    label: 'Tiền VAT' },
+  { variable: 'line_items[i].total_amount',  label: 'Tổng tiền dòng' },
+  { variable: 'line_items[i].warranty',      label: 'Bảo hành' },
+  { variable: 'line_items[i].note',          label: 'Ghi chú dòng' },
+]
 
 export default function TemplateMappingsPanel({ templateId, detectedVariables }: Props) {
   const [form] = Form.useForm()
@@ -45,8 +114,26 @@ export default function TemplateMappingsPanel({ templateId, detectedVariables }:
     <div style={{ marginTop: 24, borderTop: '1px solid #f0f0f0', paddingTop: 16 }}>
       <Typography.Title level={5}>Mapping biến template</Typography.Title>
       <Typography.Text type="secondary">
-        Mỗi biến trong file Excel (VD <code>{'{d.customer_name}'}</code>) cần map với 1 field database hoặc Bitrix.
+        Mỗi biến trong file Excel (VD <code>{'{d.company_name}'}</code>) cần map với 1 field database bên dưới.
       </Typography.Text>
+
+      {/* Bảng tham khảo sub-field dòng sản phẩm */}
+      <div style={{
+        marginTop: 12, marginBottom: 16,
+        background: 'var(--bg-hover, #fafafa)', border: '1px solid #e8e8e8',
+        borderRadius: 6, padding: '10px 14px',
+      }}>
+        <div style={{ fontSize: 12, fontWeight: 600, color: '#666', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <InfoCircleOutlined /> Sub-field dòng sản phẩm — dùng cú pháp <code style={{ marginLeft: 4 }}>{'{d.line_items[i].field}'}</code>
+        </div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+          {LINE_ITEM_SUBFIELDS.map((f) => (
+            <Tooltip key={f.variable} title={f.label}>
+              <Tag style={{ fontFamily: 'monospace', cursor: 'default', fontSize: 11 }}>{f.variable}</Tag>
+            </Tooltip>
+          ))}
+        </div>
+      </div>
 
       <Form form={form} onFinish={(v) => saveMutation.mutate(v.mappings ?? [])} style={{ marginTop: 12 }}>
         <Form.List name="mappings">
@@ -55,11 +142,11 @@ export default function TemplateMappingsPanel({ templateId, detectedVariables }:
               {fields.map(({ key, name, ...restField }) => (
                 <Space key={key} align="baseline" style={{ display: 'flex', marginBottom: 8, flexWrap: 'wrap' }}>
                   <Form.Item {...restField} name={[name, 'template_variable']} rules={[{ required: true, message: 'Bắt buộc' }]}>
-                    <Input placeholder="Tên biến (d.xxx)" style={{ width: 180 }} />
+                    <Input placeholder="d.ten_bien" style={{ width: 200, fontFamily: 'monospace' }} />
                   </Form.Item>
                   <Form.Item {...restField} name={[name, 'source_type']} initialValue="database">
                     <Select
-                      style={{ width: 120 }}
+                      style={{ width: 110 }}
                       options={[
                         { value: 'database', label: 'Database' },
                         { value: 'bitrix', label: 'Bitrix' },
@@ -71,11 +158,17 @@ export default function TemplateMappingsPanel({ templateId, detectedVariables }:
                       const sourceType = form.getFieldValue(['mappings', name, 'source_type'])
                       return sourceType === 'bitrix' ? (
                         <Form.Item {...restField} name={[name, 'bitrix_field']} rules={[{ required: true, message: 'Bắt buộc' }]}>
-                          <Input placeholder="Bitrix field" style={{ width: 180 }} />
+                          <Input placeholder="Bitrix field" style={{ width: 200 }} />
                         </Form.Item>
                       ) : (
                         <Form.Item {...restField} name={[name, 'database_field']} rules={[{ required: true, message: 'Bắt buộc' }]}>
-                          <Input placeholder="Database field (VD grand_total)" style={{ width: 220 }} />
+                          <Select
+                            showSearch
+                            placeholder="Chọn field database"
+                            style={{ width: 280 }}
+                            optionFilterProp="label"
+                            options={QUOTATION_DB_FIELDS}
+                          />
                         </Form.Item>
                       )
                     }}
@@ -83,7 +176,7 @@ export default function TemplateMappingsPanel({ templateId, detectedVariables }:
                   <Form.Item {...restField} name={[name, 'is_required']} valuePropName="checked">
                     <Switch checkedChildren="Bắt buộc" unCheckedChildren="Tuỳ chọn" />
                   </Form.Item>
-                  <MinusCircleOutlined onClick={() => remove(name)} />
+                  <MinusCircleOutlined onClick={() => remove(name)} style={{ color: '#ff4d4f' }} />
                 </Space>
               ))}
               <Button
