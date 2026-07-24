@@ -23,12 +23,16 @@ const numProps = {
   parser:    (v: any) => (v ? v.replace(/,/g, '') : ''),
 }
 
+function fmt(n: number) {
+  return n.toLocaleString('en-US')
+}
+
 const COL_LABELS = [
   { text: 'SKU / Sản phẩm' },
   { text: 'Mô tả' },
-  { text: 'SL', align: 'center' as const },
-  { text: 'Đơn giá', align: 'right' as const },
-  { text: 'VAT%', align: 'center' as const },
+  { text: 'SL' },
+  { text: 'Đơn giá' },
+  { text: 'VAT%' },
   { text: 'Bảo hành' },
   { text: 'Ghi chú' },
   { text: 'Giữ chỗ', align: 'center' as const },
@@ -63,9 +67,21 @@ export function QuotationLineHeader() {
 export default function QuotationLineItem({ form, sectionName, name, remove }: Props) {
   const [isService, setIsService] = useState(false)
 
+  const qty   = Number(Form.useWatch(['sections', sectionName, 'line_items', name, 'quantity'],  form) ?? 0)
+  const price = Number(Form.useWatch(['sections', sectionName, 'line_items', name, 'unit_price'], form) ?? 0)
+  const vat   = Number(Form.useWatch(['sections', sectionName, 'line_items', name, 'vat_percent'], form) ?? 0)
+
+  const lineTotal = qty * price
+  const vatAmount = lineTotal * (vat / 100)
+
   function path(field: string) {
     return ['sections', sectionName, 'line_items', name, field]
   }
+
+  // Controlled value — hiển thị đúng khi load dữ liệu cũ vào form (edit mode)
+  const currentVariantId = Form.useWatch(['sections', sectionName, 'line_items', name, 'variant_id'], form)
+  const currentBundleId  = Form.useWatch(['sections', sectionName, 'line_items', name, 'bundle_id'],  form)
+  const selectValue = currentVariantId ?? currentBundleId ?? undefined
 
   function onSelectVariant(variant: VariantData | null) {
     if (!variant) return
@@ -81,65 +97,72 @@ export default function QuotationLineItem({ form, sectionName, name, remove }: P
   }
 
   return (
-    <div style={{
-      display: 'grid',
-      gridTemplateColumns: GRID_COLS,
-      gap: '0 8px',
-      marginBottom: 6,
-      alignItems: 'flex-start',
-    }}>
-
-      <Form.Item noStyle>
-        <VariantSelect onSelectVariant={onSelectVariant} style={{ width: '100%' }} />
-      </Form.Item>
-
-      <Form.Item name={[name, 'variant_id']} hidden><Input /></Form.Item>
-      <Form.Item name={[name, 'bundle_id']} hidden><Input /></Form.Item>
-
-      <Form.Item name={[name, 'description']} noStyle>
-        <Input.TextArea
-          placeholder="Mô tả trên báo giá"
-          autoSize={{ minRows: 1, maxRows: 4 }}
-          style={{ width: '100%' }}
-        />
-      </Form.Item>
-
-      <Form.Item name={[name, 'quantity']} noStyle rules={[{ required: true, message: '' }]}>
-        <InputNumber {...numProps} min={0.01} style={{ width: '100%', textAlign: 'center' }} />
-      </Form.Item>
-
-      <Form.Item name={[name, 'unit_price']} noStyle rules={[{ required: true, message: '' }]}>
-        <InputNumber {...numProps} min={0} style={{ width: '100%' }} />
-      </Form.Item>
-
-      <Form.Item name={[name, 'vat_percent']} noStyle initialValue={0}>
-        <InputNumber controls={false} min={0} max={100} style={{ width: '100%', textAlign: 'center' }} />
-      </Form.Item>
-
-      <Form.Item name={[name, 'warranty']} noStyle>
-        <Input placeholder="12 tháng" style={{ width: '100%' }} />
-      </Form.Item>
-
-      <Form.Item name={[name, 'note']} noStyle>
-        <Input.TextArea
-          autoSize={{ minRows: 1, maxRows: 4 }}
-          style={{ width: '100%' }}
-        />
-      </Form.Item>
-
-      {/* Giữ chỗ + Xoá — căn giữa dọc so với hàng */}
-      <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 6 }}>
-        <Form.Item name={[name, 'is_reserved']} noStyle valuePropName="checked" initialValue={true}>
-          <Switch disabled={isService} size="small" />
+    <div style={{ marginBottom: 8 }}>
+      {/* ── Input row ── */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: GRID_COLS,
+        gap: '0 8px',
+        alignItems: 'flex-start',
+      }}>
+        <Form.Item noStyle>
+          <VariantSelect value={selectValue} onSelectVariant={onSelectVariant} style={{ width: '100%' }} />
         </Form.Item>
+
+        <Form.Item name={[name, 'variant_id']} hidden><Input /></Form.Item>
+        <Form.Item name={[name, 'bundle_id']} hidden><Input /></Form.Item>
+
+        <Form.Item name={[name, 'description']} noStyle>
+          <Input.TextArea placeholder="Mô tả trên báo giá" autoSize={{ minRows: 1, maxRows: 4 }} style={{ width: '100%' }} />
+        </Form.Item>
+
+        <Form.Item name={[name, 'quantity']} noStyle rules={[{ required: true, message: '' }]}>
+          <InputNumber {...numProps} min={0.01} style={{ width: '100%' }} />
+        </Form.Item>
+
+        <Form.Item name={[name, 'unit_price']} noStyle rules={[{ required: true, message: '' }]}>
+          <InputNumber {...numProps} min={0} style={{ width: '100%' }} />
+        </Form.Item>
+
+        <Form.Item name={[name, 'vat_percent']} noStyle initialValue={0}>
+          <InputNumber controls={false} min={0} max={100} style={{ width: '100%' }} />
+        </Form.Item>
+
+        <Form.Item name={[name, 'warranty']} noStyle>
+          <Input placeholder="12 tháng" style={{ width: '100%' }} />
+        </Form.Item>
+
+        <Form.Item name={[name, 'note']} noStyle>
+          <Input.TextArea autoSize={{ minRows: 1, maxRows: 4 }} style={{ width: '100%' }} />
+        </Form.Item>
+
+        <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 6 }}>
+          <Form.Item name={[name, 'is_reserved']} noStyle valuePropName="checked" initialValue={true}>
+            <Switch disabled={isService} size="small" />
+          </Form.Item>
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 2 }}>
+          <Tooltip title="Xoá dòng">
+            <Button type="text" danger icon={<DeleteOutlined />} onClick={remove} style={{ padding: '2px 4px' }} />
+          </Tooltip>
+        </div>
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 2 }}>
-        <Tooltip title="Xoá dòng">
-          <Button type="text" danger icon={<DeleteOutlined />} onClick={remove} style={{ padding: '2px 4px' }} />
-        </Tooltip>
+      {/* ── Computed sub-row ── */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'flex-end',
+        gap: 24,
+        paddingRight: 38,
+        paddingTop: 2,
+        fontSize: 12,
+        color: 'var(--text-2)',
+      }}>
+        <span>Thành tiền: <strong style={{ color: 'var(--text-1)', fontVariantNumeric: 'tabular-nums' }}>{fmt(lineTotal)}</strong></span>
+        <span>Thuế GTGT: <strong style={{ color: 'var(--text-1)', fontVariantNumeric: 'tabular-nums' }}>{fmt(vatAmount)}</strong></span>
+        <span style={{ color: 'var(--text-1)' }}>Tổng tiền: <strong style={{ fontVariantNumeric: 'tabular-nums' }}>{fmt(lineTotal + vatAmount)}</strong></span>
       </div>
-
     </div>
   )
 }

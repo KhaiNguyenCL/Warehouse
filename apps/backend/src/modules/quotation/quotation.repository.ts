@@ -16,6 +16,7 @@ export interface ComputedLineItem {
   vat_percent: number
   vat_amount: number
   line_total: number
+  total_amount: number
   is_reserved: boolean
   line_order: number
   note?: string

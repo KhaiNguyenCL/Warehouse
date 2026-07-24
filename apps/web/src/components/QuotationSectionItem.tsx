@@ -9,7 +9,20 @@ interface Props {
   remove: () => void
 }
 
+function fmt(n: number) {
+  return n.toLocaleString('en-US')
+}
+
 export default function QuotationSectionItem({ form, name, remove }: Props) {
+  const lineItems: any[] = Form.useWatch(['sections', name, 'line_items'], form) ?? []
+
+  const sectionTotal = lineItems.reduce((sum, item) => {
+    const qty   = Number(item?.quantity   ?? 0)
+    const price = Number(item?.unit_price ?? 0)
+    const vat   = Number(item?.vat_percent ?? 0)
+    const lineTotal = qty * price
+    return sum + lineTotal + lineTotal * (vat / 100)
+  }, 0)
   return (
     <div style={{
       border: '1px solid var(--border)',
@@ -53,6 +66,23 @@ export default function QuotationSectionItem({ form, name, remove }: Props) {
               <Button size="small" style={{ marginTop: 4 }} onClick={() => add()}>
                 + Thêm dòng
               </Button>
+
+              {/* Section total */}
+              <div style={{
+                display: 'flex',
+                justifyContent: 'flex-end',
+                gap: 8,
+                marginTop: 10,
+                paddingTop: 8,
+                borderTop: '1px solid var(--border)',
+                fontSize: 13,
+                paddingRight: 38,
+              }}>
+                <span style={{ color: 'var(--text-2)' }}>Tổng tiền nhóm:</span>
+                <strong style={{ color: 'var(--text-1)', minWidth: 120, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                  {fmt(Math.round(sectionTotal * 100) / 100)}
+                </strong>
+              </div>
             </>
           )}
         </Form.List>

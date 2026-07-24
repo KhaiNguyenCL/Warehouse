@@ -7,16 +7,21 @@ import { api } from '../lib/api'
 import { useApiMutation } from './useApiMutation'
 
 export function useQuotationDetail(id: string) {
+  const isNew = id === 'new'
   const navigate = useNavigate()
   const [form] = Form.useForm()
-  const [isEditing, setIsEditing] = useState(false)
+  const [isEditing, setIsEditing] = useState(isNew)
   const [templateId, setTemplateId] = useState<string | undefined>()
   const [exporting, setExporting] = useState(false)
   const [dealId, setDealId] = useState('')
+  const [bitrixLoading, setBitrixLoading] = useState(false)
+  const [bitrixError, setBitrixError]  = useState<string | null>(null)
+  const [bitrixInfo,  setBitrixInfo]   = useState<string | null>(null)
 
   const { data, isLoading } = useQuery({
     queryKey: ['quotations', id],
     queryFn: async () => (await api.get(`/quotations/${id}`)).data,
+    enabled: !isNew,
   })
 
   const { data: templates } = useQuery({
@@ -43,6 +48,72 @@ export function useQuotationDetail(id: string) {
     enabled: isEditing,
   })
 
+  // ── Fetch từ Bitrix để điền form (dùng cho cả create và edit) ──────────────
+  async function fetchFromBitrix() {
+    if (!dealId.trim()) return
+    setBitrixLoading(true)
+    setBitrixError(null)
+    setBitrixInfo(null)
+    try {
+      const [resolveRes, previewRes] = await Promise.all([
+        api.get(`/bitrix/deals/${dealId}/resolve`),
+        api.get(`/bitrix/deals/${dealId}/preview-sync`).catch(() => null),
+      ])
+      const d = resolveRes.data
+      const patch: Record<string, any> = { bitrix_deal_id: dealId }
+      if (d.company?.id)       patch.company_id = d.company.id
+      if (d.contact?.id)       patch.contact_id = d.contact.id
+      if (d.deal_title)        patch.project_name = d.deal_title
+      if (d.delivery_location) patch.delivery_location = d.delivery_location
+      if (previewRes?.data?.rows) {
+        for (const row of previewRes.data.rows) {
+          if (!row.skipped && row.form_value != null && row.form_value !== '') {
+            patch[row.quotation_field] = row.form_value
+          }
+        }
+      }
+      form.setFieldsValue(patch)
+      const filled = Object.entries(patch).filter(([k, v]) => k !== 'bitrix_deal_id' && v != null).length
+      setBitrixInfo(filled ? `Đã điền ${filled} field` : 'Fetch thành công — không có field nào match')
+    } catch (err: any) {
+      setBitrixError(err?.response?.data?.message ?? 'Không fetch được Deal')
+    } finally {
+      setBitrixLoading(false)
+    }
+  }
+
+  // ── Mutations ──────────────────────────────────────────────────────────────
+  const actionOptions = { successMessage: 'Thành công', invalidateKey: [['quotations', id], ['quotations']] as any }
+
+  const createMutation = useApiMutation(
+    (values: any) => api.post('/quotations', values),
+    {
+      successMessage: 'Tạo báo giá thành công',
+      invalidateKey: ['quotations'],
+      onSuccess: (res: any) => navigate(`/quotations/${res.data.id}`),
+    },
+  )
+
+  const updateMutation = useApiMutation(
+    (values: any) => api.patch(`/quotations/${id}`, values),
+    {
+      successMessage: 'Cập nhật thành công',
+      invalidateKey: [['quotations', id], ['quotations']],
+      onSuccess: () => setIsEditing(false),
+    },
+  )
+
+  const confirmMutation   = useApiMutation(() => api.patch(`/quotations/${id}/confirm`),   actionOptions)
+  const unconfirmMutation = useApiMutation(() => api.patch(`/quotations/${id}/unconfirm`), actionOptions)
+  const cancelMutation    = useApiMutation(() => api.patch(`/quotations/${id}/cancel`),    actionOptions)
+  const expireMutation    = useApiMutation(() => api.patch(`/quotations/${id}/expire`),    actionOptions)
+
+  const syncMutation = useApiMutation(
+    () => api.post(`/bitrix/quotations/${id}/sync`, dealId ? { deal_id: dealId } : {}),
+    { ...actionOptions, successMessage: 'Đồng bộ Bitrix thành công', onSuccess: () => setDealId('') },
+  )
+
+  // ── Form actions ───────────────────────────────────────────────────────────
   function startEdit() {
     if (!data) return
     form.setFieldsValue({
@@ -54,39 +125,46 @@ export function useQuotationDetail(id: string) {
       delivery_location: data.delivery_location,
       warehouse_id:      data.warehouse_id,
       valid_days:        data.valid_days,
-      discount:          data.discount,
       terms:             data.terms,
       note:              data.note,
+      bitrix_deal_id:    data.bitrix_deal_id,
+      sections: (data.sections ?? []).map((s: any) => ({
+        name: s.name,
+        line_items: (s.line_items ?? []).map((li: any) => ({
+          variant_id:  li.variant_id  ?? undefined,
+          bundle_id:   li.bundle_id   ?? undefined,
+          description: li.description,
+          quantity:    li.quantity,
+          unit_price:  li.unit_price,
+          vat_percent: li.vat_percent,
+          warranty:    li.warranty,
+          is_reserved: li.is_reserved,
+          note:        li.note,
+        })),
+      })),
     })
     setIsEditing(true)
   }
 
-  const actionOptions = { successMessage: 'Thành công', invalidateKey: [['quotations', id], ['quotations']] as any }
-
-  const updateMutation = useApiMutation(
-    (values: any) => api.patch(`/quotations/${id}`, values),
-    {
-      successMessage: 'Cập nhật thành công',
-      invalidateKey: [['quotations', id], ['quotations']],
-      onSuccess: () => setIsEditing(false),
-    },
-  )
-
   async function saveEdit() {
     const values = await form.validateFields()
     const quote_date = values.quote_date ? dayjs(values.quote_date).format('YYYY-MM-DD') : null
-    updateMutation.mutate({ ...values, quote_date })
+    const payload = { ...values, quote_date }
+    if (isNew) {
+      createMutation.mutate(payload)
+    } else {
+      updateMutation.mutate(payload)
+    }
   }
 
-  const confirmMutation   = useApiMutation(() => api.patch(`/quotations/${id}/confirm`), actionOptions)
-  const unconfirmMutation = useApiMutation(() => api.patch(`/quotations/${id}/unconfirm`), actionOptions)
-  const cancelMutation    = useApiMutation(() => api.patch(`/quotations/${id}/cancel`), actionOptions)
-  const expireMutation    = useApiMutation(() => api.patch(`/quotations/${id}/expire`), actionOptions)
-
-  const syncMutation = useApiMutation(
-    () => api.post(`/bitrix/quotations/${id}/sync`, dealId ? { deal_id: dealId } : {}),
-    { ...actionOptions, successMessage: 'Đồng bộ Bitrix thành công', onSuccess: () => setDealId('') },
-  )
+  function cancelEdit() {
+    if (isNew) {
+      navigate('/quotations')
+    } else {
+      form.resetFields()
+      setIsEditing(false)
+    }
+  }
 
   async function handleExport(format: 'xlsx' | 'pdf') {
     if (!templateId) { message.error('Chọn 1 template trước'); return }
@@ -106,19 +184,17 @@ export function useQuotationDetail(id: string) {
     }
   }
 
-  function cancelEdit() {
-    form.resetFields()
-    setIsEditing(false)
-  }
+  const savePending = isNew ? createMutation.isPending : updateMutation.isPending
 
   return {
+    isNew,
     navigate,
     data, isLoading,
-    form, isEditing, startEdit, saveEdit, cancelEdit,
+    form, isEditing, startEdit, saveEdit, cancelEdit, savePending,
     companies, companyId, companyDetail, warehouses,
     templates, templateId, setTemplateId,
     exporting,
-    dealId, setDealId,
+    dealId, setDealId, fetchFromBitrix, bitrixLoading, bitrixError, bitrixInfo,
     updateMutation,
     confirmMutation, unconfirmMutation, cancelMutation, expireMutation, syncMutation,
     handleExport,

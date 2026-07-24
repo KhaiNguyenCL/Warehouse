@@ -46,6 +46,7 @@ function computeSections(sections: QuotationSectionInput[], serviceVariantIds: S
         vat_percent,
         vat_amount,
         line_total,
+        total_amount: round2(line_total + vat_amount),
         is_reserved,
         line_order: li.line_order ?? lIdx + 1,
         note: li.note,

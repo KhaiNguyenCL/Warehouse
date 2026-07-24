@@ -20,7 +20,6 @@ import InventorySerialsPage from './pages/InventorySerialsPage'
 import CustomFieldsSettingsPage from './pages/CustomFieldsSettingsPage'
 import QuotationsPage from './pages/QuotationsPage'
 import QuotationDetailPage from './pages/QuotationDetailPage'
-import QuotationCreatePage from './pages/QuotationCreatePage'
 import DeliveryOrdersPage from './pages/DeliveryOrdersPage'
 import DeliveryOrderDetailPage from './pages/DeliveryOrderDetailPage'
 import TransferOrdersPage from './pages/TransferOrdersPage'
@@ -67,7 +66,6 @@ const routes: RouteObject[] = [
           { path: '/inventory', element: <InventoryPage /> },
           { path: '/inventory/serials/:variantId', element: <InventorySerialsPage /> },
           { path: '/quotations', element: <QuotationsPage /> },
-          { path: '/quotations/new', element: <QuotationCreatePage /> },
           { path: '/quotations/:id', element: <QuotationDetailPage /> },
           { path: '/deliveries', element: <DeliveryOrdersPage /> },
           { path: '/deliveries/:id', element: <DeliveryOrderDetailPage /> },
