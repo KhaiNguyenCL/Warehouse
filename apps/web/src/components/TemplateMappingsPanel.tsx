@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Form, Input, Select, Switch, Button, Typography, Space, Tag, Tooltip } from 'antd'
-import { MinusCircleOutlined, PlusOutlined, InfoCircleOutlined } from '@ant-design/icons'
+import { Form, Input, Select, Switch, Button, Typography, Tag, Tooltip, Table, Space } from 'antd'
+import { MinusCircleOutlined, PlusOutlined, ThunderboltOutlined } from '@ant-design/icons'
 import { api } from '../lib/api'
 import { useApiMutation } from '../hooks/useApiMutation'
 
@@ -10,12 +10,51 @@ interface Props {
   detectedVariables?: string[]
 }
 
-// Danh sách field có sẵn trong context báo giá — dùng để gợi ý khi map
-const QUOTATION_DB_FIELDS = [
+// ── Danh sách field đầy đủ ────────────────────────────────────────────────────
+
+const HEADER_FIELDS: Array<{ variable: string; db_field: string; label: string }> = [
+  { variable: 'd.code',              db_field: 'code',              label: 'Mã báo giá (tự sinh)' },
+  { variable: 'd.quote_number',      db_field: 'quote_number',      label: 'Số báo giá' },
+  { variable: 'd.quote_date',        db_field: 'quote_date',        label: 'Ngày báo giá' },
+  { variable: 'd.expired_at',        db_field: 'expired_at',        label: 'Ngày hết hạn' },
+  { variable: 'd.valid_days',        db_field: 'valid_days',        label: 'Hiệu lực (ngày)' },
+  { variable: 'd.company_name',      db_field: 'company_name',      label: 'Tên khách hàng' },
+  { variable: 'd.contact_name',      db_field: 'contact_name',      label: 'Người liên hệ' },
+  { variable: 'd.warehouse_name',    db_field: 'warehouse_name',    label: 'Kho xuất' },
+  { variable: 'd.project_name',      db_field: 'project_name',      label: 'Tên dự án' },
+  { variable: 'd.delivery_location', db_field: 'delivery_location', label: 'Địa điểm giao hàng' },
+  { variable: 'd.terms',             db_field: 'terms',             label: 'Điều khoản' },
+  { variable: 'd.note',              db_field: 'note',              label: 'Ghi chú' },
+  { variable: 'd.subtotal',          db_field: 'subtotal',          label: 'Tạm tính' },
+  { variable: 'd.vat_total',         db_field: 'vat_total',         label: 'Tiền VAT' },
+  { variable: 'd.discount',          db_field: 'discount',          label: 'Giảm giá' },
+  { variable: 'd.grand_total',       db_field: 'grand_total',       label: 'Tổng cộng' },
+  { variable: 'd.bitrix_deal_id',    db_field: 'bitrix_deal_id',    label: 'Bitrix Deal ID' },
+  { variable: 'd.created_at',        db_field: 'created_at',        label: 'Ngày tạo báo giá' },
+]
+
+const LINE_FIELDS: Array<{ variable: string; label: string }> = [
+  { variable: 'd.line_items[i].section_name',  label: 'Tên nhóm' },
+  { variable: 'd.line_items[i].description',   label: 'Mô tả sản phẩm' },
+  { variable: 'd.line_items[i].sku',           label: 'Mã SKU' },
+  { variable: 'd.line_items[i].item_code',     label: 'Item code' },
+  { variable: 'd.line_items[i].unit',          label: 'Đơn vị' },
+  { variable: 'd.line_items[i].quantity',      label: 'Số lượng' },
+  { variable: 'd.line_items[i].unit_price',    label: 'Đơn giá' },
+  { variable: 'd.line_items[i].vat_percent',   label: 'VAT%' },
+  { variable: 'd.line_items[i].line_total',    label: 'Thành tiền' },
+  { variable: 'd.line_items[i].vat_amount',    label: 'Tiền VAT dòng' },
+  { variable: 'd.line_items[i].total_amount',  label: 'Tổng tiền dòng' },
+  { variable: 'd.line_items[i].warranty',      label: 'Bảo hành' },
+  { variable: 'd.line_items[i].note',          label: 'Ghi chú dòng' },
+]
+
+// Grouped options cho Select dropdown
+const DB_FIELD_OPTIONS = [
   {
     label: 'Thông tin chung',
     options: [
-      { value: 'code',              label: 'code — Mã báo giá (tự sinh)' },
+      { value: 'code',              label: 'code — Mã báo giá' },
       { value: 'quote_number',      label: 'quote_number — Số báo giá' },
       { value: 'quote_date',        label: 'quote_date — Ngày báo giá' },
       { value: 'expired_at',        label: 'expired_at — Ngày hết hạn' },
@@ -31,10 +70,10 @@ const QUOTATION_DB_FIELDS = [
     ],
   },
   {
-    label: 'Dự án / Giao hàng',
+    label: 'Dự án',
     options: [
       { value: 'project_name',      label: 'project_name — Tên dự án' },
-      { value: 'delivery_location', label: 'delivery_location — Địa điểm giao hàng' },
+      { value: 'delivery_location', label: 'delivery_location — Địa điểm' },
       { value: 'warehouse_name',    label: 'warehouse_name — Kho xuất' },
     ],
   },
@@ -55,34 +94,12 @@ const QUOTATION_DB_FIELDS = [
     ],
   },
   {
-    label: 'Bitrix',
+    label: 'Khác',
     options: [
       { value: 'bitrix_deal_id',    label: 'bitrix_deal_id — Bitrix Deal ID' },
+      { value: 'line_items',        label: 'line_items — Mảng dòng sản phẩm' },
     ],
   },
-  {
-    label: 'Dòng sản phẩm (dùng {d.line_items[i].field})',
-    options: [
-      { value: 'line_items',        label: 'line_items — Toàn bộ mảng dòng SP' },
-    ],
-  },
-]
-
-// Sub-field của line_items — chỉ để hiển thị tham khảo
-const LINE_ITEM_SUBFIELDS = [
-  { variable: 'line_items[i].section_name',  label: 'Tên nhóm' },
-  { variable: 'line_items[i].description',   label: 'Mô tả sản phẩm' },
-  { variable: 'line_items[i].sku',           label: 'Mã SKU' },
-  { variable: 'line_items[i].item_code',     label: 'Item code' },
-  { variable: 'line_items[i].unit',          label: 'Đơn vị' },
-  { variable: 'line_items[i].quantity',      label: 'Số lượng' },
-  { variable: 'line_items[i].unit_price',    label: 'Đơn giá' },
-  { variable: 'line_items[i].vat_percent',   label: 'VAT%' },
-  { variable: 'line_items[i].line_total',    label: 'Thành tiền' },
-  { variable: 'line_items[i].vat_amount',    label: 'Tiền VAT' },
-  { variable: 'line_items[i].total_amount',  label: 'Tổng tiền dòng' },
-  { variable: 'line_items[i].warranty',      label: 'Bảo hành' },
-  { variable: 'line_items[i].note',          label: 'Ghi chú dòng' },
 ]
 
 export default function TemplateMappingsPanel({ templateId, detectedVariables }: Props) {
@@ -96,7 +113,7 @@ export default function TemplateMappingsPanel({ templateId, detectedVariables }:
   useEffect(() => {
     if (!data) return
     const existing: any[] = data.mappings ?? []
-    const existingVars = new Set(existing.map((m) => m.template_variable))
+    const existingVars = new Set(existing.map((m: any) => m.template_variable))
     const extraRows = (detectedVariables ?? [])
       .filter((v) => !existingVars.has(v))
       .map((v) => ({ template_variable: v, source_type: 'database', database_field: '', bitrix_field: '', is_required: false }))
@@ -108,93 +125,127 @@ export default function TemplateMappingsPanel({ templateId, detectedVariables }:
     { successMessage: 'Lưu mapping thành công', invalidateKey: ['templates', templateId] },
   )
 
+  function addAllDefaults() {
+    const current: any[] = form.getFieldValue('mappings') ?? []
+    const existingVars = new Set(current.map((m: any) => m.template_variable))
+    const toAdd = [
+      ...HEADER_FIELDS
+        .filter((f) => !existingVars.has(f.variable))
+        .map((f) => ({ template_variable: f.variable, source_type: 'database', database_field: f.db_field, bitrix_field: '', is_required: false })),
+      ...(!existingVars.has('d.line_items')
+        ? [{ template_variable: 'd.line_items', source_type: 'database', database_field: 'line_items', bitrix_field: '', is_required: false }]
+        : []),
+    ]
+    form.setFieldsValue({ mappings: [...current, ...toAdd] })
+  }
+
   if (isLoading) return null
 
   return (
     <div style={{ marginTop: 24, borderTop: '1px solid #f0f0f0', paddingTop: 16 }}>
-      <Typography.Title level={5}>Mapping biến template</Typography.Title>
-      <Typography.Text type="secondary">
-        Mỗi biến trong file Excel (VD <code>{'{d.company_name}'}</code>) cần map với 1 field database bên dưới.
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+        <Typography.Title level={5} style={{ margin: 0 }}>Mapping biến template</Typography.Title>
+        <Tooltip title="Thêm tất cả field mặc định của báo giá (bỏ qua các biến đã có)">
+          <Button size="small" icon={<ThunderboltOutlined />} onClick={addAllDefaults}>
+            Thêm tất cả field mặc định
+          </Button>
+        </Tooltip>
+      </div>
+
+      <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+        Trong file Excel dùng cú pháp <code>{'{d.ten_bien}'}</code> cho field đơn, <code>{'{d.line_items[i].field}'}</code> cho từng dòng sản phẩm.
       </Typography.Text>
 
-      {/* Bảng tham khảo sub-field dòng sản phẩm */}
-      <div style={{
-        marginTop: 12, marginBottom: 16,
-        background: 'var(--bg-hover, #fafafa)', border: '1px solid #e8e8e8',
-        borderRadius: 6, padding: '10px 14px',
-      }}>
-        <div style={{ fontSize: 12, fontWeight: 600, color: '#666', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
-          <InfoCircleOutlined /> Sub-field dòng sản phẩm — dùng cú pháp <code style={{ marginLeft: 4 }}>{'{d.line_items[i].field}'}</code>
+      {/* Bảng tham khảo */}
+      <div style={{ display: 'flex', gap: 16, marginTop: 12, marginBottom: 16 }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: '#888', marginBottom: 6, textTransform: 'uppercase' }}>Field header báo giá</div>
+          <Table
+            size="small"
+            dataSource={HEADER_FIELDS}
+            rowKey="variable"
+            pagination={false}
+            showHeader={false}
+            style={{ fontSize: 12 }}
+            columns={[
+              {
+                dataIndex: 'variable',
+                width: 220,
+                render: (v: string) => <code style={{ fontSize: 11, color: '#1677ff' }}>{`{${v}}`}</code>,
+              },
+              { dataIndex: 'label', render: (v: string) => <span style={{ color: '#666' }}>{v}</span> },
+            ]}
+          />
         </div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-          {LINE_ITEM_SUBFIELDS.map((f) => (
-            <Tooltip key={f.variable} title={f.label}>
-              <Tag style={{ fontFamily: 'monospace', cursor: 'default', fontSize: 11 }}>{f.variable}</Tag>
-            </Tooltip>
-          ))}
+
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: '#888', marginBottom: 6, textTransform: 'uppercase' }}>Field dòng sản phẩm</div>
+          <Table
+            size="small"
+            dataSource={LINE_FIELDS}
+            rowKey="variable"
+            pagination={false}
+            showHeader={false}
+            style={{ fontSize: 12 }}
+            columns={[
+              {
+                dataIndex: 'variable',
+                width: 270,
+                render: (v: string) => <code style={{ fontSize: 11, color: '#52c41a' }}>{`{${v}}`}</code>,
+              },
+              { dataIndex: 'label', render: (v: string) => <span style={{ color: '#666' }}>{v}</span> },
+            ]}
+          />
         </div>
       </div>
 
-      <Form form={form} onFinish={(v) => saveMutation.mutate(v.mappings ?? [])} style={{ marginTop: 12 }}>
+      {/* Form mapping */}
+      <Form form={form} onFinish={(v) => saveMutation.mutate(v.mappings ?? [])} style={{ marginTop: 4 }}>
         <Form.List name="mappings">
           {(fields, { add, remove }) => (
             <>
+              {fields.length === 0 && (
+                <div style={{ color: '#bbb', fontSize: 13, marginBottom: 12 }}>
+                  Chưa có mapping — nhấn "Thêm tất cả field mặc định" hoặc "Thêm biến" để bắt đầu.
+                </div>
+              )}
               {fields.map(({ key, name, ...restField }) => (
-                <Space key={key} align="baseline" style={{ display: 'flex', marginBottom: 8, flexWrap: 'wrap' }}>
+                <Space key={key} align="baseline" style={{ display: 'flex', marginBottom: 6, flexWrap: 'wrap' }}>
                   <Form.Item {...restField} name={[name, 'template_variable']} rules={[{ required: true, message: 'Bắt buộc' }]}>
-                    <Input placeholder="d.ten_bien" style={{ width: 200, fontFamily: 'monospace' }} />
+                    <Input placeholder="d.ten_bien" style={{ width: 210, fontFamily: 'monospace', fontSize: 12 }} />
                   </Form.Item>
                   <Form.Item {...restField} name={[name, 'source_type']} initialValue="database">
-                    <Select
-                      style={{ width: 110 }}
-                      options={[
-                        { value: 'database', label: 'Database' },
-                        { value: 'bitrix', label: 'Bitrix' },
-                      ]}
-                    />
+                    <Select style={{ width: 110 }} options={[{ value: 'database', label: 'Database' }, { value: 'bitrix', label: 'Bitrix' }]} />
                   </Form.Item>
                   <Form.Item shouldUpdate noStyle>
                     {() => {
                       const sourceType = form.getFieldValue(['mappings', name, 'source_type'])
                       return sourceType === 'bitrix' ? (
                         <Form.Item {...restField} name={[name, 'bitrix_field']} rules={[{ required: true, message: 'Bắt buộc' }]}>
-                          <Input placeholder="Bitrix field" style={{ width: 200 }} />
+                          <Input placeholder="Bitrix field" style={{ width: 210 }} />
                         </Form.Item>
                       ) : (
                         <Form.Item {...restField} name={[name, 'database_field']} rules={[{ required: true, message: 'Bắt buộc' }]}>
-                          <Select
-                            showSearch
-                            placeholder="Chọn field database"
-                            style={{ width: 280 }}
-                            optionFilterProp="label"
-                            options={QUOTATION_DB_FIELDS}
-                          />
+                          <Select showSearch placeholder="Chọn field" style={{ width: 260 }} optionFilterProp="label" options={DB_FIELD_OPTIONS} />
                         </Form.Item>
                       )
                     }}
                   </Form.Item>
                   <Form.Item {...restField} name={[name, 'is_required']} valuePropName="checked">
-                    <Switch checkedChildren="Bắt buộc" unCheckedChildren="Tuỳ chọn" />
+                    <Switch checkedChildren="Bắt buộc" unCheckedChildren="Tuỳ chọn" size="small" />
                   </Form.Item>
                   <MinusCircleOutlined onClick={() => remove(name)} style={{ color: '#ff4d4f' }} />
                 </Space>
               ))}
-              <Button
-                type="dashed"
-                icon={<PlusOutlined />}
-                onClick={() => add({ source_type: 'database', is_required: false })}
-                style={{ marginBottom: 12 }}
-              >
+              <Button type="dashed" icon={<PlusOutlined />} onClick={() => add({ source_type: 'database', is_required: false })} style={{ marginBottom: 12 }}>
                 Thêm biến
               </Button>
             </>
           )}
         </Form.List>
-        <Form.Item>
-          <Button type="primary" htmlType="submit" loading={saveMutation.isPending}>
-            Lưu mapping
-          </Button>
-        </Form.Item>
+        <Button type="primary" onClick={() => form.submit()} loading={saveMutation.isPending}>
+          Lưu mapping
+        </Button>
       </Form>
     </div>
   )
