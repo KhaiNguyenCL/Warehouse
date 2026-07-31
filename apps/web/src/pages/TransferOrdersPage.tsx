@@ -1,31 +1,46 @@
-import { Table, Form, Input, Select, Button, Tooltip, Space } from 'antd'
-import { PlusOutlined } from '@ant-design/icons'
+import { Table, Input, Button } from 'antd'
+import { PlusOutlined, SearchOutlined } from '@ant-design/icons'
 import { useTransferOrders } from '../hooks/useTransferOrders'
-import { PageHeader } from '../components/PageHeader'
-import { TableCard } from '../components/ui/TableCard'
+import { PageHeader } from '../components/ui/PageHeader'
+import { TableCard, FilterChip } from '../components/ui/TableCard'
 import { StatusBadge } from '../components/ui/StatusBadge'
-import { EntityFormModal } from '../components/EntityFormModal'
-import DeliveryLineItem from '../components/DeliveryLineItem'
 
-const TRANSFER_TYPES = [
-  { value: 'transfer', label: 'Chuyển kho thông thường' },
-  { value: 'warranty_in', label: 'Nhận lại sau bảo hành' },
-  { value: 'demo_in', label: 'Nhận lại sau demo' },
-  { value: 'qc_pass', label: 'Hàng qua QC đạt' },
-  { value: 'sn_ready', label: 'Đã nhập SN xong' },
-]
+const STATUS_OPTIONS = ['draft', 'pending_approval', 'approved', 'completed', 'cancelled'] as const
+
+const TRANSFER_TYPE_LABEL: Record<string, string> = {
+  transfer: 'Chuyển kho', warranty_in: 'Nhận lại BH', demo_in: 'Nhận lại demo',
+  qc_pass: 'QC đạt', sn_ready: 'Đã nhập SN',
+}
 
 export default function TransferOrdersPage() {
   const hook = useTransferOrders()
-  const headerFromWh: string | undefined = Form.useWatch('from_warehouse_id', hook.form)
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       <PageHeader
         title="Phiếu chuyển kho"
-        actions={<Button type="primary" icon={<PlusOutlined />} onClick={hook.openCreate}>Tạo phiếu chuyển</Button>}
+        actions={
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => hook.navigate('/transfers/new')}>
+            Tạo phiếu chuyển
+          </Button>
+        }
       />
-      <TableCard>
+
+      <TableCard
+        toolbar={STATUS_OPTIONS.map((s) => (
+          <FilterChip key={s} label={<StatusBadge status={s} />} active={hook.status === s} onClick={() => hook.setStatus(hook.status === s ? undefined : s)} />
+        ))}
+        actions={
+          <Input
+            prefix={<SearchOutlined style={{ color: 'var(--text-3)', fontSize: 13 }} />}
+            placeholder="Tìm mã phiếu…"
+            allowClear
+            style={{ width: 220, height: 28, fontSize: 13 }}
+            value={hook.searchInput}
+            onChange={(e) => hook.setSearchInput(e.target.value)}
+          />
+        }
+      >
         <Table
           rowKey="id"
           loading={hook.isLoading}
@@ -34,82 +49,15 @@ export default function TransferOrdersPage() {
           onRow={(record: any) => ({ onClick: () => hook.navigate(`/transfers/${record.id}`), style: { cursor: 'pointer' } })}
           columns={[
             { title: 'STT', width: 52, align: 'center' as const, render: (_: any, __: any, i: number) => i + 1 },
-            { title: 'Mã phiếu', dataIndex: 'code' },
-            { title: 'Loại chuyển', dataIndex: 'transfer_type' },
+            { title: 'Mã phiếu', dataIndex: 'code', width: 130 },
+            { title: 'Loại chuyển', dataIndex: 'transfer_type', render: (v: string) => TRANSFER_TYPE_LABEL[v] ?? v },
             { title: 'Kho nguồn', dataIndex: 'from_warehouse_name' },
             { title: 'Kho đích', dataIndex: 'to_warehouse_name' },
             { title: 'Trạng thái', dataIndex: 'status', render: (s: string) => <StatusBadge status={s} /> },
+            { title: 'Ngày tạo', dataIndex: 'created_at', width: 110, render: (d: string) => d ? new Date(d).toLocaleDateString('vi-VN') : '—' },
           ]}
         />
       </TableCard>
-
-      <EntityFormModal
-        title="Tạo phiếu chuyển kho"
-        open={hook.open}
-        onCancel={hook.close}
-        onFinish={(v) => hook.createMutation.mutate(v)}
-        confirmLoading={hook.createMutation.isPending}
-        form={hook.form}
-        width={1000}
-        okText="Lưu nháp"
-        initialValues={{ lines: [{}] }}
-        footerExtra={
-          <Tooltip title="Tạo xong chuyển thẳng đến trang chi tiết để Complete">
-            <Button onClick={hook.createAndGoToDetail} loading={hook.createMutation.isPending}>
-              Tạo & Complete
-            </Button>
-          </Tooltip>
-        }
-      >
-        <Form.Item name="transfer_type" label="Loại chuyển" rules={[{ required: true }]}>
-          <Select options={TRANSFER_TYPES} onChange={() => hook.form.setFieldValue('from_warehouse_id', undefined)} />
-        </Form.Item>
-        {hook.needsFromWarehouse && (
-          <Form.Item name="from_warehouse_id" label="Kho nguồn" rules={[{ required: true }]}>
-            <Select options={hook.warehouses?.map((w: any) => ({ value: w.id, label: `${w.name} (${w.code})` }))} />
-          </Form.Item>
-        )}
-        <Form.Item
-          name="to_warehouse_id"
-          label="Kho đích"
-          rules={[{ required: true }]}
-          extra={!hook.needsFromWarehouse ? 'Kho nguồn tự suy ra từ kho ảo tương ứng loại chuyển' : undefined}
-        >
-          <Select options={hook.warehouses?.map((w: any) => ({ value: w.id, label: `${w.name} (${w.code})` }))} />
-        </Form.Item>
-        <Form.Item name="note" label="Ghi chú" className="form-row-full">
-          <Input.TextArea rows={2} />
-        </Form.Item>
-
-        <Form.List name="lines">
-          {(fields, { add, remove }) => (
-            <div className="form-row-full">
-              {fields.map(({ key, name }) => (
-                <Space key={key} align="start" style={{ width: '100%', marginBottom: 8 }}>
-                  <DeliveryLineItem name={name} remove={() => remove(name)} />
-                  {hook.needsFromWarehouse && (
-                    <Form.Item
-                      name={[name, 'from_warehouse_id']}
-                      label={name === 0 ? 'Kho nguồn dòng' : undefined}
-                      style={{ minWidth: 180, marginBottom: 0 }}
-                    >
-                      <Select
-                        placeholder={headerFromWh
-                          ? hook.warehouses?.find((w: any) => w.id === headerFromWh)?.name + ' (mặc định)'
-                          : 'Kho nguồn'}
-                        allowClear
-                        options={hook.warehouses?.map((w: any) => ({ value: w.id, label: w.name }))}
-                        size="small"
-                      />
-                    </Form.Item>
-                  )}
-                </Space>
-              ))}
-              <Button onClick={() => add()}>+ Thêm dòng</Button>
-            </div>
-          )}
-        </Form.List>
-      </EntityFormModal>
     </div>
   )
 }

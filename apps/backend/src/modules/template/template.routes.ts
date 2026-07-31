@@ -74,6 +74,15 @@ const templateRoutes: FastifyPluginAsync = async (app) => {
     async (request) => service.replaceMappings(request.params.id, request.body.mappings),
   )
 
+  app.delete<{ Params: { id: string } }>(
+    '/:id',
+    { preHandler: authenticate },
+    async (request, reply) => {
+      await service.delete(request.params.id)
+      return reply.code(204).send()
+    },
+  )
+
   app.post<{ Params: { id: string }; Body: ExportTemplateBody }>(
     '/:id/export',
     { schema: exportTemplateSchema, preHandler: authenticate },

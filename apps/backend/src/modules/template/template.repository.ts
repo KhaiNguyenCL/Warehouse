@@ -45,6 +45,11 @@ export class TemplateRepository {
     return this.db('template_field_mappings').where({ template_id: templateId })
   }
 
+  async delete(id: string) {
+    await this.db('template_field_mappings').where({ template_id: id }).del()
+    return this.db('document_templates').where({ id }).del()
+  }
+
   async replaceMappings(templateId: string, mappings: MappingInput[], trx: Knex.Transaction) {
     await trx('template_field_mappings').where({ template_id: templateId }).del()
     if (mappings.length === 0) return []

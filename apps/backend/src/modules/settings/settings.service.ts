@@ -268,4 +268,28 @@ export class SettingsService {
   async deleteTermTemplate(id: string) {
     await this.db('quotation_term_templates').where({ id }).del()
   }
+
+  // ─── Section Name Presets ─────────────────────────────────────────────────
+
+  listSectionNamePresets() {
+    return this.db('quotation_section_name_presets').orderBy('sort_order').orderBy('name')
+  }
+
+  async createSectionNamePreset(data: { name: string; sort_order?: number }) {
+    const [row] = await this.db('quotation_section_name_presets')
+      .insert({ name: data.name, sort_order: data.sort_order ?? 0, created_at: this.db.fn.now() })
+      .returning('*')
+    return row
+  }
+
+  async updateSectionNamePreset(id: string, data: { name?: string; sort_order?: number }) {
+    const [row] = await this.db('quotation_section_name_presets')
+      .where({ id }).update(data).returning('*')
+    if (!row) throw { statusCode: 404, message: 'Preset not found' }
+    return row
+  }
+
+  async deleteSectionNamePreset(id: string) {
+    await this.db('quotation_section_name_presets').where({ id }).del()
+  }
 }

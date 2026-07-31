@@ -12,6 +12,8 @@ export interface VariantData {
   cost_price: number | null
   sale_price: number | null
   warranty_months: number | null
+  vat_percent: number | null
+  product_id: string
   product_name: string
   product_type: string
 }
@@ -23,6 +25,7 @@ interface Props {
   style?: React.CSSProperties
   placeholder?: string
   excludeTypes?: string[]
+  productId?: string
   disabled?: boolean
 }
 
@@ -33,6 +36,7 @@ export default function VariantSelect({
   style,
   placeholder = 'Tìm mã hàng / tên...',
   excludeTypes,
+  productId,
   disabled,
 }: Props) {
   const { data: allVariants } = useQuery<VariantData[]>({
@@ -48,7 +52,10 @@ export default function VariantSelect({
 
   const groupedOptions = useMemo(() => {
     if (!allVariants) return []
-    const filtered = allVariants.filter((v) => !excludeTypes?.includes(v.product_type))
+    const filtered = allVariants.filter((v) =>
+      !excludeTypes?.includes(v.product_type) &&
+      (!productId || v.product_id === productId),
+    )
     const groups = new Map<string, { label: string; options: any[] }>()
     for (const v of filtered) {
       if (!groups.has(v.product_name)) {

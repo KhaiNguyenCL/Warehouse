@@ -20,6 +20,8 @@ const HEADER_FIELDS: Array<{ variable: string; db_field: string; label: string }
   { variable: 'd.valid_days',        db_field: 'valid_days',        label: 'Hiệu lực (ngày)' },
   { variable: 'd.company_name',      db_field: 'company_name',      label: 'Tên khách hàng' },
   { variable: 'd.contact_name',      db_field: 'contact_name',      label: 'Người liên hệ' },
+  { variable: 'd.contact_email',     db_field: 'contact_email',     label: 'Email người liên hệ' },
+  { variable: 'd.contact_phone',     db_field: 'contact_phone',     label: 'SĐT người liên hệ' },
   { variable: 'd.warehouse_name',    db_field: 'warehouse_name',    label: 'Kho xuất' },
   { variable: 'd.project_name',      db_field: 'project_name',      label: 'Tên dự án' },
   { variable: 'd.delivery_location', db_field: 'delivery_location', label: 'Địa điểm giao hàng' },
@@ -34,6 +36,7 @@ const HEADER_FIELDS: Array<{ variable: string; db_field: string; label: string }
 ]
 
 const LINE_FIELDS: Array<{ variable: string; label: string }> = [
+  { variable: 'd.line_items[i].row_number',    label: 'STT (1, 2, 3...)' },
   { variable: 'd.line_items[i].section_name',  label: 'Tên nhóm' },
   { variable: 'd.line_items[i].description',   label: 'Mô tả sản phẩm' },
   { variable: 'd.line_items[i].sku',           label: 'Mã SKU' },
@@ -67,6 +70,8 @@ const DB_FIELD_OPTIONS = [
     options: [
       { value: 'company_name',      label: 'company_name — Tên khách hàng' },
       { value: 'contact_name',      label: 'contact_name — Người liên hệ' },
+      { value: 'contact_email',     label: 'contact_email — Email người liên hệ' },
+      { value: 'contact_phone',     label: 'contact_phone — SĐT người liên hệ' },
     ],
   },
   {
@@ -97,7 +102,7 @@ const DB_FIELD_OPTIONS = [
     label: 'Khác',
     options: [
       { value: 'bitrix_deal_id',    label: 'bitrix_deal_id — Bitrix Deal ID' },
-      { value: 'line_items',        label: 'line_items — Mảng dòng sản phẩm' },
+      { value: 'line_items',        label: 'line_items — Mảng dòng sản phẩm (d.line_items[i].xxx)' },
     ],
   },
 ]

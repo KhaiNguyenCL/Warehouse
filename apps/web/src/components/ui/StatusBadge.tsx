@@ -22,7 +22,7 @@ const STATUS_MAP: Record<WmsStatus, StatusDef> = {
   cancelled:        { label: 'Đã hủy',           color: 'var(--s-cancelled-color)', bg: 'var(--s-cancelled-bg)' },
   confirmed:        { label: 'Đã xác nhận',      color: 'var(--s-confirmed-color)', bg: 'var(--s-confirmed-bg)' },
   in_progress:      { label: 'Đang thực hiện',   color: 'var(--s-approved-color)',  bg: 'var(--s-approved-bg)' },
-  expired:          { label: 'Hết hạn',          color: 'var(--s-cancelled-color)', bg: 'var(--s-cancelled-bg)' },
+  expired:          { label: 'Hết hạn',          color: 'var(--s-expired-color)',   bg: 'var(--s-expired-bg)' },
 }
 
 const FALLBACK: StatusDef = { label: 'Không rõ', color: 'var(--s-draft-color)', bg: 'var(--s-draft-bg)' }

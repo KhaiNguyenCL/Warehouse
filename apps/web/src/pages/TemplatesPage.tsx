@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Table, Form, Input, Select, Switch, Button, Modal, Upload, Tag, Popconfirm } from 'antd'
+import { Table, Form, Input, Select, Switch, Button, Modal, Upload, Tag, Popconfirm, Space } from 'antd'
 import { UploadOutlined, PlusOutlined, DeleteOutlined, EditOutlined } from '@ant-design/icons'
 import { useQuery } from '@tanstack/react-query'
 import { useTemplates } from '../hooks/useTemplates'
@@ -115,6 +115,85 @@ function TermTemplatesSection() {
   )
 }
 
+// ── Danh sách tên nhóm mặc định ─────────────────────────────────────────────
+
+function SectionNamePresetsSection() {
+  const [form] = Form.useForm()
+  const [modalOpen, setModalOpen] = useState(false)
+  const [editing, setEditing] = useState<any | null>(null)
+
+  const { data, isLoading, refetch } = useQuery({
+    queryKey: ['section-name-presets'],
+    queryFn: async () => (await api.get('/settings/section-name-presets')).data,
+  })
+
+  const saveMutation = useApiMutation(
+    (values: any) => editing
+      ? api.patch(`/settings/section-name-presets/${editing.id}`, values)
+      : api.post('/settings/section-name-presets', values),
+    {
+      successMessage: editing ? 'Đã cập nhật' : 'Đã thêm tên nhóm',
+      onSuccess: () => { refetch(); setModalOpen(false); form.resetFields(); setEditing(null) },
+    },
+  )
+
+  const deleteMutation = useApiMutation(
+    (id: string) => api.delete(`/settings/section-name-presets/${id}`),
+    { successMessage: 'Đã xoá', onSuccess: () => refetch() },
+  )
+
+  function openCreate() { setEditing(null); form.resetFields(); setModalOpen(true) }
+  function openEdit(record: any) { setEditing(record); form.setFieldsValue({ name: record.name }); setModalOpen(true) }
+
+  return (
+    <>
+      <SectionCard
+        title="Tên nhóm sản phẩm mặc định"
+        extra={<Button type="primary" size="small" icon={<PlusOutlined />} onClick={openCreate}>Thêm tên</Button>}
+      >
+        <Table
+          rowKey="id"
+          loading={isLoading}
+          dataSource={data ?? []}
+          pagination={false}
+          size="small"
+          columns={[
+            { title: 'STT', width: 52, align: 'center' as const, render: (_: any, __: any, i: number) => i + 1 },
+            { title: 'Tên nhóm', dataIndex: 'name', render: (v: string) => <b>{v}</b> },
+            {
+              title: '',
+              width: 90,
+              render: (_: any, record: any) => (
+                <div style={{ display: 'flex', gap: 4 }}>
+                  <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(record)} />
+                  <Popconfirm title="Xoá tên nhóm này?" onConfirm={() => deleteMutation.mutate(record.id)} okText="Xoá" cancelText="Huỷ">
+                    <Button size="small" danger icon={<DeleteOutlined />} />
+                  </Popconfirm>
+                </div>
+              ),
+            },
+          ]}
+        />
+      </SectionCard>
+
+      <Modal
+        title={editing ? `Sửa tên nhóm "${editing.name}"` : 'Thêm tên nhóm'}
+        open={modalOpen}
+        onCancel={() => { setModalOpen(false); setEditing(null); form.resetFields() }}
+        onOk={() => form.submit()}
+        okText={editing ? 'Lưu' : 'Thêm'}
+        confirmLoading={saveMutation.isPending}
+      >
+        <Form form={form} layout="vertical" onFinish={(v) => saveMutation.mutate(v)}>
+          <Form.Item name="name" label="Tên nhóm" rules={[{ required: true }]}>
+            <Input placeholder="VD: Thiết bị mạng, Camera giám sát, ..." />
+          </Form.Item>
+        </Form>
+      </Modal>
+    </>
+  )
+}
+
 // ── Main Page ────────────────────────────────────────────────────────────────
 
 export default function TemplatesPage() {
@@ -123,6 +202,9 @@ export default function TemplatesPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       <PageHeader title="Cài đặt báo giá" />
+
+      {/* ── Tên nhóm mặc định ── */}
+      <SectionNamePresetsSection />
 
       {/* ── Mẫu điều khoản ── */}
       <TermTemplatesSection />
@@ -175,6 +257,21 @@ export default function TemplatesPage() {
                 ),
             },
             { title: 'Ngày tạo', dataIndex: 'created_at', render: (v) => new Date(v).toLocaleString('vi-VN') },
+            {
+              title: '',
+              width: 60,
+              render: (_: any, r: any) => (
+                <Popconfirm
+                  title="Xoá template này?"
+                  description="Toàn bộ mapping cũng bị xoá."
+                  onConfirm={(e) => { e?.stopPropagation(); hook.deleteMutation.mutate(r.id) }}
+                  onCancel={(e) => e?.stopPropagation()}
+                  okText="Xoá" cancelText="Huỷ" okButtonProps={{ danger: true }}
+                >
+                  <Button danger size="small" icon={<DeleteOutlined />} onClick={(e) => e.stopPropagation()} loading={hook.deleteMutation.isPending} />
+                </Popconfirm>
+              ),
+            },
           ]}
         />
       </SectionCard>

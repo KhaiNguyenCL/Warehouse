@@ -48,6 +48,11 @@ export function useTemplates() {
     onSuccess: close,
   })
 
+  const deleteMutation = useApiMutation(
+    (id: string) => api.delete(`/templates/${id}`),
+    { successMessage: 'Đã xoá template', invalidateKey: ['templates'] },
+  )
+
   const toggleMutation = useApiMutation(
     (vars: { id: string; field: 'is_active' | 'is_default'; value: boolean }) =>
       api.patch(`/templates/${vars.id}`, { [vars.field]: vars.value }),
@@ -62,6 +67,6 @@ export function useTemplates() {
     uploadObjectType, setUploadObjectType,
     uploadFile, setUploadFile,
     data, isLoading,
-    uploadMutation, updateMutation, toggleMutation,
+    uploadMutation, updateMutation, toggleMutation, deleteMutation,
   }
 }

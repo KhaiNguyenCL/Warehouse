@@ -198,8 +198,8 @@ export class ProductRepository {
       .where('p.is_active', true)
       .select(
         'v.id', 'v.sku', 'v.item_code', 'v.name', 'v.unit',
-        'v.cost_price', 'v.sale_price', 'v.warranty_months',
-        'p.name as product_name', 'p.product_type',
+        'v.cost_price', 'v.sale_price', 'v.warranty_months', 'v.vat_percent',
+        'p.id as product_id', 'p.name as product_name', 'p.product_type',
       )
       .orderBy('v.sku')
       .limit(limit)

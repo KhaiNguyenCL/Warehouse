@@ -1,6 +1,6 @@
 import { Knex } from 'knex'
-import { QuotationRepository, ComputedSection, ComputedLineItem } from './quotation.repository'
-import { CreateQuotationBody, UpdateQuotationBody, ListQuotationQuery, QuotationSectionInput } from './quotation.schema'
+import { QuotationRepository, ComputedSection, ComputedSubSection, ComputedLineItem } from './quotation.repository'
+import { CreateQuotationBody, UpdateQuotationBody, ListQuotationQuery, QuotationSectionInput, QuotationLineItemInput } from './quotation.schema'
 
 const PG_FOREIGN_KEY_VIOLATION = '23503'
 
@@ -26,47 +26,65 @@ function computeExpiredAt(quoteDate: string | Date | null | undefined, validDays
 // CLAUDE.md mục 16: line_total = quantity*unit_price; vat_amount = line_total*vat_percent/100;
 // section.subtotal = SUM(line_total + vat_amount). serviceVariantIds dùng để ép is_reserved=false
 // cho dòng service (mục 7: "Service luôn false, disabled") bất kể client gửi gì lên.
+function computeLineItems(rawItems: QuotationLineItemInput[], serviceVariantIds: Set<string>, startIdx = 0): ComputedLineItem[] {
+  return rawItems.map((li, lIdx) => {
+    const line_total = round2(li.quantity * li.unit_price)
+    const vat_percent = li.vat_percent ?? 0
+    const vat_amount = round2(line_total * (vat_percent / 100))
+
+    let is_reserved: boolean
+    if (li.variant_id && serviceVariantIds.has(li.variant_id)) {
+      is_reserved = false
+    } else if (!li.variant_id && !li.bundle_id) {
+      is_reserved = false
+    } else {
+      is_reserved = li.is_reserved ?? true
+    }
+
+    return {
+      variant_id: li.variant_id,
+      bundle_id: li.bundle_id,
+      description: li.description,
+      unit: li.unit,
+      quantity: li.quantity,
+      unit_price: li.unit_price,
+      warranty: li.warranty,
+      vat_percent,
+      vat_amount,
+      line_total,
+      total_amount: round2(line_total + vat_amount),
+      is_reserved,
+      line_order: li.line_order ?? startIdx + lIdx + 1,
+      note: li.note,
+    }
+  })
+}
+
 function computeSections(sections: QuotationSectionInput[], serviceVariantIds: Set<string>): ComputedSection[] {
   return sections.map((section, sIdx) => {
-    const line_items: ComputedLineItem[] = section.line_items.map((li, lIdx) => {
-      const line_total = round2(li.quantity * li.unit_price)
-      const vat_percent = li.vat_percent ?? 0
-      const vat_amount = round2(line_total * (vat_percent / 100))
+    let lineOrder = 0
 
-      let is_reserved: boolean
-      if (li.variant_id && serviceVariantIds.has(li.variant_id)) {
-        is_reserved = false
-      } else if (!li.variant_id && !li.bundle_id) {
-        // Dòng mô tả tự do (không gắn variant/bundle) — không có gì để giữ chỗ trong kho.
-        is_reserved = false
-      } else {
-        is_reserved = li.is_reserved ?? true
-      }
-
+    const sub_sections: ComputedSubSection[] = (section.sub_sections ?? []).map((ss, ssIdx) => {
+      const items = computeLineItems(ss.line_items ?? [], serviceVariantIds, lineOrder)
+      lineOrder += items.length
       return {
-        variant_id: li.variant_id,
-        bundle_id: li.bundle_id,
-        description: li.description,
-        unit: li.unit,
-        quantity: li.quantity,
-        unit_price: li.unit_price,
-        warranty: li.warranty,
-        vat_percent,
-        vat_amount,
-        line_total,
-        total_amount: round2(line_total + vat_amount),
-        is_reserved,
-        line_order: li.line_order ?? lIdx + 1,
-        note: li.note,
+        name: ss.name,
+        product_id: ss.product_id,
+        sub_section_order: ss.sub_section_order ?? ssIdx + 1,
+        line_items: items,
       }
     })
 
-    const subtotal = round2(line_items.reduce((sum, li) => sum + li.line_total + li.vat_amount, 0))
+    const line_items = computeLineItems(section.line_items ?? [], serviceVariantIds, lineOrder)
+
+    const allItems = [...sub_sections.flatMap((ss) => ss.line_items), ...line_items]
+    const subtotal = round2(allItems.reduce((sum, li) => sum + li.line_total + li.vat_amount, 0))
 
     return {
       name: section.name,
       section_order: section.section_order ?? sIdx + 1,
       subtotal,
+      sub_sections,
       line_items,
     }
   })
@@ -83,7 +101,10 @@ export class QuotationService {
   // computeSections() biết variant nào cần ép is_reserved=false.
   private async getServiceVariantIds(sections: QuotationSectionInput[]): Promise<Set<string>> {
     const variantIds = [
-      ...new Set(sections.flatMap((s) => s.line_items.map((li) => li.variant_id).filter(Boolean))),
+      ...new Set(sections.flatMap((s) => [
+        ...(s.line_items ?? []),
+        ...(s.sub_sections ?? []).flatMap((ss) => ss.line_items ?? []),
+      ].map((li) => li.variant_id).filter(Boolean))),
     ] as string[]
     if (variantIds.length === 0) return new Set()
 
@@ -118,7 +139,7 @@ export class QuotationService {
   async create(data: CreateQuotationBody, userId: string) {
     const serviceVariantIds = await this.getServiceVariantIds(data.sections)
     const sections = computeSections(data.sections, serviceVariantIds)
-    const allLines = sections.flatMap((s) => s.line_items)
+    const allLines = sections.flatMap((s) => [...s.sub_sections.flatMap((ss) => ss.line_items), ...s.line_items])
     const subtotal = round2(allLines.reduce((sum, li) => sum + li.line_total, 0))
     const vat_total = round2(allLines.reduce((sum, li) => sum + li.vat_amount, 0))
     const discount = data.discount ?? 0
@@ -173,7 +194,7 @@ export class QuotationService {
     if (sections) {
       const serviceVariantIds = await this.getServiceVariantIds(sections)
       computedSections = computeSections(sections, serviceVariantIds)
-      const allLines = computedSections.flatMap((s) => s.line_items)
+      const allLines = computedSections.flatMap((s) => [...s.sub_sections.flatMap((ss) => ss.line_items), ...s.line_items])
       const subtotal = round2(allLines.reduce((sum, li) => sum + li.line_total, 0))
       const vat_total = round2(allLines.reduce((sum, li) => sum + li.vat_amount, 0))
       const finalDiscount = discount ?? Number(existing.discount)
@@ -207,7 +228,10 @@ export class QuotationService {
     if (!quotation) throw { statusCode: 404, message: 'Quotation not found' }
     if (quotation.status !== 'draft') throw { statusCode: 400, message: 'Chỉ có thể xác nhận từ Draft' }
 
-    const allLines = quotation.sections.flatMap((s: any) => s.line_items)
+    const allLines = quotation.sections.flatMap((s: any) => [
+      ...(s.line_items ?? []),
+      ...(s.sub_sections ?? []).flatMap((ss: any) => ss.line_items ?? []),
+    ])
     const reservedLines = allLines.filter((l: any) => l.is_reserved)
 
     if (reservedLines.length > 0 && !quotation.warehouse_id) {
@@ -349,7 +373,10 @@ export class QuotationService {
     }
 
     const hasActiveDO = quotation.sections.some((s: any) =>
-      s.line_items.some((l: any) => l.exported_qty > 0 || l.pending_qty > 0),
+      [
+        ...(s.line_items ?? []),
+        ...(s.sub_sections ?? []).flatMap((ss: any) => ss.line_items ?? []),
+      ].some((l: any) => l.exported_qty > 0 || l.pending_qty > 0),
     )
     if (hasActiveDO) {
       throw {

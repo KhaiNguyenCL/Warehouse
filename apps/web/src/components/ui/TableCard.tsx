@@ -84,18 +84,15 @@ export function FilterChip({ label, active, onClick }: FilterChipProps) {
       style={{
         display: 'inline-flex',
         alignItems: 'center',
-        gap: 4,
-        height: 30,
-        padding: '0 13px',
-        borderRadius: 15,
-        fontSize: 'var(--font-md)',
-        fontWeight: active ? 600 : 500,
+        padding: 0,
+        border: 'none',
+        background: 'transparent',
         cursor: 'pointer',
-        border: active ? '1px solid rgba(37,99,235,0.35)' : '1px solid var(--border-md)',
-        background: active ? 'var(--accent-bg)' : 'var(--bg-card)',
-        color: active ? 'var(--accent)' : 'var(--text-1)',
-        transition: 'all 0.12s',
-        whiteSpace: 'nowrap',
+        borderRadius: 13,
+        outline: active ? '2px solid var(--accent)' : '2px solid transparent',
+        outlineOffset: 2,
+        transition: 'outline 0.12s',
+        opacity: active ? 1 : 0.65,
       }}
     >
       {label}

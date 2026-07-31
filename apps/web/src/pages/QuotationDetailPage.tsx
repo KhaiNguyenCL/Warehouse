@@ -3,14 +3,55 @@ import {
   Form, Input, InputNumber, Select, Button, Tag, Popconfirm, Table, Skeleton,
   DatePicker,
 } from 'antd'
-import { ArrowLeftOutlined, EditOutlined, SyncOutlined, FileExcelOutlined, FilePdfOutlined } from '@ant-design/icons'
+import { ArrowLeftOutlined, EditOutlined, SyncOutlined, FileExcelOutlined, FilePdfOutlined, EyeOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { useQuotationDetail } from '../hooks/useQuotationDetail'
 import { useTermTemplates } from '../hooks/useTermTemplates'
+
+function toRoman(n: number): string {
+  const vals = [1000, 900, 500, 400, 100, 90, 50, 40, 10, 9, 5, 4, 1]
+  const syms = ['M', 'CM', 'D', 'CD', 'C', 'XC', 'L', 'XL', 'X', 'IX', 'V', 'IV', 'I']
+  let s = ''
+  for (let i = 0; i < vals.length; i++) {
+    while (n >= vals[i]) { s += syms[i]; n -= vals[i] }
+  }
+  return s
+}
 import { PageHeader } from '../components/ui/PageHeader'
 import { StatusBadge } from '../components/ui/StatusBadge'
 import CustomFieldsPanel from '../components/CustomFieldsPanel'
 import QuotationSectionItem from '../components/QuotationSectionItem'
+
+const LINE_COLS = [
+  { title: 'Sản phẩm',   width: 240, render: (_: any, l: any) => l.bundle_name ?? l.variant_name ?? l.description ?? '—' },
+  { title: 'Mã hàng',    width: 130, render: (_: any, l: any) => l.bundle_item_code ?? l.variant_item_code ?? '—' },
+  { title: 'SL',         dataIndex: 'quantity',     width: 60,  align: 'right' as const },
+  { title: 'Đơn giá',   dataIndex: 'unit_price',   width: 120, align: 'right' as const, render: fmt },
+  { title: 'VAT%',       dataIndex: 'vat_percent',  width: 70,  align: 'right' as const },
+  { title: 'Thành tiền', dataIndex: 'line_total',   width: 120, align: 'right' as const, render: fmt },
+  { title: 'Tiền VAT',   dataIndex: 'vat_amount',   width: 100, align: 'right' as const, render: fmt },
+  { title: 'Bảo hành',  dataIndex: 'warranty',     width: 100 },
+  { title: 'Giữ chỗ',   dataIndex: 'is_reserved',  width: 80,  render: (v: boolean) => <Tag color={v ? 'blue' : 'default'}>{v ? 'Có' : 'Không'}</Tag> },
+  { title: 'Đã xuất',   dataIndex: 'exported_qty', width: 80,  align: 'right' as const },
+  { title: 'Chờ xuất',  dataIndex: 'pending_qty',  width: 80,  align: 'right' as const },
+  { title: 'Còn lại',   dataIndex: 'remaining_qty',width: 80,  align: 'right' as const },
+  { title: 'Ghi chú',   dataIndex: 'note',         width: 140 },
+]
+
+function LineTable({ rows, nested }: { rows: any[]; nested?: boolean }) {
+  if (!rows.length) return null
+  return (
+    <Table
+      rowKey="id"
+      dataSource={rows}
+      pagination={false}
+      size="small"
+      scroll={{ x: 'max-content' }}
+      columns={LINE_COLS}
+      style={nested ? { border: '1px solid #b0c4e8', borderTop: 'none', borderRadius: '0 0 6px 6px' } : undefined}
+    />
+  )
+}
 
 function SectionCard({ title, extra, children }: { title: string; extra?: React.ReactNode; children: React.ReactNode }) {
   return (
@@ -19,7 +60,7 @@ function SectionCard({ title, extra, children }: { title: string; extra?: React.
         <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-1)' }}>{title}</span>
         {extra}
       </div>
-      <div style={{ padding: 16 }}>{children}</div>
+      <div style={{ padding: 20 }}>{children}</div>
     </div>
   )
 }
@@ -71,9 +112,26 @@ export default function QuotationDetailPage() {
 
   const exportActions = !hook.isNew && !hook.isEditing ? (
     <>
+      <Button
+        size="small"
+        icon={<EyeOutlined />}
+        loading={hook.exporting}
+        onClick={hook.handlePdfPreview}
+      >
+        Xem trước
+      </Button>
+      <Button
+        size="small"
+        icon={<FilePdfOutlined />}
+        type="primary"
+        loading={hook.exporting}
+        onClick={hook.handlePdfExport}
+      >
+        Xuất PDF
+      </Button>
       <Select
-        placeholder="Chọn template xuất"
-        style={{ width: 200 }}
+        placeholder="Chọn template Excel"
+        style={{ width: 180 }}
         size="small"
         options={hook.templates?.data?.map((t: any) => ({ value: t.id, label: t.name }))}
         onChange={hook.setTemplateId}
@@ -81,13 +139,11 @@ export default function QuotationDetailPage() {
       />
       <Button size="small" icon={<FileExcelOutlined />} loading={hook.exporting}
         disabled={!hook.templateId} onClick={() => hook.handleExport('xlsx')}>Excel</Button>
-      <Button size="small" icon={<FilePdfOutlined />} loading={hook.exporting}
-        disabled={!hook.templateId} onClick={() => hook.handleExport('pdf')}>PDF</Button>
     </>
   ) : null
 
   return (
-    <div style={{ padding: '10px 20px 40px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+    <div style={{ padding: '10px 20px 40px', display: 'flex', flexDirection: 'column', gap: 28 }}>
       <PageHeader
         title={
           <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -137,11 +193,12 @@ export default function QuotationDetailPage() {
       />
 
       <Form form={hook.form} layout="vertical"
+        style={{ display: 'flex', flexDirection: 'column', gap: 28 }}
         initialValues={hook.isNew ? { sections: [{ name: 'Nhóm 1', line_items: [{}] }] } : undefined}>
 
         {/* ── Thông tin báo giá ── */}
         <SectionCard title="Thông tin báo giá">
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '18px 24px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '22px 28px' }}>
 
             {/* Row 1: Bitrix ID+Fetch | Số báo giá | Ngày báo giá */}
             <div>
@@ -285,8 +342,8 @@ export default function QuotationDetailPage() {
             <Form.List name="sections">
               {(fields, { add, remove }) => (
                 <>
-                  {fields.map(({ key, name }) => (
-                    <QuotationSectionItem key={key} form={hook.form} name={name} remove={() => remove(name)} />
+                  {fields.map(({ key, name }, idx) => (
+                    <QuotationSectionItem key={key} form={hook.form} name={name} sectionIndex={idx} remove={() => remove(name)} />
                   ))}
                   <Button style={{ marginTop: 8 }} onClick={() => add({ name: `Nhóm ${fields.length + 1}`, line_items: [{}] })}>
                     + Thêm nhóm
@@ -296,36 +353,35 @@ export default function QuotationDetailPage() {
             </Form.List>
           </SectionCard>
         ) : (
-          q?.sections?.map((section: any) => (
-            <SectionCard key={section.id} title={section.name}>
-              <Table
-                rowKey="id" dataSource={section.line_items} pagination={false} size="small" scroll={{ x: 'max-content' }}
-                columns={[
-                  { title: 'Sản phẩm', width: 240, render: (_: any, l: any) => l.bundle_name ?? l.variant_name ?? l.description ?? '—' },
-                  { title: 'Mã hàng', width: 130, render: (_: any, l: any) => l.bundle_item_code ?? l.variant_item_code ?? '—' },
-                  { title: 'SL', dataIndex: 'quantity', width: 60, align: 'right' as const },
-                  { title: 'Đơn giá', dataIndex: 'unit_price', width: 120, align: 'right' as const, render: fmt },
-                  { title: 'VAT%', dataIndex: 'vat_percent', width: 70, align: 'right' as const },
-                  { title: 'Thành tiền', dataIndex: 'line_total', width: 120, align: 'right' as const, render: fmt },
-                  { title: 'Tiền VAT', dataIndex: 'vat_amount', width: 100, align: 'right' as const, render: fmt },
-                  { title: 'Tổng tiền', dataIndex: 'total_amount', width: 120, align: 'right' as const, render: fmt },
-                  { title: 'Bảo hành', dataIndex: 'warranty', width: 100 },
-                  { title: 'Giữ chỗ', dataIndex: 'is_reserved', width: 80, render: (v: boolean) => <Tag color={v ? 'blue' : 'default'}>{v ? 'Có' : 'Không'}</Tag> },
-                  { title: 'Đã xuất', dataIndex: 'exported_qty', width: 80, align: 'right' as const },
-                  { title: 'Chờ xuất', dataIndex: 'pending_qty', width: 80, align: 'right' as const },
-                  { title: 'Còn lại', dataIndex: 'remaining_qty', width: 80, align: 'right' as const },
-                  { title: 'Ghi chú', dataIndex: 'note', width: 140 },
-                ]}
-                summary={() => (
-                  <Table.Summary.Row>
-                    <Table.Summary.Cell index={0} colSpan={7} align="right">
-                      <span style={{ color: 'var(--text-2)', fontSize: 12 }}>Tổng nhóm</span>
-                    </Table.Summary.Cell>
-                    <Table.Summary.Cell index={1} align="right"><strong>{fmt(section.subtotal)}</strong></Table.Summary.Cell>
-                    <Table.Summary.Cell index={2} colSpan={6} />
-                  </Table.Summary.Row>
-                )}
-              />
+          q?.sections?.map((section: any, sIdx: number) => (
+            <SectionCard key={section.id} title={`${toRoman(sIdx + 1)}. ${section.name}`}>
+              <LineTable rows={section.line_items ?? []} />
+              {(section.sub_sections ?? []).map((ss: any, ssIdx: number) => (
+                <div key={ss.id} style={{ marginTop: 10 }}>
+                  <div style={{
+                    padding: '4px 10px',
+                    background: '#dce8fb',
+                    border: '1px solid #b0c4e8',
+                    borderBottom: 'none',
+                    borderRadius: '6px 6px 0 0',
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: '#4472c4',
+                  }}>
+                    <span style={{ marginRight: 6 }}>{ssIdx + 1}.</span>
+                    {ss.name}
+                    {ss.product_name && ss.product_name !== ss.name && (
+                      <span style={{ fontWeight: 400, color: '#8aa6d4', marginLeft: 6, fontSize: 12 }}>
+                        ({ss.product_name})
+                      </span>
+                    )}
+                  </div>
+                  <LineTable rows={ss.line_items ?? []} nested />
+                </div>
+              ))}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '6px 0 0', fontSize: 13, color: 'var(--text-2)' }}>
+                Tổng nhóm: <strong style={{ marginLeft: 8 }}>{fmt(section.subtotal)}</strong>
+              </div>
             </SectionCard>
           ))
         )}

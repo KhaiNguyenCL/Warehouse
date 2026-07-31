@@ -114,6 +114,20 @@ export function useQuotationDetail(id: string) {
   )
 
   // ── Form actions ───────────────────────────────────────────────────────────
+  function mapLineItem(li: any) {
+    return {
+      variant_id:  li.variant_id  ?? undefined,
+      bundle_id:   li.bundle_id   ?? undefined,
+      description: li.description,
+      quantity:    li.quantity,
+      unit_price:  li.unit_price,
+      vat_percent: li.vat_percent,
+      warranty:    li.warranty,
+      is_reserved: li.is_reserved,
+      note:        li.note,
+    }
+  }
+
   function startEdit() {
     if (!data) return
     form.setFieldsValue({
@@ -130,17 +144,12 @@ export function useQuotationDetail(id: string) {
       bitrix_deal_id:    data.bitrix_deal_id,
       sections: (data.sections ?? []).map((s: any) => ({
         name: s.name,
-        line_items: (s.line_items ?? []).map((li: any) => ({
-          variant_id:  li.variant_id  ?? undefined,
-          bundle_id:   li.bundle_id   ?? undefined,
-          description: li.description,
-          quantity:    li.quantity,
-          unit_price:  li.unit_price,
-          vat_percent: li.vat_percent,
-          warranty:    li.warranty,
-          is_reserved: li.is_reserved,
-          note:        li.note,
+        sub_sections: (s.sub_sections ?? []).map((ss: any) => ({
+          name:       ss.name,
+          product_id: ss.product_id,
+          line_items: (ss.line_items ?? []).map((li: any) => mapLineItem(li)),
         })),
+        line_items: (s.line_items ?? []).map((li: any) => mapLineItem(li)),
       })),
     })
     setIsEditing(true)
@@ -163,6 +172,38 @@ export function useQuotationDetail(id: string) {
     } else {
       form.resetFields()
       setIsEditing(false)
+    }
+  }
+
+  async function handlePdfExport() {
+    setExporting(true)
+    try {
+      const res = await api.get(`/quotations/${id}/pdf`, { responseType: 'blob' })
+      const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }))
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${data?.code ?? 'quotation'}.pdf`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (err: any) {
+      message.error(err.response?.data?.message ?? 'Xuất PDF thất bại')
+    } finally {
+      setExporting(false)
+    }
+  }
+
+  async function handlePdfPreview() {
+    setExporting(true)
+    try {
+      const res = await api.get(`/quotations/${id}/pdf`, { responseType: 'blob' })
+      const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }))
+      window.open(url, '_blank')
+      // revoke sau 60s để không leak memory
+      setTimeout(() => URL.revokeObjectURL(url), 60_000)
+    } catch (err: any) {
+      message.error(err.response?.data?.message ?? 'Không thể xem trước PDF')
+    } finally {
+      setExporting(false)
     }
   }
 
@@ -197,6 +238,6 @@ export function useQuotationDetail(id: string) {
     dealId, setDealId, fetchFromBitrix, bitrixLoading, bitrixError, bitrixInfo,
     updateMutation,
     confirmMutation, unconfirmMutation, cancelMutation, expireMutation, syncMutation,
-    handleExport,
+    handleExport, handlePdfExport, handlePdfPreview,
   }
 }

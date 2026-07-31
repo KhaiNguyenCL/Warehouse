@@ -67,6 +67,8 @@ const QUOTATION_AUTO_MAPPINGS: Record<string, string> = {
   'd.created_at':         'created_at',
   'd.company_name':       'company_name',
   'd.contact_name':       'contact_name',
+  'd.contact_email':      'contact_email',
+  'd.contact_phone':      'contact_phone',
   'd.warehouse_name':     'warehouse_name',
   'd.project_name':       'project_name',
   'd.delivery_location':  'delivery_location',
@@ -164,6 +166,15 @@ export class TemplateService {
     return updated
   }
 
+  async delete(id: string) {
+    const existing = await this.repo.findById(id)
+    if (!existing) throw { statusCode: 404, message: 'Template not found' }
+    await this.repo.delete(id)
+    // Xoá file vật lý — không throw nếu file đã bị xoá tay trước đó
+    const filePath = path.join(this.app.carbone.uploadDir, existing.file_path)
+    await fs.unlink(filePath).catch(() => {})
+  }
+
   async replaceMappings(id: string, mappings: MappingInput[]) {
     const existing = await this.repo.findById(id)
     if (!existing) throw { statusCode: 404, message: 'Template not found' }
@@ -207,8 +218,10 @@ export class TemplateService {
 
     // Carbone lặp dòng qua mảng {d.line_items[i].xxx} — gộp hết line_items của mọi
     // section vào 1 mảng phẳng (kèm section_name) thay vì giữ cấu trúc sections lồng nhau.
+    let rowIndex = 0
     const line_items = quotation.sections.flatMap((s: any) =>
       s.line_items.map((li: any) => ({
+        row_number:    ++rowIndex,
         section_name:  s.name,
         description:   li.description ?? li.bundle_name ?? li.variant_name,
         sku:           li.variant_sku ?? li.bundle_sku ?? null,
@@ -234,6 +247,8 @@ export class TemplateService {
       valid_days:        quotation.valid_days,
       company_name:      quotation.company_name,
       contact_name:      quotation.contact_name,
+      contact_email:     quotation.contact_email,
+      contact_phone:     quotation.contact_phone,
       warehouse_name:    quotation.warehouse_name,
       project_name:      quotation.project_name,
       delivery_location: quotation.delivery_location,

@@ -1,6 +1,3 @@
-// 1 dòng trong Form.List "line_items" lồng trong Form.List "sections" — dùng VariantSelect
-// thay cho 2-step Product→SKU. Routing: bundle → bundle_id, còn lại → variant_id (hidden
-// fields). Service → ép is_reserved=false và disable switch (CLAUDE.md mục 4/7).
 import { useState } from 'react'
 import { Form, InputNumber, Input, Button, Switch, Tooltip } from 'antd'
 import { DeleteOutlined } from '@ant-design/icons'
@@ -9,12 +6,14 @@ import VariantSelect, { type VariantData } from './VariantSelect'
 
 interface Props {
   form: FormInstance
-  sectionName: number
+  // Đường dẫn tuyệt đối từ form root đến mảng line_items chứa dòng này
+  // VD: ['sections', 0, 'line_items'] hoặc ['sections', 0, 'sub_sections', 1, 'line_items']
+  parentPath: (string | number)[]
   name: number
+  productId?: string
   remove: () => void
 }
 
-// Thứ tự cột: SKU | Mô tả | SL | Đơn giá | VAT% | Bảo hành | Ghi chú | Giữ chỗ | Xoá
 const GRID_COLS = '2fr 1.5fr 58px 140px 56px 78px 1fr 46px 30px'
 
 const numProps = {
@@ -64,23 +63,22 @@ export function QuotationLineHeader() {
   )
 }
 
-export default function QuotationLineItem({ form, sectionName, name, remove }: Props) {
+export default function QuotationLineItem({ form, parentPath, name, productId, remove }: Props) {
   const [isService, setIsService] = useState(false)
 
-  const qty   = Number(Form.useWatch(['sections', sectionName, 'line_items', name, 'quantity'],  form) ?? 0)
-  const price = Number(Form.useWatch(['sections', sectionName, 'line_items', name, 'unit_price'], form) ?? 0)
-  const vat   = Number(Form.useWatch(['sections', sectionName, 'line_items', name, 'vat_percent'], form) ?? 0)
+  const qty   = Number(Form.useWatch([...parentPath, name, 'quantity'],   form) ?? 0)
+  const price = Number(Form.useWatch([...parentPath, name, 'unit_price'], form) ?? 0)
+  const vat   = Number(Form.useWatch([...parentPath, name, 'vat_percent'], form) ?? 0)
 
   const lineTotal = qty * price
   const vatAmount = lineTotal * (vat / 100)
 
   function path(field: string) {
-    return ['sections', sectionName, 'line_items', name, field]
+    return [name, field]
   }
 
-  // Controlled value — hiển thị đúng khi load dữ liệu cũ vào form (edit mode)
-  const currentVariantId = Form.useWatch(['sections', sectionName, 'line_items', name, 'variant_id'], form)
-  const currentBundleId  = Form.useWatch(['sections', sectionName, 'line_items', name, 'bundle_id'],  form)
+  const currentVariantId = Form.useWatch([...parentPath, name, 'variant_id'], form)
+  const currentBundleId  = Form.useWatch([...parentPath, name, 'bundle_id'],  form)
   const selectValue = currentVariantId ?? currentBundleId ?? undefined
 
   function onSelectVariant(variant: VariantData | null) {
@@ -88,17 +86,23 @@ export default function QuotationLineItem({ form, sectionName, name, remove }: P
     const isBundle = variant.product_type === 'bundle'
     const isSvc = variant.product_type === 'service'
     setIsService(isSvc)
+
+    const warrantyStr = variant.warranty_months != null
+      ? variant.warranty_months === 0 ? 'Không bảo hành' : `${variant.warranty_months} tháng`
+      : undefined
+
     form.setFields([
-      { name: path('variant_id'), value: isBundle ? undefined : variant.id },
-      { name: path('bundle_id'), value: isBundle ? variant.id : undefined },
-      { name: path('unit_price'), value: variant.sale_price ?? variant.cost_price },
-      { name: path('is_reserved'), value: !isSvc },
+      { name: [...parentPath, name, 'variant_id'],  value: isBundle ? undefined : variant.id },
+      { name: [...parentPath, name, 'bundle_id'],   value: isBundle ? variant.id : undefined },
+      { name: [...parentPath, name, 'unit_price'],  value: variant.sale_price ?? variant.cost_price },
+      { name: [...parentPath, name, 'vat_percent'], value: variant.vat_percent ?? 0 },
+      { name: [...parentPath, name, 'is_reserved'], value: !isSvc },
+      ...(warrantyStr != null ? [{ name: [...parentPath, name, 'warranty'], value: warrantyStr }] : []),
     ])
   }
 
   return (
     <div style={{ marginBottom: 8 }}>
-      {/* ── Input row ── */}
       <div style={{
         display: 'grid',
         gridTemplateColumns: GRID_COLS,
@@ -106,38 +110,43 @@ export default function QuotationLineItem({ form, sectionName, name, remove }: P
         alignItems: 'flex-start',
       }}>
         <Form.Item noStyle>
-          <VariantSelect value={selectValue} onSelectVariant={onSelectVariant} style={{ width: '100%' }} />
+          <VariantSelect
+            value={selectValue}
+            onSelectVariant={onSelectVariant}
+            style={{ width: '100%' }}
+            productId={productId}
+          />
         </Form.Item>
 
-        <Form.Item name={[name, 'variant_id']} hidden><Input /></Form.Item>
-        <Form.Item name={[name, 'bundle_id']} hidden><Input /></Form.Item>
+        <Form.Item name={path('variant_id')} hidden><Input /></Form.Item>
+        <Form.Item name={path('bundle_id')} hidden><Input /></Form.Item>
 
-        <Form.Item name={[name, 'description']} noStyle>
+        <Form.Item name={path('description')} noStyle>
           <Input.TextArea placeholder="Mô tả trên báo giá" autoSize={{ minRows: 1, maxRows: 4 }} style={{ width: '100%' }} />
         </Form.Item>
 
-        <Form.Item name={[name, 'quantity']} noStyle rules={[{ required: true, message: '' }]}>
+        <Form.Item name={path('quantity')} noStyle rules={[{ required: true, message: '' }]}>
           <InputNumber {...numProps} min={0.01} style={{ width: '100%' }} />
         </Form.Item>
 
-        <Form.Item name={[name, 'unit_price']} noStyle rules={[{ required: true, message: '' }]}>
+        <Form.Item name={path('unit_price')} noStyle rules={[{ required: true, message: '' }]}>
           <InputNumber {...numProps} min={0} style={{ width: '100%' }} />
         </Form.Item>
 
-        <Form.Item name={[name, 'vat_percent']} noStyle initialValue={0}>
+        <Form.Item name={path('vat_percent')} noStyle initialValue={0}>
           <InputNumber controls={false} min={0} max={100} style={{ width: '100%' }} />
         </Form.Item>
 
-        <Form.Item name={[name, 'warranty']} noStyle>
+        <Form.Item name={path('warranty')} noStyle>
           <Input placeholder="12 tháng" style={{ width: '100%' }} />
         </Form.Item>
 
-        <Form.Item name={[name, 'note']} noStyle>
+        <Form.Item name={path('note')} noStyle>
           <Input.TextArea autoSize={{ minRows: 1, maxRows: 4 }} style={{ width: '100%' }} />
         </Form.Item>
 
         <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 6 }}>
-          <Form.Item name={[name, 'is_reserved']} noStyle valuePropName="checked" initialValue={true}>
+          <Form.Item name={path('is_reserved')} noStyle valuePropName="checked" initialValue={true}>
             <Switch disabled={isService} size="small" />
           </Form.Item>
         </div>
@@ -149,7 +158,6 @@ export default function QuotationLineItem({ form, sectionName, name, remove }: P
         </div>
       </div>
 
-      {/* ── Computed sub-row ── */}
       <div style={{
         display: 'flex',
         justifyContent: 'flex-end',

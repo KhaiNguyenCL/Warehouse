@@ -21,8 +21,10 @@ import CustomFieldsSettingsPage from './pages/CustomFieldsSettingsPage'
 import QuotationsPage from './pages/QuotationsPage'
 import QuotationDetailPage from './pages/QuotationDetailPage'
 import DeliveryOrdersPage from './pages/DeliveryOrdersPage'
+import DeliveryOrderCreatePage from './pages/DeliveryOrderCreatePage'
 import DeliveryOrderDetailPage from './pages/DeliveryOrderDetailPage'
 import TransferOrdersPage from './pages/TransferOrdersPage'
+import TransferOrderCreatePage from './pages/TransferOrderCreatePage'
 import TransferOrderDetailPage from './pages/TransferOrderDetailPage'
 import StocktakesPage from './pages/StocktakesPage'
 import StocktakeDetailPage from './pages/StocktakeDetailPage'
@@ -68,8 +70,10 @@ const routes: RouteObject[] = [
           { path: '/quotations', element: <QuotationsPage /> },
           { path: '/quotations/:id', element: <QuotationDetailPage /> },
           { path: '/deliveries', element: <DeliveryOrdersPage /> },
+          { path: '/deliveries/new', element: <DeliveryOrderCreatePage /> },
           { path: '/deliveries/:id', element: <DeliveryOrderDetailPage /> },
           { path: '/transfers', element: <TransferOrdersPage /> },
+          { path: '/transfers/new', element: <TransferOrderCreatePage /> },
           { path: '/transfers/:id', element: <TransferOrderDetailPage /> },
           { path: '/stocktakes', element: <StocktakesPage /> },
           { path: '/stocktakes/:id', element: <StocktakeDetailPage /> },

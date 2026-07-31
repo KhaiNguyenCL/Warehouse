@@ -1,4 +1,5 @@
 import { FastifyPluginAsync } from 'fastify'
+import puppeteer from 'puppeteer'
 import { QuotationService } from './quotation.service'
 import {
   createQuotationSchema,
@@ -10,6 +11,7 @@ import {
 } from './quotation.schema'
 import { authenticate } from '../../middleware/auth'
 import { requirePermission } from '../../middleware/permission'
+import { buildQuotationHtml, buildFooterTemplate } from './quotation.pdf'
 
 const quotationRoutes: FastifyPluginAsync = async (app) => {
   const service = new QuotationService(app.db)
@@ -61,6 +63,62 @@ const quotationRoutes: FastifyPluginAsync = async (app) => {
     '/:id/expire',
     { preHandler: requirePermission('quotation.confirm') },
     async (request) => service.expire(request.params.id),
+  )
+
+  // GET /quotations/:id/pdf — xuất PDF bằng Puppeteer (không qua Carbone/LibreOffice).
+  app.get<{ Params: { id: string } }>(
+    '/:id/pdf',
+    { preHandler: requirePermission('quotation.view') },
+    async (request, reply) => {
+      const quotation = await service.getById(request.params.id)
+      if (!quotation) throw { statusCode: 404, message: 'Không tìm thấy báo giá' }
+
+      // Recompute totals từ line_total/vat_amount đã lưu — tránh dùng stored subtotal/grand_total
+      // có thể lỗi thời (VD: quotation tạo trước khi có sub_sections được tính vào tổng).
+      const allLineItems = (quotation.sections ?? []).flatMap((s: any) => [
+        ...(s.sub_sections ?? []).flatMap((ss: any) => ss.line_items ?? []),
+        ...(s.line_items ?? []),
+      ])
+      const recomputedSubtotal   = allLineItems.reduce((sum: number, li: any) => sum + Number(li.line_total ?? 0), 0)
+      const recomputedVatTotal   = allLineItems.reduce((sum: number, li: any) => sum + Number(li.vat_amount ?? 0), 0)
+      const recomputedGrandTotal = recomputedSubtotal + recomputedVatTotal - Number(quotation.discount ?? 0)
+
+      const html = buildQuotationHtml({
+        ...quotation,
+        subtotal:    recomputedSubtotal,
+        vat_total:   recomputedVatTotal,
+        grand_total: recomputedGrandTotal,
+      })
+      const expiredAt = quotation.expired_at
+        ? new Date(quotation.expired_at).toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })
+        : null
+      const footerTemplate = buildFooterTemplate(expiredAt)
+
+      const browser = await puppeteer.launch({
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+      })
+      try {
+        const page = await browser.newPage()
+        await page.setContent(html, { waitUntil: 'load' })
+        const pdf = await page.pdf({
+          landscape: true,
+          format: 'A4',
+          printBackground: true,
+          displayHeaderFooter: true,
+          headerTemplate: '<span></span>',
+          footerTemplate,
+          margin: { top: '12mm', right: '12mm', bottom: '14mm', left: '12mm' },
+        })
+        const filename = `BG-${quotation.code ?? quotation.id}.pdf`
+        reply.header('Content-Type', 'application/pdf')
+        reply.header('Content-Disposition', `attachment; filename="${filename}"`)
+        reply.header('Cache-Control', 'no-store')
+        return reply.send(Buffer.from(pdf))
+      } finally {
+        await browser.close()
+      }
+    },
   )
 
   // PATCH /quotations/:id/cancel — authorization thật (chủ báo giá hoặc người có quyền

@@ -295,8 +295,8 @@ export default function QuotationCreatePage() {
           <Form.List name="sections">
             {(fields, { add, remove }) => (
               <>
-                {fields.map(({ key, name }) => (
-                  <QuotationSectionItem key={key} form={form} name={name} remove={() => remove(name)} />
+                {fields.map(({ key, name }, idx) => (
+                  <QuotationSectionItem key={key} form={form} name={name} sectionIndex={idx} remove={() => remove(name)} />
                 ))}
                 <Button style={{ marginTop: 8 }} onClick={() => add({ name: `Nhóm ${fields.length + 1}`, line_items: [{}] })}>
                   + Thêm nhóm
