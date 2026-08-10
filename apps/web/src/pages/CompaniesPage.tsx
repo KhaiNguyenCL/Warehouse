@@ -8,7 +8,7 @@ import { api } from '../lib/api'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
-import CompanySheet, { type SheetMode } from '../components/CompanySheet'
+import CompanySheet from '../components/CompanySheet'
 
 function TypeBadge({ types }: { types: string[] }) {
   return (
@@ -31,12 +31,11 @@ export default function CompaniesPage() {
   const hook = useCompanies()
   const total = hook.data?.total ?? 0
 
-  const [sheetMode, setSheetMode] = useState<SheetMode>(null)
+  const [sheetOpen, setSheetOpen] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(null)
 
-  function openView(id: string)   { setSelectedId(id);   setSheetMode('view') }
-  function openCreate()           { setSelectedId(null);  setSheetMode('create') }
-  function closeSheet()           { setSheetMode(null) }
+  function openView(id: string) { setSelectedId(id); setSheetOpen(true) }
+  function closeSheet()         { setSheetOpen(false) }
 
   const [inputValue, setInputValue] = useState('')
   const debouncedInput = useDebounce(inputValue, 200)
@@ -74,16 +73,10 @@ export default function CompaniesPage() {
           <h1 className="text-2xl font-semibold tracking-tight">Đối tác</h1>
           <p className="mt-0.5 text-sm text-muted-foreground">{total.toLocaleString('vi-VN')} công ty</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={hook.openSync}>
-            <RefreshCw className="mr-2 h-4 w-4" />
-            Đồng bộ Bitrix
-          </Button>
-          <Button onClick={openCreate}>
-            <Plus className="mr-2 h-4 w-4" />
-            Tạo mới
-          </Button>
-        </div>
+        <Button variant="outline" onClick={hook.openSync}>
+          <RefreshCw className="mr-2 h-4 w-4" />
+          Đồng bộ Bitrix
+        </Button>
       </div>
 
       {/* Table card */}
@@ -232,13 +225,11 @@ export default function CompaniesPage() {
         )}
       </div>
 
-      {/* Company sidebar — view & create */}
+      {/* Company detail sidebar */}
       <CompanySheet
-        mode={sheetMode}
+        open={sheetOpen}
         companyId={selectedId}
-        customFieldDefs={hook.customFieldDefs}
         onClose={closeSheet}
-        onCreated={() => hook.setPage(1)}
       />
 
       {/* Bitrix sync modal — AntD */}
