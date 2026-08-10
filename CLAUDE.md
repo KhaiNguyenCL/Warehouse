@@ -45,7 +45,8 @@
 |---|---|
 | TanStack Query | Server state, cache, auto-refetch |
 | Zustand | UI state (thay Redux) |
-| Ant Design | Component table/form nghiệp vụ |
+| **shadcn/ui + Tailwind CSS v4** | Component UI chính — layout, table, dialog, button... |
+| Ant Design | Chỉ còn dùng cho form phức tạp: DatePicker, EntityFormModal, StocktakeSkuPicker |
 | React Hook Form | Form phức tạp (quotation lines) |
 
 ---
@@ -499,7 +500,7 @@ inventory.qty_reserved -= quotation_line.quantity
 │   │   │   │   ├── knex.ts      ← DB connection
 │   │   │   │   └── carbone.ts
 │   │   │   └── app.ts
-│   │   ├── migrations/          ← Knex migrations (SQL files)
+│   │   ├── migrations/          ← 1 file duy nhất (squashed), load SQL từ /backend/migrations/
 │   │   ├── seeds/
 │   │   └── package.json
 │   │
@@ -507,7 +508,9 @@ inventory.qty_reserved -= quotation_line.quantity
 │   │   ├── src/
 │   │   │   ├── pages/
 │   │   │   ├── components/
+│   │   │   │   └── ui/          ← shadcn/ui components (button, dialog, input...)
 │   │   │   ├── hooks/           ← TanStack Query hooks
+│   │   │   ├── lib/             ← utils (cn, shadcn helpers)
 │   │   │   ├── store/           ← Zustand stores
 │   │   │   └── utils/
 │   │   └── package.json
@@ -518,6 +521,10 @@ inventory.qty_reserved -= quotation_line.quantity
 │       │   ├── components/
 │       │   └── hooks/
 │       └── package.json
+│
+├── backend/
+│   └── migrations/
+│       └── 001_initial_schema.sql  ← Schema SQL final (re-dump từ DB khi squash)
 │
 ├── packages/
 │   ├── types/                   ← Shared TypeScript interfaces
@@ -531,7 +538,8 @@ inventory.qty_reserved -= quotation_line.quantity
 │   ├── Business_Workflow_v3.docx
 │   └── warehouse_v2.dbml
 │
-└── CLAUDE.md
+├── CLAUDE.md
+└── README.md
 ```
 
 ---
@@ -607,7 +615,11 @@ inventory.qty_reserved -= quotation_line.quantity
 - Shared types trong `packages/types` — import qua `@wms/types`, không duplicate interface
 - Serial chọn trực tiếp trong request body lúc Complete (không qua bảng staged riêng); `serial_numbers.delivery_line_id` = audit (sau Complete)
 - `stocktake_lines.difference` là generated column PostgreSQL — không update thủ công
-- Migration dùng Knex migration (không chạy file SQL thủ công trong production)
+- Migration: hiện tại chỉ có **1 file duy nhất** (`20260618000000_initial_schema.ts`) load
+  `backend/migrations/001_initial_schema.sql`. Khi cần thêm schema mới → tạo file migration
+  .ts mới (timestamp mới) như bình thường; khi muốn squash → re-dump DB bằng `pg_dump
+  --schema-only` rồi ghi đè `001_initial_schema.sql`, xoá file .ts cũ, reset `knex_migrations`
+  về 1 row. Không chạy file SQL thủ công trong production.
 - JWT payload chỉ chứa `{ sub: userId, roleId }` — permission check query DB mỗi request qua middleware
 
 ---
@@ -615,11 +627,23 @@ inventory.qty_reserved -= quotation_line.quantity
 ## 21. Môi trường phát triển
 
 **PostgreSQL chạy trong Docker** — không cài trực tiếp trên host, không có `psql`/`pg_dump` trong PATH.
-Container: `wms-postgres` (image `postgres:16-alpine`), port `5432:5432`, password `postgres`.
+Container: `wms-postgres` (image `postgres:16-alpine`), port host `5435` → container `5432`, password `postgres`.
 
-**Export database:**
+**Ports:**
+- Backend API: **3002** (tránh conflict với SSH local port forward trên 3000)
+- Frontend Vite dev: **5173** (proxy `/api` → `http://localhost:3002`)
+- PostgreSQL: **5432**
+
+**Export database (schema + data):**
 ```bash
 docker exec wms-postgres pg_dump -U postgres wms_db > wms_db_export_$(date +%Y%m%d).sql
+```
+
+**Export schema-only (để cập nhật 001_initial_schema.sql khi squash migration):**
+```bash
+docker exec wms-postgres pg_dump -U postgres --schema-only --no-owner --no-acl \
+  --exclude-table=knex_migrations --exclude-table=knex_migrations_lock \
+  wms_db > backend/migrations/001_initial_schema.sql
 ```
 
 **Restore trên máy mới (Docker):**
@@ -637,11 +661,24 @@ docker exec wms-postgres psql -U postgres wms_db -f /tmp/dump.sql
 ```
 
 **Hai database:**
-- `wms_db` — production / development thật
+- `wms_db` — development thật (có data thật)
 - `wms_test_db` — chạy test suite (`pnpm test` trong `apps/backend`)
 
 Khi thêm migration mới phải apply cho **cả hai**:
 ```bash
+# Chạy migrate (áp dụng file .ts mới nhất)
+cd apps/backend && pnpm migrate
+
+# Hoặc apply thủ công ALTER TABLE cho cả hai DB:
 docker exec wms-postgres psql -U postgres wms_db   -c "ALTER TABLE ..."
 docker exec wms-postgres psql -U postgres wms_test_db -c "ALTER TABLE ..."
+```
+
+**Reset knex_migrations khi squash:**
+```bash
+# Sau khi squash tất cả migration về initial_schema.ts:
+docker exec wms-postgres psql -U postgres wms_db \
+  -c "DELETE FROM knex_migrations WHERE name != '20260618000000_initial_schema.ts';"
+docker exec wms-postgres psql -U postgres wms_test_db \
+  -c "DELETE FROM knex_migrations WHERE name != '20260618000000_initial_schema.ts';"
 ```
