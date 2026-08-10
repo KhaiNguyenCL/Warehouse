@@ -3,7 +3,7 @@ import {
   Users, Tags, ShoppingBag, Boxes, Warehouse, ClipboardList,
   PackageCheck, FileText, PackageOpen, ArrowLeftRight, Database,
   ClipboardCheck, BarChart3, Shield, UserCog, Settings, Layers,
-  GitBranch, FormInput, LogOut, ChevronDown,
+  GitBranch, FormInput, LogOut,
 } from 'lucide-react'
 import {
   Sidebar, SidebarContent, SidebarFooter, SidebarGroup,
@@ -114,36 +114,17 @@ export default function AppLayout() {
         <SidebarFooter>
           <SidebarMenu>
             <SidebarMenuItem>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <SidebarMenuButton size="lg" className="cursor-pointer">
-                    <Avatar className="h-7 w-7 shrink-0">
-                      <AvatarFallback className="bg-primary/10 text-primary text-xs font-bold">
-                        {initials}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex min-w-0 flex-col">
-                      <span className="truncate text-sm font-semibold">{user?.full_name}</span>
-                      <span className="truncate text-xs text-muted-foreground">{user?.role}</span>
-                    </div>
-                    <ChevronDown className="ml-auto h-4 w-4 text-muted-foreground" />
-                  </SidebarMenuButton>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent side="top" align="start" className="w-56">
-                  <div className="px-2 py-1.5">
-                    <p className="text-sm font-semibold">{user?.full_name}</p>
-                    <p className="text-xs text-muted-foreground">{user?.role}</p>
-                  </div>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    className="text-destructive focus:text-destructive cursor-pointer"
-                    onClick={() => { logout(); navigate('/login') }}
-                  >
-                    <LogOut className="mr-2 h-4 w-4" />
-                    Đăng xuất
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <SidebarMenuButton size="lg" className="cursor-default">
+                <Avatar className="h-7 w-7 shrink-0">
+                  <AvatarFallback className="bg-primary/10 text-primary text-xs font-bold">
+                    {initials}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex min-w-0 flex-col">
+                  <span className="truncate text-sm font-semibold">{user?.full_name}</span>
+                  <span className="truncate text-xs text-muted-foreground">{user?.role}</span>
+                </div>
+              </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
         </SidebarFooter>
@@ -160,6 +141,34 @@ export default function AppLayout() {
           <span className="text-sm text-muted-foreground">
             {NAV.flatMap(s => s.items).find(i => isActive(i.to))?.label ?? 'WMS'}
           </span>
+          <div className="ml-auto">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-accent transition-colors outline-none">
+                  <Avatar className="h-7 w-7 shrink-0">
+                    <AvatarFallback className="bg-primary/10 text-primary text-xs font-bold">
+                      {initials}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="font-medium text-foreground">{user?.full_name}</span>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent side="bottom" align="end" className="w-48">
+                <div className="px-2 py-1.5">
+                  <p className="text-sm font-semibold">{user?.full_name}</p>
+                  <p className="text-xs text-muted-foreground">{user?.role}</p>
+                </div>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="text-destructive focus:text-destructive cursor-pointer"
+                  onClick={() => { logout(); navigate('/login') }}
+                >
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Đăng xuất
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </header>
 
         {/* Page content */}
