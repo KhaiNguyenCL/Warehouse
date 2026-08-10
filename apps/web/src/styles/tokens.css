@@ -4,9 +4,70 @@
    Mọi component tự viết (không phải antd) phải dùng var() từ file này.
    ───────────────────────────────────────────────────────── */
 
+/* ── Layout root — ngăn body scroll, sidebar cố định ── */
+html, body, #root {
+  height: 100%;
+  overflow: hidden;
+}
+
+/* AntD Sider bọc children trong .ant-layout-sider-children —
+   ép flex column vào đó để logo/nav/user stack đúng chiều cao */
+.ant-layout-sider-children {
+  display: flex !important;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* Row action buttons */
+.row-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  justify-content: flex-end;
+}
+.row-actions .ant-btn {
+  color: var(--text-2) !important;
+  border: 1px solid var(--border) !important;
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
+}
+.row-actions .ant-btn:hover {
+  color: var(--accent) !important;
+  border-color: var(--accent) !important;
+  background: var(--accent-bg) !important;
+}
+.row-actions .ant-btn-dangerous:hover {
+  color: #ef4444 !important;
+  border-color: #fca5a5 !important;
+  background: #fee2e2 !important;
+}
+
+/* ── Table header ───────────────────────────────────────── */
+/* Background xám để phân biệt header với data rows */
+.ant-table-thead > tr > th,
+.ant-table-thead > tr > td {
+  background: #e2e8f0 !important;
+  font-size: var(--font-sm) !important;
+  font-weight: 600 !important;
+  color: var(--text-2) !important;
+  white-space: nowrap;
+}
+
+/* Sort icon trước label: đảo ngược flex order, cluster về bên trái */
+.ant-table-column-sorters {
+  flex-direction: row-reverse !important;
+  justify-content: flex-end !important;
+  gap: 4px;
+}
+
+/* Bỏ margin mặc định của AntD giữa label và sorter icon */
+.ant-table-column-sorter {
+  margin-inline-start: 0 !important;
+}
+
 :root {
   /* ── Backgrounds ── */
-  --bg-page:    #f1f5f9;   /* nền trang */
+  --bg-page:    #f5f7fa;   /* nền trang */
   --bg-card:    #ffffff;   /* nền card / table / modal */
   --bg-subtle:  #f8fafc;   /* nền thead, footer, row hover nhạt */
   --bg-hover:   #f1f5f9;   /* hover state của row / item */
@@ -17,7 +78,7 @@
 
   /* ── Text ── */
   --text-1:     #0f172a;   /* primary text */
-  --text-2:     #475569;   /* secondary text */
+  --text-2:     #334155;   /* secondary text */
   --text-3:     #94a3b8;   /* placeholder / caption / label */
 
   /* ── Brand accent — DNS sky blue ── */

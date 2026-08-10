@@ -181,6 +181,7 @@ describe('Report', () => {
           company_id: companyId,
           warehouse_id: warehouseId,
           valid_days: 3,
+          quote_date: new Date().toISOString().slice(0, 10),
           sections: [{ name: 'A', line_items: [{ description: 'Phí', quantity: 1, unit_price: 1000 }] }],
         },
       })

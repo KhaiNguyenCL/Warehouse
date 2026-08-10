@@ -15,12 +15,17 @@ export const createStocktakeSchema = {
   },
 }
 
+export const STOCKTAKE_SORTABLE = ['code', 'status', 'started_at', 'created_at'] as const
+
 export const listStocktakeSchema = {
   querystring: {
     type: 'object',
     properties: {
       status:       { type: 'string', enum: STOCKTAKE_STATUSES },
       warehouse_id: { type: 'string', format: 'uuid' },
+      search:       { type: 'string' },
+      sort_by:      { type: 'string', enum: STOCKTAKE_SORTABLE },
+      sort_order:   { type: 'string', enum: ['asc', 'desc'] },
       page:         { type: 'integer', minimum: 1, default: 1 },
       limit:        { type: 'integer', minimum: 1, maximum: 100, default: 20 },
     },
@@ -65,6 +70,9 @@ export interface CreateStocktakeBody {
 export interface ListStocktakeQuery {
   status?: StocktakeStatus
   warehouse_id?: string
+  search?: string
+  sort_by?: string
+  sort_order?: 'asc' | 'desc'
   page?: number
   limit?: number
 }

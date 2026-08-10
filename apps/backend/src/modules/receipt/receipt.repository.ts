@@ -8,11 +8,15 @@ export class ReceiptRepository {
 
   // Lấy danh sách receipt có phân trang + filter — dùng cho trang list trên web.
   async findAll(query: ListReceiptQuery) {
-    const { status, import_type, warehouse_id, page = 1, limit = 20 } = query
-    const offset = (page - 1) * limit   // công thức phân trang chuẩn: trang 1 = offset 0, trang 2 = offset limit,...
+    const { status, import_type, warehouse_id, search, sort_by, sort_order, page = 1, limit = 20 } = query
+    const offset = (page - 1) * limit
 
-    // leftJoin (không phải join thường) vì company_id có thể NULL (ví dụ import_type = 'adjustment'
-    // không cần NCC) — nếu dùng join thường, receipt không có company sẽ BỊ LOẠI khỏi kết quả.
+    const SORTABLE: Record<string, string> = {
+      code: 'r.code', status: 'r.status', created_at: 'r.created_at',
+      import_type: 'r.import_type', company_name: 'c.name',
+    }
+    const sortDir = sort_order === 'asc' ? 'asc' : 'desc'
+
     const base = this.db('receipts as r')
       .leftJoin('companies as c', 'c.id', 'r.company_id')
       .leftJoin('warehouses as w', 'w.id', 'r.warehouse_id')
@@ -20,24 +24,18 @@ export class ReceiptRepository {
       .select(
         'r.id', 'r.code', 'r.import_type', 'r.status',
         'r.created_at', 'r.completed_at',
-        'c.name as company_name',     // alias "as" để tránh trùng tên cột name giữa các bảng
+        'c.name as company_name',
         'w.name as warehouse_name',
         'u.full_name as created_by_name',
       )
 
-    // Filter động — chỉ thêm where nếu client có truyền tham số đó
     if (status) base.where('r.status', status)
     if (import_type) base.where('r.import_type', import_type)
     if (warehouse_id) base.where('r.warehouse_id', warehouse_id)
+    if (search) base.where((qb) => qb.whereILike('r.code', `%${search}%`).orWhereILike('c.name', `%${search}%`))
 
-    // .clone() bắt buộc phải có — base là 1 query builder CHƯA THỰC THI, nếu gọi tiếp
-    // .limit()/.count() trên CÙNG 1 base mà không clone, query thứ 2 sẽ bị "dính" thêm
-    // .limit() của query thứ nhất (Knex query builder là mutable).
     const [rows, countResult] = await Promise.all([
-      base.clone().orderBy('r.created_at', 'desc').limit(limit).offset(offset),
-      // .clearSelect() bắt buộc — base đã có .select(...) cột thường ở trên, nếu không xoá
-      // trước khi thêm count() thì Postgres lỗi "column must appear in GROUP BY" (trộn cột
-      // thường với hàm aggregate trong cùng 1 SELECT không GROUP BY).
+      base.clone().orderBy(SORTABLE[sort_by ?? ''] ?? 'r.created_at', sortDir).limit(limit).offset(offset),
       base.clone().clearSelect().count('r.id as count').first(),
     ])
 

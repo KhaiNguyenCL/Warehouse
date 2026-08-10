@@ -37,6 +37,9 @@ export const listTransferSchema = {
     properties: {
       status:        { type: 'string' },
       transfer_type: { type: 'string', enum: TRANSFER_TYPES },
+      search:        { type: 'string' },
+      sort_by:       { type: 'string', enum: ['code', 'status', 'created_at', 'transfer_type'] },
+      sort_order:    { type: 'string', enum: ['asc', 'desc'] },
       page:          { type: 'integer', minimum: 1, default: 1 },
       limit:         { type: 'integer', minimum: 1, maximum: 100, default: 20 },
     },
@@ -81,6 +84,9 @@ export interface CreateTransferBody {
 export interface ListTransferQuery {
   status?: string
   transfer_type?: TransferType
+  search?: string
+  sort_by?: string
+  sort_order?: 'asc' | 'desc'
   page?: number
   limit?: number
 }

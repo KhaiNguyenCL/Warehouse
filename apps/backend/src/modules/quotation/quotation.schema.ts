@@ -14,34 +14,6 @@ const lineItemProperties = {
   note:        { type: 'string' },
 }
 
-const lineItemSchema = {
-  type: 'object',
-  required: ['quantity', 'unit_price'],
-  properties: lineItemProperties,
-}
-
-const subSectionSchema = {
-  type: 'object',
-  required: ['name'],
-  properties: {
-    name:               { type: 'string', minLength: 1 },
-    product_id:         { type: 'string', format: 'uuid' },
-    sub_section_order:  { type: 'integer' },
-    line_items: { type: 'array', items: lineItemSchema },
-  },
-}
-
-const sectionSchema = {
-  type: 'object',
-  required: ['name'],
-  properties: {
-    name:          { type: 'string', minLength: 1 },
-    section_order: { type: 'integer' },
-    sub_sections:  { type: 'array', items: subSectionSchema },
-    line_items:    { type: 'array', items: lineItemSchema },
-  },
-}
-
 export const createQuotationSchema = {
   body: {
     type: 'object',
@@ -59,7 +31,27 @@ export const createQuotationSchema = {
       note:              { type: 'string' },
       discount:          { type: 'number', minimum: 0 },
       bitrix_deal_id:    { type: 'string' },
-      sections:          { type: 'array', minItems: 1, items: sectionSchema },
+      sections: {
+        type: 'array',
+        minItems: 1,
+        items: {
+          type: 'object',
+          required: ['name', 'line_items'],
+          properties: {
+            name:          { type: 'string', minLength: 1 },
+            section_order: { type: 'integer' },
+            line_items: {
+              type: 'array',
+              minItems: 1,
+              items: {
+                type: 'object',
+                required: ['quantity', 'unit_price'],
+                properties: lineItemProperties,
+              },
+            },
+          },
+        },
+      },
     },
   },
 }
@@ -80,7 +72,27 @@ export const updateQuotationSchema = {
       note:              { type: 'string' },
       discount:          { type: 'number', minimum: 0 },
       bitrix_deal_id:    { type: 'string' },
-      sections:          { type: 'array', minItems: 1, items: sectionSchema },
+      sections: {
+        type: 'array',
+        minItems: 1,
+        items: {
+          type: 'object',
+          required: ['name', 'line_items'],
+          properties: {
+            name:          { type: 'string', minLength: 1 },
+            section_order: { type: 'integer' },
+            line_items: {
+              type: 'array',
+              minItems: 1,
+              items: {
+                type: 'object',
+                required: ['quantity', 'unit_price'],
+                properties: lineItemProperties,
+              },
+            },
+          },
+        },
+      },
     },
   },
 }
@@ -92,6 +104,8 @@ export const listQuotationSchema = {
       status:     { type: 'string', enum: QUOTATION_STATUSES },
       company_id: { type: 'string', format: 'uuid' },
       search:     { type: 'string' },
+      sort_by:    { type: 'string', enum: ['code', 'created_at', 'expired_at', 'grand_total', 'company_name'] },
+      sort_order: { type: 'string', enum: ['asc', 'desc'] },
       page:       { type: 'integer', minimum: 1, default: 1 },
       limit:      { type: 'integer', minimum: 1, maximum: 100, default: 20 },
     },
@@ -114,18 +128,10 @@ export interface QuotationLineItemInput {
   note?: string
 }
 
-export interface QuotationSubSectionInput {
-  name: string
-  product_id?: string
-  sub_section_order?: number
-  line_items?: QuotationLineItemInput[]
-}
-
 export interface QuotationSectionInput {
   name: string
   section_order?: number
-  sub_sections?: QuotationSubSectionInput[]
-  line_items?: QuotationLineItemInput[]
+  line_items: QuotationLineItemInput[]
 }
 
 export interface CreateQuotationBody {
@@ -152,6 +158,8 @@ export interface ListQuotationQuery {
   status?: QuotationStatus
   company_id?: string
   search?: string
+  sort_by?: string
+  sort_order?: 'asc' | 'desc'
   page?: number
   limit?: number
 }

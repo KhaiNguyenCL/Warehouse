@@ -1,10 +1,11 @@
 // Cấu hình Vite — dev server + build cho web app.
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import tailwindcss from '@tailwindcss/vite'
 import path from 'path'
 
 export default defineConfig({
-  plugins: [react()],   // bật hỗ trợ JSX/Fast Refresh cho React
+  plugins: [tailwindcss(), react()],   // bật hỗ trợ JSX/Fast Refresh cho React
 
   // Vite (esbuild) không tự hiểu workspace alias @wms/types như TypeScript paths —
   // phải khai báo lại alias ở đây để import '@wms/types' resolve đúng vào source thật
@@ -13,6 +14,7 @@ export default defineConfig({
     alias: {
       '@wms/types': path.resolve(__dirname, '../../packages/types/src/index.ts'),
       '@wms/utils': path.resolve(__dirname, '../../packages/utils/src/index.ts'),
+      '@': path.resolve(__dirname, './src'),
     },
   },
 
@@ -27,11 +29,11 @@ export default defineConfig({
     // request cùng origin 5173, Vite âm thầm forward ra 3000 ở phía server).
     proxy: {
       '/api': {
-        target: 'http://localhost:3000',
+        target: 'http://localhost:3002',
         changeOrigin: true,
       },
       '/uploads': {
-        target: 'http://localhost:3000',
+        target: 'http://localhost:3002',
         changeOrigin: true,
       },
     },

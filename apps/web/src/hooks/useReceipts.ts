@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { message } from 'antd'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { api } from '../lib/api'
 import { useEntityModal } from './useEntityModal'
+import { useDebounce } from './useDebounce'
 import dayjs from 'dayjs'
 
 export function useReceipts() {
@@ -28,10 +29,26 @@ export function useReceipts() {
   }, [poIdFromQuery])
 
   const [page, setPage] = useState(1)
+  const [_searchInput, _setSearchInput] = useState('')
+  const [sortBy, setSortBy] = useState<string | null>(null)
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | null>(null)
+  const search = useDebounce(_searchInput)
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['receipts', page],
-    queryFn: async () => (await api.get('/receipts', { params: { page, limit: 20 } })).data,
+  const searchInput = _searchInput
+  function setSearchInput(v: string) { _setSearchInput(v); setPage(1) }
+  function setSort(field: string | null, order: 'asc' | 'desc' | null) {
+    setSortBy(field); setSortOrder(order); setPage(1)
+  }
+
+  const { data, isLoading, isFetching } = useQuery({
+    queryKey: ['receipts', page, search, sortBy, sortOrder],
+    placeholderData: keepPreviousData,
+    queryFn: async () => {
+      const params: Record<string, any> = { page, limit: 20 }
+      if (search.trim()) params.search = search.trim()
+      if (sortBy) { params.sort_by = sortBy; params.sort_order = sortOrder ?? 'asc' }
+      return (await api.get('/receipts', { params })).data
+    },
   })
 
   const { data: importTypes } = useQuery({
@@ -132,7 +149,9 @@ export function useReceipts() {
     poId, setPoId, poIdFromQuery,
     navigate,
     page, setPage,
-    data, isLoading,
+    searchInput, setSearchInput,
+    sortBy, sortOrder, setSort,
+    data, isLoading, isFetching,
     importTypes, warehouses, confirmedPOs,
     variantSearch, setVariantSearch, variantOptions,
     createMutation, createAndGoToDetail,

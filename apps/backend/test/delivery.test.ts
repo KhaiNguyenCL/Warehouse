@@ -440,7 +440,7 @@ describe('Delivery', () => {
       await authedInject({
         method: 'PATCH',
         url: `/api/v1/receipts/${receipt.id}/complete`,
-        payload: { lines: [{ line_id: receiptLineId, serials: ['BATCH-SN-1', 'BATCH-SN-2'] }] },
+        payload: { lines: [{ line_id: receiptLineId, serials: [{ serial_no: 'BATCH-SN-1' }, { serial_no: 'BATCH-SN-2' }] }] },
       })
       const lineBefore = await app.db('receipt_lines').where({ id: receiptLineId }).first()
       expect(lineBefore.qty_remaining).toBe(2)
@@ -534,7 +534,7 @@ describe('Delivery', () => {
       await authedInject({
         method: 'PATCH',
         url: `/api/v1/receipts/${receipt.id}/complete`,
-        payload: { lines: [{ line_id: receiptLineId, serials: ['ADJ-SN-1'] }] },
+        payload: { lines: [{ line_id: receiptLineId, serials: [{ serial_no: 'ADJ-SN-1' }] }] },
       })
 
       const [stocktake] = await app

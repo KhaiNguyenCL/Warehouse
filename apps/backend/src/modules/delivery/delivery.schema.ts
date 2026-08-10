@@ -61,6 +61,9 @@ export const listDeliverySchema = {
       status:       { type: 'string' },
       export_type:  { type: 'string' },
       warehouse_id: { type: 'string' },
+      search:       { type: 'string' },
+      sort_by:      { type: 'string', enum: ['code', 'status', 'created_at', 'export_type', 'company_name'] },
+      sort_order:   { type: 'string', enum: ['asc', 'desc'] },
       page:         { type: 'integer', minimum: 1, default: 1 },
       limit:        { type: 'integer', minimum: 1, maximum: 100, default: 20 },
     },
@@ -116,6 +119,9 @@ export interface ListDeliveryQuery {
   status?: string
   export_type?: string
   warehouse_id?: string
+  search?: string
+  sort_by?: string
+  sort_order?: 'asc' | 'desc'
   page?: number
   limit?: number
 }

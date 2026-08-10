@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { api } from '../lib/api'
 import { useDebounce } from './useDebounce'
 
@@ -15,8 +15,9 @@ export function useInventory() {
   function setSearchInput(v: string) { _setSearchInput(v); setPage(1) }
   function setWarehouseId(v: string | undefined) { _setWarehouseId(v); setPage(1) }
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isFetching } = useQuery({
     queryKey: ['inventory', 'by-variant', search, warehouseId, page],
+    placeholderData: keepPreviousData,
     queryFn: async () =>
       (await api.get('/inventory/by-variant', { params: { search: search || undefined, warehouse_id: warehouseId, page, limit: 20 } })).data,
     refetchInterval: 5000,
@@ -33,7 +34,7 @@ export function useInventory() {
     snSearch,
     warehouseId, setWarehouseId,
     page, setPage,
-    data, isLoading,
+    data, isLoading, isFetching,
     warehouses,
   }
 }

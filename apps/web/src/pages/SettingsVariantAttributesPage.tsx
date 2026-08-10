@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  Table, Form, Input, Select, Button, Popconfirm, Tag, Modal, message, Space, Switch
+  Table, Form, Input, Select, Button, Popconfirm, Tag, Modal, message, Space, Switch, Tooltip
 } from 'antd'
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import { api } from '../lib/api'
@@ -115,6 +115,7 @@ export default function SettingsVariantAttributesPage() {
           loading={isLoading}
           pagination={{ pageSize: 20, showSizeChanger: false, hideOnSinglePage: true }}
           size="small"
+          tableLayout="fixed"
           columns={[
             { title: 'Tên thuộc tính', dataIndex: 'name' },
             {
@@ -148,14 +149,23 @@ export default function SettingsVariantAttributesPage() {
             },
             {
               title: '',
-              width: 100,
+              width: 60,
               render: (_: any, r: AttrDef) => (
-                <Space>
-                  <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)} />
-                  <Popconfirm title="Xoá thuộc tính này?" onConfirm={() => handleDelete(r.id)} okText="Xoá" cancelText="Không">
-                    <Button size="small" danger icon={<DeleteOutlined />} />
-                  </Popconfirm>
-                </Space>
+                <div className="row-actions">
+                  <Tooltip title="Sửa">
+                    <Button type="text" size="small" icon={<EditOutlined />}
+                      style={{ color: 'var(--text-3)' }}
+                      onClick={(e) => { e.stopPropagation(); openEdit(r) }} />
+                  </Tooltip>
+                  <Tooltip title="Xoá">
+                    <Popconfirm title="Xoá thuộc tính này?" okText="Xoá" okButtonProps={{ danger: true }} cancelText="Huỷ"
+                      onConfirm={() => handleDelete(r.id)}>
+                      <Button type="text" size="small" icon={<DeleteOutlined />}
+                        style={{ color: 'var(--text-3)' }} danger
+                        onClick={(e) => e.stopPropagation()} />
+                    </Popconfirm>
+                  </Tooltip>
+                </div>
               ),
             },
           ]}

@@ -1,11 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../lib/api'
 import { useApiMutation } from './useApiMutation'
-import { useEntityModal } from './useEntityModal'
 
 export function useUsers() {
-  const { open, editing, form, openCreate, openEdit, close } = useEntityModal()
-
   const { data, isLoading } = useQuery({
     queryKey: ['settings', 'users'],
     queryFn: async () => (await api.get('/settings/users')).data,
@@ -19,18 +16,17 @@ export function useUsers() {
   const createMutation = useApiMutation((values: any) => api.post('/settings/users', values), {
     successMessage: 'Tạo user thành công',
     invalidateKey: ['settings', 'users'],
-    onSuccess: close,
   })
 
   const updateMutation = useApiMutation(
-    (values: any) => {
-      // password để trống = không đổi password — không gửi field rỗng lên API.
+    ({ id, ...values }: { id: string; [key: string]: any }) => {
+      // password để trống = không đổi password — không gửi field rỗng lên API
       const body = { ...values }
       if (!body.password) delete body.password
-      return api.patch(`/settings/users/${editing.id}`, body)
+      return api.patch(`/settings/users/${id}`, body)
     },
-    { successMessage: 'Cập nhật thành công', invalidateKey: ['settings', 'users'], onSuccess: close },
+    { successMessage: 'Cập nhật thành công', invalidateKey: ['settings', 'users'] },
   )
 
-  return { open, editing, form, openCreate, openEdit, close, data, isLoading, roles, createMutation, updateMutation }
+  return { data, isLoading, roles, createMutation, updateMutation }
 }

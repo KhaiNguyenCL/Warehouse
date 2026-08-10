@@ -10,8 +10,12 @@ export class StocktakeRepository {
   constructor(private db: Knex) {}
 
   async findAll(query: ListStocktakeQuery) {
-    const { status, warehouse_id, page = 1, limit = 20 } = query
+    const { status, warehouse_id, search, sort_by, sort_order, page = 1, limit = 20 } = query
     const offset = (page - 1) * limit
+
+    const SORTABLE: Record<string, string> = {
+      code: 's.code', status: 's.status', started_at: 's.started_at', created_at: 's.created_at',
+    }
 
     const base = this.db('stocktakes as s')
       .leftJoin('warehouses as w', 'w.id', 's.warehouse_id')
@@ -19,12 +23,16 @@ export class StocktakeRepository {
 
     if (status) base.where('s.status', status)
     if (warehouse_id) base.where('s.warehouse_id', warehouse_id)
+    if (search) base.where((b) => b.whereILike('s.code', `%${search}%`).orWhereILike('w.name', `%${search}%`))
+
+    const sortCol = (sort_by && SORTABLE[sort_by]) ? SORTABLE[sort_by] : 's.started_at'
+    const sortDir = sort_order ?? 'desc'
 
     const [data, countResult] = await Promise.all([
       base
         .clone()
         .select('s.*', 'w.name as warehouse_name', 'u.full_name as created_by_name')
-        .orderBy('s.started_at', 'desc')
+        .orderBy(sortCol, sortDir)
         .limit(limit)
         .offset(offset),
       base.clone().clearSelect().count('s.id as count').first(),

@@ -32,7 +32,7 @@ describe('Receipt', () => {
   }
 
   function genSerials(prefix: string, count: number) {
-    return Array.from({ length: count }, (_, i) => `${prefix}-${i + 1}`)
+    return Array.from({ length: count }, (_, i) => ({ serial_no: `${prefix}-${i + 1}` }))
   }
 
   it('luồng đầy đủ: tạo → complete (kèm serial) → cập nhật inventory + serial_numbers', async () => {
@@ -76,7 +76,7 @@ describe('Receipt', () => {
     expect(createdSerials).toHaveLength(10)
     expect(createdSerials.every((s) => s.status === 'active')).toBe(true)
     expect(createdSerials.every((s) => s.receipt_line_id === lineId)).toBe(true)
-    expect(createdSerials.map((s) => s.serial_no)).toEqual(serials.slice().sort())
+    expect(createdSerials.map((s) => s.serial_no)).toEqual(serials.map((s) => s.serial_no).sort())
 
     // storable → 1 dòng stock_movements RIÊNG cho từng serial (quantity=1, serial_id gắn
     // đúng SN đó), không phải 1 dòng tổng quantity=10 — để có lịch sử di chuyển theo từng SN.
@@ -112,7 +112,7 @@ describe('Receipt', () => {
       payload: { lines: [{ line_id: lineId, serials }] },
     })
 
-    const createdSerials = await app.db('serial_numbers').whereIn('serial_no', serials)
+    const createdSerials = await app.db('serial_numbers').whereIn('serial_no', serials.map((s) => s.serial_no))
     expect(createdSerials).toHaveLength(2)
     for (const s of createdSerials) {
       expect(s.manufacturer_warranty_end).not.toBeNull()
@@ -144,7 +144,7 @@ describe('Receipt', () => {
       payload: { lines: [{ line_id: lineId, serials }] },
     })
 
-    const created = await app.db('serial_numbers').where({ serial_no: serials[0] }).first()
+    const created = await app.db('serial_numbers').where({ serial_no: serials[0].serial_no }).first()
     expect(created.manufacturer_warranty_end).toBeNull()
   })
 
@@ -233,7 +233,7 @@ describe('Receipt', () => {
     const completeRes = await authedInject({
       method: 'PATCH',
       url: `/api/v1/receipts/${receipt.id}/complete`,
-      payload: { lines: [{ line_id: lineId, serials: ['SN-DUP', 'SN-DUP'] }] },
+      payload: { lines: [{ line_id: lineId, serials: [{ serial_no: 'SN-DUP' }, { serial_no: 'SN-DUP' }] }] },
     })
     expect(completeRes.statusCode).toBe(400)
   })
@@ -615,7 +615,7 @@ describe('Receipt', () => {
       expect(line.qty_remaining).toBe(3)
       expect(Number(line.cost_price)).toBe(75000)
 
-      const createdSerials = await app.db('serial_numbers').whereIn('serial_no', serials)
+      const createdSerials = await app.db('serial_numbers').whereIn('serial_no', serials.map((s) => s.serial_no))
       expect(createdSerials.every((s) => s.receipt_line_id === lineId)).toBe(true)
     })
   })

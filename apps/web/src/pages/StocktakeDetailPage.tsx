@@ -50,6 +50,7 @@ export default function StocktakeDetailPage() {
 
       <Table
         rowKey="id"
+        size="small"
         dataSource={hook.data.lines}
         pagination={false}
         columns={[

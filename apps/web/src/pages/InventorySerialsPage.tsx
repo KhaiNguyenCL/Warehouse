@@ -188,13 +188,15 @@ export default function InventorySerialsPage() {
       <TableCard>
         <Table
           rowKey="id"
+          size="small"
+          tableLayout="fixed"
           loading={isLoading}
           dataSource={data}
-          pagination={{ pageSize: 20, showSizeChanger: false, hideOnSinglePage: true, showTotal: (t) => `Tổng ${t}` }}
+          pagination={{ pageSize: 20, showSizeChanger: false, hideOnSinglePage: true, showTotal: (t, [from, to]) => `${from}–${to} / ${t}` }}
           locale={{ emptyText: 'Không có serial nào' }}
           onRow={(r) => ({ onClick: () => setSelected(r), style: { cursor: 'pointer' } })}
           columns={[
-            { title: 'STT', width: 52, align: 'center' as const, render: (_: any, __: any, i: number) => i + 1 },
+            { title: '#', width: 52, align: 'center' as const, render: (_: any, __: any, i: number) => i + 1 },
             { title: 'Serial No', dataIndex: 'serial_no', width: 200 },
             {
               title: 'Trạng thái',

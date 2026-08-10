@@ -3,7 +3,7 @@
 // quan, hiện message lỗi lấy từ response.error. Không bọc onSuccess logic riêng biệt
 // (vd đóng modal) ở đây — truyền qua onSuccess để mỗi trang tự quyết việc đó.
 import { useMutation, useQueryClient, QueryKey } from '@tanstack/react-query'
-import { message } from 'antd'
+import { toast } from 'sonner'
 
 // TVariables mặc định = void (không any) — để mutationFn 0 tham số (vd các action
 // submit/approve/confirm/cancel chỉ cần PATCH không kèm body) cho ra mutate() gọi không
@@ -25,10 +25,10 @@ export function useApiMutation<TVariables = void>(
   return useMutation({
     mutationFn,
     onSuccess: (data: any) => {
-      message.success(options.successMessage)
+      toast.success(options.successMessage)
       keys.forEach((key) => qc.invalidateQueries({ queryKey: key }))
       options.onSuccess?.(data)
     },
-    onError: (err: any) => message.error(err.response?.data?.error ?? 'Lỗi'),
+    onError: (err: any) => toast.error(err.response?.data?.error ?? 'Lỗi'),
   })
 }

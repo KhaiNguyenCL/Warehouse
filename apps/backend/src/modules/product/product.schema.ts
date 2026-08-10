@@ -94,6 +94,8 @@ export const listProductSchema = {
       category_id:  { type: 'string', format: 'uuid' },
       product_type: { type: 'string', enum: PRODUCT_TYPES },
       search:       { type: 'string' },
+      sort_by:      { type: 'string', enum: ['code', 'name', 'product_type', 'category_name', 'brand_name'] },
+      sort_order:   { type: 'string', enum: ['asc', 'desc'] },
       page:         { type: 'integer', minimum: 1, default: 1 },
       limit:        { type: 'integer', minimum: 1, maximum: 100, default: 20 },
     },
@@ -259,6 +261,8 @@ export interface ListProductQuery {
   category_id?: string
   product_type?: ProductType
   search?: string
+  sort_by?: string
+  sort_order?: 'asc' | 'desc'
   page?: number
   limit?: number
 }

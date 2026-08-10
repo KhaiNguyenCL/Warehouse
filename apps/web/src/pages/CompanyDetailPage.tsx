@@ -1,81 +1,49 @@
+import { useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Button, Input, Select, Popconfirm, Tag, Space, Skeleton, Tooltip } from 'antd'
-
-import { COUNTRIES } from '../constants/countries'
-import { ArrowLeftOutlined, EditOutlined, SaveOutlined, CloseOutlined, DeleteOutlined, LockFilled, UnlockOutlined } from '@ant-design/icons'
+import { Popconfirm } from 'antd'
+import { ArrowLeft, Trash2, Plus } from 'lucide-react'
 import { useCompany } from '../hooks/useCompany'
-import ContactsPanel from '../components/ContactsPanel'
+import ContactsPanel, { type ContactsPanelRef } from '../components/ContactsPanel'
 import SupplierProductsPanel from '../components/SupplierProductsPanel'
-import { PageHeader, InfoGrid, InfoField, CodeText } from '../components/ui'
+import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 
-function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
+function TypeBadge({ types }: { types: string[] }) {
   return (
-    <div
-      style={{
-        background: 'var(--bg-card)',
-        border: '1px solid var(--border)',
-        borderRadius: 'var(--r-lg)',
-        boxShadow: 'var(--shadow-sm)',
-        overflow: 'hidden',
-      }}
-    >
-      <div
-        style={{
-          padding: '12px 16px',
-          borderBottom: '1px solid var(--border)',
-          fontSize: 15,
-          fontWeight: 700,
-          color: 'var(--text-1)',
-        }}
-      >
-        {title}
-      </div>
-      <div style={{ padding: 16 }}>{children}</div>
+    <div className="flex flex-wrap gap-1.5">
+      {types?.map((t) => (
+        <span key={t} className={cn(
+          'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium',
+          t === 'customer'
+            ? 'bg-blue-50 text-blue-700 ring-1 ring-blue-200'
+            : 'bg-purple-50 text-purple-700 ring-1 ring-purple-200',
+        )}>
+          {t === 'customer' ? 'Khách hàng' : 'NCC'}
+        </span>
+      ))}
     </div>
   )
 }
 
-// Một ô trong lưới — hiện text khi view, hiện input khi edit
-function EditField({
-  label,
-  field,
-  editValues,
-  onChange,
-  full = false,
-  multiline = false,
-  inputProps = {},
-}: {
-  label: string
-  field: string
-  editValues: Record<string, any>
-  onChange: (field: string, value: any) => void
-  full?: boolean
-  multiline?: boolean
-  inputProps?: Record<string, any>
-}) {
+function SectionCard({
+  title, children, actions,
+}: { title: string; children: React.ReactNode; actions?: React.ReactNode }) {
   return (
-    <div style={full ? { gridColumn: '1 / -1' } : {}}>
-      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-2)', marginBottom: 4 }}>
-        {label}
+    <div className="overflow-hidden rounded-xl border border-border bg-background shadow-sm">
+      <div className="flex items-center justify-between border-b border-border px-4 py-3">
+        <h2 className="text-sm font-semibold text-foreground">{title}</h2>
+        {actions}
       </div>
-      {multiline ? (
-        <Input.TextArea
-          value={editValues[field] ?? ''}
-          onChange={(e) => onChange(field, e.target.value)}
-          rows={2}
-          size="small"
-          {...inputProps}
-          style={{ maxWidth: '50%', ...(inputProps.style ?? {}) }}
-        />
-      ) : (
-        <Input
-          value={editValues[field] ?? ''}
-          onChange={(e) => onChange(field, e.target.value)}
-          size="small"
-          {...inputProps}
-          style={{ maxWidth: '50%', ...(inputProps.style ?? {}) }}
-        />
-      )}
+      <div className="p-4">{children}</div>
+    </div>
+  )
+}
+
+function InfoRow({ label, value, full }: { label: string; value?: string | null; full?: boolean }) {
+  return (
+    <div className={full ? 'col-span-2' : ''}>
+      <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className="mt-1 text-sm text-foreground">{value || '—'}</div>
     </div>
   )
 }
@@ -85,164 +53,106 @@ export default function CompanyDetailPage() {
   const navigate = useNavigate()
   const hook = useCompany(id!)
   const { company, isLoading } = hook
-
-  function onFieldChange(field: string, value: any) {
-    hook.setEditValues((prev) => ({ ...prev, [field]: value }))
-  }
-
-  const typeTags = company?.types?.map((t: string) =>
-    t === 'customer'
-      ? <Tag key={t} color="blue"   style={{ margin: 0 }}>Khách hàng</Tag>
-      : <Tag key={t} color="purple" style={{ margin: 0 }}>NCC</Tag>
-  )
+  const contactsRef = useRef<ContactsPanelRef>(null)
 
   return (
-    <div style={{ padding: '10px 20px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+    <div className="flex flex-col gap-5 pb-10">
 
-      {/* ── Breadcrumb ── */}
+      {/* Breadcrumb */}
       <button
         onClick={() => navigate('/companies')}
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: 6,
-          fontSize: 13,
-          color: 'var(--text-2)',
-          background: 'none',
-          border: 'none',
-          cursor: 'pointer',
-          padding: 0,
-          width: 'fit-content',
-        }}
+        className="inline-flex w-fit items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
       >
-        <ArrowLeftOutlined style={{ fontSize: 11 }} />
+        <ArrowLeft className="h-3.5 w-3.5" />
         Đối tác
       </button>
 
-      {/* ── Header ── */}
+      {/* Header */}
       {isLoading ? (
-        <Skeleton active paragraph={{ rows: 1 }} />
+        <div className="h-8 w-64 animate-pulse rounded-md bg-muted" />
       ) : (
-        <PageHeader
-          title={
-            <span style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-              {company?.name}
-              <Space size={4}>{typeTags}</Space>
-            </span>
-          }
-          meta={company?.code ? <CodeText>{company.code}</CodeText> : undefined}
-          actions={
-            hook.editing ? (
-              <>
-                <Button
-                  type="primary"
-                  icon={<SaveOutlined />}
-                  disabled={!hook.isDirty}
-                  loading={hook.updateMutation.isPending}
-                  onClick={() => hook.updateMutation.mutate(hook.editValues)}
-                >
-                  Lưu
-                </Button>
-                <Button icon={<CloseOutlined />} onClick={hook.cancelEdit}>
-                  Huỷ
-                </Button>
-              </>
-            ) : (
-              <>
-                <Tooltip title={company?.sync_locked ? 'Đang khoá sync Bitrix — nhấn để mở khoá' : 'Mở khoá sync Bitrix'}>
-                  <Button
-                    icon={company?.sync_locked ? <LockFilled style={{ color: '#d97706' }} /> : <UnlockOutlined />}
-                    loading={hook.toggleLockMutation.isPending}
-                    onClick={() => hook.toggleLockMutation.mutate(undefined)}
-                  />
-                </Tooltip>
-                <Button icon={<EditOutlined />} onClick={hook.startEdit}>
-                  Sửa
-                </Button>
-                <Popconfirm
-                  title="Xoá công ty này?"
-                  description="Không thể khôi phục sau khi xoá."
-                  onConfirm={() => hook.deleteMutation.mutate(id!)}
-                  okText="Xoá"
-                  okButtonProps={{ danger: true }}
-                  cancelText="Huỷ"
-                >
-                  <Button danger icon={<DeleteOutlined />} loading={hook.deleteMutation.isPending}>
-                    Xoá
-                  </Button>
-                </Popconfirm>
-              </>
-            )
-          }
-        />
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-3 flex-wrap">
+              <h1 className="text-2xl font-semibold tracking-tight text-foreground">{company?.name}</h1>
+              <TypeBadge types={company?.types ?? []} />
+            </div>
+            {company?.code && (
+              <span className="inline-flex w-fit items-center rounded-md border border-border bg-muted/60 px-2 py-0.5 font-mono text-xs font-medium text-foreground">
+                {company.code}
+              </span>
+            )}
+          </div>
+
+          <Popconfirm
+            title="Xoá công ty này?"
+            description="Không thể khôi phục sau khi xoá."
+            onConfirm={() => hook.deleteMutation.mutate(id!)}
+            okText="Xoá"
+            okButtonProps={{ danger: true }}
+            cancelText="Huỷ"
+          >
+            <Button
+              variant="destructive"
+              size="sm"
+              className="gap-1.5 flex-shrink-0"
+              disabled={hook.deleteMutation.isPending}
+            >
+              <Trash2 className="h-4 w-4" />
+              Xoá
+            </Button>
+          </Popconfirm>
+        </div>
       )}
 
-      {/* ── Thông tin cơ bản ── */}
+      {/* Thông tin cơ bản */}
       <SectionCard title="Thông tin">
         {isLoading ? (
-          <Skeleton active paragraph={{ rows: 3 }} />
-        ) : hook.editing ? (
-          <InfoGrid>
-            <EditField label="Tên công ty" field="name"         editValues={hook.editValues} onChange={onFieldChange} />
-            <EditField label="Mã"          field="code"         editValues={hook.editValues} onChange={onFieldChange} />
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-2)', marginBottom: 4 }}>Loại</div>
-              <Select
-                mode="multiple"
-                size="small"
-                style={{ width: '100%', maxWidth: '50%' }}
-                value={hook.editValues.types ?? []}
-                onChange={(v) => onFieldChange('types', v)}
-                options={[
-                  { value: 'customer', label: 'Khách hàng' },
-                  { value: 'supplier', label: 'NCC (Nhà cung cấp)' },
-                ]}
-              />
-            </div>
-            <EditField label="Số điện thoại" field="phone"    editValues={hook.editValues} onChange={onFieldChange} />
-            <EditField label="Email"          field="email"    editValues={hook.editValues} onChange={onFieldChange} />
-            <EditField label="Mã số thuế"     field="tax_code" editValues={hook.editValues} onChange={onFieldChange} />
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-2)', marginBottom: 4 }}>Quốc gia</div>
-              <Select
-                size="small"
-                showSearch
-                optionFilterProp="label"
-                style={{ maxWidth: '50%' }}
-                value={hook.editValues.country ?? undefined}
-                onChange={(v) => onFieldChange('country', v)}
-                options={COUNTRIES}
-              />
-            </div>
-            <EditField label="Số tài khoản"   field="bank_account" editValues={hook.editValues} onChange={onFieldChange} />
-            <EditField label="Ngân hàng"       field="bank_name"    editValues={hook.editValues} onChange={onFieldChange} />
-            <EditField label="Địa chỉ" field="address" editValues={hook.editValues} onChange={onFieldChange} full />
-            <EditField label="Ghi chú" field="note"    editValues={hook.editValues} onChange={onFieldChange} full multiline />
-          </InfoGrid>
+          <div className="grid grid-cols-2 gap-4">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="space-y-1.5">
+                <div className="h-3 w-20 animate-pulse rounded bg-muted" />
+                <div className="h-4 w-36 animate-pulse rounded bg-muted" />
+              </div>
+            ))}
+          </div>
         ) : (
-          <InfoGrid>
-            <InfoField label="Số điện thoại" value={company?.phone} />
-            <InfoField label="Email"          value={company?.email} />
-            <InfoField label="Mã số thuế"     value={company?.tax_code} />
-            <InfoField label="Quốc gia"       value={company?.country} />
+          <div className="grid grid-cols-2 gap-x-12 gap-y-5">
+            <InfoRow label="Số điện thoại" value={company?.phone} />
+            <InfoRow label="Email"          value={company?.email} />
+            <InfoRow label="Mã số thuế"     value={company?.tax_code} />
+            <InfoRow label="Quốc gia"       value={company?.country} />
             {(company?.bank_account || company?.bank_name) && (
               <>
-                <InfoField label="Số tài khoản" value={company?.bank_account} />
-                <InfoField label="Ngân hàng"    value={company?.bank_name} />
+                <InfoRow label="Số tài khoản" value={company?.bank_account} />
+                <InfoRow label="Ngân hàng"    value={company?.bank_name} />
               </>
             )}
-            {company?.address && <InfoField label="Địa chỉ" value={company?.address} full />}
-            {company?.note    && <InfoField label="Ghi chú" value={company?.note}    full />}
-          </InfoGrid>
+            {company?.address && <InfoRow label="Địa chỉ" value={company.address} full />}
+            {company?.note    && <InfoRow label="Ghi chú" value={company.note}    full />}
+          </div>
         )}
       </SectionCard>
 
-      {/* ── Người liên hệ ── */}
-      <SectionCard title="Người liên hệ">
-        {id && <ContactsPanel companyId={id} />}
+      {/* Người liên hệ */}
+      <SectionCard
+        title="Người liên hệ"
+        actions={
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1.5"
+            onClick={() => contactsRef.current?.openCreate()}
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Thêm người liên hệ
+          </Button>
+        }
+      >
+        {id && <ContactsPanel ref={contactsRef} companyId={id} />}
       </SectionCard>
 
-      {/* ── Hàng hóa cung cấp (NCC only) ── */}
+      {/* Hàng hóa cung cấp (NCC only) */}
       {hook.isSupplier && (
         <SectionCard title="Hàng hóa cung cấp">
           {id && <SupplierProductsPanel companyId={id} />}

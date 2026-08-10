@@ -6,8 +6,13 @@ export class TransferRepository {
   constructor(private db: Knex) {}
 
   async findAll(query: ListTransferQuery) {
-    const { status, transfer_type, page = 1, limit = 20 } = query
+    const { status, transfer_type, search, sort_by, sort_order, page = 1, limit = 20 } = query
     const offset = (page - 1) * limit
+
+    const SORTABLE: Record<string, string> = {
+      code: 't.code', status: 't.status', created_at: 't.created_at', transfer_type: 't.transfer_type',
+    }
+    const sortDir = sort_order === 'asc' ? 'asc' : 'desc'
 
     const base = this.db('transfer_orders as t')
       .leftJoin('warehouses as wf', 'wf.id', 't.from_warehouse_id')
@@ -23,9 +28,10 @@ export class TransferRepository {
 
     if (status) base.where('t.status', status)
     if (transfer_type) base.where('t.transfer_type', transfer_type)
+    if (search) base.whereILike('t.code', `%${search}%`)
 
     const [rows, countResult] = await Promise.all([
-      base.clone().orderBy('t.created_at', 'desc').limit(limit).offset(offset),
+      base.clone().orderBy(SORTABLE[sort_by ?? ''] ?? 't.created_at', sortDir).limit(limit).offset(offset),
       base.clone().clearSelect().count('t.id as count').first(),
     ])
 

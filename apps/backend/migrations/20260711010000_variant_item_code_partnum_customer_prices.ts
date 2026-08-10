@@ -26,7 +26,7 @@ export async function up(knex: Knex) {
   `)
 
   // 5. Đặt sequence bắt đầu từ sau số lượng variant hiện có
-  await knex.raw("SELECT setval('variant_sku_seq', (SELECT COUNT(*) FROM variants), true)")
+  await knex.raw("SELECT setval('variant_sku_seq', GREATEST(1, (SELECT COUNT(*) FROM variants)), true)")
 
   // 6. Bảng giá cố định theo khách hàng
   await knex.schema.createTable('customer_prices', (t) => {

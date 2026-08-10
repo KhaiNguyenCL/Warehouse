@@ -77,8 +77,14 @@ export class ProductRepository {
   // ─── Products ──────────────────────────────────────────────────────────
 
   async findAllProducts(query: ListProductQuery) {
-    const { category_id, product_type, search, page = 1, limit = 20 } = query
+    const { category_id, product_type, search, sort_by, sort_order, page = 1, limit = 20 } = query
     const offset = (page - 1) * limit
+
+    const SORTABLE: Record<string, string> = {
+      code: 'p.code', name: 'p.name', product_type: 'p.product_type',
+      category_name: 'c.name', brand_name: 'b.name',
+    }
+    const sortDir = sort_order === 'asc' ? 'asc' : 'desc'
 
     const base = this.db('products as p')
       .leftJoin('categories as c', 'c.id', 'p.category_id')
@@ -95,11 +101,31 @@ export class ProductRepository {
     }
 
     const [rows, countResult] = await Promise.all([
-      base.clone().orderBy('p.created_at', 'desc').limit(limit).offset(offset),
+      base.clone().orderBy(SORTABLE[sort_by ?? ''] ?? 'p.created_at', sortDir).limit(limit).offset(offset),
       base.clone().clearSelect().count('p.id as count').first(),
     ])
 
-    return { data: rows, total: Number(countResult?.count ?? 0), page, limit }
+    const productIds = rows.map((r: any) => r.id)
+    const variants = productIds.length
+      ? await this.db('variants')
+          .whereIn('product_id', productIds)
+          .where('is_active', true)
+          .select('id', 'product_id', 'sku', 'item_code', 'name', 'unit', 'sale_price', 'warranty_months')
+          .orderBy('created_at')
+      : []
+
+    const variantsByProduct = new Map<string, any[]>()
+    for (const v of variants) {
+      if (!variantsByProduct.has(v.product_id)) variantsByProduct.set(v.product_id, [])
+      variantsByProduct.get(v.product_id)!.push({ ...v, _type: 'variant' })
+    }
+
+    const data = rows.map((p: any) => {
+      const children = variantsByProduct.get(p.id)
+      return { ...p, _type: 'product', ...(children?.length ? { children } : {}) }
+    })
+
+    return { data, total: Number(countResult?.count ?? 0), page, limit }
   }
 
   async findProductById(id: string) {
@@ -198,8 +224,8 @@ export class ProductRepository {
       .where('p.is_active', true)
       .select(
         'v.id', 'v.sku', 'v.item_code', 'v.name', 'v.unit',
-        'v.cost_price', 'v.sale_price', 'v.warranty_months', 'v.vat_percent',
-        'p.id as product_id', 'p.name as product_name', 'p.product_type',
+        'v.cost_price', 'v.sale_price', 'v.warranty_months',
+        'p.name as product_name', 'p.product_type',
       )
       .orderBy('v.sku')
       .limit(limit)

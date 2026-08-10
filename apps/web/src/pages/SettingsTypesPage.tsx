@@ -1,5 +1,5 @@
-import { Table, Form, Input, Select, Switch, Button, Popconfirm } from 'antd'
-import { PlusOutlined } from '@ant-design/icons'
+import { Table, Form, Input, Select, Switch, Button, Popconfirm, Tooltip } from 'antd'
+import { PlusOutlined, DeleteOutlined } from '@ant-design/icons'
 import { useImportTypes, useExportTypes } from '../hooks/useSettingsTypes'
 import { PageHeader } from '../components/ui/PageHeader'
 import { TableCard } from '../components/ui/TableCard'
@@ -42,12 +42,14 @@ function ImportTypesSection() {
       <TableCard>
         <Table
           rowKey="id"
+          size="small"
+          tableLayout="fixed"
           loading={hook.isLoading}
           dataSource={hook.data}
           pagination={{ pageSize: 20, showSizeChanger: false, hideOnSinglePage: true }}
           onRow={(record: any) => ({ onClick: () => hook.openEdit(record), style: { cursor: 'pointer' } })}
           columns={[
-            { title: 'STT', width: 52, align: 'center' as const, render: (_: any, __: any, i: number) => i + 1 },
+            { title: '#', width: 52, align: 'center' as const, render: (_: any, __: any, i: number) => i + 1 },
             { title: 'Mã', dataIndex: 'key', width: 140 },
             { title: 'Tên hiển thị', dataIndex: 'label' },
             { title: 'Cần đối tác', dataIndex: 'requires_company', width: 120 },
@@ -56,15 +58,22 @@ function ImportTypesSection() {
             { title: 'Hệ thống', dataIndex: 'is_system', width: 90, render: (v: boolean) => (v ? 'Có' : '') },
             {
               title: '',
-              width: 70,
+              width: 60,
               render: (_: any, r: any) =>
                 !r.is_system && (
-                  <Popconfirm
-                    title="Xoá loại nhập này?"
-                    onConfirm={(e) => { e?.stopPropagation(); hook.deleteMutation.mutate(r.id) }}
-                  >
-                    <Button size="small" danger onClick={(e) => e.stopPropagation()}>Xoá</Button>
-                  </Popconfirm>
+                  <div className="row-actions">
+                    <Tooltip title="Xoá">
+                      <Popconfirm
+                        title="Xoá loại nhập này?"
+                        okText="Xoá" okButtonProps={{ danger: true }} cancelText="Huỷ"
+                        onConfirm={(e) => { e?.stopPropagation(); hook.deleteMutation.mutate(r.id) }}
+                      >
+                        <Button type="text" size="small" icon={<DeleteOutlined />}
+                          style={{ color: 'var(--text-3)' }} danger
+                          onClick={(e) => e.stopPropagation()} />
+                      </Popconfirm>
+                    </Tooltip>
+                  </div>
                 ),
             },
           ]}
@@ -123,12 +132,14 @@ function ExportTypesSection() {
       <TableCard>
         <Table
           rowKey="id"
+          size="small"
+          tableLayout="fixed"
           loading={hook.isLoading}
           dataSource={hook.data}
           pagination={{ pageSize: 20, showSizeChanger: false, hideOnSinglePage: true }}
           onRow={(record: any) => ({ onClick: () => hook.openEdit(record), style: { cursor: 'pointer' } })}
           columns={[
-            { title: 'STT', width: 52, align: 'center' as const, render: (_: any, __: any, i: number) => i + 1 },
+            { title: '#', width: 52, align: 'center' as const, render: (_: any, __: any, i: number) => i + 1 },
             { title: 'Key', dataIndex: 'key', width: 140 },
             { title: 'Label', dataIndex: 'label' },
             { title: 'Cần đối tác', dataIndex: 'requires_company', width: 120 },
@@ -137,15 +148,22 @@ function ExportTypesSection() {
             { title: 'Hệ thống', dataIndex: 'is_system', width: 90, render: (v: boolean) => (v ? 'Có' : '') },
             {
               title: '',
-              width: 70,
+              width: 60,
               render: (_: any, r: any) =>
                 !r.is_system && (
-                  <Popconfirm
-                    title="Xoá loại xuất này?"
-                    onConfirm={(e) => { e?.stopPropagation(); hook.deleteMutation.mutate(r.id) }}
-                  >
-                    <Button size="small" danger onClick={(e) => e.stopPropagation()}>Xoá</Button>
-                  </Popconfirm>
+                  <div className="row-actions">
+                    <Tooltip title="Xoá">
+                      <Popconfirm
+                        title="Xoá loại xuất này?"
+                        okText="Xoá" okButtonProps={{ danger: true }} cancelText="Huỷ"
+                        onConfirm={(e) => { e?.stopPropagation(); hook.deleteMutation.mutate(r.id) }}
+                      >
+                        <Button type="text" size="small" icon={<DeleteOutlined />}
+                          style={{ color: 'var(--text-3)' }} danger
+                          onClick={(e) => e.stopPropagation()} />
+                      </Popconfirm>
+                    </Tooltip>
+                  </div>
                 ),
             },
           ]}

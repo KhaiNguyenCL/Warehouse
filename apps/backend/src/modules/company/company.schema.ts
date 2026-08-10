@@ -59,10 +59,12 @@ export const listCompanySchema = {
   querystring: {
     type: 'object',
     properties: {
-      type:   { type: 'string', enum: COMPANY_TYPES },
-      search: { type: 'string' },
-      page:   { type: 'integer', minimum: 1, default: 1 },
-      limit:  { type: 'integer', minimum: 1, maximum: 100, default: 20 },
+      type:       { type: 'string', enum: COMPANY_TYPES },
+      search:     { type: 'string' },
+      page:       { type: 'integer', minimum: 1, default: 1 },
+      limit:      { type: 'integer', minimum: 1, maximum: 100, default: 20 },
+      sort_by:    { type: 'string', enum: ['code', 'name', 'tax_code', 'created_at', 'type'] },
+      sort_order: { type: 'string', enum: ['asc', 'desc'] },
     },
   },
 }
@@ -126,6 +128,8 @@ export interface ListCompanyQuery {
   search?: string
   page?: number
   limit?: number
+  sort_by?: 'code' | 'name' | 'tax_code' | 'created_at' | 'type'
+  sort_order?: 'asc' | 'desc'
 }
 
 export interface CreateContactBody {

@@ -57,6 +57,7 @@ export default function ReceiptDetailPage() {
 
       <Table
         rowKey="id"
+        size="small"
         dataSource={hook.data.lines}
         pagination={false}
         columns={[

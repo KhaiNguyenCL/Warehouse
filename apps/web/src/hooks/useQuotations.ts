@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { useDebounce } from './useDebounce'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../lib/api'
@@ -10,14 +10,26 @@ export function useQuotations() {
   const [searchInput, _setSearchInput] = useState('')
   const [status, _setStatus] = useState<string | undefined>()
   const [page, setPage] = useState(1)
+  const [sortBy, setSortBy] = useState<string | null>(null)
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | null>(null)
   const search = useDebounce(searchInput)
 
   function setSearchInput(v: string) { _setSearchInput(v); setPage(1) }
   function setStatus(v: string | undefined) { _setStatus(v); setPage(1) }
+  function setSort(field: string | null, order: 'asc' | 'desc' | null) {
+    setSortBy(field); setSortOrder(order); setPage(1)
+  }
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['quotations', search, status, page],
-    queryFn: async () => (await api.get('/quotations', { params: { search: search || undefined, status, page, limit: 20 } })).data,
+  const { data, isLoading, isFetching } = useQuery({
+    queryKey: ['quotations', search, status, page, sortBy, sortOrder],
+    placeholderData: keepPreviousData,
+    queryFn: async () => {
+      const params: Record<string, any> = { page, limit: 20 }
+      if (search.trim()) params.search = search.trim()
+      if (status) params.status = status
+      if (sortBy) { params.sort_by = sortBy; params.sort_order = sortOrder ?? 'asc' }
+      return (await api.get('/quotations', { params })).data
+    },
   })
 
   return {
@@ -25,6 +37,7 @@ export function useQuotations() {
     searchInput, setSearchInput,
     status, setStatus,
     page, setPage,
-    data, isLoading,
+    sortBy, sortOrder, setSort,
+    data, isLoading, isFetching,
   }
 }

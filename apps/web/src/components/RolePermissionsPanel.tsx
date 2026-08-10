@@ -1,10 +1,10 @@
-// Checkbox ma trận permission cho 1 Role — group theo permissions.group. Render trong slot
-// `extra` của EntityFormModal sửa Role (ngoài <Form> chính, state riêng).
+// Checkbox ma trận permission cho 1 Role — group theo permissions.group.
+// Render bên trong DialogContent khi sửa Role (ngoài <Form> chính, state riêng).
 import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Checkbox, Button, Typography, Row, Col } from 'antd'
-import { api } from '../lib/api'
-import { useApiMutation } from '../hooks/useApiMutation'
+import { api } from '@/lib/api'
+import { useApiMutation } from '@/hooks/useApiMutation'
+import { Button } from '@/components/ui/button'
 
 interface Props {
   roleId: string
@@ -49,28 +49,48 @@ export default function RolePermissionsPanel({ roleId }: Props) {
 
   if (isLoading) return null
 
+  const groups = Object.entries(grouped)
+
   return (
-    <div style={{ marginTop: 24, borderTop: '1px solid #f0f0f0', paddingTop: 16 }}>
-      <Typography.Title level={5}>Phân quyền</Typography.Title>
+    <div className="mt-4 border-t border-border pt-4">
+      <p className="mb-3 text-sm font-semibold text-foreground">Phân quyền</p>
 
-      {Object.entries(grouped).map(([group, perms]) => (
-        <div key={group} style={{ marginBottom: 12 }}>
-          <Typography.Text strong>{group}</Typography.Text>
-          <Row>
-            {perms.map((p) => (
-              <Col span={8} key={p.id}>
-                <Checkbox checked={selected.has(p.key)} onChange={(e) => toggle(p.key, e.target.checked)}>
-                  {p.description ?? p.key}
-                </Checkbox>
-              </Col>
-            ))}
-          </Row>
-        </div>
-      ))}
+      <div className="space-y-0">
+        {groups.map(([group, perms], idx) => (
+          <div key={group}>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              {group}
+            </p>
+            <div className="grid grid-cols-3 gap-x-4 gap-y-2 pb-4">
+              {perms.map((p) => (
+                <label
+                  key={p.id}
+                  className="flex cursor-pointer items-center gap-2 text-sm"
+                >
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded border-border accent-primary"
+                    checked={selected.has(p.key)}
+                    onChange={(e) => toggle(p.key, e.target.checked)}
+                  />
+                  <span className="text-foreground">{p.description ?? p.key}</span>
+                </label>
+              ))}
+            </div>
+            {idx < groups.length - 1 && <div className="my-1 border-t border-border" />}
+          </div>
+        ))}
+      </div>
 
-      <Button type="primary" loading={saveMutation.isPending} onClick={() => saveMutation.mutate()}>
-        Lưu quyền
-      </Button>
+      <div className="mt-4">
+        <Button
+          size="sm"
+          disabled={saveMutation.isPending}
+          onClick={() => saveMutation.mutate()}
+        >
+          {saveMutation.isPending ? 'Đang lưu…' : 'Lưu quyền'}
+        </Button>
+      </div>
     </div>
   )
 }

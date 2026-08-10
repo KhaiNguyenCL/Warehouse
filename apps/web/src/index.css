@@ -1,93 +1,154 @@
-@import './styles/tokens.css';
+@import "tailwindcss";
+@import "shadcn/tailwind.css";
+@import "tw-animate-css";
+@import "@fontsource-variable/inter";
 
-/* Ngăn scroll trong dropdown lan lên page khi cuộn hết danh sách */
-.ant-select-dropdown,
-.ant-dropdown,
-.ant-picker-dropdown {
-  overscroll-behavior: contain;
+/* Map CSS custom properties → Tailwind design tokens */
+@theme inline {
+  --font-sans: 'Inter Variable', ui-sans-serif, sans-serif;
+
+  --color-background:              var(--background);
+  --color-foreground:              var(--foreground);
+  --color-card:                    var(--card);
+  --color-card-foreground:         var(--card-foreground);
+  --color-popover:                 var(--popover);
+  --color-popover-foreground:      var(--popover-foreground);
+  --color-primary:                 var(--primary);
+  --color-primary-foreground:      var(--primary-foreground);
+  --color-secondary:               var(--secondary);
+  --color-secondary-foreground:    var(--secondary-foreground);
+  --color-muted:                   var(--muted);
+  --color-muted-foreground:        var(--muted-foreground);
+  --color-accent:                  var(--accent);
+  --color-accent-foreground:       var(--accent-foreground);
+  --color-destructive:             var(--destructive);
+  --color-destructive-foreground:  var(--destructive-foreground);
+  --color-border:                  var(--border);
+  --color-input:                   var(--input);
+  --color-ring:                    var(--ring);
+  --color-chart-1:                 var(--chart-1);
+  --color-chart-2:                 var(--chart-2);
+  --color-chart-3:                 var(--chart-3);
+  --color-chart-4:                 var(--chart-4);
+  --color-chart-5:                 var(--chart-5);
+  --color-sidebar:                 var(--sidebar);
+  --color-sidebar-foreground:      var(--sidebar-foreground);
+  --color-sidebar-primary:         var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent:          var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border:          var(--sidebar-border);
+  --color-sidebar-ring:            var(--sidebar-ring);
+
+  --radius-sm:  calc(var(--radius) - 4px);
+  --radius-md:  calc(var(--radius) - 2px);
+  --radius-lg:  var(--radius);
+  --radius-xl:  calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-4xl: calc(var(--radius) + 20px);
 }
 
-/* antd Menu không tự ẩn title của Menu.ItemGroup khi inlineCollapsed=true (hạn chế đã
-   biết của antd, group + collapsed sidebar không tương thích sẵn) — ẩn bằng tay để
-   sidebar thu gọn chỉ còn icon, không bị vỡ layout vì chữ "Danh mục"/"Giao dịch"... */
-/* Scrollbar mảnh cho sidebar nav */
-.sidebar-nav::-webkit-scrollbar { width: 3px; }
-.sidebar-nav::-webkit-scrollbar-track { background: transparent; }
-.sidebar-nav::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
-.sidebar-nav::-webkit-scrollbar-thumb:hover { background: var(--border-md); }
+@layer base {
+  :root {
+    /* ── Core palette ────────────────────────────── */
+    --background:             oklch(1 0 0);
+    --foreground:             oklch(0.145 0.008 326);
 
+    --card:                   oklch(1 0 0);
+    --card-foreground:        oklch(0.145 0.008 326);
 
-/* EntityFormModal (xem component): cố định 3 field/hàng (yêu cầu trực tiếp — auto-fit theo
-   độ rộng modal trước đây cho 2 cột với modal mặc định 520px, vẫn bị dài). Field dạng
-   textarea (note/description...) và .form-row-full (Form.List, đoạn text dài...) luôn
-   chiếm nguyên 1 hàng vì không hợp để bị bóp hẹp theo cột. Viewport hẹp (mobile) giảm dần
-   xuống 2 rồi 1 cột qua media query — không phụ thuộc `width` của Modal vì antd tự giới hạn
-   modal theo viewport (max-width: calc(100vw - 16px)) nên cột vẫn co theo viewport thật. */
-/* Kẻ ô như table: nền xám làm "đường kẻ", mỗi field là 1 ô nền trắng cách nhau 1px —
-   tránh double-border ở cạnh chung giữa 2 ô (cách border-collapse thủ công cho CSS Grid).
-   align-items: stretch để mọi ô trong cùng 1 hàng cao bằng nhau, viền ô luôn thẳng hàng dù
-   field bên cạnh có label 1 hay 2 dòng. */
-.entity-form-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1px;
-  align-items: stretch;
-  background: var(--border);
-  border: 1px solid var(--border);
-}
-@media (max-width: 700px) {
-  .entity-form-grid {
-    grid-template-columns: repeat(2, 1fr);
+    --popover:                oklch(1 0 0);
+    --popover-foreground:     oklch(0.145 0.008 326);
+
+    --primary:                oklch(0.508 0.118 165.612);
+    --primary-foreground:     oklch(0.979 0.021 166.113);
+
+    --secondary:              oklch(0.967 0.001 286.375);
+    --secondary-foreground:   oklch(0.21 0.006 285.885);
+
+    --muted:                  oklch(0.96 0.003 325.6);
+    --muted-foreground:       oklch(0.542 0.034 322.5);
+
+    --accent:                 oklch(0.96 0.003 325.6);
+    --accent-foreground:      oklch(0.212 0.019 322.12);
+
+    --destructive:            oklch(0.577 0.245 27.325);
+    --destructive-foreground: oklch(0.985 0 0);
+
+    --border:                 oklch(0.922 0.005 325.62);
+    --input:                  oklch(0.922 0.005 325.62);
+    --ring:                   oklch(0.711 0.019 323.02);
+
+    --radius: 0.625rem;
+
+    /* ── Sidebar ─────────────────────────────────── */
+    --sidebar:                        oklch(0.985 0 0);
+    --sidebar-foreground:             oklch(0.145 0.008 326);
+    --sidebar-primary:                oklch(0.596 0.145 163.225);
+    --sidebar-primary-foreground:     oklch(0.979 0.021 166.113);
+    --sidebar-accent:                 oklch(0.96 0.003 325.6);
+    --sidebar-accent-foreground:      oklch(0.212 0.019 322.12);
+    --sidebar-border:                 oklch(0.922 0.005 325.62);
+    --sidebar-ring:                   oklch(0.711 0.019 323.02);
+
+    /* ── Charts ──────────────────────────────────── */
+    --chart-1: oklch(0.855 0.138 181.071);
+    --chart-2: oklch(0.704 0.14 182.503);
+    --chart-3: oklch(0.6 0.118 184.704);
+    --chart-4: oklch(0.511 0.096 186.391);
+    --chart-5: oklch(0.437 0.078 188.216);
   }
-}
-@media (max-width: 480px) {
-  .entity-form-grid {
-    grid-template-columns: 1fr;
+
+  .dark {
+    --background:             oklch(0.145 0.008 326);
+    --foreground:             oklch(0.985 0 0);
+
+    --card:                   oklch(0.212 0.019 322.12);
+    --card-foreground:        oklch(0.985 0 0);
+
+    --popover:                oklch(0.212 0.019 322.12);
+    --popover-foreground:     oklch(0.985 0 0);
+
+    --primary:                oklch(0.432 0.095 166.913);
+    --primary-foreground:     oklch(0.979 0.021 166.113);
+
+    --secondary:              oklch(0.274 0.006 286.033);
+    --secondary-foreground:   oklch(0.985 0 0);
+
+    --muted:                  oklch(0.263 0.024 320.12);
+    --muted-foreground:       oklch(0.711 0.019 323.02);
+
+    --accent:                 oklch(0.263 0.024 320.12);
+    --accent-foreground:      oklch(0.985 0 0);
+
+    --destructive:            oklch(0.704 0.191 22.216);
+    --destructive-foreground: oklch(0.985 0 0);
+
+    --border:                 oklch(1 0 0 / 10%);
+    --input:                  oklch(1 0 0 / 15%);
+    --ring:                   oklch(0.542 0.034 322.5);
+
+    --sidebar:                        oklch(0.212 0.019 322.12);
+    --sidebar-foreground:             oklch(0.985 0 0);
+    --sidebar-primary:                oklch(0.696 0.17 162.48);
+    --sidebar-primary-foreground:     oklch(0.262 0.051 172.552);
+    --sidebar-accent:                 oklch(0.263 0.024 320.12);
+    --sidebar-accent-foreground:      oklch(0.985 0 0);
+    --sidebar-border:                 oklch(1 0 0 / 10%);
+    --sidebar-ring:                   oklch(0.542 0.034 322.5);
   }
-}
-.entity-form-grid > .ant-form-item,
-.entity-form-grid > .form-row-full {
-  background: var(--bg-card);
-  margin: 0;
-  padding: 14px 16px;
-}
-.entity-form-grid .ant-form-item:has(textarea),
-.entity-form-grid .form-row-full {
-  grid-column: 1 / -1;
-}
 
-/* Label dài bị xuống 2 dòng ở cột hẹp khiến input bên dưới lệch khỏi hàng so với các field
-   label 1 dòng cùng hàng (vì input nằm ngay sau label, label cao bao nhiêu input xuống bấy
-   nhiêu) — ép mọi label trong grid reserve sẵn chiều cao 2 dòng để input luôn bắt đầu cùng
-   1 mức, bất kể label 1 hay 2 dòng. */
-.entity-form-grid .ant-form-item-label {
-  min-height: 48px;
-  display: flex;
-  align-items: flex-end;
-}
+  * {
+    @apply border-border outline-ring/50;
+  }
 
-/* Select bị giãn đầy chiều rộng cột grid (có thể rất rộng khi modal lớn) — giới hạn lại,
-   chỉ áp trong entity-form-grid để không ảnh hưởng Select ở chỗ khác (vd POLineItem đã tự
-   set width riêng, hẹp hơn 280px nên rule này không đổi gì ở đó). */
-.entity-form-grid .ant-select-selector {
-  max-width: 280px;
-}
+  body {
+    @apply bg-background text-foreground;
+    font-size: 14px;
+  }
 
-/* Layout compact cho form không cần kẻ ô — 2 cột, không viền, spacing chuẩn. */
-.entity-form-compact {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  column-gap: 16px;
-}
-.entity-form-compact > .ant-form-item {
-  margin-bottom: 16px;
-}
-.entity-form-compact > .ant-form-item:has(textarea),
-.entity-form-compact > .form-row-full {
-  grid-column: 1 / -1;
-}
-@media (max-width: 480px) {
-  .entity-form-compact {
-    grid-template-columns: 1fr;
+  html, body, #root {
+    height: 100%;
+    overflow: hidden;
   }
 }

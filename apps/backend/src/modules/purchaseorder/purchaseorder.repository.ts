@@ -13,8 +13,13 @@ export class PurchaseOrderRepository {
   constructor(private db: Knex) {}
 
   async findAll(query: ListPurchaseOrderQuery) {
-    const { status, company_id, search, page = 1, limit = 20 } = query
+    const { status, company_id, search, sort_by, sort_order, page = 1, limit = 20 } = query
     const offset = (page - 1) * limit
+
+    const SORTABLE: Record<string, string> = {
+      code: 'po.code', status: 'po.status', created_at: 'po.created_at', company_name: 'c.name',
+    }
+    const sortDir = sort_order === 'asc' ? 'asc' : 'desc'
 
     const base = this.db('purchase_orders as po')
       .leftJoin('companies as c', 'c.id', 'po.company_id')
@@ -24,7 +29,7 @@ export class PurchaseOrderRepository {
 
     if (status) base.where('po.status', status)
     if (company_id) base.where('po.company_id', company_id)
-    if (search) base.whereILike('po.code', `%${search}%`)
+    if (search) base.where((qb) => qb.whereILike('po.code', `%${search}%`).orWhereILike('c.name', `%${search}%`))
 
     const [rows, countResult] = await Promise.all([
       base
@@ -40,7 +45,7 @@ export class PurchaseOrderRepository {
             WHERE pol.purchase_order_id = po.id
           ) as total_amount`),
         )
-        .orderBy('po.created_at', 'desc')
+        .orderBy(SORTABLE[sort_by ?? ''] ?? 'po.created_at', sortDir)
         .limit(limit)
         .offset(offset),
       base.clone().clearSelect().count('po.id as count').first(),

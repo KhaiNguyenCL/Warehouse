@@ -1,6 +1,6 @@
 import {
   Tabs, Table, Input, Select, InputNumber, Switch, Tag, Space,
-  Popconfirm, Button, Form, Modal,
+  Popconfirm, Button, Form, Modal, Tooltip,
 } from 'antd'
 import { ImeInput } from '../components/ImeInput'
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
@@ -32,7 +32,7 @@ function VariantAttributesTab() {
   const hook = useVariantAttributesTab()
 
   const columns = [
-    { title: 'STT', width: 52, align: 'center' as const, render: (_: any, __: any, i: number) => i + 1 },
+    { title: '#', width: 52, align: 'center' as const, render: (_: any, __: any, i: number) => i + 1 },
     { title: 'Tên thuộc tính', dataIndex: 'name' },
     {
       title: 'Loại',
@@ -73,14 +73,23 @@ function VariantAttributesTab() {
     },
     {
       title: '',
-      width: 80,
+      width: 60,
       render: (_: any, r: any) => (
-        <Space>
-          <Button size="small" icon={<EditOutlined />} onClick={() => hook.openEdit(r)}>Sửa</Button>
-          <Popconfirm title="Xoá thuộc tính này?" onConfirm={() => hook.handleDelete(r.id)} okText="Xoá" cancelText="Không">
-            <Button size="small" danger icon={<DeleteOutlined />}>Xoá</Button>
-          </Popconfirm>
-        </Space>
+        <div className="row-actions">
+          <Tooltip title="Sửa">
+            <Button type="text" size="small" icon={<EditOutlined />}
+              style={{ color: 'var(--text-3)' }}
+              onClick={() => hook.openEdit(r)} />
+          </Tooltip>
+          <Tooltip title="Xoá">
+            <Popconfirm title="Xoá thuộc tính này?" okText="Xoá" okButtonProps={{ danger: true }} cancelText="Huỷ"
+              onConfirm={() => hook.handleDelete(r.id)}>
+              <Button type="text" size="small" icon={<DeleteOutlined />}
+                style={{ color: 'var(--text-3)' }} danger
+                onClick={(e) => e.stopPropagation()} />
+            </Popconfirm>
+          </Tooltip>
+        </div>
       ),
     },
   ]
@@ -92,7 +101,7 @@ function VariantAttributesTab() {
           <Button type="primary" icon={<PlusOutlined />} onClick={() => hook.openCreate()}>Thêm thuộc tính</Button>
         }
       >
-        <Table rowKey="id" dataSource={hook.data} columns={columns} loading={hook.isLoading} pagination={{ pageSize: 20, showSizeChanger: false, hideOnSinglePage: true }} size="small" />
+        <Table rowKey="id" dataSource={hook.data} columns={columns} loading={hook.isLoading} pagination={{ pageSize: 20, showSizeChanger: false, hideOnSinglePage: true }} size="small" tableLayout="fixed" />
       </TableCard>
 
       <Modal
@@ -197,11 +206,12 @@ function CustomFieldsTab() {
           dataSource={hook.data}
           pagination={{ pageSize: 20, showSizeChanger: false, hideOnSinglePage: true }}
           size="small"
+          tableLayout="fixed"
           columns={[
-            { title: 'STT', width: 52, align: 'center' as const, render: (_: any, __: any, i: number) => i + 1 },
+            { title: '#', width: 52, align: 'center' as const, render: (_: any, __: any, i: number) => i + 1 },
             { title: 'Tên trường', dataIndex: 'field_name' },
             { title: 'Nhãn hiển thị', dataIndex: 'field_label' },
-            { title: 'Loại', dataIndex: 'field_type' },
+            { title: 'Loại', dataIndex: 'field_type', width: 100 },
             {
               title: 'Options',
               dataIndex: 'options',
@@ -216,14 +226,23 @@ function CustomFieldsTab() {
             },
             {
               title: '',
-              width: 120,
+              width: 60,
               render: (_: any, record: any) => (
-                <Space>
-                  <Button size="small" icon={<EditOutlined />} onClick={() => hook.openEditField(record)}>Sửa</Button>
-                  <Popconfirm title="Xoá field này?" onConfirm={() => hook.deleteMutation.mutate(record.id)}>
-                    <Button size="small" danger icon={<DeleteOutlined />}>Xoá</Button>
-                  </Popconfirm>
-                </Space>
+                <div className="row-actions">
+                  <Tooltip title="Sửa">
+                    <Button type="text" size="small" icon={<EditOutlined />}
+                      style={{ color: 'var(--text-3)' }}
+                      onClick={() => hook.openEditField(record)} />
+                  </Tooltip>
+                  <Tooltip title="Xoá">
+                    <Popconfirm title="Xoá field này?" okText="Xoá" okButtonProps={{ danger: true }} cancelText="Huỷ"
+                      onConfirm={() => hook.deleteMutation.mutate(record.id)}>
+                      <Button type="text" size="small" icon={<DeleteOutlined />}
+                        style={{ color: 'var(--text-3)' }} danger
+                        onClick={(e) => e.stopPropagation()} />
+                    </Popconfirm>
+                  </Tooltip>
+                </div>
               ),
             },
           ]}

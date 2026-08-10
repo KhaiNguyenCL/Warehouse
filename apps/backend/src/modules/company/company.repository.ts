@@ -14,8 +14,13 @@ export class CompanyRepository {
   // ─── Companies ─────────────────────────────────────────────────────────
 
   async findAll(query: ListCompanyQuery) {
-    const { type, search, page = 1, limit = 20 } = query
+    const { type, search, page = 1, limit = 20, sort_by, sort_order } = query
     const offset = (page - 1) * limit
+
+    const SORTABLE: Record<string, string> = {
+      code: 'c.code', name: 'c.name', tax_code: 'c.tax_code', created_at: 'c.created_at',
+    }
+    const sortDir = sort_order === 'asc' ? 'asc' : 'desc'
 
     const base = this.db('companies as c').where('c.is_active', true)
 
@@ -30,8 +35,17 @@ export class CompanyRepository {
       })
     }
 
+    const rowsQuery = base.clone().select('c.*').limit(limit).offset(offset)
+    if (sort_by === 'type') {
+      rowsQuery.orderByRaw(
+        `(SELECT MIN(ct.type) FROM company_types ct WHERE ct.company_id = c.id) ${sortDir}`,
+      )
+    } else {
+      rowsQuery.orderBy(SORTABLE[sort_by ?? ''] ?? 'c.created_at', sortDir)
+    }
+
     const [rows, countResult] = await Promise.all([
-      base.clone().select('c.*').orderBy('c.created_at', 'desc').limit(limit).offset(offset),
+      rowsQuery,
       base.clone().clearSelect().count('c.id as count').first(),
     ])
 

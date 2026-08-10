@@ -1,17 +1,32 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Table, Input, Select, Form, Button, Modal, Space, Tag, Checkbox, Spin, Tooltip, InputNumber, DatePicker, Switch } from 'antd'
-import { SearchOutlined, PlusOutlined, SyncOutlined } from '@ant-design/icons'
+import { Table, Input as AntInput, AutoComplete, Select, Form, Button as AntButton, Modal, Space, Tag, Checkbox, Spin, Tooltip, InputNumber, DatePicker, Switch as AntSwitch, Popconfirm } from 'antd'
+import { useQuery } from '@tanstack/react-query'
+import { RefreshCw, Plus, Phone, Mail, Search, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useCompanies } from '../hooks/useCompanies'
+import { useDebounce } from '../hooks/useDebounce'
+import { api } from '../lib/api'
 import { EntityFormModal } from '../components/EntityFormModal'
-import { PageHeader, TableCard, FilterChip, CodeText } from '../components/ui'
-
 import { COUNTRIES } from '../constants/countries'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { cn } from '@/lib/utils'
 
-// ── Type badge ──────────────────────────────────────────
-function TypeBadge({ type }: { type: 'customer' | 'supplier' }) {
-  return type === 'customer'
-    ? <Tag color="blue"   style={{ margin: 0 }}>Khách hàng</Tag>
-    : <Tag color="purple" style={{ margin: 0 }}>NCC</Tag>
+function TypeBadge({ types }: { types: string[] }) {
+  return (
+    <div className="flex flex-wrap gap-1">
+      {types?.map((t) => (
+        <span key={t} className={cn(
+          'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
+          t === 'customer'
+            ? 'bg-blue-50 text-blue-700 ring-1 ring-blue-200'
+            : 'bg-purple-50 text-purple-700 ring-1 ring-purple-200',
+        )}>
+          {t === 'customer' ? 'Khách hàng' : 'NCC'}
+        </span>
+      ))}
+    </div>
+  )
 }
 
 export default function CompaniesPage() {
@@ -19,104 +34,201 @@ export default function CompaniesPage() {
   const navigate = useNavigate()
   const total = hook.data?.total ?? 0
 
+  const [inputValue, setInputValue] = useState('')
+  const debouncedInput = useDebounce(inputValue, 200)
+
+  const { data: suggestData } = useQuery({
+    queryKey: ['companies-suggest', debouncedInput],
+    queryFn: async () =>
+      (await api.get('/companies', { params: { search: debouncedInput.trim(), limit: 8 } })).data,
+    enabled: debouncedInput.trim().length >= 1,
+    staleTime: 10_000,
+  })
+
+  const suggestOptions = (suggestData?.data ?? []).map((c: any) => ({
+    value: c.name,
+    companyId: c.id,
+    label: (
+      <div className="flex items-center justify-between gap-2">
+        <span className="font-medium truncate">{c.name}</span>
+        <span className="text-xs text-muted-foreground font-mono flex-shrink-0">{c.code}</span>
+      </div>
+    ),
+  }))
+
+  const rows: any[] = hook.data?.data ?? []
+  const pageSize = 20
+  const from = total === 0 ? 0 : (hook.page - 1) * pageSize + 1
+  const to = Math.min(hook.page * pageSize, total)
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+    <div className="flex flex-col gap-6">
 
-      {/* ── Header ── */}
-      <PageHeader
-        title="Đối tác"
-        meta={`${total.toLocaleString('vi-VN')} công ty`}
-        actions={
-          <>
-            <Button icon={<SyncOutlined />} onClick={hook.openSync}>
-              Đồng bộ Bitrix
-            </Button>
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => hook.openCreate()}>
-              Tạo mới
-            </Button>
-          </>
-        }
-      />
+      {/* Page header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Đối tác</h1>
+          <p className="mt-0.5 text-sm text-muted-foreground">{total.toLocaleString('vi-VN')} công ty</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={hook.openSync}>
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Đồng bộ Bitrix
+          </Button>
+          <Button onClick={() => hook.openCreate()}>
+            <Plus className="mr-2 h-4 w-4" />
+            Tạo mới
+          </Button>
+        </div>
+      </div>
 
-      {/* ── Table ── */}
-      <TableCard
-        toolbar={
-          <Input
-            prefix={<SearchOutlined style={{ color: 'var(--text-2)', fontSize: 13 }} />}
-            placeholder="Tìm tên, mã…"
-            allowClear
-            style={{ width: 220, height: 28, fontSize: 13, color: 'var(--text-1)' }}
-            value={hook.search}
-            onChange={(e) => hook.setSearch(e.target.value)}
-          />
-        }
-        actions={
-          <>
-            <FilterChip label="Tất cả"    active={hook.typeFilter === 'all'}      onClick={() => hook.setTypeFilter('all')} />
-            <FilterChip label="Khách hàng" active={hook.typeFilter === 'customer'} onClick={() => hook.setTypeFilter('customer')} />
-            <FilterChip label="NCC"        active={hook.typeFilter === 'supplier'} onClick={() => hook.setTypeFilter('supplier')} />
-          </>
-        }
-      >
-        <Table
-          rowKey="id"
-          loading={hook.isLoading}
-          dataSource={hook.data?.data}
-          pagination={{ current: hook.page, pageSize: 20, total: hook.data?.total, onChange: hook.setPage, showSizeChanger: false, showTotal: (t) => `Tổng ${t}` }}
-          size="small"
-          onRow={(record) => ({
-            onClick: () => navigate(`/companies/${record.id}`),
-            style: { cursor: 'pointer' },
-          })}
-          columns={[
-            { title: 'STT', width: 52, align: 'center' as const, render: (_: any, __: any, i: number) => i + 1 },
-            {
-              title: 'Mã',
-              dataIndex: 'code',
-              width: 120,
-              align: 'center' as const,
-              render: (v: string) => <CodeText>{v}</CodeText>,
-            },
-            {
-              title: 'Tên công ty',
-              dataIndex: 'name',
-              ellipsis: { showTitle: false },
-              render: (name: string) => (
-                <Tooltip title={name} placement="topLeft">
-                  <span style={{ fontWeight: 500, color: 'var(--text-1)' }}>{name}</span>
-                </Tooltip>
-              ),
-            },
-            {
-              title: 'Loại',
-              dataIndex: 'types',
-              width: 180,
-              align: 'center' as const,
-              render: (types: string[]) => (
-                <Space size={4}>
-                  {types?.map((t) => <TypeBadge key={t} type={t as any} />)}
-                </Space>
-              ),
-            },
-            {
-              title: 'SĐT',
-              dataIndex: 'phone',
-              width: 130,
-              align: 'center' as const,
-              render: (v: string) => <span style={{ color: 'var(--text-2)', fontSize: 13 }}>{v ?? '—'}</span>,
-            },
-            {
-              title: 'MST',
-              dataIndex: 'tax_code',
-              width: 120,
-              align: 'center' as const,
-              render: (v: string) => <span style={{ color: 'var(--text-2)', fontSize: 13 }}>{v ?? '—'}</span>,
-            },
-          ]}
-        />
-      </TableCard>
+      {/* Table card */}
+      <div className="overflow-hidden rounded-xl border border-border bg-background shadow-sm">
 
-      {/* ── Form tạo công ty ── */}
+        {/* Toolbar */}
+        <div className="flex items-center justify-between border-b border-border px-4 py-3">
+          <div className="flex items-center gap-2">
+            {/* AutoComplete search */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none z-10" />
+              <AutoComplete
+                options={suggestOptions}
+                value={inputValue}
+                onChange={(v) => { setInputValue(v); hook.setSearch(v) }}
+                onSelect={(_: string, option: any) => navigate(`/companies/${option.companyId}`)}
+                onClear={() => { setInputValue(''); hook.setSearch('') }}
+                filterOption={false}
+                style={{ width: 320 }}
+                allowClear
+              >
+                <AntInput
+                  placeholder="Tìm tên, mã, MST…"
+                  style={{ height: 36, paddingLeft: 36, fontSize: 14 }}
+                />
+              </AutoComplete>
+            </div>
+
+            {/* Type filters */}
+            {(['all', 'customer', 'supplier'] as const).map((t) => (
+              <button
+                key={t}
+                onClick={() => hook.setTypeFilter(t)}
+                className={cn(
+                  'rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
+                  hook.typeFilter === t
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                )}
+              >
+                {t === 'all' ? 'Tất cả' : t === 'customer' ? 'Khách hàng' : 'NCC'}
+              </button>
+            ))}
+          </div>
+          <span className="text-sm text-muted-foreground">{total.toLocaleString('vi-VN')} kết quả</span>
+        </div>
+
+        {/* Table */}
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-border bg-muted/40">
+              <th className="w-12 px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground">#</th>
+              <th className="w-36 px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Mã</th>
+              <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Tên công ty</th>
+              <th className="w-32 px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Loại</th>
+              <th className="w-44 px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Liên hệ</th>
+              <th className="w-32 px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">MST</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {hook.isFetching && rows.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="px-4 py-12 text-center text-sm text-muted-foreground">Đang tải…</td>
+              </tr>
+            ) : rows.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="px-4 py-12 text-center text-sm text-muted-foreground">
+                  {hook.search ? 'Không tìm thấy kết quả.' : 'Chưa có đối tác nào.'}
+                </td>
+              </tr>
+            ) : (
+              rows.map((row, i) => (
+                <tr
+                  key={row.id}
+                  onClick={() => navigate(`/companies/${row.id}`)}
+                  className="cursor-pointer transition-colors hover:bg-muted/40"
+                >
+                  <td className="px-4 py-3 text-center text-xs text-muted-foreground">{from + i}</td>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <span className="inline-flex items-center rounded-md border border-border bg-muted/60 px-2 py-0.5 font-mono text-xs font-medium text-foreground">
+                      {row.code}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="font-medium text-foreground leading-snug">{row.name}</div>
+                    {row.address && (
+                      <div className="mt-0.5 text-xs text-muted-foreground leading-snug line-clamp-1">{row.address}</div>
+                    )}
+                  </td>
+                  <td className="px-4 py-3"><TypeBadge types={row.types ?? []} /></td>
+                  <td className="px-4 py-3">
+                    {row.phone || row.email ? (
+                      <div className="flex flex-col gap-0.5 min-w-0">
+                        {row.phone && (
+                          <span className="flex items-center gap-1.5 text-xs text-foreground min-w-0">
+                            <Phone className="h-3 w-3 flex-shrink-0 text-muted-foreground" />
+                            <span className="truncate">{row.phone}</span>
+                          </span>
+                        )}
+                        {row.email && (
+                          <span className="flex items-center gap-1.5 text-xs text-foreground min-w-0">
+                            <Mail className="h-3 w-3 flex-shrink-0 text-muted-foreground" />
+                            <span className="truncate">{row.email}</span>
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 font-mono text-xs text-foreground">
+                    {row.tax_code || '—'}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+
+        {/* Pagination */}
+        {total > 0 && (
+          <div className="flex items-center justify-between border-t border-border px-4 py-2.5">
+            <span className="text-xs text-muted-foreground">{from}–{to} / {total} công ty</span>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost" size="sm"
+                disabled={hook.page <= 1}
+                onClick={() => hook.setPage(hook.page - 1)}
+                className="h-7 w-7 p-0"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <span className="min-w-[3rem] text-center text-xs text-muted-foreground">
+                {hook.page} / {Math.ceil(total / pageSize)}
+              </span>
+              <Button
+                variant="ghost" size="sm"
+                disabled={to >= total}
+                onClick={() => hook.setPage(hook.page + 1)}
+                className="h-7 w-7 p-0"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Create / Edit modal — AntD (complex form with custom fields) */}
       <EntityFormModal
         title={hook.editing ? `Sửa — ${hook.editing.name}` : 'Tạo công ty mới'}
         okText={hook.editing ? 'Lưu' : 'Tạo công ty'}
@@ -127,10 +239,10 @@ export default function CompaniesPage() {
         form={hook.form}
       >
         <Form.Item name="name" label="Tên công ty" rules={[{ required: true }]} className="form-row-full">
-          <Input />
+          <AntInput />
         </Form.Item>
         <Form.Item name="code" label="Mã" extra="Để trống → tự sinh CTY-XXXX">
-          <Input placeholder="CTY-0001" />
+          <AntInput placeholder="CTY-0001" />
         </Form.Item>
         <Form.Item name="types" label="Loại" rules={[{ required: true }]}>
           <Select mode="multiple" options={[
@@ -138,30 +250,16 @@ export default function CompaniesPage() {
             { value: 'supplier', label: 'NCC (Nhà cung cấp)' },
           ]} />
         </Form.Item>
-        <Form.Item name="phone" label="Số điện thoại">
-          <Input />
-        </Form.Item>
-        <Form.Item name="email" label="Email" rules={[{ type: 'email' }]}>
-          <Input />
-        </Form.Item>
-        <Form.Item name="tax_code" label="Mã số thuế">
-          <Input />
-        </Form.Item>
+        <Form.Item name="phone" label="Số điện thoại"><AntInput /></Form.Item>
+        <Form.Item name="email" label="Email" rules={[{ type: 'email' }]}><AntInput /></Form.Item>
+        <Form.Item name="tax_code" label="Mã số thuế"><AntInput /></Form.Item>
         <Form.Item name="country" label="Quốc gia" initialValue="VN">
           <Select showSearch optionFilterProp="label" options={COUNTRIES} />
         </Form.Item>
-        <Form.Item name="bank_account" label="Số tài khoản">
-          <Input />
-        </Form.Item>
-        <Form.Item name="bank_name" label="Ngân hàng">
-          <Input />
-        </Form.Item>
-        <Form.Item name="address" label="Địa chỉ" className="form-row-full">
-          <Input />
-        </Form.Item>
-        <Form.Item name="note" label="Ghi chú">
-          <Input.TextArea rows={2} />
-        </Form.Item>
+        <Form.Item name="bank_account" label="Số tài khoản"><AntInput /></Form.Item>
+        <Form.Item name="bank_name" label="Ngân hàng"><AntInput /></Form.Item>
+        <Form.Item name="address" label="Địa chỉ" className="form-row-full"><AntInput /></Form.Item>
+        <Form.Item name="note" label="Ghi chú"><AntInput.TextArea rows={2} /></Form.Item>
         {hook.customFieldDefs.map((cf: any) => (
           <Form.Item key={cf.id} name={['custom', cf.id]} label={cf.field_label} className="form-row-full">
             <CustomFieldInput cf={cf} />
@@ -169,21 +267,21 @@ export default function CompaniesPage() {
         ))}
       </EntityFormModal>
 
-      {/* ── Sync Bitrix modal ── */}
+      {/* Bitrix sync modal — AntD */}
       <SyncBitrixModal hook={hook} />
     </div>
   )
 }
 
 function CustomFieldInput({ cf, value, onChange }: { cf: any; value?: any; onChange?: (v: any) => void }) {
-  if (cf.field_type === 'boolean') return <Switch checked={!!value} onChange={onChange} />
+  if (cf.field_type === 'boolean') return <AntSwitch checked={!!value} onChange={onChange} />
   if (cf.field_type === 'number') return <InputNumber variant="filled" value={value} onChange={onChange} style={{ width: '100%' }} />
   if (cf.field_type === 'date') return <DatePicker variant="filled" value={value} onChange={onChange} style={{ width: '100%' }} />
   if (cf.field_type === 'select') return (
     <Select variant="filled" value={value} onChange={onChange}
       options={(cf.options ?? []).map((o: string) => ({ value: o, label: o }))} />
   )
-  return <Input variant="filled" value={value} onChange={(e) => onChange?.(e.target.value)} />
+  return <AntInput variant="filled" value={value} onChange={(e) => onChange?.(e.target.value)} />
 }
 
 const FIELD_LABEL: Record<string, string> = {
@@ -234,7 +332,6 @@ function SyncBitrixModal({ hook }: { hook: any }) {
         </div>
       ) : preview ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {/* ── summary ── */}
           <div style={{ display: 'flex', gap: 20, fontSize: 13, color: 'var(--text-2)' }}>
             <span>Tổng Bitrix: <strong style={{ color: 'var(--text-1)' }}>{preview.total_bitrix}</strong></span>
             <span>Mới: <strong style={{ color: '#15803d' }}>{newList.length}</strong></span>
@@ -245,7 +342,6 @@ function SyncBitrixModal({ hook }: { hook: any }) {
             )}
           </div>
 
-          {/* ── new companies ── */}
           {newList.length > 0 && (
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
@@ -254,44 +350,20 @@ function SyncBitrixModal({ hook }: { hook: any }) {
                   indeterminate={!allNewSel && newIds.some((id: string) => hook.selectedBxIds.includes(id))}
                   onChange={(e) => toggleAll(newIds, e.target.checked)}
                 />
-                <span style={{ fontWeight: 600, fontSize: 13 }}>
-                  Công ty mới ({newList.length})
-                </span>
+                <span style={{ fontWeight: 600, fontSize: 13 }}>Công ty mới ({newList.length})</span>
               </div>
-              <Table
-                size="small"
-                pagination={false}
-                rowKey="bitrix_id"
-                dataSource={newList}
+              <Table size="small" pagination={false} rowKey="bitrix_id" dataSource={newList}
                 columns={[
-                  {
-                    width: 36,
-                    render: (_: any, r: any) => (
-                      <Checkbox
-                        checked={hook.selectedBxIds.includes(r.bitrix_id)}
-                        onChange={() => toggleId(r.bitrix_id)}
-                      />
-                    ),
-                  },
+                  { width: 36, render: (_: any, r: any) => <Checkbox checked={hook.selectedBxIds.includes(r.bitrix_id)} onChange={() => toggleId(r.bitrix_id)} /> },
                   { title: 'Tên', dataIndex: 'name' },
                   { title: 'MST', dataIndex: 'tax_code', width: 120, render: (v: string) => v ?? '—' },
                   { title: 'SĐT', dataIndex: 'phone', width: 120, render: (v: string) => v ?? '—' },
-                  {
-                    title: 'Loại',
-                    dataIndex: 'types',
-                    width: 100,
-                    render: (t: string[]) => t?.map((x) => (
-                      <Tag key={x} color={x === 'customer' ? 'blue' : 'purple'} style={{ margin: 0 }}>
-                        {x === 'customer' ? 'KH' : 'NCC'}
-                      </Tag>
-                    )),
-                  },
+                  { title: 'Loại', dataIndex: 'types', width: 100, render: (t: string[]) => t?.map((x) => <Tag key={x} color={x === 'customer' ? 'blue' : 'purple'} style={{ margin: 0 }}>{x === 'customer' ? 'KH' : 'NCC'}</Tag>) },
                 ]}
               />
             </div>
           )}
 
-          {/* ── changed companies ── */}
           {changedList.length > 0 && (
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
@@ -300,26 +372,16 @@ function SyncBitrixModal({ hook }: { hook: any }) {
                   indeterminate={!allChangedSel && changedIds.some((id: string) => hook.selectedBxIds.includes(id))}
                   onChange={(e) => toggleAll(changedIds, e.target.checked)}
                 />
-                <span style={{ fontWeight: 600, fontSize: 13 }}>
-                  Có thay đổi ({changedList.length})
-                </span>
+                <span style={{ fontWeight: 600, fontSize: 13 }}>Có thay đổi ({changedList.length})</span>
               </div>
-              <Table
-                size="small"
-                pagination={false}
-                rowKey="bitrix_id"
-                dataSource={changedList}
+              <Table size="small" pagination={false} rowKey="bitrix_id" dataSource={changedList}
                 expandable={{
                   expandedRowRender: (r: any) => (
                     <div style={{ paddingLeft: 24 }}>
                       {r.changes.map((ch: any) => (
                         <div key={ch.field} style={{ display: 'flex', gap: 8, marginBottom: 4, fontSize: 13 }}>
-                          <span style={{ width: 90, color: 'var(--text-3)', flexShrink: 0 }}>
-                            {FIELD_LABEL[ch.field] ?? ch.field}
-                          </span>
-                          <span style={{ color: '#b91c1c', textDecoration: 'line-through' }}>
-                            {ch.old ?? '—'}
-                          </span>
+                          <span style={{ width: 90, color: 'var(--text-3)', flexShrink: 0 }}>{FIELD_LABEL[ch.field] ?? ch.field}</span>
+                          <span style={{ color: '#b91c1c', textDecoration: 'line-through' }}>{ch.old ?? '—'}</span>
                           <span style={{ color: 'var(--text-3)' }}>→</span>
                           <span style={{ color: '#15803d' }}>{ch.new ?? '—'}</span>
                         </div>
@@ -329,30 +391,10 @@ function SyncBitrixModal({ hook }: { hook: any }) {
                   rowExpandable: (r: any) => r.changes?.length > 0,
                 }}
                 columns={[
-                  {
-                    width: 36,
-                    render: (_: any, r: any) => (
-                      <Checkbox
-                        checked={hook.selectedBxIds.includes(r.bitrix_id)}
-                        onChange={() => toggleId(r.bitrix_id)}
-                      />
-                    ),
-                  },
+                  { width: 36, render: (_: any, r: any) => <Checkbox checked={hook.selectedBxIds.includes(r.bitrix_id)} onChange={() => toggleId(r.bitrix_id)} /> },
                   { title: 'Mã WMS', dataIndex: 'wms_code', width: 110 },
                   { title: 'Tên hiện tại', dataIndex: 'name' },
-                  {
-                    title: 'Thay đổi',
-                    dataIndex: 'changes',
-                    render: (changes: any[]) => (
-                      <Space size={4} wrap>
-                        {changes.map((c: any) => (
-                          <Tooltip key={c.field} title={`${c.old ?? '—'} → ${c.new ?? '—'}`}>
-                            <Tag style={{ cursor: 'default' }}>{FIELD_LABEL[c.field] ?? c.field}</Tag>
-                          </Tooltip>
-                        ))}
-                      </Space>
-                    ),
-                  },
+                  { title: 'Thay đổi', dataIndex: 'changes', render: (changes: any[]) => <Space size={4} wrap>{changes.map((c: any) => <Tooltip key={c.field} title={`${c.old ?? '—'} → ${c.new ?? '—'}`}><Tag style={{ cursor: 'default' }}>{FIELD_LABEL[c.field] ?? c.field}</Tag></Tooltip>)}</Space> },
                 ]}
               />
             </div>

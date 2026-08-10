@@ -33,6 +33,64 @@ import customFieldRoutes from './modules/customfield/customfield.routes'
 import reportRoutes from './modules/report/report.routes'
 import uploadRoutes from './modules/upload/upload.routes'
 
+const FIELD_VI: Record<string, string> = {
+  vat_percent:                   'VAT%',
+  unit_price:                    'Đơn giá',
+  cost_price:                    'Giá nhập',
+  sale_price:                    'Giá bán',
+  quantity:                      'Số lượng',
+  qty_actual:                    'Số lượng thực tế',
+  warranty_months:               'Bảo hành (tháng)',
+  manufacturer_warranty_months:  'BH hãng (tháng)',
+  customer_warranty_months:      'BH công ty (tháng)',
+  weight_kg:                     'Cân nặng (kg)',
+  reorder_point:                 'Điểm đặt lại',
+  discount:                      'Giảm giá',
+  valid_days:                    'Hiệu lực (ngày)',
+  lead_time_days:                'Lead time (ngày)',
+  supplier_price:                'Giá NCC',
+  price:                         'Giá',
+  limit:                         'Giới hạn',
+}
+
+function translateType(t: string | string[]): string {
+  const map: Record<string, string> = {
+    number: 'số', integer: 'số nguyên', string: 'chuỗi ký tự',
+    boolean: 'true/false', array: 'danh sách', object: 'đối tượng',
+  }
+  return (Array.isArray(t) ? t : [t]).filter(x => x !== 'null').map(x => map[x] ?? x).join(' hoặc ')
+}
+
+function translateAjvErrors(errors: any[]): string {
+  const msgs = errors.map(err => {
+    const segs = (err.instancePath ?? '').split('/').filter(Boolean)
+    const last = segs[segs.length - 1] ?? ''
+    const label = isNaN(Number(last))
+      ? (FIELD_VI[last] ?? last)
+      : (FIELD_VI[segs[segs.length - 2] ?? ''] ?? segs[segs.length - 2] ?? '')
+
+    switch (err.keyword) {
+      case 'maximum':    return `${label} không được vượt quá ${err.params.limit}`
+      case 'minimum':    return `${label} không được nhỏ hơn ${err.params.limit}`
+      case 'type': {
+        const t = translateType(err.params.type)
+        return t ? `${label} phải là ${t}` : `${label} không đúng kiểu dữ liệu`
+      }
+      case 'required': {
+        const f = FIELD_VI[err.params.missingProperty] ?? err.params.missingProperty
+        return `Thiếu trường bắt buộc: ${f}`
+      }
+      case 'pattern':    return `${label} không đúng định dạng`
+      case 'minLength':  return `${label} phải có ít nhất ${err.params.limit} ký tự`
+      case 'maxLength':  return `${label} không được quá ${err.params.limit} ký tự`
+      case 'enum':       return `${label} không hợp lệ`
+      case 'additionalProperties': return `Trường không được phép: ${err.params.additionalProperty}`
+      default:           return err.message ?? 'Dữ liệu không hợp lệ'
+    }
+  })
+  return msgs.filter(Boolean).join('; ')
+}
+
 export async function buildApp() {
   const app = Fastify({
     logger: {
@@ -63,7 +121,9 @@ export async function buildApp() {
   app.setErrorHandler((err: any, request, reply) => {
     const statusCode = err.statusCode ?? 500
     if (statusCode >= 500) request.log.error(err)
-    reply.code(statusCode).send({ error: err.message ?? 'Internal Server Error' })
+    // AJV validation errors (từ Fastify JSON Schema) mặc định ra tiếng Anh — dịch sang tiếng Việt
+    const message = err.validation ? translateAjvErrors(err.validation) : (err.message ?? 'Lỗi máy chủ')
+    reply.code(statusCode).send({ error: message })
   })
 
   // Health check — dùng để kiểm tra server còn sống (load balancer, docker healthcheck...)

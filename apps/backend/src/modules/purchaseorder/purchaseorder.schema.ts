@@ -91,6 +91,8 @@ export const listPurchaseOrderSchema = {
       status:     { type: 'string', enum: PO_STATUSES },
       company_id: { type: 'string', format: 'uuid' },
       search:     { type: 'string' },
+      sort_by:    { type: 'string', enum: ['code', 'status', 'created_at', 'company_name'] },
+      sort_order: { type: 'string', enum: ['asc', 'desc'] },
       page:       { type: 'integer', minimum: 1, default: 1 },
       limit:      { type: 'integer', minimum: 1, maximum: 100, default: 20 },
     },
@@ -127,6 +129,8 @@ export interface ListPurchaseOrderQuery {
   status?: PurchaseOrderStatus
   company_id?: string
   search?: string
+  sort_by?: string
+  sort_order?: 'asc' | 'desc'
   page?: number
   limit?: number
 }

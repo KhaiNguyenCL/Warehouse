@@ -27,8 +27,8 @@ function SectionCard({ title, extra, children }: { title: string; extra?: React.
 const labelStyle: React.CSSProperties = { fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px', color: 'var(--text-2)', marginBottom: 4 }
 const valueStyle: React.CSSProperties = { fontSize: 14, color: 'var(--text-1)', minHeight: 28, display: 'flex', alignItems: 'center' }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return <div><div style={labelStyle}>{label}</div><div style={valueStyle}>{children}</div></div>
+function Field({ label, children, style }: { label: string; children: React.ReactNode; style?: React.CSSProperties }) {
+  return <div style={style}><div style={labelStyle}>{label}</div><div style={valueStyle}>{children}</div></div>
 }
 function Val({ v }: { v?: React.ReactNode }) {
   return v != null && v !== '' ? <>{v}</> : <span style={{ color: 'var(--text-3)' }}>—</span>

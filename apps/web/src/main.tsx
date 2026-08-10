@@ -4,6 +4,8 @@ import ReactDOM from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ConfigProvider } from 'antd'
 import viVN from 'antd/locale/vi_VN'
+import { TooltipProvider } from '@/components/ui/tooltip'
+import { Toaster } from 'sonner'
 import App from './App'
 import { antdTheme } from './theme'
 import './index.css'
@@ -25,7 +27,10 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     {/* QueryClientProvider phải bọc NGOÀI App để mọi component con dùng được useQuery/useMutation */}
     <QueryClientProvider client={queryClient}>
       <ConfigProvider theme={antdTheme} locale={viVN}>
-        <App />
+        <TooltipProvider delayDuration={300}>
+          <App />
+          <Toaster richColors position="top-right" />
+        </TooltipProvider>
       </ConfigProvider>
     </QueryClientProvider>
   </React.StrictMode>,

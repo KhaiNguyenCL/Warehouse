@@ -326,6 +326,36 @@ const productRoutes: FastifyPluginAsync = async (app) => {
     },
     async (request) => service.setVariantAttributeValues(request.params.variantId, request.body as any),
   )
+  // ─── Excel Import ─────────────────────────────────────────────────────────
+
+  app.get(
+    '/import/template',
+    { preHandler: authenticate },
+    async (_req, reply) => {
+      const buf = service.generateImportTemplate()
+      reply
+        .header('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        .header('Content-Disposition', 'attachment; filename="import_products_template.xlsx"')
+        .send(buf)
+    },
+  )
+
+  app.post(
+    '/import',
+    { preHandler: [authenticate, requirePermission('settings.products')] },
+    async (request, reply) => {
+      const data = await request.file()
+      if (!data) return reply.code(400).send({ error: 'Không có file' })
+
+      const chunks: Buffer[] = []
+      for await (const chunk of data.file) chunks.push(chunk)
+      const buffer = Buffer.concat(chunks)
+
+      const userId = (request.user as any)?.sub
+      const result = await service.importFromExcel(buffer, userId)
+      return result
+    },
+  )
 }
 
 export default productRoutes

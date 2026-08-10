@@ -51,6 +51,7 @@ export default function PurchaseOrderDetailPage() {
 
       <Table
         rowKey="id"
+        size="small"
         dataSource={hook.data.lines}
         pagination={false}
         columns={[

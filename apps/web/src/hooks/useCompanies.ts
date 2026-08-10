@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
+import { useQuery, useQueryClient, useMutation, keepPreviousData } from '@tanstack/react-query'
 import { useDebounce } from './useDebounce'
 import { message } from 'antd'
 import { api } from '../lib/api'
@@ -27,24 +27,31 @@ export function useCompanies() {
     staleTime: 60_000,
   })
 
-  // ── Filters ───────────────────────────────────────────
+  // ── Filters & sort ────────────────────────────────────
   const [_typeFilter, _setTypeFilter] = useState<CompanyTypeFilter>('all')
   const [_search, _setSearch] = useState('')
   const [page, setPage] = useState(1)
+  const [sortBy, setSortBy] = useState<string | null>(null)
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | null>(null)
   const debouncedSearch = useDebounce(_search)
 
   const typeFilter = _typeFilter
   function setTypeFilter(v: CompanyTypeFilter) { _setTypeFilter(v); setPage(1) }
   const search = _search
   function setSearch(v: string) { _setSearch(v); setPage(1) }
+  function setSort(field: string | null, order: 'asc' | 'desc' | null) {
+    setSortBy(field); setSortOrder(order); setPage(1)
+  }
 
   // ── Data ──────────────────────────────────────────────
-  const { data, isLoading } = useQuery({
-    queryKey: ['companies', typeFilter, debouncedSearch, page],
+  const { data, isLoading, isFetching } = useQuery({
+    queryKey: ['companies', typeFilter, debouncedSearch, page, sortBy, sortOrder],
+    placeholderData: keepPreviousData,
     queryFn: async () => {
       const params: Record<string, any> = { page, limit: 20 }
       if (typeFilter !== 'all') params.type = typeFilter
       if (debouncedSearch.trim()) params.search = debouncedSearch.trim()
+      if (sortBy) { params.sort_by = sortBy; params.sort_order = sortOrder ?? 'asc' }
       return (await api.get('/companies', { params })).data
     },
   })
@@ -131,11 +138,12 @@ export function useCompanies() {
     // modal state
     open, editing, form, openCreate, openEdit, close,
     // list
-    data, isLoading,
+    data, isLoading, isFetching,
     page, setPage,
-    // filters
+    // filters & sort
     typeFilter, setTypeFilter,
     search, setSearch,
+    sortBy, sortOrder, setSort,
     // mutations
     createMutation, updateMutation, deleteMutation,
     // bitrix sync
