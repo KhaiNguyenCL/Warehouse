@@ -1,16 +1,14 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { Table, Input as AntInput, AutoComplete, Select, Form, Button as AntButton, Modal, Space, Tag, Checkbox, Spin, Tooltip, InputNumber, DatePicker, Switch as AntSwitch, Popconfirm } from 'antd'
+import { Table, Input as AntInput, AutoComplete, Modal, Space, Tag, Checkbox, Spin, Tooltip } from 'antd'
 import { useQuery } from '@tanstack/react-query'
 import { RefreshCw, Plus, Phone, Mail, Search, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useCompanies } from '../hooks/useCompanies'
 import { useDebounce } from '../hooks/useDebounce'
 import { api } from '../lib/api'
-import { EntityFormModal } from '../components/EntityFormModal'
-import { COUNTRIES } from '../constants/countries'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
+import CompanySheet, { type SheetMode } from '../components/CompanySheet'
 
 function TypeBadge({ types }: { types: string[] }) {
   return (
@@ -31,8 +29,14 @@ function TypeBadge({ types }: { types: string[] }) {
 
 export default function CompaniesPage() {
   const hook = useCompanies()
-  const navigate = useNavigate()
   const total = hook.data?.total ?? 0
+
+  const [sheetMode, setSheetMode] = useState<SheetMode>(null)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+
+  function openView(id: string)   { setSelectedId(id);   setSheetMode('view') }
+  function openCreate()           { setSelectedId(null);  setSheetMode('create') }
+  function closeSheet()           { setSheetMode(null) }
 
   const [inputValue, setInputValue] = useState('')
   const debouncedInput = useDebounce(inputValue, 200)
@@ -75,7 +79,7 @@ export default function CompaniesPage() {
             <RefreshCw className="mr-2 h-4 w-4" />
             Đồng bộ Bitrix
           </Button>
-          <Button onClick={() => hook.openCreate()}>
+          <Button onClick={openCreate}>
             <Plus className="mr-2 h-4 w-4" />
             Tạo mới
           </Button>
@@ -95,7 +99,7 @@ export default function CompaniesPage() {
                 options={suggestOptions}
                 value={inputValue}
                 onChange={(v) => { setInputValue(v); hook.setSearch(v) }}
-                onSelect={(_: string, option: any) => navigate(`/companies/${option.companyId}`)}
+                onSelect={(_: string, option: any) => { setInputValue(''); openView(option.companyId) }}
                 onClear={() => { setInputValue(''); hook.setSearch('') }}
                 filterOption={false}
                 style={{ width: 320 }}
@@ -154,7 +158,7 @@ export default function CompaniesPage() {
               rows.map((row, i) => (
                 <tr
                   key={row.id}
-                  onClick={() => navigate(`/companies/${row.id}`)}
+                  onClick={() => openView(row.id)}
                   className="cursor-pointer transition-colors hover:bg-muted/40"
                 >
                   <td className="px-4 py-3 text-center text-xs text-muted-foreground">{from + i}</td>
@@ -228,44 +232,14 @@ export default function CompaniesPage() {
         )}
       </div>
 
-      {/* Create / Edit modal — AntD (complex form with custom fields) */}
-      <EntityFormModal
-        title={hook.editing ? `Sửa — ${hook.editing.name}` : 'Tạo công ty mới'}
-        okText={hook.editing ? 'Lưu' : 'Tạo công ty'}
-        open={hook.open}
-        onCancel={hook.close}
-        onFinish={(v) => (hook.editing ? hook.updateMutation.mutate(v) : hook.createMutation.mutate(v))}
-        confirmLoading={hook.createMutation.isPending || hook.updateMutation.isPending}
-        form={hook.form}
-      >
-        <Form.Item name="name" label="Tên công ty" rules={[{ required: true }]} className="form-row-full">
-          <AntInput />
-        </Form.Item>
-        <Form.Item name="code" label="Mã" extra="Để trống → tự sinh CTY-XXXX">
-          <AntInput placeholder="CTY-0001" />
-        </Form.Item>
-        <Form.Item name="types" label="Loại" rules={[{ required: true }]}>
-          <Select mode="multiple" options={[
-            { value: 'customer', label: 'Khách hàng' },
-            { value: 'supplier', label: 'NCC (Nhà cung cấp)' },
-          ]} />
-        </Form.Item>
-        <Form.Item name="phone" label="Số điện thoại"><AntInput /></Form.Item>
-        <Form.Item name="email" label="Email" rules={[{ type: 'email' }]}><AntInput /></Form.Item>
-        <Form.Item name="tax_code" label="Mã số thuế"><AntInput /></Form.Item>
-        <Form.Item name="country" label="Quốc gia" initialValue="VN">
-          <Select showSearch optionFilterProp="label" options={COUNTRIES} />
-        </Form.Item>
-        <Form.Item name="bank_account" label="Số tài khoản"><AntInput /></Form.Item>
-        <Form.Item name="bank_name" label="Ngân hàng"><AntInput /></Form.Item>
-        <Form.Item name="address" label="Địa chỉ" className="form-row-full"><AntInput /></Form.Item>
-        <Form.Item name="note" label="Ghi chú"><AntInput.TextArea rows={2} /></Form.Item>
-        {hook.customFieldDefs.map((cf: any) => (
-          <Form.Item key={cf.id} name={['custom', cf.id]} label={cf.field_label} className="form-row-full">
-            <CustomFieldInput cf={cf} />
-          </Form.Item>
-        ))}
-      </EntityFormModal>
+      {/* Company sidebar — view & create */}
+      <CompanySheet
+        mode={sheetMode}
+        companyId={selectedId}
+        customFieldDefs={hook.customFieldDefs}
+        onClose={closeSheet}
+        onCreated={() => hook.setPage(1)}
+      />
 
       {/* Bitrix sync modal — AntD */}
       <SyncBitrixModal hook={hook} />
@@ -273,16 +247,6 @@ export default function CompaniesPage() {
   )
 }
 
-function CustomFieldInput({ cf, value, onChange }: { cf: any; value?: any; onChange?: (v: any) => void }) {
-  if (cf.field_type === 'boolean') return <AntSwitch checked={!!value} onChange={onChange} />
-  if (cf.field_type === 'number') return <InputNumber variant="filled" value={value} onChange={onChange} style={{ width: '100%' }} />
-  if (cf.field_type === 'date') return <DatePicker variant="filled" value={value} onChange={onChange} style={{ width: '100%' }} />
-  if (cf.field_type === 'select') return (
-    <Select variant="filled" value={value} onChange={onChange}
-      options={(cf.options ?? []).map((o: string) => ({ value: o, label: o }))} />
-  )
-  return <AntInput variant="filled" value={value} onChange={(e) => onChange?.(e.target.value)} />
-}
 
 const FIELD_LABEL: Record<string, string> = {
   name: 'Tên', phone: 'SĐT', email: 'Email',
