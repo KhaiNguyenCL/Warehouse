@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Table, Form, InputNumber, Select, Input, Button } from 'antd'
 import { api } from '../lib/api'
+import { moneyProps } from '../lib/utils'
 import { fw } from '../styles/fieldWidths'
 import { useApiMutation } from '../hooks/useApiMutation'
 import { useEntityModal } from '../hooks/useEntityModal'
@@ -93,7 +94,7 @@ export default function CustomerPricesPanel({ productId, variantId }: Props) {
           </Form.Item>
         )}
         <Form.Item name="price" rules={[{ required: true, message: 'Bắt buộc' }]}>
-          <InputNumber placeholder="Giá" min={0} style={{ width: 160 }} formatter={(v) => v ? Number(v).toLocaleString('vi-VN') : ''} />
+          <InputNumber placeholder="Giá" min={0} {...moneyProps} style={{ width: 160 }} />
         </Form.Item>
         <Form.Item name="currency" initialValue="VND">
           <Select style={{ width: 80 }} options={[

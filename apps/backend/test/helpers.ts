@@ -33,6 +33,11 @@ export async function createUserWithRole(roleName: string, email: string, passwo
   if (!role) throw new Error(`Role "${roleName}" không tồn tại trong DB — kiểm tra seed data`)
 
   const password_hash = await bcrypt.hash(password, 10)
+  const existing = await app.db('users').where({ email }).first()
+  if (existing) {
+    const [user] = await app.db('users').where({ email }).update({ password_hash, role_id: role.id }).returning('*')
+    return user
+  }
   const [user] = await app
     .db('users')
     .insert({ full_name: `Test ${roleName}`, email, password_hash, role_id: role.id })

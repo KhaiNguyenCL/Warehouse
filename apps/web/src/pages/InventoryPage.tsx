@@ -13,6 +13,11 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
+import { CodeText } from '@/components/ui/CodeText'
+import { useResizableColumns } from '@/hooks/useResizableColumns'
+import { ResizeHandle } from '@/components/ui/ResizeHandle'
+import { PageSizeSelector } from '@/components/ui/PageSizeSelector'
 
 const REF_DOCUMENT_PATH: Record<string, string> = {
   receipt: '/receipts',
@@ -116,6 +121,54 @@ function SnDetailDrawer({ sn, onClose, listQueryKey }: { sn: any | null; onClose
   )
 }
 
+function ReservedSheet({
+  variantId, variantName, unit, onClose,
+}: { variantId: string; variantName: string; unit: string | null; onClose: () => void }) {
+  const navigate = useNavigate()
+  const { data, isFetching } = useQuery({
+    queryKey: ['inventory', 'reserved', variantId],
+    queryFn: async () => (await api.get('/inventory/reserved', { params: { variant_id: variantId } })).data as any[],
+    staleTime: 30_000,
+  })
+
+  const SOURCE_PATH: Record<string, string> = { quotation: '/quotations', delivery_order: '/deliveries' }
+  const SOURCE_LABEL: Record<string, string> = { quotation: 'Báo giá', delivery_order: 'Phiếu xuất' }
+
+  return (
+    <>
+      <div className="mb-4 text-sm text-muted-foreground">{variantName}</div>
+      {isFetching ? (
+        <div className="py-8 text-center text-sm text-muted-foreground">Đang tải…</div>
+      ) : !data?.length ? (
+        <div className="py-8 text-center text-sm text-muted-foreground">Không có dữ liệu giữ chỗ</div>
+      ) : (
+        <div className="divide-y divide-border rounded-lg border border-border overflow-hidden">
+          {data.map((r: any) => (
+            <button
+              key={r.source_id}
+              className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-muted/50 transition-colors"
+              onClick={() => { navigate(`${SOURCE_PATH[r.source_type]}/${r.source_id}`); onClose() }}
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-xs font-medium text-muted-foreground">
+                  {SOURCE_LABEL[r.source_type]}
+                </span>
+                <span className="font-mono text-sm font-medium text-foreground">{r.doc_code}</span>
+                {r.customer_name && (
+                  <span className="truncate text-sm text-muted-foreground">{r.customer_name}</span>
+                )}
+              </div>
+              <span className="ml-3 shrink-0 text-sm font-semibold tabular-nums text-foreground">
+                {r.qty}{unit ? ` ${unit}` : ''}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+    </>
+  )
+}
+
 function SnSearchTable({ search }: { search: string }) {
   const queryKey = ['inventory', 'serials', 'search', search]
   const { data, isLoading } = useQuery({
@@ -127,7 +180,7 @@ function SnSearchTable({ search }: { search: string }) {
 
   return (
     <>
-      <table className="w-full text-sm">
+      <table className="w-full">
         <thead>
           <tr className="border-b border-border bg-muted/40">
             {['Serial No', 'Mã hàng', 'Tên SP', 'Trạng thái', 'Kho', 'Phiếu nhập · Ngày', 'MAC', 'Hết BH hãng', 'Hết BH cty'].map((h) => (
@@ -137,22 +190,22 @@ function SnSearchTable({ search }: { search: string }) {
         </thead>
         <tbody className="divide-y divide-border">
           {isLoading ? (
-            <tr><td colSpan={9} className="px-4 py-12 text-center text-sm text-muted-foreground">Đang tìm…</td></tr>
+            <tr><td colSpan={9} className="px-4 py-12 text-center text-xs text-muted-foreground">Đang tìm…</td></tr>
           ) : rows.length === 0 ? (
-            <tr><td colSpan={9} className="px-4 py-12 text-center text-sm text-muted-foreground">Không tìm thấy Serial No nào khớp</td></tr>
+            <tr><td colSpan={9} className="px-4 py-12 text-center text-xs text-muted-foreground">Không tìm thấy Serial No nào khớp</td></tr>
           ) : rows.map((r) => (
             <tr key={r.id} onClick={() => setSelected(r)} className="cursor-pointer transition-colors hover:bg-muted/40">
-              <td className="px-4 py-3 font-mono font-medium text-foreground">{r.serial_no}</td>
-              <td className="px-4 py-3">
-                <span className="inline-flex items-center rounded-md border border-border bg-muted/60 px-2 py-0.5 font-mono text-xs font-medium text-foreground">{r.item_code}</span>
+              <td className="px-4 py-2 font-mono font-medium text-foreground">{r.serial_no}</td>
+              <td className="px-4 py-2">
+                <CodeText>{r.item_code}</CodeText>
               </td>
-              <td className="px-4 py-3 text-muted-foreground">{r.variant_name}</td>
-              <td className="px-4 py-3"><StatusBadge status={r.status} /></td>
-              <td className="px-4 py-3 text-muted-foreground">{r.warehouse_name ?? '—'}</td>
-              <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{fmtReceipt(r.receipt_code, r.completed_at)}</td>
-              <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{r.mac_address ?? '—'}</td>
-              <td className="px-4 py-3 text-muted-foreground">{fmt(r.manufacturer_warranty_end)}</td>
-              <td className="px-4 py-3 text-muted-foreground">{fmt(r.customer_warranty_end)}</td>
+              <td className="px-4 py-2 text-muted-foreground">{r.variant_name}</td>
+              <td className="px-4 py-2"><StatusBadge status={r.status} /></td>
+              <td className="px-4 py-2 text-muted-foreground">{r.warehouse_name ?? '—'}</td>
+              <td className="px-4 py-2 font-mono text-xs text-muted-foreground">{fmtReceipt(r.receipt_code, r.completed_at)}</td>
+              <td className="px-4 py-2 font-mono text-xs text-muted-foreground">{r.mac_address ?? '—'}</td>
+              <td className="px-4 py-2 text-muted-foreground">{fmt(r.manufacturer_warranty_end)}</td>
+              <td className="px-4 py-2 text-muted-foreground">{fmt(r.customer_warranty_end)}</td>
             </tr>
           ))}
         </tbody>
@@ -165,13 +218,36 @@ function SnSearchTable({ search }: { search: string }) {
 export default function InventoryPage() {
   const hook = useInventory()
   const navigate = useNavigate()
+  const [searchType, setSearchType] = useState<'sku' | 'sn'>('sku')
+  const [searchValue, setSearchValue] = useState('')
+  const { colWidths, tableRef, startResize } = useResizableColumns([3, 10, 20, 12, 13, 7, 7, 8, 11, 9])
+  const [reservedSheet, setReservedSheet] = useState<{ variantId: string; variantName: string; unit: string | null } | null>(null)
+
+  function handleSearchTypeChange(type: 'sku' | 'sn') {
+    setSearchType(type)
+    setSearchValue('')
+    hook.setSearchInput('')
+    hook.setSnSearchInput('')
+  }
+
+  function handleSearchValueChange(v: string) {
+    setSearchValue(v)
+    if (searchType === 'sku') {
+      hook.setSearchInput(v)
+      hook.setSnSearchInput('')
+    } else {
+      hook.setSnSearchInput(v)
+      hook.setSearchInput('')
+    }
+  }
 
   const rows: any[] = hook.data?.data ?? []
   const total: number = hook.data?.total ?? 0
-  const pageSize = 20
-  const from = total === 0 ? 0 : (hook.page - 1) * pageSize + 1
-  const to = Math.min(hook.page * pageSize, total)
+  const from = total === 0 ? 0 : (hook.page - 1) * hook.limit + 1
+  const to = Math.min(hook.page * hook.limit, total)
   const warehouses: any[] = hook.warehouses ?? []
+  const categories: any[] = hook.categories ?? []
+  const brands: any[] = hook.brands ?? []
 
   return (
     <div className="flex flex-col gap-6">
@@ -184,11 +260,30 @@ export default function InventoryPage() {
         </div>
       </div>
 
+      <Sheet open={!!reservedSheet} onOpenChange={(o) => { if (!o) setReservedSheet(null) }}>
+        <SheetContent side="right" className="w-[480px] sm:max-w-[480px] overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>Đang giữ chỗ</SheetTitle>
+          </SheetHeader>
+          <div className="px-1 mt-2">
+          {reservedSheet && (
+            <ReservedSheet
+              variantId={reservedSheet.variantId}
+              variantName={reservedSheet.variantName}
+              unit={reservedSheet.unit}
+              onClose={() => setReservedSheet(null)}
+            />
+          )}
+          </div>
+        </SheetContent>
+      </Sheet>
+
       {/* Table card */}
       <div className="overflow-hidden rounded-xl border border-border bg-background shadow-sm">
 
         {/* Toolbar */}
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
+
           <div className="flex items-center gap-2">
             {/* Warehouse filter */}
             <Select
@@ -206,27 +301,77 @@ export default function InventoryPage() {
               </SelectContent>
             </Select>
 
-            {/* SKU search */}
+            {/* Combined search */}
+            <Select value={searchType} onValueChange={(v) => handleSearchTypeChange(v as 'sku' | 'sn')}>
+              <SelectTrigger className="h-9 w-32 text-sm shadow-none">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="sku">Mã hàng / Tên</SelectItem>
+                <SelectItem value="sn">Serial No</SelectItem>
+              </SelectContent>
+            </Select>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="Tìm SKU / tên sản phẩm"
-                value={hook.searchInput}
-                onChange={(e) => hook.setSearchInput(e.target.value)}
-                className="h-9 w-52 pl-9 text-sm shadow-none focus-visible:ring-1"
+                placeholder={searchType === 'sku' ? 'Tìm mã hàng / tên sản phẩm…' : 'Nhập serial number…'}
+                value={searchValue}
+                onChange={(e) => handleSearchValueChange(e.target.value)}
+                className="h-9 w-56 pl-9 text-sm shadow-none focus-visible:ring-1"
               />
             </div>
 
-            {/* SN search */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Tra SN (không cần biết SKU)"
-                value={hook.snSearchInput}
-                onChange={(e) => hook.setSnSearchInput(e.target.value)}
-                className="h-9 w-72 pl-9 text-sm shadow-none focus-visible:ring-1"
-              />
-            </div>
+            {/* Product type filter */}
+            <Select
+              value={hook.productType ?? '__all__'}
+              onValueChange={(v) => hook.setProductType(v === '__all__' ? undefined : v)}
+            >
+              <SelectTrigger className="h-9 w-40 text-sm shadow-none">
+                <SelectValue placeholder="Loại SP" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">Tất cả loại</SelectItem>
+                <SelectItem value="storable">Có SN</SelectItem>
+                <SelectItem value="consumable">Vật tư</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* Category filter */}
+            {categories.length > 0 && (
+              <Select
+                value={hook.categoryId ?? '__all__'}
+                onValueChange={(v) => hook.setCategoryId(v === '__all__' ? undefined : v)}
+              >
+                <SelectTrigger className="h-9 w-44 text-sm shadow-none">
+                  <SelectValue placeholder="Danh mục" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">Tất cả danh mục</SelectItem>
+                  {categories.map((c: any) => (
+                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+
+            {/* Brand filter */}
+            {brands.length > 0 && (
+              <Select
+                value={hook.brandId ?? '__all__'}
+                onValueChange={(v) => hook.setBrandId(v === '__all__' ? undefined : v)}
+              >
+                <SelectTrigger className="h-9 w-40 text-sm shadow-none">
+                  <SelectValue placeholder="Hãng" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">Tất cả hãng</SelectItem>
+                  {brands.map((b: any) => (
+                    <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+
           </div>
           {!hook.snSearch && (
             <span className="text-sm text-muted-foreground">{total.toLocaleString('vi-VN')} SKU</span>
@@ -237,68 +382,99 @@ export default function InventoryPage() {
           <SnSearchTable search={hook.snSearch} />
         ) : (
           <>
-            {/* Main inventory table */}
-            <table className="w-full text-sm">
+            {/* Main inventory table — click dòng storable để xem danh sách SN, kéo border header để resize cột */}
+            <div className="overflow-x-auto">
+            <table ref={tableRef} className="w-full table-fixed">
+              <colgroup>
+                {colWidths.map((w, i) => <col key={i} style={{ width: `${w}%` }} />)}
+              </colgroup>
               <thead>
                 <tr className="border-b border-border bg-muted/40">
-                  <th className="w-12 px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground">#</th>
-                  <th className="w-40 px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Mã hàng</th>
-                  <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Tên sản phẩm</th>
-                  <th className="w-24 px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">Tồn kho</th>
-                  <th className="w-24 px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">Đang giữ</th>
-                  <th className="w-24 px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">Khả dụng</th>
-                  <th className="w-48 px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Kho</th>
-                  <th className="w-32 px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">Giá vốn TB</th>
-                  <th className="w-20 px-4 py-2.5" />
+                  {([
+                    ['#', 'center'],
+                    ['Mã hàng', 'center'],
+                    ['Tên SKU', 'left'],
+                    ['Model', 'center'],
+                    ['P/N', 'center'],
+                    ['Tồn kho', 'center'],
+                    ['Giữ chỗ', 'center'],
+                    ['Khả dụng', 'center'],
+                    ['Kho', 'center'],
+                    ['', 'center'],
+                  ] as [string, string][]).map(([label, align], i) => (
+                    <th
+                      key={i}
+                      style={{ width: `${colWidths[i]}%` }}
+                      className={`relative px-3 py-2.5 text-xs font-semibold uppercase tracking-wide text-foreground/70 select-none ${align === 'left' ? 'text-left' : 'text-center'}`}
+                    >
+                      {label}
+                      {i < 9 && <ResizeHandle onMouseDown={(e) => startResize(e, i)} />}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
                 {hook.isFetching && rows.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="px-4 py-12 text-center text-sm text-muted-foreground">Đang tải…</td>
+                    <td colSpan={9} className="px-4 py-12 text-center text-xs text-muted-foreground">Đang tải…</td>
                   </tr>
                 ) : rows.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="px-4 py-12 text-center text-sm text-muted-foreground">
+                    <td colSpan={9} className="px-4 py-12 text-center text-xs text-muted-foreground">
                       {hook.searchInput ? 'Không tìm thấy kết quả.' : 'Chưa có tồn kho nào.'}
                     </td>
                   </tr>
                 ) : (
                   rows.map((row, i) => (
-                    <tr key={row.variant_id} className="transition-colors hover:bg-muted/40">
-                      <td className="px-4 py-3 text-center text-xs text-muted-foreground">{from + i}</td>
-                      <td className="px-4 py-3">
-                        <span className="inline-flex items-center rounded-md border border-border bg-muted/60 px-2 py-0.5 font-mono text-xs font-medium text-foreground">
-                          {row.item_code}
-                        </span>
+                    <tr
+                      key={row.variant_id}
+                      className={cn('transition-colors hover:bg-muted/40', row.product_type === 'storable' && 'cursor-pointer')}
+                      onClick={() => {
+                        if (row.product_type === 'storable') {
+                          navigate(`/inventory/serials/${row.variant_id}?code=${encodeURIComponent(row.item_code ?? '')}&name=${encodeURIComponent(row.variant_name ?? '')}`)
+                        }
+                      }}
+                    >
+                      <td className="px-3 py-2 text-center text-xs text-muted-foreground">{from + i}</td>
+                      <td className="px-3 py-2 text-center">
+                        <CodeText>{row.item_code}</CodeText>
                       </td>
-                      <td className="px-4 py-3 font-medium text-foreground">{row.variant_name}</td>
-                      <td className="px-4 py-3 text-right text-foreground tabular-nums">
+                      <td className="px-3 py-2 font-medium text-foreground truncate max-w-0" title={row.variant_name}>{row.variant_name}</td>
+                      <td className="px-3 py-2 text-center font-mono text-sm text-foreground truncate max-w-0" title={row.model ?? ''}>{row.model || <span className="text-muted-foreground">—</span>}</td>
+                      <td className="px-3 py-2 text-center font-mono text-sm text-foreground truncate max-w-0" title={row.part_number ?? ''}>{row.part_number || <span className="text-muted-foreground">—</span>}</td>
+                      <td className="px-3 py-2 text-center text-foreground tabular-nums">
                         {row.qty_on_hand}{row.unit ? ` ${row.unit}` : ''}
                       </td>
-                      <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">
-                        {row.qty_reserved ? `${row.qty_reserved}${row.unit ? ` ${row.unit}` : ''}` : '—'}
+                      <td className="px-3 py-2 text-center tabular-nums text-foreground">
+                        {row.qty_reserved ? (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setReservedSheet({ variantId: row.variant_id, variantName: row.variant_name, unit: row.unit }) }}
+                            className="tabular-nums underline decoration-dashed underline-offset-2 hover:text-primary transition-colors"
+                          >
+                            {row.qty_reserved}{row.unit ? ` ${row.unit}` : ''}
+                          </button>
+                        ) : <span className="text-muted-foreground">—</span>}
                       </td>
-                      <td className="px-4 py-3 text-right tabular-nums">
+                      <td className="px-3 py-2 text-center tabular-nums">
                         <span className={cn('font-semibold', row.qty_available > 0 ? 'text-emerald-600' : 'text-red-500')}>
                           {row.qty_available}{row.unit ? ` ${row.unit}` : ''}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-muted-foreground text-xs">
-                        {(row.warehouse_breakdown ?? []).map((w: any) => (
-                          <span key={w.name} className="mr-2 whitespace-nowrap">
-                            {w.name}<span className="text-muted-foreground/60 ml-1">({w.qty})</span>
-                          </span>
-                        )) || '—'}
+                      <td className="px-3 py-2 overflow-hidden text-center">
+                        {(row.warehouse_breakdown ?? []).length > 0
+                          ? (row.warehouse_breakdown as any[]).map((w: any) => (
+                              <div key={w.name} className="flex items-center justify-center gap-1.5 text-xs text-foreground leading-5">
+                                <span className="text-muted-foreground">{w.name}</span>
+                                <span className="font-semibold tabular-nums">({w.qty})</span>
+                              </div>
+                            ))
+                          : <span className="text-muted-foreground text-xs">—</span>}
                       </td>
-                      <td className="px-4 py-3 text-right font-mono text-xs text-muted-foreground">
-                        {row.avg_cost ? Number(row.avg_cost).toLocaleString('vi-VN') + ' ₫' : '—'}
-                      </td>
-                      <td className="px-4 py-3">
+                      <td className="px-3 py-2 text-center">
                         {row.product_type === 'storable' && (
                           <button
-                            onClick={() => navigate(`/inventory/serials/${row.variant_id}?code=${encodeURIComponent(row.item_code ?? '')}&name=${encodeURIComponent(row.variant_name ?? '')}`)}
-                            className="rounded-md px-2 py-1 text-xs text-primary hover:bg-primary/10 transition-colors"
+                            onClick={(e) => { e.stopPropagation(); navigate(`/inventory/serials/${row.variant_id}?code=${encodeURIComponent(row.item_code ?? '')}&name=${encodeURIComponent(row.variant_name ?? '')}`) }}
+                            className="rounded px-2 py-1 text-xs text-primary hover:bg-primary/10 transition-colors whitespace-nowrap"
                           >
                             Xem SN
                           </button>
@@ -309,11 +485,15 @@ export default function InventoryPage() {
                 )}
               </tbody>
             </table>
+            </div>
 
             {/* Pagination */}
             {total > 0 && (
               <div className="flex items-center justify-between border-t border-border px-4 py-2.5">
-                <span className="text-xs text-muted-foreground">{from}–{to} / {total} SKU</span>
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-muted-foreground">{from}–{to} / {total} SKU</span>
+                  <PageSizeSelector value={hook.limit} onChange={hook.setLimit} />
+                </div>
                 <div className="flex items-center gap-1">
                   <Button
                     variant="ghost" size="sm"
@@ -324,7 +504,7 @@ export default function InventoryPage() {
                     <ChevronLeft className="h-4 w-4" />
                   </Button>
                   <span className="min-w-[3rem] text-center text-xs text-muted-foreground">
-                    {hook.page} / {Math.ceil(total / pageSize)}
+                    {hook.page} / {Math.ceil(total / hook.limit)}
                   </span>
                   <Button
                     variant="ghost" size="sm"

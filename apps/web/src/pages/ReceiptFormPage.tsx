@@ -1,12 +1,14 @@
 import { useState } from 'react'
 import {
   Button, Form, Input, Select, InputNumber, DatePicker,
-  Space, Checkbox, Popconfirm, Modal, Table,
+  Space, Popconfirm, Modal, Table,
 } from 'antd'
-import { ArrowLeftOutlined } from '@ant-design/icons'
+import { ArrowLeftOutlined, QrcodeOutlined } from '@ant-design/icons'
 import { useReceiptForm } from '../hooks/useReceiptForm'
 import { StatusBadge } from '../components/ui/StatusBadge'
 import { SnScanGrid } from '../components/SnScanGrid'
+import { BatchQRPrint } from '../components/BatchQRPrint'
+import { moneyProps } from '../lib/utils'
 
 // ── Shared display helpers ────────────────────────────────────────────────────
 
@@ -24,6 +26,19 @@ function BBox({ children }: { children: React.ReactNode }) {
 
 const ph = <span style={{ color: 'var(--text-3, #bbb)' }}>—</span>
 
+function ReadOnlyText({ value }: { value?: string }) {
+  return (
+    <div style={{
+      height: 32, display: 'flex', alignItems: 'center', padding: '0 11px',
+      border: '1px solid var(--border, #d9d9d9)', borderRadius: 6,
+      background: 'var(--surface)', fontSize: 14,
+      cursor: 'not-allowed', userSelect: 'text',
+    }}>
+      {value}
+    </div>
+  )
+}
+
 function fmt(n: any) {
   if (n == null) return '—'
   return Number(n).toLocaleString('en-US')
@@ -33,6 +48,7 @@ function fmt(n: any) {
 
 export default function ReceiptFormPage() {
   const [isDirty, setIsDirty] = useState(false)
+  const [qrOpen, setQrOpen] = useState(false)
   const hook = useReceiptForm({ onUpdateSuccess: () => setIsDirty(false) })
   const { mode, receipt } = hook
 
@@ -55,7 +71,7 @@ export default function ReceiptFormPage() {
   // ── Render ──────────────────────────────────────────────────────────────
 
   return (
-    <div style={{ maxWidth: 1100, margin: '0 auto', padding: '0 0 48px' }}>
+    <div style={{ padding: '0 0 48px' }}>
 
       {/* ─── Breadcrumb + action row ──────────────────────────────────── */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 24 }}>
@@ -96,13 +112,31 @@ export default function ReceiptFormPage() {
               <Button loading={hook.cancelMutation.isPending}>Huỷ phiếu</Button>
             </Popconfirm>
           )}
+
+          {/* In nhãn QR lô — chỉ khi completed */}
+          {receipt?.status === 'completed' && (
+            <Button icon={<QrcodeOutlined />} onClick={() => setQrOpen(true)}>
+              In nhãn QR
+            </Button>
+          )}
         </div>
       </div>
+
+      {receipt?.status === 'completed' && (
+        <BatchQRPrint
+          open={qrOpen}
+          onClose={() => setQrOpen(false)}
+          receiptCode={receipt.code}
+          completedAt={receipt.completed_at ?? null}
+          warehouseName={receipt.warehouse_name}
+          lines={receipt.lines ?? []}
+        />
+      )}
 
       <Form
         form={hook.form}
         layout="vertical"
-        initialValues={isCreate ? { import_type: 'purchase', lines: [] } : undefined}
+        initialValues={isCreate ? { import_type: 'purchase', lines: [{}] } : undefined}
         onFinish={isView ? undefined : handleSubmit}
         onValuesChange={() => { if (!isCreate) setIsDirty(true) }}
       >
@@ -113,8 +147,8 @@ export default function ReceiptFormPage() {
             Thông tin phiếu
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
-            {/* Loại nhập */}
+          {/* Row 1 — 3 field ngắn, cùng chiều cao */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0 16px' }}>
             <Form.Item name="import_type" label="Loại nhập" rules={isCreate ? [{ required: true }] : undefined}>
               {isCreate ? (
                 <Select
@@ -126,7 +160,6 @@ export default function ReceiptFormPage() {
               )}
             </Form.Item>
 
-            {/* Kho nhập */}
             <Form.Item name="warehouse_id" label="Kho nhập" rules={isCreate ? [{ required: true }] : undefined}>
               {isCreate ? (
                 <Select
@@ -137,12 +170,20 @@ export default function ReceiptFormPage() {
                 <BBox>{receipt?.warehouse_name ?? ph}</BBox>
               )}
             </Form.Item>
+
+            <Form.Item name="received_date" label="Ngày nhập kho">
+              {isView ? (
+                <BBox>{receipt?.received_date ? new Date(receipt.received_date).toLocaleDateString('vi-VN') : ph}</BBox>
+              ) : (
+                <DatePicker format="DD/MM/YYYY" style={{ width: '100%' }} placeholder="Ngày hàng về kho" />
+              )}
+            </Form.Item>
           </div>
 
-          {/* PO liên kết — chỉ tạo mới hoặc xem */}
+          {/* Row 2 — PO liên kết (chiếm 2/3, tránh lệch chiều cao với textarea) */}
           {isCreate && (
             <>
-              <Form.Item label="Nhận hàng theo Purchase Order (tuỳ chọn)">
+              <Form.Item label="Chọn PO (tuỳ chọn)" style={{ maxWidth: '66%', marginBottom: 12 }}>
                 <Select
                   allowClear
                   value={hook.poId}
@@ -158,27 +199,17 @@ export default function ReceiptFormPage() {
               <Form.Item name="company_id" hidden><Input /></Form.Item>
             </>
           )}
-
           {!isCreate && receipt?.po_code && (
-            <Form.Item label="PO liên kết">
+            <Form.Item label="PO liên kết" style={{ maxWidth: '66%', marginBottom: 12 }}>
               <BBox>{receipt.po_code}</BBox>
             </Form.Item>
           )}
 
-          {/* Ngày nhập kho */}
-          <Form.Item name="received_date" label="Ngày nhập kho">
-            {isView ? (
-              <BBox>{receipt?.received_date ? new Date(receipt.received_date).toLocaleDateString('vi-VN') : ph}</BBox>
-            ) : (
-              <DatePicker format="DD/MM/YYYY" style={{ width: '100%' }} placeholder="Ngày hàng về kho" />
-            )}
-          </Form.Item>
-
-          {/* Ghi chú */}
+          {/* Row 3 — Ghi chú full width */}
           <Form.Item name="note" label="Ghi chú" style={{ marginBottom: 0 }}>
             {isView ? (
               <div style={{
-                minHeight: 54, padding: '6px 11px',
+                minHeight: 32, padding: '4px 11px',
                 border: '1px solid var(--border, #d9d9d9)', borderRadius: 6,
                 background: 'var(--surface)', fontSize: 14, userSelect: 'text',
                 whiteSpace: 'pre-wrap', lineHeight: 1.5,
@@ -317,19 +348,19 @@ function CreateLinesTable({ hook }: { hook: ReturnType<typeof useReceiptForm> })
               locale={{ emptyText: 'Chưa có dòng hàng' }}
               columns={[
                 {
-                  title: 'SKU',
-                  width: hook.poId ? undefined : 260,
+                  title: 'SKU / Tên sản phẩm',
+                  width: 280,
                   render: (_: any, f: any) =>
                     hook.poId ? (
                       <Form.Item name={[f.name, 'variant_label']} noStyle>
-                        <Input disabled />
+                        <ReadOnlyText />
                       </Form.Item>
                     ) : (
                       <Form.Item name={[f.name, 'variant_id']} noStyle rules={[{ required: true, message: 'Chọn SKU' }]}>
                         <Select
                           showSearch
                           placeholder="Tìm SKU / tên sản phẩm"
-                          style={{ width: 260 }}
+                          style={{ width: '100%' }}
                           filterOption={false}
                           onSearch={hook.setVariantSearch}
                           options={hook.variantOptions?.map((v: any) => ({
@@ -354,56 +385,30 @@ function CreateLinesTable({ hook }: { hook: ReturnType<typeof useReceiptForm> })
                   width: 140,
                   render: (_: any, f: any) => (
                     <Form.Item name={[f.name, 'cost_price']} noStyle rules={[{ required: true }]}>
-                      <InputNumber min={0} style={{ width: 120 }} />
+                      <InputNumber {...moneyProps} min={0} style={{ width: 120 }} />
                     </Form.Item>
                   ),
                 },
                 {
-                  title: 'BH hãng',
+                  title: 'BH hãng (tháng)',
+                  width: 230,
                   render: (_: any, f: any) => (
-                    <Form.Item shouldUpdate noStyle>
-                      {({ getFieldValue }) => {
-                        const has = getFieldValue(['lines', f.name, 'has_manufacturer_warranty'])
-                        return (
-                          <Space size={4} wrap>
-                            <Form.Item name={[f.name, 'has_manufacturer_warranty']} valuePropName="checked" noStyle>
-                              <Checkbox>Có</Checkbox>
-                            </Form.Item>
-                            {has && (
-                              <>
-                                <Form.Item name={[f.name, 'manufacturer_warranty_months']} noStyle>
-                                  <InputNumber min={0} style={{ width: 60 }} placeholder="Tháng" />
-                                </Form.Item>
-                                <Form.Item name={[f.name, 'manufacturer_warranty_start']} noStyle>
-                                  <DatePicker style={{ width: 130 }} placeholder="Ngày BH" allowClear />
-                                </Form.Item>
-                              </>
-                            )}
-                          </Space>
-                        )
-                      }}
-                    </Form.Item>
+                    <Space size={4}>
+                      <Form.Item name={[f.name, 'manufacturer_warranty_months']} noStyle>
+                        <InputNumber controls={false} min={0} style={{ width: 70 }} placeholder="Tháng" />
+                      </Form.Item>
+                      <Form.Item name={[f.name, 'manufacturer_warranty_start']} noStyle>
+                        <DatePicker style={{ width: 130 }} placeholder="Từ ngày" allowClear />
+                      </Form.Item>
+                    </Space>
                   ),
                 },
                 {
-                  title: 'BH cty',
+                  title: 'BH cty (tháng)',
+                  width: 110,
                   render: (_: any, f: any) => (
-                    <Form.Item shouldUpdate noStyle>
-                      {({ getFieldValue }) => {
-                        const has = getFieldValue(['lines', f.name, 'has_customer_warranty'])
-                        return (
-                          <Space size={4}>
-                            <Form.Item name={[f.name, 'has_customer_warranty']} valuePropName="checked" noStyle>
-                              <Checkbox>Có</Checkbox>
-                            </Form.Item>
-                            {has && (
-                              <Form.Item name={[f.name, 'customer_warranty_months']} noStyle>
-                                <InputNumber min={0} style={{ width: 60 }} placeholder="Tháng" />
-                              </Form.Item>
-                            )}
-                          </Space>
-                        )
-                      }}
+                    <Form.Item name={[f.name, 'customer_warranty_months']} noStyle>
+                      <InputNumber controls={false} min={0} style={{ width: 90 }} placeholder="Tháng" />
                     </Form.Item>
                   ),
                 },
@@ -416,9 +421,7 @@ function CreateLinesTable({ hook }: { hook: ReturnType<typeof useReceiptForm> })
                         <Form.Item name={[f.name, 'variant_id']} hidden><Input /></Form.Item>
                       )}
                       <Form.Item name={[f.name, 'po_line_id']} hidden><Input /></Form.Item>
-                      {!hook.poId && (
-                        <Button size="small" danger onClick={() => remove(f.name)}>Xóa</Button>
-                      )}
+                      <Button size="small" danger onClick={() => remove(f.name)}>Xóa</Button>
                     </>
                   ),
                 },
@@ -467,59 +470,33 @@ function EditLinesTable({ hook }: { hook: ReturnType<typeof useReceiptForm> }) {
               },
               {
                 title: 'Giá nhập',
-                width: 140,
+                width: 150,
                 render: (_: any, f: any) => (
                   <Form.Item name={[f.name, 'cost_price']} noStyle rules={[{ required: true }]}>
-                    <InputNumber min={0} style={{ width: 120 }} />
+                    <InputNumber {...moneyProps} min={0} style={{ width: 130 }} />
                   </Form.Item>
                 ),
               },
               {
-                title: 'BH hãng',
+                title: 'BH hãng (tháng)',
+                width: 230,
                 render: (_: any, f: any) => (
-                  <Form.Item shouldUpdate noStyle>
-                    {({ getFieldValue }) => {
-                      const has = getFieldValue(['lines', f.name, 'has_manufacturer_warranty'])
-                      return (
-                        <Space size={4} wrap>
-                          <Form.Item name={[f.name, 'has_manufacturer_warranty']} valuePropName="checked" noStyle>
-                            <Checkbox>Có</Checkbox>
-                          </Form.Item>
-                          {has && (
-                            <>
-                              <Form.Item name={[f.name, 'manufacturer_warranty_months']} noStyle>
-                                <InputNumber min={0} style={{ width: 60 }} placeholder="Tháng" />
-                              </Form.Item>
-                              <Form.Item name={[f.name, 'manufacturer_warranty_start']} noStyle>
-                                <DatePicker style={{ width: 120 }} placeholder="Ngày BH" allowClear />
-                              </Form.Item>
-                            </>
-                          )}
-                        </Space>
-                      )
-                    }}
-                  </Form.Item>
+                  <Space size={4}>
+                    <Form.Item name={[f.name, 'manufacturer_warranty_months']} noStyle>
+                      <InputNumber controls={false} min={0} style={{ width: 70 }} placeholder="Tháng" />
+                    </Form.Item>
+                    <Form.Item name={[f.name, 'manufacturer_warranty_start']} noStyle>
+                      <DatePicker style={{ width: 130 }} placeholder="Từ ngày" allowClear />
+                    </Form.Item>
+                  </Space>
                 ),
               },
               {
-                title: 'BH cty',
+                title: 'BH cty (tháng)',
+                width: 110,
                 render: (_: any, f: any) => (
-                  <Form.Item shouldUpdate noStyle>
-                    {({ getFieldValue }) => {
-                      const has = getFieldValue(['lines', f.name, 'has_customer_warranty'])
-                      return (
-                        <Space size={4}>
-                          <Form.Item name={[f.name, 'has_customer_warranty']} valuePropName="checked" noStyle>
-                            <Checkbox>Có</Checkbox>
-                          </Form.Item>
-                          {has && (
-                            <Form.Item name={[f.name, 'customer_warranty_months']} noStyle>
-                              <InputNumber min={0} style={{ width: 60 }} placeholder="Tháng" />
-                            </Form.Item>
-                          )}
-                        </Space>
-                      )
-                    }}
+                  <Form.Item name={[f.name, 'customer_warranty_months']} noStyle>
+                    <InputNumber controls={false} min={0} style={{ width: 90 }} placeholder="Tháng" />
                   </Form.Item>
                 ),
               },

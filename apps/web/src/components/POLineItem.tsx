@@ -10,13 +10,8 @@ import { DeleteOutlined, EditOutlined } from '@ant-design/icons'
 import type { FormInstance } from 'antd'
 import dayjs from 'dayjs'
 import { api } from '../lib/api'
+import { moneyProps } from '../lib/utils'
 import VariantSelect, { type VariantData } from './VariantSelect'
-
-// Formatter/parser dùng chung cho các field tiền — thêm dấu , mỗi 3 chữ số
-const priceFormatter = (v: number | undefined) =>
-  v != null ? String(v).replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''
-const priceParser = (v: string | undefined) =>
-  (v ? Number(v.replace(/,/g, '')) : undefined) as number
 
 function fmtTotal(n: number) {
   return Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',')
@@ -63,7 +58,7 @@ export default function POLineItem({ form, name, remove, showLabel = true }: Pro
     lines[name] = {
       ...lines[name],
       variant_id: variant.id,
-      unit_price: variant.cost_price ?? lines[name]?.unit_price,
+      unit_price: variant.cost_price != null ? Number(variant.cost_price) : lines[name]?.unit_price,
       manufacturer_warranty_months: variant.warranty_months ?? lines[name]?.manufacturer_warranty_months,
       customer_warranty_months: variant.warranty_months ?? lines[name]?.customer_warranty_months,
     }
@@ -97,19 +92,19 @@ export default function POLineItem({ form, name, remove, showLabel = true }: Pro
         <VariantSelect excludeTypes={['service']} onSelectVariant={onSelectVariant} style={{ ...inputStyle }} />
       </Form.Item>
 
-      <Form.Item name={[name, 'quantity']} label={lbl('SL')} style={{ flex: '0 0 72px' }}>
+      <Form.Item name={[name, 'quantity']} label={lbl('SL')} style={{ flex: '0 0 88px' }}>
         <InputNumber controls={false} precision={0} onKeyDown={blockNonInteger} style={inputStyle} />
       </Form.Item>
 
-      <Form.Item name={[name, 'unit_price']} label={lbl('Đơn giá')} style={{ flex: '0 0 120px' }}>
-        <InputNumber controls={false} formatter={priceFormatter} parser={priceParser} onKeyDown={blockNonInteger} style={inputStyle} />
+      <Form.Item name={[name, 'unit_price']} label={lbl('Đơn giá')} style={{ flex: '0 0 150px' }}>
+        <InputNumber {...moneyProps} onKeyDown={blockNonInteger} style={inputStyle} />
       </Form.Item>
 
-      <Form.Item name={[name, 'vat_percent']} label={lbl('VAT %')} style={{ flex: '0 0 68px' }}>
+      <Form.Item name={[name, 'vat_percent']} label={lbl('VAT %')} style={{ flex: '0 0 80px' }}>
         <InputNumber controls={false} precision={1} placeholder="—" onKeyDown={blockNonDecimal} style={inputStyle} />
       </Form.Item>
 
-      <Form.Item label={lbl('Thành tiền')} style={{ flex: '0 0 130px' }}>
+      <Form.Item label={lbl('Thành tiền')} style={{ flex: '0 0 160px' }}>
         <div style={{
           height: 32, border: '1px solid var(--border, #d9d9d9)', borderRadius: 6,
           padding: '0 11px', display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
@@ -122,11 +117,11 @@ export default function POLineItem({ form, name, remove, showLabel = true }: Pro
         </div>
       </Form.Item>
 
-      <Form.Item name={[name, 'manufacturer_warranty_months']} label={lbl('BH hãng')} style={{ flex: '0 0 76px' }}>
+      <Form.Item name={[name, 'manufacturer_warranty_months']} label={lbl('BH hãng')} style={{ flex: '0 0 90px' }}>
         <InputNumber controls={false} precision={0} placeholder="—" onKeyDown={blockNonInteger} style={inputStyle} />
       </Form.Item>
 
-      <Form.Item name={[name, 'customer_warranty_months']} label={lbl('BH công ty')} style={{ flex: '0 0 86px' }}>
+      <Form.Item name={[name, 'customer_warranty_months']} label={lbl('BH công ty')} style={{ flex: '0 0 100px' }}>
         <InputNumber controls={false} precision={0} placeholder="—" onKeyDown={blockNonInteger} style={inputStyle} />
       </Form.Item>
 

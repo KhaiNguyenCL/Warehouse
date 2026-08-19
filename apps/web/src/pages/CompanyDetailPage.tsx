@@ -7,6 +7,7 @@ import ContactsPanel, { type ContactsPanelRef } from '../components/ContactsPane
 import SupplierProductsPanel from '../components/SupplierProductsPanel'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { CodeText } from '@/components/ui/CodeText'
 
 function TypeBadge({ types }: { types: string[] }) {
   return (
@@ -15,8 +16,8 @@ function TypeBadge({ types }: { types: string[] }) {
         <span key={t} className={cn(
           'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium',
           t === 'customer'
-            ? 'bg-blue-50 text-blue-700 ring-1 ring-blue-200'
-            : 'bg-purple-50 text-purple-700 ring-1 ring-purple-200',
+            ? 'bg-blue-100 text-blue-800 ring-1 ring-blue-300'
+            : 'bg-purple-100 text-purple-800 ring-1 ring-purple-300',
         )}>
           {t === 'customer' ? 'Khách hàng' : 'NCC'}
         </span>
@@ -78,9 +79,7 @@ export default function CompanyDetailPage() {
               <TypeBadge types={company?.types ?? []} />
             </div>
             {company?.code && (
-              <span className="inline-flex w-fit items-center rounded-md border border-border bg-muted/60 px-2 py-0.5 font-mono text-xs font-medium text-foreground">
-                {company.code}
-              </span>
+              <CodeText>{company.code}</CodeText>
             )}
           </div>
 

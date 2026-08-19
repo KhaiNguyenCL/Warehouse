@@ -66,18 +66,23 @@ function SectionCard({ title, extra, children }: { title: string; extra?: React.
 }
 
 const labelStyle: React.CSSProperties = {
-  fontSize: 12, color: 'var(--text-2)', fontWeight: 600,
+  fontSize: 12, color: 'var(--text-2)', fontWeight: 700,
   marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.4px',
 }
 const valueStyle: React.CSSProperties = {
   fontSize: 14, color: 'var(--text-1)', minHeight: 32, display: 'flex', alignItems: 'center',
 }
+const valueViewStyle: React.CSSProperties = {
+  ...valueStyle,
+  border: '1px solid var(--border)', borderRadius: 6, padding: '4px 10px',
+  backgroundColor: 'var(--muted)',
+}
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, children, editing }: { label: string; children: React.ReactNode; editing?: boolean }) {
   return (
     <div>
       <div style={labelStyle}>{label}</div>
-      <div style={valueStyle}>{children}</div>
+      <div style={editing ? valueStyle : valueViewStyle}>{children}</div>
     </div>
   )
 }
@@ -222,20 +227,20 @@ export default function QuotationDetailPage() {
               {hook.bitrixInfo  && <div style={{ color: '#52c41a', fontSize: 12, marginTop: 4 }}>{hook.bitrixInfo}</div>}
             </div>
 
-            <Field label="Số báo giá">
+            <Field editing={hook.isEditing} label="Số báo giá">
               {hook.isEditing
                 ? <Form.Item name="quote_number" noStyle><Input style={{ width: '100%' }} placeholder="VD: BG-2026-001" /></Form.Item>
                 : <Val v={q?.quote_number} />}
             </Field>
 
-            <Field label="Ngày báo giá">
+            <Field editing={hook.isEditing} label="Ngày báo giá">
               {hook.isEditing
                 ? <Form.Item name="quote_date" noStyle><DatePicker format="DD/MM/YYYY" style={{ width: '100%' }} /></Form.Item>
                 : <Val v={q?.quote_date ? new Date(q.quote_date).toLocaleDateString('vi-VN') : undefined} />}
             </Field>
 
             {/* Row 2: Khách hàng | Người liên hệ | Hiệu lực */}
-            <Field label="Khách hàng">
+            <Field editing={hook.isEditing} label="Khách hàng">
               {hook.isEditing
                 ? <Form.Item name="company_id" noStyle rules={[{ required: true, message: 'Bắt buộc chọn khách hàng' }]}>
                     <Select showSearch optionFilterProp="label" style={{ width: '100%' }} placeholder="Chọn khách hàng"
@@ -245,7 +250,7 @@ export default function QuotationDetailPage() {
                 : <Val v={q?.company_name} />}
             </Field>
 
-            <Field label="Người liên hệ">
+            <Field editing={hook.isEditing} label="Người liên hệ">
               {hook.isEditing
                 ? <Form.Item name="contact_id" noStyle>
                     <Select allowClear style={{ width: '100%' }} disabled={!hook.companyId}
@@ -255,7 +260,7 @@ export default function QuotationDetailPage() {
                 : <Val v={q?.contact_name} />}
             </Field>
 
-            <Field label="Hiệu lực (ngày)">
+            <Field editing={hook.isEditing} label="Hiệu lực (ngày)">
               {hook.isEditing
                 ? <Form.Item name="valid_days" noStyle><InputNumber controls={false} min={1} style={{ width: '100%' }} /></Form.Item>
                 : <Val v={q?.valid_days != null ? `${q.valid_days} ngày` : undefined} />}
@@ -263,7 +268,7 @@ export default function QuotationDetailPage() {
 
             {/* Row 3: Tên dự án (full width) */}
             <div style={{ gridColumn: '1 / -1' }}>
-              <Field label="Tên dự án">
+              <Field editing={hook.isEditing} label="Tên dự án">
                 {hook.isEditing
                   ? <Form.Item name="project_name" noStyle><Input style={{ width: '100%' }} placeholder="Tên dự án / công trình" /></Form.Item>
                   : <Val v={q?.project_name} />}
@@ -271,13 +276,13 @@ export default function QuotationDetailPage() {
             </div>
 
             {/* Row 4: Địa điểm | Kho xuất | Hết hạn */}
-            <Field label="Địa điểm giao hàng">
+            <Field editing={hook.isEditing} label="Địa điểm giao hàng">
               {hook.isEditing
                 ? <Form.Item name="delivery_location" noStyle><Input style={{ width: '100%' }} /></Form.Item>
                 : <Val v={q?.delivery_location} />}
             </Field>
 
-            <Field label="Kho xuất">
+            <Field editing={hook.isEditing} label="Kho xuất">
               {hook.isEditing
                 ? <Form.Item name="warehouse_id" noStyle>
                     <Select allowClear style={{ width: '100%' }} placeholder="Bắt buộc khi có dòng giữ chỗ"
@@ -286,7 +291,7 @@ export default function QuotationDetailPage() {
                 : <Val v={q?.warehouse_name} />}
             </Field>
 
-            <Field label="Hết hạn">
+            <Field editing={hook.isEditing} label="Hết hạn">
               {hook.isEditing
                 ? <span style={{ fontSize: 14, color: computedExpiry ? 'var(--text-1)' : 'var(--text-3)' }}>
                     {computedExpiry ?? '— nhập Ngày BG + Hiệu lực'}
@@ -320,7 +325,7 @@ export default function QuotationDetailPage() {
 
             {/* Ghi chú */}
             <div style={{ gridColumn: '1 / -1' }}>
-              <Field label="Ghi chú">
+              <Field editing={hook.isEditing} label="Ghi chú">
                 {hook.isEditing
                   ? <Form.Item name="note" noStyle><Input.TextArea rows={2} style={{ width: '100%' }} /></Form.Item>
                   : <Val v={q?.note} />}

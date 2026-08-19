@@ -315,9 +315,11 @@ export default function SettingsBitrixPage() {
             )}
           </Form.List>
 
-          <Button type="primary" htmlType="submit" loading={saveMutation.isPending}>
-            Lưu mapping
-          </Button>
+          <div style={{ marginTop: 8 }}>
+            <Button type="primary" htmlType="submit" loading={saveMutation.isPending}>
+              Lưu mapping
+            </Button>
+          </div>
         </Form>
       </SectionCard>
     </div>

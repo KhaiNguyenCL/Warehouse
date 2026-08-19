@@ -18,9 +18,6 @@ import {
 // Quét xl/worksheets/*.xml + xl/sharedStrings.xml tìm marker dạng {d.ten_bien} (CLAUDE.md
 // mục 14 bước 2 "Hệ thống detect biến trong template"). Cách này không dùng API nội bộ
 // (chưa public, dễ vỡ giữa version) của carbone — chỉ cần regex đơn giản trên XML thô.
-// Giới hạn: nếu 1 marker bị Excel tách thành nhiều "run" có định dạng khác nhau giữa dấu
-// { và } (VD tô đậm nửa chữ trong ô) thì sẽ không detect được — đây cũng là giới hạn
-// chung của Carbone, khuyến nghị admin không định dạng dở dang trong 1 ô khi soạn template.
 export function detectVariables(fileBuffer: Buffer): string[] {
   const zip = new AdmZip(fileBuffer)
   const variables = new Set<string>()
@@ -35,6 +32,47 @@ export function detectVariables(fileBuffer: Buffer): string[] {
     }
   }
   return [...variables].sort()
+}
+
+// Detect biến trong HTML template — regex đơn giản trên nội dung text.
+export function detectHtmlVariables(fileBuffer: Buffer): string[] {
+  const html = fileBuffer.toString('utf8')
+  const variables = new Set<string>()
+  const markerRegex = /\{(d\.[^{}]+)\}/g
+  let match: RegExpExecArray | null
+  while ((match = markerRegex.exec(html))) {
+    variables.add(match[1])
+  }
+  return [...variables].sort()
+}
+
+// Render HTML template: thay thế {d.field} bằng giá trị thực, xử lý array {d.arr[i].field}
+// bằng cách tìm <tr> chứa marker và nhân bản theo từng phần tử mảng.
+export function renderHtml(htmlTemplate: string, data: Record<string, unknown>): string {
+  let html = htmlTemplate
+
+  // Expand array rows: tìm <tr>...</tr> chứa {d.arrayName[i].field}, nhân bản theo array
+  html = html.replace(/<tr(?:[^>]*)>[\s\S]*?\{d\.(\w+)\[i\]\.[\w.]+\}[\s\S]*?<\/tr>/gm, (rowTpl) => {
+    const nameMatch = rowTpl.match(/\{d\.(\w+)\[i\]/)
+    if (!nameMatch) return rowTpl
+    const arrayName = nameMatch[1]
+    const items = (data[arrayName] as any[] | undefined) ?? []
+    if (items.length === 0) return ''
+    return items.map((item) =>
+      rowTpl.replace(/\{d\.\w+\[i\]\.([\w.]+)\}/g, (_, field) => {
+        const val = item[field]
+        return val != null ? String(val) : ''
+      }),
+    ).join('\n')
+  })
+
+  // Thay thế scalar {d.field}
+  html = html.replace(/\{d\.([\w.]+)\}/g, (_, field) => {
+    const val = getPath(data, field)
+    return val != null ? String(val) : ''
+  })
+
+  return html
 }
 
 // Đọc giá trị theo đường dẫn "a.b.c" trên 1 object lồng nhau — dùng để resolve
@@ -124,14 +162,19 @@ export class TemplateService {
     if (!TEMPLATE_OBJECT_TYPES.includes(data.object_type as TemplateObjectType)) {
       throw { statusCode: 400, message: `object_type không hợp lệ: ${data.object_type}` }
     }
-    if (!data.fileName.toLowerCase().endsWith('.xlsx')) {
-      throw { statusCode: 400, message: 'Chỉ hỗ trợ file .xlsx' }
+    const isHtml = data.fileName.toLowerCase().endsWith('.html')
+    const isXlsx = data.fileName.toLowerCase().endsWith('.xlsx')
+    if (!isHtml && !isXlsx) {
+      throw { statusCode: 400, message: 'Chỉ hỗ trợ file .html hoặc .xlsx' }
     }
 
-    const storedName = `${randomUUID()}.xlsx`
+    const ext = isHtml ? 'html' : 'xlsx'
+    const storedName = `${randomUUID()}.${ext}`
     await fs.writeFile(path.join(this.app.carbone.uploadDir, storedName), data.fileBuffer)
 
-    const detected_variables = detectVariables(data.fileBuffer)
+    const detected_variables = isHtml
+      ? detectHtmlVariables(data.fileBuffer)
+      : detectVariables(data.fileBuffer)
     const [template] = await this.repo.insert({
       name: data.name,
       object_type: data.object_type,
@@ -200,6 +243,13 @@ export class TemplateService {
     const renderData = this.buildRenderData(context, mappings)
 
     const templatePath = path.join(this.app.carbone.uploadDir, template.file_path)
+
+    if (template.file_path.endsWith('.html')) {
+      const htmlTemplate = await fs.readFile(templatePath, 'utf8')
+      const rendered = renderHtml(htmlTemplate, renderData)
+      return { content: Buffer.from(rendered, 'utf8'), extension: 'html' }
+    }
+
     const options = body.format === 'pdf' ? { convertTo: 'pdf' } : {}
     return this.app.carbone.render(templatePath, renderData, options)
   }

@@ -11,6 +11,43 @@ function compact<T extends Record<string, unknown>>(obj: T): Partial<T> {
   return Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined)) as Partial<T>
 }
 
+// Enum ID → label cho các UF field dạng enumeration đã biết — dùng làm fallback khi
+// getDealUserFields() fail hoặc LIST không đủ. Key = tên field, value = Map<ID, label>.
+const KNOWN_ENUM_OVERRIDES: Record<string, Record<string, string>> = {
+  UF_CRM_1659681090: {
+    '85': 'Hồ Chí Minh', '86': 'Hà Nội', '164': 'Đồng Nai (Biên Hòa)',
+    '113': 'Bình Dương', '174': 'Bình Định', '158': 'Phú Quốc',
+    '166': 'Lâm Đồng (Đà Lạt)', '109': 'Khánh Hòa (Nha Trang)', '87': 'Đà Nẵng',
+    '112': 'Hội An', '110': 'Hải Phòng', '169': 'Lào Cai (Sapa)',
+    '168': 'Huế', '167': 'Quảng Ninh (Hạ Long)', '111': 'Hưng Yên',
+    '160': 'VIETNAM', '161': 'CAMBODIA', '176': 'Tiền Giang',
+    '177': 'An Giang', '180': 'Long An', '181': 'Ninh Bình',
+    '234': 'Nghệ An', '182': 'Tây Ninh', '186': 'Đồng Nai', '188': 'Hà Tĩnh',
+  },
+}
+
+// Build enumLookup từ getDealUserFields(), merge fallback từ KNOWN_ENUM_OVERRIDES
+// để đảm bảo enum resolution không bị phụ thuộc hoàn toàn vào API call có thể fail.
+function buildEnumLookup(userFields: Array<{ FIELD_NAME: string; USER_TYPE_ID: string; LIST?: Array<{ ID: string; VALUE: string }> }>): Map<string, Map<string, string>> {
+  const lookup = new Map<string, Map<string, string>>()
+
+  // Inject known fallbacks trước
+  for (const [fieldName, map] of Object.entries(KNOWN_ENUM_OVERRIDES)) {
+    lookup.set(fieldName, new Map(Object.entries(map)))
+  }
+
+  // Ghi đè / bổ sung từ API (API luôn được ưu tiên hơn hardcode)
+  for (const uf of userFields) {
+    if (uf.USER_TYPE_ID === 'enumeration' && uf.LIST?.length) {
+      const existing = lookup.get(uf.FIELD_NAME) ?? new Map<string, string>()
+      for (const o of uf.LIST) existing.set(String(o.ID), String(o.VALUE))
+      lookup.set(uf.FIELD_NAME, existing)
+    }
+  }
+
+  return lookup
+}
+
 // Chỉ những field được phép ghi đè từ Bitrix — không cho map vào field tính toán
 // (subtotal/grand_total...) hay trạng thái.
 // company_id / contact_id được resolve đặc biệt (Bitrix ID → WMS UUID) trong syncQuotation.
@@ -77,19 +114,6 @@ export class BitrixService {
       }
     }
 
-    // Enum ID → label cho UF_CRM_1659681090 (Khu vực).
-    // Nguồn: crm.deal.userfield.list, field UF_CRM_1659681090, LIST[].
-    const REGION_MAP: Record<string, string> = {
-      '85': 'Hồ Chí Minh', '86': 'Hà Nội', '164': 'Đồng Nai (Biên Hòa)',
-      '113': 'Bình Dương', '174': 'Bình Định', '158': 'Phú Quốc',
-      '166': 'Lâm Đồng (Đà Lạt)', '109': 'Khánh Hòa (Nha Trang)', '87': 'Đà Nẵng',
-      '112': 'Hội An', '110': 'Hải Phòng', '169': 'Lào Cai (Sapa)',
-      '168': 'Huế', '167': 'Quảng Ninh (Hạ Long)', '111': 'Hưng Yên',
-      '160': 'VIETNAM', '161': 'CAMBODIA', '176': 'Tiền Giang',
-      '177': 'An Giang', '180': 'Long An', '181': 'Ninh Bình',
-      '234': 'Nghệ An', '182': 'Tây Ninh', '186': 'Đồng Nai', '188': 'Hà Tĩnh',
-    }
-
     const regionId    = deal['UF_CRM_1659681090'] as string | undefined
     const contractRaw = deal['UF_CRM_1659680859'] as string | undefined
     const addressRaw  = deal['UF_CRM_1659680918'] as string | undefined
@@ -106,7 +130,7 @@ export class BitrixService {
       deal_amount:        deal.OPPORTUNITY ? Number(deal.OPPORTUNITY) : null,
       deal_url:           this.buildDealUrl(dealId),
       contract_number:    contractRaw?.trim() || null,
-      region:             (regionId && REGION_MAP[regionId]) || null,
+      region:             (regionId && KNOWN_ENUM_OVERRIDES.UF_CRM_1659681090[regionId]) || null,
       delivery_location:  addressRaw?.trim() || null,
       start_date:         toDate(deal.BEGINDATE),
       end_date:           toDate(deal.CLOSEDATE),
@@ -122,15 +146,10 @@ export class BitrixService {
     const [deal, mappings, userFields] = await Promise.all([
       this.app.bitrix.getDeal(dealId),
       this.repo.findMappings(),
-      this.app.bitrix.getDealUserFields(),
+      this.app.bitrix.getDealUserFields().catch(() => [] as any[]),
     ])
 
-    const enumLookup = new Map<string, Map<string, string>>()
-    for (const uf of userFields) {
-      if (uf.USER_TYPE_ID === 'enumeration' && uf.LIST?.length) {
-        enumLookup.set(uf.FIELD_NAME, new Map(uf.LIST.map((o) => [String(o.ID), String(o.VALUE)])))
-      }
-    }
+    const enumLookup = buildEnumLookup(userFields)
 
     // form_value = giá trị thực sự dùng để set vào form (UUID cho company/contact)
     // resolved_value = human-readable để hiển thị trong bảng preview
@@ -182,16 +201,10 @@ export class BitrixService {
     const [deal, mappings, userFields] = await Promise.all([
       this.app.bitrix.getDeal(dealId),
       this.repo.findMappings(),
-      this.app.bitrix.getDealUserFields(),
+      this.app.bitrix.getDealUserFields().catch(() => [] as any[]),
     ])
 
-    // Build ID→label lookup for enumeration-type UF fields
-    const enumLookup = new Map<string, Map<string, string>>()
-    for (const uf of userFields) {
-      if (uf.USER_TYPE_ID === 'enumeration' && uf.LIST?.length) {
-        enumLookup.set(uf.FIELD_NAME, new Map(uf.LIST.map((o) => [String(o.ID), String(o.VALUE)])))
-      }
-    }
+    const enumLookup = buildEnumLookup(userFields)
 
     // Fetch Bitrix company/contact objects only if mappings actually need them for
     // non-special fields (company_id/contact_id are handled separately below)
@@ -271,7 +284,7 @@ export class BitrixService {
     const code       = str('UF_CRM_1666346470460')
     const taxCode    = str('UF_CRM_1665716572711')
     const address    = str('UF_CRM_1666348162912')
-    const email      = str('UF_CRM_1666348221731')
+    const email      = str('UF_CRM_1666348221731') ?? (bx.EMAIL as any[] | undefined)?.[0]?.VALUE as string | undefined
     const bankAccount = str('UF_CRM_1665716907464')
     const bankName   = str('UF_CRM_1665716963770')
     const phone      = (bx.PHONE as any[] | undefined)?.[0]?.VALUE as string | undefined
@@ -366,19 +379,50 @@ export class BitrixService {
     const position = bxContact.POST as string | undefined
 
     const existing = await this.companyRepo.findContactByBitrixId(bitrixContactId)
+
+    let contactId: string
     if (existing) {
-      return this.app.db.transaction((trx) =>
+      await this.app.db.transaction((trx) =>
         this.companyRepo.updateContact(existing.id, compact({ full_name, phone, email, position }), trx),
       )
+      contactId = existing.id
+    } else {
+      const contact = await this.app.db.transaction((trx) =>
+        this.companyRepo.addContact(
+          companyId!,
+          compact({ full_name, phone, email, position, bitrix_contact_id: bitrixContactId }) as any,
+          trx,
+        ),
+      )
+      contactId = (contact as any).id
     }
 
-    return this.app.db.transaction((trx) =>
-      this.companyRepo.addContact(
-        companyId!,
-        compact({ full_name, phone, email, position, bitrix_contact_id: bitrixContactId }) as any,
-        trx,
-      ),
-    )
+    // Link contact vào tất cả companies trong Bitrix mà đã có trong WMS
+    try {
+      const wmsCompanies = await this.app.db('companies')
+        .whereNotNull('bitrix_company_id')
+        .select('id', 'bitrix_company_id')
+      const companyByBxId = new Map<string, string>(
+        wmsCompanies.map((c: any) => [String(c.bitrix_company_id), c.id]),
+      )
+      const bxLinks = await this.app.bitrix.getContactCompanies(bitrixContactId)
+      await this.app.db.transaction(async (trx) => {
+        for (const link of bxLinks) {
+          const wmsCompanyId = companyByBxId.get(String(link.COMPANY_ID))
+          if (!wmsCompanyId) continue
+          await this.companyRepo.linkContactToCompany(
+            contactId,
+            wmsCompanyId,
+            link.IS_PRIMARY === 'Y',
+            trx,
+          )
+        }
+      })
+    } catch {
+      // Không block nếu lấy company links thất bại
+    }
+
+    return this.companyRepo.findContactById(contactId)
   }
 
   // ─── Sync companies from Bitrix ──────────────────────────────────────────
@@ -460,7 +504,7 @@ export class BitrixService {
     const errors: Array<{ bitrix_id: string; error: string }> = []
 
     for (const id of bitrixIds) {
-      const strId = String(id)   // phòng trường hợp frontend gửi về number
+      const strId = String(id)
       try {
         await this.importCompany(strId)
         synced++
@@ -469,7 +513,88 @@ export class BitrixService {
       }
     }
 
-    return { synced, errors }
+    // Sau khi sync companies xong → sync toàn bộ contacts từ Bitrix
+    const contactResult = await this.syncAllContacts()
+
+    return { synced, errors, contacts: contactResult }
+  }
+
+  // Fetch toàn bộ Bitrix Contacts, upsert vào DB kèm phone + email.
+  // Mỗi contact được link vào TẤT CẢ company trong Bitrix mà đã có trong WMS.
+  async syncAllContacts() {
+    const bxContacts = await this.app.bitrix.listAllContacts()
+
+    // Load tất cả companies đã có bitrix_company_id để map nhanh
+    const wmsCompanies = await this.app.db('companies')
+      .whereNotNull('bitrix_company_id')
+      .select('id', 'bitrix_company_id')
+    const companyByBxId = new Map<string, string>(
+      wmsCompanies.map((c: any) => [String(c.bitrix_company_id), c.id]),
+    )
+
+    let upserted = 0
+    let skipped = 0
+    const errors: Array<{ bitrix_id: string; error: string }> = []
+
+    for (const bx of bxContacts) {
+      const bxContactId   = String(bx.ID)
+      const primaryBxCmpId = bx.COMPANY_ID ? String(bx.COMPANY_ID) : null
+      const primaryCompanyId = primaryBxCmpId ? companyByBxId.get(primaryBxCmpId) : undefined
+
+      // Bỏ qua nếu primary company chưa có trong WMS
+      if (!primaryCompanyId) { skipped++; continue }
+
+      try {
+        const full_name = [bx.NAME, bx.LAST_NAME].filter(Boolean).join(' ').trim() || `BX-${bxContactId}`
+        const phone     = (bx.PHONE as any[] | undefined)?.[0]?.VALUE as string | undefined
+        const email     = (bx.EMAIL as any[] | undefined)?.[0]?.VALUE as string | undefined
+        const position  = bx.POST as string | undefined
+
+        const existing = await this.companyRepo.findContactByBitrixId(bxContactId)
+
+        let contactId: string
+        if (existing) {
+          await this.app.db.transaction((trx) =>
+            this.companyRepo.updateContact(existing.id, compact({ full_name, phone, email, position }), trx),
+          )
+          contactId = existing.id
+        } else {
+          const contact = await this.app.db.transaction((trx) =>
+            this.companyRepo.addContact(
+              primaryCompanyId,
+              compact({ full_name, phone, email, position, bitrix_contact_id: bxContactId }) as any,
+              trx,
+            ),
+          )
+          contactId = (contact as any).id
+        }
+
+        // Lấy tất cả company links từ Bitrix và sync vào contact_companies
+        try {
+          const bxLinks = await this.app.bitrix.getContactCompanies(bxContactId)
+          await this.app.db.transaction(async (trx) => {
+            for (const link of bxLinks) {
+              const wmsCompanyId = companyByBxId.get(String(link.COMPANY_ID))
+              if (!wmsCompanyId) continue
+              await this.companyRepo.linkContactToCompany(
+                contactId,
+                wmsCompanyId,
+                link.IS_PRIMARY === 'Y',
+                trx,
+              )
+            }
+          })
+        } catch {
+          // Lỗi khi lấy company links — không block upsert chính
+        }
+
+        upserted++
+      } catch (err: any) {
+        errors.push({ bitrix_id: bxContactId, error: err.message ?? String(err) })
+      }
+    }
+
+    return { upserted, skipped, errors }
   }
 
   private buildDealUrl(dealId: string) {

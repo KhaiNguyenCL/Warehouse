@@ -31,6 +31,7 @@ export function useCompanies() {
   const [_typeFilter, _setTypeFilter] = useState<CompanyTypeFilter>('all')
   const [_search, _setSearch] = useState('')
   const [page, setPage] = useState(1)
+  const [limit, _setLimit] = useState(50)
   const [sortBy, setSortBy] = useState<string | null>(null)
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | null>(null)
   const debouncedSearch = useDebounce(_search)
@@ -39,16 +40,17 @@ export function useCompanies() {
   function setTypeFilter(v: CompanyTypeFilter) { _setTypeFilter(v); setPage(1) }
   const search = _search
   function setSearch(v: string) { _setSearch(v); setPage(1) }
+  function setLimit(v: number) { _setLimit(v); setPage(1) }
   function setSort(field: string | null, order: 'asc' | 'desc' | null) {
     setSortBy(field); setSortOrder(order); setPage(1)
   }
 
   // ── Data ──────────────────────────────────────────────
   const { data, isLoading, isFetching } = useQuery({
-    queryKey: ['companies', typeFilter, debouncedSearch, page, sortBy, sortOrder],
+    queryKey: ['companies', typeFilter, debouncedSearch, page, limit, sortBy, sortOrder],
     placeholderData: keepPreviousData,
     queryFn: async () => {
-      const params: Record<string, any> = { page, limit: 20 }
+      const params: Record<string, any> = { page, limit }
       if (typeFilter !== 'all') params.type = typeFilter
       if (debouncedSearch.trim()) params.search = debouncedSearch.trim()
       if (sortBy) { params.sort_by = sortBy; params.sort_order = sortOrder ?? 'asc' }
@@ -140,6 +142,7 @@ export function useCompanies() {
     // list
     data, isLoading, isFetching,
     page, setPage,
+    limit, setLimit,
     // filters & sort
     typeFilter, setTypeFilter,
     search, setSearch,

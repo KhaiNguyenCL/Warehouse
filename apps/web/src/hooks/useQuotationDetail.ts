@@ -72,6 +72,8 @@ export function useQuotationDetail(id: string) {
           }
         }
       }
+      // DatePicker yêu cầu dayjs object — convert các date field trước khi setFieldsValue
+      if (patch.quote_date) patch.quote_date = dayjs(patch.quote_date)
       form.setFieldsValue(patch)
       const filled = Object.entries(patch).filter(([k, v]) => k !== 'bitrix_deal_id' && v != null).length
       setBitrixInfo(filled ? `Đã điền ${filled} field` : 'Fetch thành công — không có field nào match')
@@ -119,9 +121,9 @@ export function useQuotationDetail(id: string) {
       variant_id:  li.variant_id  ?? undefined,
       bundle_id:   li.bundle_id   ?? undefined,
       description: li.description,
-      quantity:    li.quantity,
-      unit_price:  li.unit_price,
-      vat_percent: li.vat_percent,
+      quantity:    li.quantity    != null ? Number(li.quantity)    : undefined,
+      unit_price:  li.unit_price  != null ? Number(li.unit_price)  : undefined,
+      vat_percent: li.vat_percent != null ? Number(li.vat_percent) : 0,
       warranty:    li.warranty,
       is_reserved: li.is_reserved,
       note:        li.note,
@@ -158,7 +160,14 @@ export function useQuotationDetail(id: string) {
   async function saveEdit() {
     const values = await form.validateFields()
     const quote_date = values.quote_date ? dayjs(values.quote_date).format('YYYY-MM-DD') : null
-    const payload = { ...values, quote_date }
+    // Empty string from cleared Select/InputNumber → null so uuid/format validators pass
+    const nullify = (v: any) => (v === '' || v === undefined ? null : v)
+    const payload = {
+      ...values,
+      quote_date,
+      contact_id:  nullify(values.contact_id),
+      warehouse_id: nullify(values.warehouse_id),
+    }
     if (isNew) {
       createMutation.mutate(payload)
     } else {

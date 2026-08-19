@@ -8,8 +8,6 @@ import CategoriesPage from './pages/CategoriesPage'
 import BrandsPage from './pages/BrandsPage'
 import ProductsPage from './pages/ProductsPage'
 import ProductDetailPage from './pages/ProductDetailPage'
-import VariantDetailPage from './pages/VariantDetailPage'
-import VariantCreatePage from './pages/VariantCreatePage'
 import WarehousesPage from './pages/WarehousesPage'
 import PurchaseOrdersPage from './pages/PurchaseOrdersPage'
 import PurchaseOrderCreatePage from './pages/PurchaseOrderCreatePage'
@@ -56,8 +54,6 @@ const routes: RouteObject[] = [
           { path: '/brands', element: <BrandsPage /> },
           { path: '/products', element: <ProductsPage /> },
           { path: '/products/:id', element: <ProductDetailPage /> },
-          { path: '/products/:productId/variants/new', element: <VariantCreatePage /> },
-          { path: '/products/:productId/variants/:variantId', element: <VariantDetailPage /> },
           { path: '/warehouses', element: <WarehousesPage /> },
           { path: '/purchase-orders', element: <PurchaseOrdersPage /> },
           { path: '/purchase-orders/new', element: <PurchaseOrderCreatePage /> },

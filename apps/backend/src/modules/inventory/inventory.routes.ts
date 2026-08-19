@@ -76,6 +76,23 @@ const inventoryRoutes: FastifyPluginAsync = async (app) => {
     async (request) => service.serialMovements(request.params.id),
   )
 
+  // GET /inventory/reserved?variant_id=xxx — danh sách báo giá/phiếu xuất đang giữ chỗ
+  // cho 1 SKU cụ thể, group theo document để hiển thị trên popover tồn kho.
+  app.get<{ Querystring: { variant_id: string } }>(
+    '/reserved',
+    {
+      schema: {
+        querystring: {
+          type: 'object',
+          required: ['variant_id'],
+          properties: { variant_id: { type: 'string', format: 'uuid' } },
+        },
+      },
+      preHandler: requirePermission('report.inventory'),
+    },
+    async (request) => service.reservedByVariant(request.query.variant_id),
+  )
+
   app.get<{ Querystring: ListLowStockQuery }>(
     '/low-stock',
     { schema: listLowStockSchema, preHandler: requirePermission('report.inventory') },

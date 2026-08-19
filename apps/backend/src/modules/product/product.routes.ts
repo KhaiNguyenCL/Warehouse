@@ -141,8 +141,31 @@ const productRoutes: FastifyPluginAsync = async (app) => {
   // ─── Variants ──────────────────────────────────────────────────────────
 
   // Flat search — dùng cho dropdown chọn SKU khi tạo Receipt/DO không qua PO/Quotation.
-  app.get<{ Querystring: { search?: string; product_type?: string; limit?: number } }>(
+  app.get<{ Querystring: { search?: string; product_type?: string; limit?: number; in_stock_only?: boolean } }>(
     '/variants',
+    {
+      schema: {
+        querystring: {
+          type: 'object',
+          properties: {
+            search:        { type: 'string' },
+            product_type:  { type: 'string' },
+            limit:         { type: 'integer', minimum: 1, maximum: 200 },
+            in_stock_only: { type: 'boolean' },
+          },
+        },
+      },
+      preHandler: authenticate,
+    },
+    async (request) => {
+      const { search, product_type, limit, in_stock_only } = request.query
+      return service.searchVariants(search, product_type, limit, in_stock_only)
+    },
+  )
+
+  // Paginated flat variant list — dùng cho tab SKU ở ProductsPage.
+  app.get<{ Querystring: { search?: string; product_type?: string; page?: number; limit?: number } }>(
+    '/variants/list',
     {
       schema: {
         querystring: {
@@ -150,15 +173,22 @@ const productRoutes: FastifyPluginAsync = async (app) => {
           properties: {
             search:       { type: 'string' },
             product_type: { type: 'string' },
-            limit:        { type: 'integer', minimum: 1, maximum: 200 },
+            category_id:  { type: 'string', format: 'uuid' },
+            brand_id:     { type: 'string', format: 'uuid' },
+            is_active:    { type: 'boolean' },
+            page:         { type: 'integer', minimum: 1, default: 1 },
+            limit:        { type: 'integer', minimum: 1, maximum: 100, default: 20 },
           },
         },
       },
       preHandler: authenticate,
     },
     async (request) => {
-      const { search, product_type, limit } = request.query
-      return service.searchVariants(search, product_type, limit)
+      const { search, product_type, category_id, brand_id, is_active, page, limit } = request.query as any
+      return service.listVariantsPaginated({
+        search, productType: product_type, categoryId: category_id,
+        brandId: brand_id, isActive: is_active, page, limit,
+      })
     },
   )
 

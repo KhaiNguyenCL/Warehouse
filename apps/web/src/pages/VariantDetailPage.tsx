@@ -12,15 +12,9 @@ import VariantSuppliersPanel from '../components/VariantSuppliersPanel'
 import CustomerPricesPanel from '../components/CustomerPricesPanel'
 import BundleItemsPanel from '../components/BundleItemsPanel'
 import CustomFieldsPanel from '../components/CustomFieldsPanel'
+import { moneyProps } from '../lib/utils'
 
 const UNITS = ['Cái', 'Chiếc', 'Bộ', 'Hộp', 'Cuộn', 'Mét', 'Cổng', 'License', 'Gói', 'Dây', 'Lần', 'Giờ', 'Ngày']
-
-const moneyProps = {
-  controls: false,
-  style: { width: '100%' },
-  formatter: (v: any) => (v != null && v !== '' ? String(v).replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''),
-  parser:    (v: any) => (v ? v.replace(/,/g, '') : ''),
-}
 const CURRENCIES = [
   { value: 'VND', label: 'VND' },
   { value: 'USD', label: 'USD' },
@@ -97,11 +91,11 @@ export default function VariantDetailPage() {
       model:           hook.variant?.model,
       part_number:     hook.variant?.part_number,
       unit:            hook.variant?.unit,
-      cost_price:      hook.variant?.cost_price,
-      sale_price:      hook.variant?.sale_price,
+      cost_price:      hook.variant?.cost_price ?? undefined,
+      sale_price:      hook.variant?.sale_price ?? undefined,
       currency:        hook.variant?.currency ?? 'VND',
-      weight_kg:       hook.variant?.weight_kg,
-      warranty_months: hook.variant?.warranty_months,
+      weight_kg:       hook.variant?.weight_kg ?? undefined,
+      warranty_months: hook.variant?.warranty_months ?? undefined,
       reorder_point:   hook.variant?.reorder_point ?? undefined,
       is_active:       hook.variant?.is_active ?? true,
     })

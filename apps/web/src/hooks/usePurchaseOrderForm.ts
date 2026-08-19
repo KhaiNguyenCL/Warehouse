@@ -41,9 +41,9 @@ export function usePurchaseOrderForm(options?: { onUpdateSuccess?: () => void })
       note:        po.note,
       lines: (po.lines ?? []).map((l: any) => ({
         variant_id:                   l.variant_id,
-        quantity:                     l.quantity,
-        unit_price:                   l.unit_price,
-        vat_percent:                  l.vat_percent ?? undefined,
+        quantity:                     l.quantity    != null ? Number(l.quantity)    : undefined,
+        unit_price:                   l.unit_price  != null ? Number(l.unit_price)  : undefined,
+        vat_percent:                  l.vat_percent != null ? Number(l.vat_percent) : undefined,
         manufacturer_warranty_months: l.manufacturer_warranty_months ?? undefined,
         customer_warranty_months:     l.customer_warranty_months ?? undefined,
         note:                         l.note,

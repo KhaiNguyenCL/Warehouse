@@ -6,7 +6,7 @@ import {
   GitBranch, FormInput, LogOut,
 } from 'lucide-react'
 import {
-  Sidebar, SidebarContent, SidebarFooter, SidebarGroup,
+  Sidebar, SidebarContent, SidebarGroup,
   SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuButton,
   SidebarMenuItem, SidebarProvider, SidebarRail, SidebarInset,
   SidebarTrigger,
@@ -16,7 +16,6 @@ import {
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { Separator } from '@/components/ui/separator'
 import { useAuthStore } from '../store/auth'
 
 const NAV = [
@@ -78,7 +77,7 @@ export default function AppLayout() {
     location.pathname === to || location.pathname.startsWith(to + '/')
 
   return (
-    <SidebarProvider>
+    <SidebarProvider className="h-full">
       <Sidebar variant="inset">
         {/* ── Logo ── */}
         <SidebarHeader>
@@ -110,25 +109,6 @@ export default function AppLayout() {
           ))}
         </SidebarContent>
 
-        {/* ── User footer ── */}
-        <SidebarFooter>
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton size="lg" className="cursor-default">
-                <Avatar className="h-7 w-7 shrink-0">
-                  <AvatarFallback className="bg-primary/10 text-primary text-xs font-bold">
-                    {initials}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex min-w-0 flex-col">
-                  <span className="truncate text-sm font-semibold">{user?.full_name}</span>
-                  <span className="truncate text-xs text-muted-foreground">{user?.role}</span>
-                </div>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
-        </SidebarFooter>
-
         <SidebarRail />
       </Sidebar>
 
@@ -137,7 +117,6 @@ export default function AppLayout() {
         {/* Topbar */}
         <header className="flex h-12 shrink-0 items-center gap-2 border-b border-border bg-card px-4">
           <SidebarTrigger className="-ml-1" />
-          <Separator orientation="vertical" className="h-4" />
           <span className="text-sm text-muted-foreground">
             {NAV.flatMap(s => s.items).find(i => isActive(i.to))?.label ?? 'WMS'}
           </span>

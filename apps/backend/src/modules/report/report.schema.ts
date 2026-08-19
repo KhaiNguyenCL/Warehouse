@@ -44,3 +44,33 @@ export interface TopProductsQuery {
   to?: string
   limit?: number
 }
+
+export const stockFlowSchema = {
+  querystring: {
+    type: 'object',
+    properties: {
+      from:     { type: 'string', format: 'date' },
+      to:       { type: 'string', format: 'date' },
+      group_by: { type: 'string', enum: ['day', 'month'], default: 'day' },
+    },
+  },
+}
+
+export const lowStockItemsSchema = {
+  querystring: {
+    type: 'object',
+    properties: {
+      limit: { type: 'integer', minimum: 1, maximum: 100, default: 20 },
+    },
+  },
+}
+
+export interface StockFlowQuery {
+  from?: string
+  to?: string
+  group_by?: 'day' | 'month'
+}
+
+export interface LowStockItemsQuery {
+  limit?: number
+}

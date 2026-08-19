@@ -3,16 +3,20 @@
 // cho 2-step Product→SKU; khi chọn variant hiện breakdown tồn kho theo từng kho.
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Form, InputNumber, Input, Button, DatePicker } from 'antd'
+import { Form, InputNumber, Input, Button } from 'antd'
 import { api } from '../lib/api'
 import VariantSelect, { type VariantData } from './VariantSelect'
 
 interface Props {
   name: number
   remove: () => void
+  exportType?: string
 }
 
-export default function DeliveryLineItem({ name, remove }: Props) {
+const NO_STOCK_FILTER = ['adjustment']
+
+export default function DeliveryLineItem({ name, remove, exportType }: Props) {
+  const inStockOnly = !!exportType && !NO_STOCK_FILTER.includes(exportType)
   const [variantId, setVariantId] = useState<string | undefined>()
   const [isService, setIsService] = useState(false)
 
@@ -32,36 +36,29 @@ export default function DeliveryLineItem({ name, remove }: Props) {
   }
 
   return (
-    <div style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'flex-start', flexWrap: 'nowrap' }}>
-      <Form.Item name={[name, 'variant_id']} label="Mã hàng / SKU" rules={[{ required: true }]} style={{ minWidth: 260 }}>
-        <VariantSelect onSelectVariant={onSelectVariant} style={{ width: '100%' }} />
+    <div style={{ display: 'flex', gap: 12, marginBottom: 4, alignItems: 'flex-end', flexWrap: 'nowrap' }}>
+      <Form.Item name={[name, 'variant_id']} label="Mã hàng / SKU" rules={[{ required: true }]} style={{ flex: '0 0 360px', marginBottom: 0 }}>
+        <VariantSelect onSelectVariant={onSelectVariant} style={{ width: '100%' }} inStockOnly={inStockOnly} />
       </Form.Item>
       {variantId && !isService && (
-        <div style={{ alignSelf: 'center', fontSize: 12, color: '#888', minWidth: 160, marginBottom: 8 }}>
+        <div style={{ fontSize: 12, color: '#888', flex: '0 0 160px', paddingBottom: 4 }}>
           {breakdown.length === 0
             ? <span style={{ color: '#ff4d4f' }}>Hết hàng</span>
             : breakdown.map((w) => (
-                <span key={w.name} style={{ marginRight: 8, whiteSpace: 'nowrap' }}>
-                  {w.name}<span style={{ marginLeft: 2 }}>({w.qty})</span>
+                <span key={w.name} style={{ display: 'block', whiteSpace: 'nowrap' }}>
+                  {w.name}: <b>{w.qty}</b>
                 </span>
               ))
           }
         </div>
       )}
-      <Form.Item name={[name, 'quantity']} label="Số lượng" rules={[{ required: true }]}>
-        <InputNumber min={1} />
+      <Form.Item name={[name, 'quantity']} label="Số lượng" rules={[{ required: true }]} style={{ flex: '0 0 110px', marginBottom: 0 }}>
+        <InputNumber min={1} style={{ width: '100%' }} />
       </Form.Item>
-      <Form.Item name={[name, 'customer_warranty_start']} label="Ngày bắt đầu BH cty">
-        <DatePicker
-          style={{ width: 160 }}
-          placeholder="Để trống = ngày xuất kho"
-          allowClear
-        />
+      <Form.Item name={[name, 'note']} label="Ghi chú" style={{ flex: '1 1 200px', marginBottom: 0 }}>
+        <Input />
       </Form.Item>
-      <Form.Item name={[name, 'note']} label="Ghi chú dòng">
-        <Input style={{ width: 200 }} />
-      </Form.Item>
-      <Button danger onClick={remove}>
+      <Button danger onClick={remove} style={{ flexShrink: 0, marginBottom: 0 }}>
         Xoá
       </Button>
     </div>

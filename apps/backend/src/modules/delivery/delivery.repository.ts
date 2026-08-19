@@ -6,7 +6,7 @@ export class DeliveryRepository {
   constructor(private db: Knex) {}
 
   async findAll(query: ListDeliveryQuery) {
-    const { status, export_type, warehouse_id, search, sort_by, sort_order, page = 1, limit = 20 } = query
+    const { status, export_type, warehouse_id, company_id, search, sort_by, sort_order, page = 1, limit = 20 } = query
     const offset = (page - 1) * limit
 
     const SORTABLE: Record<string, string> = {
@@ -30,6 +30,7 @@ export class DeliveryRepository {
     if (status) base.where('d.status', status)
     if (export_type) base.where('d.export_type', export_type)
     if (warehouse_id) base.where('d.warehouse_id', warehouse_id)
+    if (company_id) base.where('d.company_id', company_id)
     if (search) base.where((qb) => qb.whereILike('d.code', `%${search}%`).orWhereILike('c.name', `%${search}%`))
 
     const [rows, countResult] = await Promise.all([

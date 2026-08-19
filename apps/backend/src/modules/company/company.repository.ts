@@ -82,7 +82,11 @@ export class CompanyRepository {
 
     const [types, contacts] = await Promise.all([
       this.db('company_types').where({ company_id: id }).pluck('type'),
-      this.db('contacts').where({ company_id: id }).orderBy('is_primary', 'desc'),
+      this.db('contacts as c')
+        .join('contact_companies as cc', 'cc.contact_id', 'c.id')
+        .where('cc.company_id', id)
+        .orderBy('cc.is_primary', 'desc')
+        .select('c.*', 'cc.is_primary'),
     ])
 
     return { ...company, types, contacts }
@@ -113,6 +117,35 @@ export class CompanyRepository {
 
   // ─── Contacts ──────────────────────────────────────────────────────────
 
+  async findAllContacts(query: { search?: string; company_id?: string; page?: number; limit?: number }) {
+    const { search, company_id, page = 1, limit = 50 } = query
+    const offset = (page - 1) * limit
+
+    const base = this.db('contacts as c')
+      .join('contact_companies as cc', 'cc.contact_id', 'c.id')
+      .join('companies as co', 'co.id', 'cc.company_id')
+
+    if (search) {
+      base.where((qb) => {
+        qb.whereILike('c.full_name', `%${search}%`)
+          .orWhereILike('c.phone', `%${search}%`)
+          .orWhereILike('c.email', `%${search}%`)
+          .orWhereILike('co.name', `%${search}%`)
+      })
+    }
+    if (company_id) base.where('cc.company_id', company_id)
+
+    const [rows, countResult] = await Promise.all([
+      base.clone()
+        .select('c.*', 'cc.is_primary', 'cc.company_id', 'co.name as company_name', 'co.code as company_code')
+        .orderBy([{ column: 'cc.is_primary', order: 'desc' }, { column: 'c.full_name', order: 'asc' }])
+        .limit(limit).offset(offset),
+      base.clone().clearSelect().count('c.id as count').first(),
+    ])
+
+    return { data: rows, total: Number(countResult?.count ?? 0), page, limit }
+  }
+
   findContactById(id: string) {
     return this.db('contacts').where({ id }).first()
   }
@@ -121,24 +154,52 @@ export class CompanyRepository {
     return this.db('contacts').where({ bitrix_contact_id: bitrixContactId }).first()
   }
 
+  // Kiểm tra contact có thuộc company không — dùng để validate trước update/delete.
+  findContactByIdAndCompany(contactId: string, companyId: string) {
+    return this.db('contacts as c')
+      .join('contact_companies as cc', 'cc.contact_id', 'c.id')
+      .where('c.id', contactId)
+      .where('cc.company_id', companyId)
+      .select('c.*', 'cc.is_primary')
+      .first()
+  }
+
   // Bỏ cờ is_primary của các contact khác trong cùng company — chỉ 1 contact
   // được là primary mỗi company.
   clearPrimaryContact(companyId: string, exceptContactId: string | null, trx: Knex.Transaction) {
-    const q = trx('contacts').where({ company_id: companyId }).update({ is_primary: false })
-    if (exceptContactId) q.whereNot({ id: exceptContactId })
+    const q = trx('contact_companies').where({ company_id: companyId }).update({ is_primary: false })
+    if (exceptContactId) q.whereNot({ contact_id: exceptContactId })
     return q
   }
 
   async addContact(companyId: string, data: CreateContactBody, trx: Knex.Transaction) {
-    const [contact] = await trx('contacts')
-      .insert({ ...data, company_id: companyId })
-      .returning('*')
-    return contact
+    const { is_primary, ...contactData } = data
+    const [contact] = await trx('contacts').insert(contactData).returning('*')
+    await trx('contact_companies').insert({
+      contact_id: contact.id,
+      company_id: companyId,
+      is_primary: is_primary ?? false,
+    })
+    return { ...contact, is_primary: is_primary ?? false }
   }
 
   async updateContact(id: string, data: UpdateContactBody, trx: Knex.Transaction) {
-    const [contact] = await trx('contacts').where({ id }).update(data).returning('*')
-    return contact
+    const { is_primary, ...contactData } = data
+    if (Object.keys(contactData).length > 0) {
+      await trx('contacts').where({ id }).update(contactData)
+    }
+    if (is_primary !== undefined) {
+      await trx('contact_companies').where({ contact_id: id }).update({ is_primary })
+    }
+    return trx('contacts').where({ id }).first()
+  }
+
+  // Upsert link contact ↔ company (idempotent — dùng trong Bitrix sync multi-company).
+  async linkContactToCompany(contactId: string, companyId: string, isPrimary: boolean, trx: Knex.Transaction) {
+    await trx('contact_companies')
+      .insert({ contact_id: contactId, company_id: companyId, is_primary: isPrimary })
+      .onConflict(['contact_id', 'company_id'])
+      .merge({ is_primary: isPrimary })
   }
 
   deleteContact(id: string) {

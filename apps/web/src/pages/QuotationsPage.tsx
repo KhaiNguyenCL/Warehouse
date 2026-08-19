@@ -4,14 +4,10 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { cn } from '@/lib/utils'
-
-function CodeBadge({ children }: { children: string }) {
-  return (
-    <span className="inline-flex items-center rounded-md border border-border bg-muted/60 px-2 py-0.5 font-mono text-xs font-medium text-foreground">
-      {children}
-    </span>
-  )
-}
+import { PageSizeSelector } from '@/components/ui/PageSizeSelector'
+import { CodeText } from '@/components/ui/CodeText'
+import { useResizableColumns } from '@/hooks/useResizableColumns'
+import { ResizeHandle } from '@/components/ui/ResizeHandle'
 
 const STATUS_OPTIONS = [
   { value: 'draft',     label: 'Nháp' },
@@ -22,12 +18,12 @@ const STATUS_OPTIONS = [
 
 export default function QuotationsPage() {
   const hook = useQuotations()
+  const { colWidths, tableRef, startResize } = useResizableColumns([4, 12, 18, 24, 12, 14, 8, 8])
 
   const rows: any[] = hook.data?.data ?? []
   const total: number = hook.data?.total ?? 0
-  const pageSize = 20
-  const from = total === 0 ? 0 : (hook.page - 1) * pageSize + 1
-  const to = Math.min(hook.page * pageSize, total)
+  const from = total === 0 ? 0 : (hook.page - 1) * hook.limit + 1
+  const to = Math.min(hook.page * hook.limit, total)
 
   return (
     <div className="flex flex-col gap-6">
@@ -89,27 +85,28 @@ export default function QuotationsPage() {
         </div>
 
         {/* Table */}
-        <table className="w-full text-sm">
+        <table ref={tableRef} className="w-full table-fixed">
+          <colgroup>{colWidths.map((w, i) => <col key={i} style={{ width: `${w}%` }} />)}</colgroup>
           <thead>
             <tr className="border-b border-border bg-muted/40">
-              <th className="w-12 px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground">#</th>
-              <th className="w-36 px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Mã báo giá</th>
-              <th className="w-48 px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Khách hàng</th>
-              <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Dự án</th>
-              <th className="w-28 px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Trạng thái</th>
-              <th className="w-36 px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">Tổng tiền</th>
-              <th className="w-28 px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Hết hạn</th>
-              <th className="w-28 px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Ngày tạo</th>
+              <th style={{ width: `${colWidths[0]}%` }} className="relative px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-foreground/70 select-none">#<ResizeHandle onMouseDown={(e) => startResize(e, 0)} /></th>
+              <th style={{ width: `${colWidths[1]}%` }} className="relative px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-foreground/70 select-none">Mã báo giá<ResizeHandle onMouseDown={(e) => startResize(e, 1)} /></th>
+              <th style={{ width: `${colWidths[2]}%` }} className="relative px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-foreground/70 select-none">Khách hàng<ResizeHandle onMouseDown={(e) => startResize(e, 2)} /></th>
+              <th style={{ width: `${colWidths[3]}%` }} className="relative px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-foreground/70 select-none">Dự án<ResizeHandle onMouseDown={(e) => startResize(e, 3)} /></th>
+              <th style={{ width: `${colWidths[4]}%` }} className="relative px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-foreground/70 select-none">Trạng thái<ResizeHandle onMouseDown={(e) => startResize(e, 4)} /></th>
+              <th style={{ width: `${colWidths[5]}%` }} className="relative px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wide text-foreground/70 select-none">Tổng tiền<ResizeHandle onMouseDown={(e) => startResize(e, 5)} /></th>
+              <th style={{ width: `${colWidths[6]}%` }} className="relative px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-foreground/70 select-none">Hết hạn<ResizeHandle onMouseDown={(e) => startResize(e, 6)} /></th>
+              <th style={{ width: `${colWidths[7]}%` }} className="relative px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-foreground/70 select-none">Ngày tạo</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
             {hook.isFetching && rows.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-4 py-12 text-center text-sm text-muted-foreground">Đang tải…</td>
+                <td colSpan={8} className="px-4 py-12 text-center text-xs text-muted-foreground">Đang tải…</td>
               </tr>
             ) : rows.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-4 py-12 text-center text-sm text-muted-foreground">
+                <td colSpan={8} className="px-4 py-12 text-center text-xs text-muted-foreground">
                   {hook.searchInput ? 'Không tìm thấy kết quả.' : 'Chưa có báo giá nào.'}
                 </td>
               </tr>
@@ -120,18 +117,18 @@ export default function QuotationsPage() {
                   onClick={() => hook.navigate(`/quotations/${row.id}`)}
                   className="cursor-pointer transition-colors hover:bg-muted/40"
                 >
-                  <td className="px-4 py-3 text-center text-xs text-muted-foreground">{from + i}</td>
-                  <td className="px-4 py-3"><CodeBadge>{row.code}</CodeBadge></td>
-                  <td className="px-4 py-3 font-medium text-foreground">{row.company_name ?? '—'}</td>
-                  <td className="px-4 py-3 text-foreground">{row.project_name ?? '—'}</td>
-                  <td className="px-4 py-3"><StatusBadge status={row.status} /></td>
-                  <td className="px-4 py-3 text-right font-mono text-sm text-foreground">
+                  <td className="px-4 py-2 text-center text-xs text-muted-foreground">{from + i}</td>
+                  <td className="px-4 py-2"><CodeText>{row.code}</CodeText></td>
+                  <td className="px-4 py-2 font-medium text-foreground">{row.company_name ?? '—'}</td>
+                  <td className="px-4 py-2 text-foreground">{row.project_name ?? '—'}</td>
+                  <td className="px-4 py-2"><div className="flex justify-center"><StatusBadge status={row.status} /></div></td>
+                  <td className="px-4 py-2 text-right font-mono text-xs text-foreground">
                     {row.grand_total != null ? Number(row.grand_total).toLocaleString('en-US') : '—'}
                   </td>
-                  <td className="px-4 py-3 text-muted-foreground">
+                  <td className="px-4 py-2 text-muted-foreground">
                     {row.expired_at ? new Date(row.expired_at).toLocaleDateString('vi-VN') : '—'}
                   </td>
-                  <td className="px-4 py-3 text-muted-foreground">
+                  <td className="px-4 py-2 text-muted-foreground">
                     {row.created_at ? new Date(row.created_at).toLocaleDateString('vi-VN') : '—'}
                   </td>
                 </tr>
@@ -143,7 +140,10 @@ export default function QuotationsPage() {
         {/* Pagination */}
         {total > 0 && (
           <div className="flex items-center justify-between border-t border-border px-4 py-2.5">
-            <span className="text-xs text-muted-foreground">{from}–{to} / {total} báo giá</span>
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-muted-foreground">{from}–{to} / {total} báo giá</span>
+              <PageSizeSelector value={hook.limit} onChange={hook.setLimit} />
+            </div>
             <div className="flex items-center gap-1">
               <Button
                 variant="ghost" size="sm"
@@ -154,7 +154,7 @@ export default function QuotationsPage() {
                 <ChevronLeft className="h-4 w-4" />
               </Button>
               <span className="min-w-[3rem] text-center text-xs text-muted-foreground">
-                {hook.page} / {Math.ceil(total / pageSize)}
+                {hook.page} / {Math.ceil(total / hook.limit)}
               </span>
               <Button
                 variant="ghost" size="sm"

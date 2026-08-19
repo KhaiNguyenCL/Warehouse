@@ -23,8 +23,14 @@ export class WarehouseRepository {
     return this.db('warehouses').where({ id }).first()
   }
 
-  createWarehouse(data: CreateWarehouseBody) {
-    return this.db('warehouses').insert(data).returning('*').then(([row]) => row)
+  async createWarehouse(data: CreateWarehouseBody) {
+    return this.db.transaction(async (trx) => {
+      if (data.is_default) {
+        await trx('warehouses').where('is_default', true).update({ is_default: false })
+      }
+      const [row] = await trx('warehouses').insert(data).returning('*')
+      return row
+    })
   }
 
   async updateWarehouse(id: string, data: UpdateWarehouseBody) {

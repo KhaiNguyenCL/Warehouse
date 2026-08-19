@@ -12,23 +12,34 @@ export function useProducts() {
   const navigate = useNavigate()
 
   const [page, setPage] = useState(1)
+  const [limit, _setLimit] = useState(50)
   const [_searchInput, _setSearchInput] = useState('')
+  const [categoryId, _setCategoryId] = useState<string | undefined>()
+  const [brandId, _setBrandId] = useState<string | undefined>()
+  const [productType, _setProductType] = useState<string | undefined>()
   const [sortBy, setSortBy] = useState<string | null>(null)
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | null>(null)
   const search = useDebounce(_searchInput)
 
   const searchInput = _searchInput
   function setSearchInput(v: string) { _setSearchInput(v); setPage(1) }
+  function setLimit(v: number) { _setLimit(v); setPage(1) }
+  function setCategoryId(v: string | undefined) { _setCategoryId(v); setPage(1) }
+  function setBrandId(v: string | undefined) { _setBrandId(v); setPage(1) }
+  function setProductType(v: string | undefined) { _setProductType(v); setPage(1) }
   function setSort(field: string | null, order: 'asc' | 'desc' | null) {
     setSortBy(field); setSortOrder(order); setPage(1)
   }
 
   const { data, isLoading, isFetching } = useQuery({
-    queryKey: ['products', page, search, sortBy, sortOrder],
+    queryKey: ['products', page, limit, search, categoryId, brandId, productType, sortBy, sortOrder],
     placeholderData: keepPreviousData,
     queryFn: async () => {
-      const params: Record<string, any> = { page, limit: 20 }
+      const params: Record<string, any> = { page, limit }
       if (search.trim()) params.search = search.trim()
+      if (categoryId) params.category_id = categoryId
+      if (brandId) params.brand_id = brandId
+      if (productType) params.product_type = productType
       if (sortBy) { params.sort_by = sortBy; params.sort_order = sortOrder ?? 'asc' }
       return (await api.get('/products', { params })).data
     },
@@ -97,7 +108,11 @@ export function useProducts() {
     modelCode, setModelCode,
     navigate,
     page, setPage,
+    limit, setLimit,
     searchInput, setSearchInput,
+    categoryId, setCategoryId,
+    brandId, setBrandId,
+    productType, setProductType,
     sortBy, sortOrder, setSort,
     data, isLoading, isFetching,
     categories, brands,

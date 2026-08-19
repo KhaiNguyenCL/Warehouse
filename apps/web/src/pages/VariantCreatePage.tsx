@@ -7,15 +7,9 @@ import dayjs from 'dayjs'
 import { ArrowLeftOutlined } from '@ant-design/icons'
 import { useProductDetail } from '../hooks/useProductDetail'
 import { PageHeader } from '../components/ui/PageHeader'
+import { moneyProps } from '../lib/utils'
 
 const UNITS = ['Cái', 'Chiếc', 'Bộ', 'Hộp', 'Cuộn', 'Mét', 'Cổng', 'License', 'Gói', 'Dây', 'Lần', 'Giờ', 'Ngày']
-
-const moneyProps = {
-  controls: false,
-  style: { width: '100%' },
-  formatter: (v: any) => (v != null && v !== '' ? String(v).replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''),
-  parser:    (v: any) => (v ? v.replace(/,/g, '') : ''),
-}
 
 function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (

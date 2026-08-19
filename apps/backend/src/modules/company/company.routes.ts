@@ -52,6 +52,15 @@ const companyRoutes: FastifyPluginAsync = async (app) => {
 
   // ─── Contacts ──────────────────────────────────────────────────────────
 
+  app.get(
+    '/contacts',
+    { preHandler: authenticate },
+    async (request) => {
+      const q = request.query as any
+      return service.listContacts({ search: q.search, company_id: q.company_id, page: Number(q.page ?? 1), limit: Number(q.limit ?? 50) })
+    },
+  )
+
   app.post<{ Params: { id: string }; Body: CreateContactBody }>(
     '/:id/contacts',
     { schema: createContactSchema, preHandler: authenticate },

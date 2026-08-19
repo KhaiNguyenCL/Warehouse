@@ -16,8 +16,8 @@ export const antdTheme: ThemeConfig = {
     colorBgElevated:       '#ffffff',
     colorBgLayout:         '#f1f5f9',
 
-    colorBorder:           '#e2e8f0',
-    colorBorderSecondary:  '#f1f5f9',
+    colorBorder:           '#94a3b8',
+    colorBorderSecondary:  '#cbd5e1',
 
     colorText:             '#0f172a',
     colorTextSecondary:    '#475569',
@@ -47,10 +47,10 @@ export const antdTheme: ThemeConfig = {
   components: {
     Table: {
       headerBg:         '#f1f5f9',
-      headerColor:      '#374151',
+      headerColor:      '#0f172a',
       headerSplitColor: 'transparent',
-      rowHoverBg:       '#f1f5f9',
-      borderColor:      '#c8d0da',
+      rowHoverBg:       '#e2e8f0',
+      borderColor:      '#94a3b8',
       cellPaddingBlock:  5,
       cellPaddingInline: 12,
       headerBorderRadius: 0,
@@ -70,27 +70,28 @@ export const antdTheme: ThemeConfig = {
       controlHeight:        34,
       paddingInline:        10,
       fontSize:             14,
-      colorBorder:          '#8fa0b4',
-      colorTextPlaceholder: '#8fa0b0',
+      colorBorder:          '#94a3b8',
+      colorTextPlaceholder: '#94a3b8',
     },
     Select: {
       controlHeight:   34,
       fontSize:        14,
-      colorBorder:     '#8fa0b4',
+      colorBorder:     '#94a3b8',
     },
     InputNumber: {
       controlHeight:   34,
       fontSize:        14,
-      colorBorder:     '#8fa0b4',
+      colorBorder:     '#94a3b8',
     },
     DatePicker: {
       controlHeight:   34,
       fontSize:        14,
-      colorBorder:     '#8fa0b4',
+      colorBorder:     '#94a3b8',
     },
     Form: {
-      labelColor:    '#374151',
-      labelFontSize: 14,
+      labelColor:    '#0f172a',
+      labelFontSize: 13,
+      labelRequiredMarkColor: '#dc2626',
     },
     Modal: {
       borderRadiusLG: 12,

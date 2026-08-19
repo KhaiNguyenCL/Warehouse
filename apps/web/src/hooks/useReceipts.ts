@@ -29,23 +29,37 @@ export function useReceipts() {
   }, [poIdFromQuery])
 
   const [page, setPage] = useState(1)
+  const [limit, _setLimit] = useState(50)
   const [_searchInput, _setSearchInput] = useState('')
+  const [status, _setStatus] = useState<string | undefined>()
+  const [importType, _setImportType] = useState<string | undefined>()
+  const [warehouseIdFilter, _setWarehouseIdFilter] = useState<string | undefined>()
+  const [companyIdFilter, _setCompanyIdFilter] = useState<string | undefined>()
   const [sortBy, setSortBy] = useState<string | null>(null)
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | null>(null)
   const search = useDebounce(_searchInput)
 
   const searchInput = _searchInput
   function setSearchInput(v: string) { _setSearchInput(v); setPage(1) }
+  function setStatus(v: string | undefined) { _setStatus(v); setPage(1) }
+  function setImportType(v: string | undefined) { _setImportType(v); setPage(1) }
+  function setWarehouseIdFilter(v: string | undefined) { _setWarehouseIdFilter(v); setPage(1) }
+  function setCompanyIdFilter(v: string | undefined) { _setCompanyIdFilter(v); setPage(1) }
+  function setLimit(v: number) { _setLimit(v); setPage(1) }
   function setSort(field: string | null, order: 'asc' | 'desc' | null) {
     setSortBy(field); setSortOrder(order); setPage(1)
   }
 
   const { data, isLoading, isFetching } = useQuery({
-    queryKey: ['receipts', page, search, sortBy, sortOrder],
+    queryKey: ['receipts', page, limit, search, status, importType, warehouseIdFilter, companyIdFilter, sortBy, sortOrder],
     placeholderData: keepPreviousData,
     queryFn: async () => {
-      const params: Record<string, any> = { page, limit: 20 }
+      const params: Record<string, any> = { page, limit }
       if (search.trim()) params.search = search.trim()
+      if (status) params.status = status
+      if (importType) params.import_type = importType
+      if (warehouseIdFilter) params.warehouse_id = warehouseIdFilter
+      if (companyIdFilter) params.company_id = companyIdFilter
       if (sortBy) { params.sort_by = sortBy; params.sort_order = sortOrder ?? 'asc' }
       return (await api.get('/receipts', { params })).data
     },
@@ -94,10 +108,8 @@ export function useReceipts() {
             po_line_id: l.id,
             quantity: l.remaining_qty,
             cost_price: l.unit_price,
-            has_manufacturer_warranty: l.manufacturer_warranty_months != null,
-            manufacturer_warranty_months: l.manufacturer_warranty_months,
-            has_customer_warranty: l.customer_warranty_months != null,
-            customer_warranty_months: l.customer_warranty_months,
+            manufacturer_warranty_months: l.manufacturer_warranty_months ?? undefined,
+            customer_warranty_months: l.customer_warranty_months ?? undefined,
           })),
       })
     }
@@ -110,13 +122,13 @@ export function useReceipts() {
         quantity: l.quantity,
         cost_price: l.cost_price,
         po_line_id: l.po_line_id,
-        manufacturer_warranty_months: l.has_manufacturer_warranty ? l.manufacturer_warranty_months : undefined,
-        manufacturer_warranty_start: l.has_manufacturer_warranty && l.manufacturer_warranty_start
+        manufacturer_warranty_months: l.manufacturer_warranty_months ?? undefined,
+        manufacturer_warranty_start: l.manufacturer_warranty_start
           ? (dayjs.isDayjs(l.manufacturer_warranty_start)
               ? l.manufacturer_warranty_start.toISOString()
               : dayjs(l.manufacturer_warranty_start).toISOString())
           : undefined,
-        customer_warranty_months: l.has_customer_warranty ? l.customer_warranty_months : undefined,
+        customer_warranty_months: l.customer_warranty_months ?? undefined,
       }))
       return api.post('/receipts', { ...values, lines })
     },
@@ -149,7 +161,11 @@ export function useReceipts() {
     poId, setPoId, poIdFromQuery,
     navigate,
     page, setPage,
-    searchInput, setSearchInput,
+    limit, setLimit,
+    searchInput, setSearchInput, status, setStatus,
+    importType, setImportType,
+    warehouseIdFilter, setWarehouseIdFilter,
+    companyIdFilter, setCompanyIdFilter,
     sortBy, sortOrder, setSort,
     data, isLoading, isFetching,
     importTypes, warehouses, confirmedPOs,

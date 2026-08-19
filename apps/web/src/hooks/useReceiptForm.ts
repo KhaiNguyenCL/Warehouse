@@ -81,11 +81,9 @@ export function useReceiptForm(options?: { onUpdateSuccess?: () => void }) {
       lines: (receipt.lines ?? []).map((l: any) => ({
         id: l.id,
         cost_price: l.cost_price,
-        has_manufacturer_warranty: l.manufacturer_warranty_months != null,
-        manufacturer_warranty_months: l.manufacturer_warranty_months,
+        manufacturer_warranty_months: l.manufacturer_warranty_months ?? undefined,
         manufacturer_warranty_start: l.manufacturer_warranty_start ? dayjs(l.manufacturer_warranty_start) : undefined,
-        has_customer_warranty: l.customer_warranty_months != null,
-        customer_warranty_months: l.customer_warranty_months,
+        customer_warranty_months: l.customer_warranty_months ?? undefined,
       })),
     })
   }, [receipt])
@@ -104,10 +102,8 @@ export function useReceiptForm(options?: { onUpdateSuccess?: () => void }) {
           po_line_id: l.id,
           quantity: l.remaining_qty,
           cost_price: l.unit_price,
-          has_manufacturer_warranty: l.manufacturer_warranty_months != null,
-          manufacturer_warranty_months: l.manufacturer_warranty_months,
-          has_customer_warranty: l.customer_warranty_months != null,
-          customer_warranty_months: l.customer_warranty_months,
+          manufacturer_warranty_months: l.manufacturer_warranty_months ?? undefined,
+          customer_warranty_months: l.customer_warranty_months ?? undefined,
         })),
     })
   }, [poDetail])
@@ -115,7 +111,7 @@ export function useReceiptForm(options?: { onUpdateSuccess?: () => void }) {
   // When poId cleared → reset po-related fields
   useEffect(() => {
     if (!poId) {
-      form.setFieldsValue({ po_id: undefined, company_id: undefined, lines: [] })
+      form.setFieldsValue({ po_id: undefined, company_id: undefined, lines: [{}] })
     }
   }, [poId])
 
@@ -131,14 +127,13 @@ export function useReceiptForm(options?: { onUpdateSuccess?: () => void }) {
       quantity: l.quantity,
       cost_price: l.cost_price,
       po_line_id: l.po_line_id,
-      manufacturer_warranty_months: l.has_manufacturer_warranty ? l.manufacturer_warranty_months : undefined,
-      manufacturer_warranty_start:
-        l.has_manufacturer_warranty && l.manufacturer_warranty_start
-          ? dayjs.isDayjs(l.manufacturer_warranty_start)
-            ? l.manufacturer_warranty_start.toISOString()
-            : dayjs(l.manufacturer_warranty_start).toISOString()
-          : undefined,
-      customer_warranty_months: l.has_customer_warranty ? l.customer_warranty_months : undefined,
+      manufacturer_warranty_months: l.manufacturer_warranty_months ?? undefined,
+      manufacturer_warranty_start: l.manufacturer_warranty_start
+        ? dayjs.isDayjs(l.manufacturer_warranty_start)
+          ? l.manufacturer_warranty_start.toISOString()
+          : dayjs(l.manufacturer_warranty_start).toISOString()
+        : undefined,
+      customer_warranty_months: l.customer_warranty_months ?? undefined,
     }
   }
 
@@ -146,15 +141,13 @@ export function useReceiptForm(options?: { onUpdateSuccess?: () => void }) {
     return {
       id: l.id,
       cost_price: l.cost_price,
-      manufacturer_warranty_months: l.has_manufacturer_warranty ? l.manufacturer_warranty_months : null,
-      manufacturer_warranty_start: l.has_manufacturer_warranty
-        ? l.manufacturer_warranty_start != null
-          ? dayjs.isDayjs(l.manufacturer_warranty_start)
-            ? l.manufacturer_warranty_start.toISOString()
-            : dayjs(l.manufacturer_warranty_start).toISOString()
-          : null
+      manufacturer_warranty_months: l.manufacturer_warranty_months ?? null,
+      manufacturer_warranty_start: l.manufacturer_warranty_start != null
+        ? dayjs.isDayjs(l.manufacturer_warranty_start)
+          ? l.manufacturer_warranty_start.toISOString()
+          : dayjs(l.manufacturer_warranty_start).toISOString()
         : null,
-      customer_warranty_months: l.has_customer_warranty ? l.customer_warranty_months : null,
+      customer_warranty_months: l.customer_warranty_months ?? null,
     }
   }
 

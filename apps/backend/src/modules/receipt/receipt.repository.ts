@@ -8,7 +8,7 @@ export class ReceiptRepository {
 
   // Lấy danh sách receipt có phân trang + filter — dùng cho trang list trên web.
   async findAll(query: ListReceiptQuery) {
-    const { status, import_type, warehouse_id, search, sort_by, sort_order, page = 1, limit = 20 } = query
+    const { status, import_type, warehouse_id, company_id, search, sort_by, sort_order, page = 1, limit = 20 } = query
     const offset = (page - 1) * limit
 
     const SORTABLE: Record<string, string> = {
@@ -32,6 +32,7 @@ export class ReceiptRepository {
     if (status) base.where('r.status', status)
     if (import_type) base.where('r.import_type', import_type)
     if (warehouse_id) base.where('r.warehouse_id', warehouse_id)
+    if (company_id) base.where('r.company_id', company_id)
     if (search) base.where((qb) => qb.whereILike('r.code', `%${search}%`).orWhereILike('c.name', `%${search}%`))
 
     const [rows, countResult] = await Promise.all([

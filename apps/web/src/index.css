@@ -60,8 +60,8 @@
     --popover:                oklch(1 0 0);
     --popover-foreground:     oklch(0.145 0.008 326);
 
-    --primary:                oklch(0.508 0.118 165.612);
-    --primary-foreground:     oklch(0.979 0.021 166.113);
+    --primary:                oklch(0.546 0.245 262.881);
+    --primary-foreground:     oklch(1 0 0);
 
     --secondary:              oklch(0.967 0.001 286.375);
     --secondary-foreground:   oklch(0.21 0.006 285.885);
@@ -75,20 +75,20 @@
     --destructive:            oklch(0.577 0.245 27.325);
     --destructive-foreground: oklch(0.985 0 0);
 
-    --border:                 oklch(0.922 0.005 325.62);
-    --input:                  oklch(0.922 0.005 325.62);
-    --ring:                   oklch(0.711 0.019 323.02);
+    --border:                 #94a3b8;
+    --input:                  #94a3b8;
+    --ring:                   oklch(0.546 0.245 262.881);
 
     --radius: 0.625rem;
 
     /* ── Sidebar ─────────────────────────────────── */
     --sidebar:                        oklch(0.985 0 0);
     --sidebar-foreground:             oklch(0.145 0.008 326);
-    --sidebar-primary:                oklch(0.596 0.145 163.225);
-    --sidebar-primary-foreground:     oklch(0.979 0.021 166.113);
+    --sidebar-primary:                oklch(0.546 0.245 262.881);
+    --sidebar-primary-foreground:     oklch(1 0 0);
     --sidebar-accent:                 oklch(0.96 0.003 325.6);
     --sidebar-accent-foreground:      oklch(0.212 0.019 322.12);
-    --sidebar-border:                 oklch(0.922 0.005 325.62);
+    --sidebar-border:                 oklch(0.88 0.008 325.62);
     --sidebar-ring:                   oklch(0.711 0.019 323.02);
 
     /* ── Charts ──────────────────────────────────── */
@@ -109,8 +109,8 @@
     --popover:                oklch(0.212 0.019 322.12);
     --popover-foreground:     oklch(0.985 0 0);
 
-    --primary:                oklch(0.432 0.095 166.913);
-    --primary-foreground:     oklch(0.979 0.021 166.113);
+    --primary:                oklch(0.623 0.214 259.815);
+    --primary-foreground:     oklch(1 0 0);
 
     --secondary:              oklch(0.274 0.006 286.033);
     --secondary-foreground:   oklch(0.985 0 0);
@@ -124,14 +124,14 @@
     --destructive:            oklch(0.704 0.191 22.216);
     --destructive-foreground: oklch(0.985 0 0);
 
-    --border:                 oklch(1 0 0 / 10%);
-    --input:                  oklch(1 0 0 / 15%);
-    --ring:                   oklch(0.542 0.034 322.5);
+    --border:                 rgba(255,255,255,0.35);
+    --input:                  rgba(255,255,255,0.45);
+    --ring:                   oklch(0.623 0.214 259.815);
 
     --sidebar:                        oklch(0.212 0.019 322.12);
     --sidebar-foreground:             oklch(0.985 0 0);
-    --sidebar-primary:                oklch(0.696 0.17 162.48);
-    --sidebar-primary-foreground:     oklch(0.262 0.051 172.552);
+    --sidebar-primary:                oklch(0.623 0.214 259.815);
+    --sidebar-primary-foreground:     oklch(1 0 0);
     --sidebar-accent:                 oklch(0.263 0.024 320.12);
     --sidebar-accent-foreground:      oklch(0.985 0 0);
     --sidebar-border:                 oklch(1 0 0 / 10%);
@@ -144,11 +144,58 @@
 
   body {
     @apply bg-background text-foreground;
-    font-size: 14px;
+    font-size: 13px;
+  }
+
+  html {
+    zoom: 0.95;
   }
 
   html, body, #root {
     height: 100%;
     overflow: hidden;
   }
+}
+
+/* ── Ant Design input/select hover & focus ────────────────────────────────── */
+.ant-input,
+.ant-input-number,
+.ant-input-number-input,
+.ant-select:not(.ant-select-disabled) .ant-select-selector,
+.ant-picker {
+  transition: border-color 0.15s ease, box-shadow 0.15s ease !important;
+}
+
+.ant-input:hover,
+.ant-input-affix-wrapper:not(.ant-input-affix-wrapper-disabled):hover,
+.ant-input-number:not(.ant-input-number-disabled):hover,
+.ant-select:not(.ant-select-disabled):hover .ant-select-selector,
+.ant-picker:not(.ant-picker-disabled):hover {
+  border-color: var(--color-primary) !important;
+}
+
+.ant-input:focus,
+.ant-input-affix-wrapper-focused,
+.ant-input-number-focused,
+.ant-select-focused .ant-select-selector,
+.ant-picker-focused {
+  border-color: var(--color-primary) !important;
+  box-shadow: 0 0 0 2px oklch(0.546 0.245 262.881 / 20%) !important;
+}
+
+/* ── Ant Design Form compact spacing ──────────────────────────────────────── */
+.ant-form-vertical .ant-form-item {
+  margin-bottom: 12px;
+}
+.ant-form-vertical .ant-form-item:last-child {
+  margin-bottom: 0;
+}
+.ant-form-item .ant-form-item-label {
+  padding-bottom: 2px;
+}
+.ant-form-item .ant-form-item-label > label {
+  font-size: 13px;
+  font-weight: 500;
+  height: auto;
+  color: var(--foreground);
 }

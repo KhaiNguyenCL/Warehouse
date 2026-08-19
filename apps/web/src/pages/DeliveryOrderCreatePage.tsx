@@ -93,7 +93,7 @@ export default function DeliveryOrderCreatePage() {
               )}
 
               {hook.requiresQuotation && (
-                <Form.Item label="Báo giá (bắt buộc)" required style={{ gridColumn: 'span 2' }}>
+                <Form.Item label="Báo giá" required style={{ gridColumn: 'span 2' }}>
                   <Select
                     value={hook.quotationId}
                     placeholder="Chọn báo giá đã Confirmed"
@@ -160,16 +160,20 @@ export default function DeliveryOrderCreatePage() {
                 )}
               </Form.List>
             ) : (
+              <Form.Item noStyle shouldUpdate={(p, c) => p.export_type !== c.export_type}>
+                {({ getFieldValue }) => (
               <Form.List name="lines">
                 {(fields, { add, remove }) => (
                   <div>
                     {fields.map(({ key, name }) => (
-                      <DeliveryLineItem key={key} name={name} remove={() => remove(name)} />
+                      <DeliveryLineItem key={key} name={name} remove={() => remove(name)} exportType={getFieldValue('export_type')} />
                     ))}
                     <Button onClick={() => add()} style={{ marginTop: 4 }}>+ Thêm dòng</Button>
                   </div>
                 )}
               </Form.List>
+                )}
+              </Form.Item>
             )}
           </SectionCard>
         </div>

@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Form, Input, AutoComplete, Button, Select, Tooltip } from 'antd'
 import { DeleteOutlined, AppstoreAddOutlined } from '@ant-design/icons'
 import { useQuery } from '@tanstack/react-query'
@@ -50,10 +50,8 @@ interface SubSectionProps {
 }
 
 function SubSectionBlock({ form, sectionName, name, subIndex, allVariants, remove }: SubSectionProps) {
-  const productId: string | undefined = Form.useWatch(
-    ['sections', sectionName, 'sub_sections', name, 'product_id'],
-    form,
-  )
+  // Local state for product filter — ensures Select re-renders immediately on change
+  const [filterProductId, setFilterProductId] = useState<string | undefined>()
 
   // Danh sách sản phẩm duy nhất từ cache variants
   const productOptions = useMemo(() => {
@@ -68,12 +66,15 @@ function SubSectionBlock({ form, sectionName, name, subIndex, allVariants, remov
     return opts.sort((a, b) => a.label.localeCompare(b.label))
   }, [allVariants])
 
-  function onSelectProduct(pid: string) {
+  function onSelectProduct(pid: string | undefined) {
+    setFilterProductId(pid)
     form.setFieldValue(['sections', sectionName, 'sub_sections', name, 'product_id'], pid)
-    const found = allVariants.find((v) => v.product_id === pid)
-    const existingName = form.getFieldValue(['sections', sectionName, 'sub_sections', name, 'name'])
-    if (!existingName && found) {
-      form.setFieldValue(['sections', sectionName, 'sub_sections', name, 'name'], found.product_name)
+    if (pid) {
+      const found = allVariants.find((v) => v.product_id === pid)
+      const existingName = form.getFieldValue(['sections', sectionName, 'sub_sections', name, 'name'])
+      if (!existingName && found) {
+        form.setFieldValue(['sections', sectionName, 'sub_sections', name, 'name'], found.product_name)
+      }
     }
   }
 
@@ -109,7 +110,7 @@ function SubSectionBlock({ form, sectionName, name, subIndex, allVariants, remov
           style={{ minWidth: 200 }}
           size="small"
           options={productOptions}
-          value={productId || undefined}
+          value={filterProductId}
           onChange={onSelectProduct}
           filterOption={(input, opt) => (opt?.label ?? '').toLowerCase().includes(input.toLowerCase())}
         />
@@ -134,7 +135,7 @@ function SubSectionBlock({ form, sectionName, name, subIndex, allVariants, remov
                   form={form}
                   parentPath={parentPath}
                   name={lineName}
-                  productId={productId}
+                  productId={filterProductId}
                   remove={() => removeLine(lineName)}
                 />
               ))}
@@ -152,8 +153,8 @@ function SubSectionBlock({ form, sectionName, name, subIndex, allVariants, remov
 // ── Main section component ────────────────────────────────────────────────────
 export default function QuotationSectionItem({ form, name, sectionIndex, remove }: Props) {
   const { data: allVariants = [] } = useQuery<VariantData[]>({
-    queryKey: ['products', 'variants', 'all'],
-    queryFn: async () => (await api.get('/products/variants', { params: { limit: 500 } })).data,
+    queryKey: ['products', 'variants', 'all', false],
+    queryFn: async () => (await api.get('/products/variants', { params: { limit: 200 } })).data,
   })
 
   const { data: presets = [] } = useSectionNamePresets()

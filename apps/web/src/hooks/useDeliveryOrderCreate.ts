@@ -64,8 +64,8 @@ export function useDeliveryOrderCreate() {
     if (quotationDetail) {
       const lines = quotationDetail.sections
         .flatMap((s: any) => [
-          ...s.sub_sections.flatMap((ss: any) => ss.line_items),
-          ...s.line_items,
+          ...(s.sub_sections ?? []).flatMap((ss: any) => ss.line_items ?? []),
+          ...(s.line_items ?? []),
         ])
         .filter((l: any) => l.variant_id && l.remaining_qty > 0)
         .map((l: any) => ({

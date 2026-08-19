@@ -1,9 +1,9 @@
-import { useRef } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Popconfirm } from 'antd'
-import { X, Plus, Trash2 } from 'lucide-react'
-import { Sheet, SheetContent } from '@/components/ui/sheet'
+import { X, Plus, Trash2, Pencil, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 import { api } from '../lib/api'
 import { useApiMutation } from '../hooks/useApiMutation'
@@ -17,8 +17,8 @@ function TypeBadge({ types }: { types: string[] }) {
         <span key={t} className={cn(
           'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium',
           t === 'customer'
-            ? 'bg-blue-50 text-blue-700 ring-1 ring-blue-200'
-            : 'bg-purple-50 text-purple-700 ring-1 ring-purple-200',
+            ? 'bg-blue-100 text-blue-800 ring-1 ring-blue-300'
+            : 'bg-purple-100 text-purple-800 ring-1 ring-purple-300',
         )}>
           {t === 'customer' ? 'Khách hàng' : 'NCC'}
         </span>
@@ -50,6 +50,90 @@ function SectionBlock({
   )
 }
 
+// ── inline editable Mã field ──────────────────────────────────────────────────
+
+function EditableCode({
+  companyId, initialCode,
+}: { companyId: string; initialCode: string }) {
+  const [editing, setEditing] = useState(false)
+  const [value, setValue] = useState(initialCode)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => { setValue(initialCode) }, [initialCode])
+  useEffect(() => { if (editing) inputRef.current?.focus() }, [editing])
+
+  const saveMutation = useApiMutation(
+    (code: string) => api.patch(`/companies/${companyId}`, { code }),
+    {
+      successMessage: 'Đã cập nhật mã',
+      invalidateKey: ['companies'],
+      onSuccess: () => setEditing(false),
+    },
+  )
+
+  function handleCancel() {
+    setValue(initialCode)
+    setEditing(false)
+  }
+
+  function handleSave() {
+    if (value.trim() && value.trim() !== initialCode) {
+      saveMutation.mutate(value.trim())
+    } else {
+      setValue(initialCode)
+      setEditing(false)
+    }
+  }
+
+  if (editing) {
+    return (
+      <div className="flex items-center gap-1">
+        <Input
+          ref={inputRef}
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') handleSave()
+            if (e.key === 'Escape') handleCancel()
+          }}
+          className="h-6 w-32 px-1.5 py-0 font-mono text-xs"
+          disabled={saveMutation.isPending}
+        />
+        <button
+          onClick={handleSave}
+          disabled={saveMutation.isPending}
+          className="flex h-5 w-5 items-center justify-center rounded text-emerald-600 hover:bg-emerald-50"
+        >
+          <Check className="h-3.5 w-3.5" />
+        </button>
+        <button
+          onClick={handleCancel}
+          className="flex h-5 w-5 items-center justify-center rounded text-muted-foreground hover:bg-muted"
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="group flex items-center gap-1.5">
+      <span className="inline-flex items-center rounded-md border border-border bg-muted/60 px-1.5 py-0.5 font-mono text-xs font-medium text-foreground">
+        {initialCode}
+      </span>
+      <button
+        onClick={() => setEditing(true)}
+        className="flex h-5 w-5 items-center justify-center rounded text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:bg-muted"
+        title="Sửa mã"
+      >
+        <Pencil className="h-3 w-3" />
+      </button>
+    </div>
+  )
+}
+
+// ── main component ────────────────────────────────────────────────────────────
+
 interface Props {
   open: boolean
   companyId: string | null
@@ -77,9 +161,23 @@ export default function CompanySheet({ open, companyId, onClose }: Props) {
   const isSupplier = company?.types?.includes('supplier')
 
   return (
-    <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
-      <SheetContent side="right" className="flex flex-col gap-0 p-0 sm:max-w-[580px] w-[580px]">
+    <>
+      {/* backdrop — dims but does NOT lock scroll */}
+      <div
+        className={cn(
+          'fixed inset-0 z-40 bg-black/30 supports-backdrop-filter:backdrop-blur-sm transition-opacity duration-200',
+          open ? 'opacity-100' : 'pointer-events-none opacity-0',
+        )}
+        onClick={onClose}
+      />
 
+      {/* panel */}
+      <div
+        className={cn(
+          'fixed right-0 top-0 z-50 flex h-full w-1/2 flex-col bg-background shadow-xl transition-transform duration-200',
+          open ? 'translate-x-0' : 'translate-x-full',
+        )}
+      >
         {/* header */}
         <div className="flex shrink-0 items-start justify-between gap-3 border-b border-border px-5 py-4">
           {isLoading ? (
@@ -87,14 +185,7 @@ export default function CompanySheet({ open, companyId, onClose }: Props) {
           ) : (
             <div className="flex flex-col gap-1.5 min-w-0">
               <h2 className="text-base font-semibold text-foreground leading-snug">{company?.name}</h2>
-              <div className="flex items-center gap-2 flex-wrap">
-                {company?.code && (
-                  <span className="inline-flex items-center rounded-md border border-border bg-muted/60 px-1.5 py-0.5 font-mono text-xs font-medium text-foreground">
-                    {company.code}
-                  </span>
-                )}
-                <TypeBadge types={company?.types ?? []} />
-              </div>
+              <TypeBadge types={company?.types ?? []} />
             </div>
           )}
 
@@ -133,9 +224,14 @@ export default function CompanySheet({ open, companyId, onClose }: Props) {
           ) : (
             <div className="flex flex-col gap-6 px-5 py-5">
 
-              {/* Info */}
               <SectionBlock title="Thông tin">
                 <div className="grid grid-cols-2 gap-x-8 gap-y-4">
+                  {company?.code != null && (
+                    <div>
+                      <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Mã đối tác</div>
+                      <div className="mt-0.5"><EditableCode companyId={companyId!} initialCode={company.code} /></div>
+                    </div>
+                  )}
                   <InfoRow label="Số điện thoại" value={company?.phone} />
                   <InfoRow label="Email"          value={company?.email} />
                   <InfoRow label="Mã số thuế"     value={company?.tax_code} />
@@ -161,7 +257,6 @@ export default function CompanySheet({ open, companyId, onClose }: Props) {
 
               <div className="border-t border-border" />
 
-              {/* Contacts */}
               <SectionBlock
                 title="Người liên hệ"
                 action={
@@ -177,7 +272,6 @@ export default function CompanySheet({ open, companyId, onClose }: Props) {
                 {companyId && <ContactsPanel ref={contactsRef} companyId={companyId} />}
               </SectionBlock>
 
-              {/* Supplier products */}
               {isSupplier && companyId && (
                 <>
                   <div className="border-t border-border" />
@@ -190,8 +284,7 @@ export default function CompanySheet({ open, companyId, onClose }: Props) {
             </div>
           )}
         </div>
-
-      </SheetContent>
-    </Sheet>
+      </div>
+    </>
   )
 }

@@ -14,12 +14,12 @@ interface Props {
   remove: () => void
 }
 
-const GRID_COLS = '2fr 1.5fr 58px 140px 56px 78px 1fr 46px 30px'
+const GRID_COLS = '2fr 1.5fr 64px 58px 140px 56px 78px 1fr 46px 30px'
 
 const numProps = {
   controls: false,
-  formatter: (v: any) => (v != null && v !== '' ? String(v).replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''),
-  parser:    (v: any) => (v ? v.replace(/,/g, '') : ''),
+  formatter: (v: any) => (v != null && v !== '' ? String(Math.round(Number(v))).replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''),
+  parser:    (v: any) => (v ? Number(String(v).replace(/,/g, '')) : ('' as any)),
 }
 
 function fmt(n: number) {
@@ -29,12 +29,13 @@ function fmt(n: number) {
 const COL_LABELS = [
   { text: 'SKU / Sản phẩm' },
   { text: 'Mô tả' },
-  { text: 'SL' },
-  { text: 'Đơn giá' },
-  { text: 'VAT%' },
-  { text: 'Bảo hành' },
+  { text: 'ĐVT',      align: 'center' as const },
+  { text: 'SL',       align: 'center' as const },
+  { text: 'Đơn giá',  align: 'center' as const },
+  { text: 'VAT%',     align: 'center' as const },
+  { text: 'Bảo hành', align: 'center' as const },
   { text: 'Ghi chú' },
-  { text: 'Giữ chỗ', align: 'center' as const },
+  { text: 'Giữ chỗ',  align: 'center' as const },
   { text: '' },
 ]
 
@@ -94,9 +95,10 @@ export default function QuotationLineItem({ form, parentPath, name, productId, r
     form.setFields([
       { name: [...parentPath, name, 'variant_id'],  value: isBundle ? undefined : variant.id },
       { name: [...parentPath, name, 'bundle_id'],   value: isBundle ? variant.id : undefined },
-      { name: [...parentPath, name, 'unit_price'],  value: variant.sale_price ?? variant.cost_price },
-      { name: [...parentPath, name, 'vat_percent'], value: variant.vat_percent ?? 0 },
+      { name: [...parentPath, name, 'unit_price'],  value: variant.sale_price != null ? Number(variant.sale_price) : (variant.cost_price != null ? Number(variant.cost_price) : undefined) },
+      { name: [...parentPath, name, 'vat_percent'], value: variant.vat_percent != null ? Number(variant.vat_percent) : 0 },
       { name: [...parentPath, name, 'is_reserved'], value: !isSvc },
+      { name: [...parentPath, name, 'unit'],        value: variant.unit ?? undefined },
       ...(warrantyStr != null ? [{ name: [...parentPath, name, 'warranty'], value: warrantyStr }] : []),
     ])
   }
@@ -125,6 +127,10 @@ export default function QuotationLineItem({ form, parentPath, name, productId, r
           <Input.TextArea placeholder="Mô tả trên báo giá" autoSize={{ minRows: 1, maxRows: 4 }} style={{ width: '100%' }} />
         </Form.Item>
 
+        <Form.Item name={path('unit')} noStyle>
+          <Input placeholder="Cái" style={{ width: '100%', textAlign: 'center' }} />
+        </Form.Item>
+
         <Form.Item name={path('quantity')} noStyle rules={[{ required: true, message: '' }]}>
           <InputNumber {...numProps} min={0.01} style={{ width: '100%' }} />
         </Form.Item>
@@ -133,8 +139,8 @@ export default function QuotationLineItem({ form, parentPath, name, productId, r
           <InputNumber {...numProps} min={0} style={{ width: '100%' }} />
         </Form.Item>
 
-        <Form.Item name={path('vat_percent')} noStyle initialValue={0}>
-          <InputNumber controls={false} min={0} max={100} style={{ width: '100%' }} />
+        <Form.Item name={path('vat_percent')} noStyle>
+          <InputNumber controls={false} precision={0} min={0} max={100} style={{ width: '100%' }} />
         </Form.Item>
 
         <Form.Item name={path('warranty')} noStyle>

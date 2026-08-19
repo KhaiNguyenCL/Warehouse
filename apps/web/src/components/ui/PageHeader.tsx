@@ -23,10 +23,10 @@ export function PageHeader({ title, meta, actions }: Props) {
         <h1
           style={{
             margin: 0,
-            fontSize: 'var(--font-xl)',
+            fontSize: '1.5rem',
             fontWeight: 700,
             letterSpacing: '-0.5px',
-            color: 'var(--text-1)',
+            color: 'var(--foreground)',
             lineHeight: 1.25,
             textWrap: 'balance',
           } as React.CSSProperties}
@@ -37,8 +37,8 @@ export function PageHeader({ title, meta, actions }: Props) {
           <p
             style={{
               margin: '3px 0 0',
-              fontSize: 'var(--font-base)',
-              color: 'var(--text-2)',
+              fontSize: '0.875rem',
+              color: 'var(--muted-foreground)',
               fontWeight: 400,
             }}
           >

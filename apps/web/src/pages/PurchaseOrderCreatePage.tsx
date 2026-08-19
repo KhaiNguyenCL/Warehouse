@@ -100,7 +100,7 @@ export default function PurchaseOrderCreatePage() {
   const statusLabels: Record<string, string> = { draft: 'Nháp', confirmed: 'Đã xác nhận', cancelled: 'Đã huỷ' }
 
   return (
-    <div style={{ maxWidth: 1100, margin: '0 auto', padding: '0 0 48px' }}>
+    <div style={{ padding: '0 0 48px' }}>
       {/* Breadcrumb + action buttons trên */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 24 }}>
         <Button
@@ -279,7 +279,7 @@ export default function PurchaseOrderCreatePage() {
             <div style={{ overflowX: 'auto' }}>
               <Form.List name="lines">
                 {(fields, { add, remove }) => (
-                  <div style={{ minWidth: 900 }}>
+                  <div style={{ minWidth: 1100 }}>
                     {fields.map(({ key, name }) => (
                       <div key={key} style={{ marginBottom: key < fields.length - 1 ? 4 : 0 }}>
                         <POLineItem

@@ -2,14 +2,11 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Plus, Search } from 'lucide-react'
+import { Plus, Search, X } from 'lucide-react'
 
 import { useUsers } from '@/hooks/useUsers'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
-} from '@/components/ui/dialog'
 import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from '@/components/ui/form'
@@ -131,7 +128,7 @@ export default function UsersPage() {
         </div>
 
         {/* Table */}
-        <table className="w-full text-sm">
+        <table className="w-full">
           <thead>
             <tr className="border-b border-border bg-muted/40">
               <th className="w-12 px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">#</th>
@@ -139,19 +136,19 @@ export default function UsersPage() {
               <th className="w-56 px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Email</th>
               <th className="w-32 px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">SĐT</th>
               <th className="w-36 px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Vai trò</th>
-              <th className="w-28 px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Trạng thái</th>
+              <th className="w-40 px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground">Trạng thái</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
             {isLoading ? (
               <tr>
-                <td colSpan={6} className="px-4 py-12 text-center text-sm text-muted-foreground">
+                <td colSpan={6} className="px-4 py-12 text-center text-xs text-muted-foreground">
                   Đang tải…
                 </td>
               </tr>
             ) : filtered.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-12 text-center text-sm text-muted-foreground">
+                <td colSpan={6} className="px-4 py-12 text-center text-xs text-muted-foreground">
                   {search ? 'Không tìm thấy kết quả.' : 'Chưa có người dùng nào.'}
                 </td>
               </tr>
@@ -162,24 +159,26 @@ export default function UsersPage() {
                   onClick={() => openEdit(r)}
                   className="group/row cursor-pointer transition-colors hover:bg-muted/40"
                 >
-                  <td className="px-4 py-3 text-muted-foreground">{i + 1}</td>
-                  <td className="px-4 py-3 font-medium text-foreground">{r.full_name}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{r.email}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{r.phone ?? '—'}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{r.role_name ?? '—'}</td>
-                  <td className="px-4 py-3">
-                    <span className={cn(
-                      'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium',
-                      r.is_active
-                        ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200'
-                        : 'bg-zinc-100 text-zinc-500 ring-1 ring-zinc-200',
-                    )}>
+                  <td className="px-4 py-2 text-muted-foreground">{i + 1}</td>
+                  <td className="px-4 py-2 font-medium text-foreground">{r.full_name}</td>
+                  <td className="px-4 py-2 text-foreground">{r.email}</td>
+                  <td className="px-4 py-2 text-foreground">{r.phone ?? <span className="text-muted-foreground">—</span>}</td>
+                  <td className="px-4 py-2 text-foreground">{r.role_name ?? <span className="text-muted-foreground">—</span>}</td>
+                  <td className="px-4 py-2">
+                    <div className="flex justify-center">
                       <span className={cn(
-                        'h-1.5 w-1.5 rounded-full',
-                        r.is_active ? 'bg-emerald-500' : 'bg-zinc-400',
-                      )} />
-                      {r.is_active ? 'Hoạt động' : 'Ngừng'}
-                    </span>
+                        'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium',
+                        r.is_active
+                          ? 'bg-emerald-100 text-emerald-800 ring-1 ring-emerald-300'
+                          : 'bg-red-100 text-red-700 ring-1 ring-red-200',
+                      )}>
+                        <span className={cn(
+                          'h-1.5 w-1.5 rounded-full',
+                          r.is_active ? 'bg-emerald-500' : 'bg-red-500',
+                        )} />
+                        {r.is_active ? 'Hoạt động' : 'Ngừng'}
+                      </span>
+                    </div>
                   </td>
                 </tr>
               ))
@@ -195,106 +194,130 @@ export default function UsersPage() {
         )}
       </div>
 
-      {/* Create / Edit Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>
-              {editing ? `Sửa user "${editing.full_name}"` : 'Tạo user mới'}
-            </DialogTitle>
-          </DialogHeader>
+      {/* Create / Edit Sheet */}
+      <div
+        className={cn(
+          'fixed inset-0 z-40 bg-black/30 supports-backdrop-filter:backdrop-blur-sm transition-opacity duration-200',
+          dialogOpen ? 'opacity-100' : 'pointer-events-none opacity-0',
+        )}
+        onClick={() => setDialogOpen(false)}
+      />
+      <div
+        className={cn(
+          'fixed right-0 top-0 z-50 flex h-full w-[480px] flex-col bg-background shadow-xl transition-transform duration-200',
+          dialogOpen ? 'translate-x-0' : 'translate-x-full',
+        )}
+      >
+        {/* header */}
+        <div className="flex shrink-0 items-center justify-between border-b border-border px-5 py-4">
+          <h2 className="text-base font-semibold text-foreground">
+            {editing ? `Sửa user "${editing.full_name}"` : 'Tạo user mới'}
+          </h2>
+          <button
+            onClick={() => setDialogOpen(false)}
+            className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
 
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-4 py-2">
+        {/* scrollable body + footer */}
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="flex min-h-0 flex-1 flex-col">
+            <div className="flex-1 overflow-y-auto px-5 py-5">
+              <div className="flex flex-col gap-4">
 
-              <FormField control={form.control} name="full_name" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Họ tên <span className="text-red-500">*</span></FormLabel>
-                  <FormControl>
-                    <Input placeholder="Nguyễn Văn A" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
-
-              {!editing && (
-                <FormField control={form.control} name="email" render={({ field }) => (
+                <FormField control={form.control} name="full_name" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email <span className="text-red-500">*</span></FormLabel>
+                    <FormLabel>Họ tên <span className="text-red-500">*</span></FormLabel>
                     <FormControl>
-                      <Input type="email" placeholder="user@company.com" {...field} />
+                      <Input placeholder="Nguyễn Văn A" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />
-              )}
 
-              <FormField control={form.control} name="phone" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>SĐT</FormLabel>
-                  <FormControl>
-                    <Input placeholder="0901 234 567" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
+                {!editing && (
+                  <FormField control={form.control} name="email" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email <span className="text-red-500">*</span></FormLabel>
+                      <FormControl>
+                        <Input type="email" placeholder="user@company.com" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                )}
 
-              <FormField control={form.control} name="role_id" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Vai trò <span className="text-red-500">*</span></FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
+                <FormField control={form.control} name="phone" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>SĐT</FormLabel>
                     <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Chọn vai trò" />
-                      </SelectTrigger>
+                      <Input placeholder="0901 234 567" {...field} />
                     </FormControl>
-                    <SelectContent>
-                      {(roles ?? []).map((r: any) => (
-                        <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )} />
-
-              <FormField control={form.control} name="password" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>
-                    {editing ? 'Đổi password' : 'Password'}
-                    {!editing && <span className="text-red-500"> *</span>}
-                    {editing && <span className="ml-1 text-xs font-normal text-muted-foreground">(để trống nếu không đổi)</span>}
-                  </FormLabel>
-                  <FormControl>
-                    <Input type="password" placeholder={editing ? '••••••' : 'Tối thiểu 6 ký tự'} {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
-
-              {editing && (
-                <FormField control={form.control} name="is_active" render={({ field }) => (
-                  <FormItem className="flex items-center justify-between rounded-lg border border-border p-3">
-                    <FormLabel className="cursor-pointer text-sm font-normal">Hoạt động</FormLabel>
-                    <FormControl>
-                      <Switch checked={field.value} onCheckedChange={field.onChange} />
-                    </FormControl>
+                    <FormMessage />
                   </FormItem>
                 )} />
-              )}
 
-              <DialogFooter className="pt-2">
-                <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
-                  Huỷ
-                </Button>
-                <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending}>
-                  {editing ? 'Lưu thay đổi' : 'Tạo mới'}
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
+                <FormField control={form.control} name="role_id" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Vai trò <span className="text-red-500">*</span></FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Chọn vai trò" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {(roles ?? []).map((r: any) => (
+                          <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+
+                <FormField control={form.control} name="password" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      {editing ? 'Đổi password' : 'Password'}
+                      {!editing && <span className="text-red-500"> *</span>}
+                      {editing && <span className="ml-1 text-xs font-normal text-muted-foreground">(để trống nếu không đổi)</span>}
+                    </FormLabel>
+                    <FormControl>
+                      <Input type="password" placeholder={editing ? '••••••' : 'Tối thiểu 6 ký tự'} {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+
+                {editing && (
+                  <FormField control={form.control} name="is_active" render={({ field }) => (
+                    <FormItem className="flex items-center justify-between rounded-lg border border-border p-3">
+                      <FormLabel className="cursor-pointer text-sm font-normal">Hoạt động</FormLabel>
+                      <FormControl>
+                        <Switch checked={field.value} onCheckedChange={field.onChange} />
+                      </FormControl>
+                    </FormItem>
+                  )} />
+                )}
+
+              </div>
+            </div>
+
+            {/* footer */}
+            <div className="flex shrink-0 items-center justify-end gap-2 border-t border-border px-5 py-4">
+              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
+                Huỷ
+              </Button>
+              <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending}>
+                {editing ? 'Lưu thay đổi' : 'Tạo mới'}
+              </Button>
+            </div>
+          </form>
+        </Form>
+      </div>
     </div>
   )
 }

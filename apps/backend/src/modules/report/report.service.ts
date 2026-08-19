@@ -31,4 +31,16 @@ export class ReportService {
   dashboard() {
     return this.repo.dashboard()
   }
+
+  salesPipeline() {
+    return this.repo.salesPipeline()
+  }
+
+  stockFlow(from?: string, to?: string, groupBy: 'day' | 'month' = 'day') {
+    return this.repo.stockFlow(from, to, groupBy)
+  }
+
+  lowStockItems(limit = 20) {
+    return this.repo.lowStockItems(limit)
+  }
 }

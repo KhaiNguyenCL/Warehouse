@@ -9,6 +9,7 @@ import { useApiMutation } from '../hooks/useApiMutation'
 import { useTermTemplates } from '../hooks/useTermTemplates'
 import { PageHeader } from '../components/ui/PageHeader'
 import QuotationSectionItem from '../components/QuotationSectionItem'
+import { moneyProps } from '../lib/utils'
 
 // ── Layout helpers — giống hệt QuotationDetailPage ───────────────────────────
 
@@ -44,13 +45,6 @@ function Field({ label, children, span }: { label: string; children: React.React
       <div style={valueStyle}>{children}</div>
     </div>
   )
-}
-
-const moneyProps = {
-  controls: false,
-  style: { width: '100%' },
-  formatter: (v: any) => (v != null && v !== '' ? String(v).replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''),
-  parser:    (v: any) => (v ? v.replace(/,/g, '') : ''),
 }
 
 // ── Page ─────────────────────────────────────────────────────────────────────

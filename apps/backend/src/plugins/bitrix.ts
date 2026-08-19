@@ -79,8 +79,19 @@ export class BitrixClient {
     return this.call<BitrixCompany>('crm.company.get', { id: companyId })
   }
 
-  getContact(contactId: string) {
-    return this.call<BitrixContact>('crm.contact.get', { id: contactId })
+  async getContact(contactId: string): Promise<BitrixContact> {
+    if (!this.webhookUrl) throw { statusCode: 503, message: 'BITRIX_WEBHOOK_URL chưa được cấu hình' }
+    const SELECT = ['ID', 'NAME', 'LAST_NAME', 'POST', 'PHONE', 'EMAIL', 'COMPANY_ID']
+    const parts = [`id=${encodeURIComponent(contactId)}`]
+    SELECT.forEach((f, i) => parts.push(`select%5B${i}%5D=${encodeURIComponent(f)}`))
+    const url = `${this.webhookUrl.replace(/\/$/, '')}/crm.contact.get?${parts.join('&')}`
+    let res: Response
+    try { res = await fetch(url) } catch (err: any) {
+      throw { statusCode: 502, message: `Không gọi được Bitrix API: ${err.message}` }
+    }
+    const json: any = await res.json()
+    if (json.error) throw { statusCode: 502, message: `Bitrix API lỗi: ${json.error_description ?? json.error}` }
+    return json.result as BitrixContact
   }
 
   listCompanies(filter: Record<string, string> = {}) {
@@ -89,6 +100,45 @@ export class BitrixClient {
 
   listContacts(filter: Record<string, string> = {}) {
     return this.call<BitrixContact[]>('crm.contact.list', filter)
+  }
+
+  async getContactCompanies(contactId: string): Promise<BitrixCompany[]> {
+    if (!this.webhookUrl) throw { statusCode: 503, message: 'BITRIX_WEBHOOK_URL chưa được cấu hình' }
+    const url = `${this.webhookUrl.replace(/\/$/, '')}/crm.contact.company.items.get?id=${encodeURIComponent(contactId)}`
+    let res: Response
+    try { res = await fetch(url) } catch (err: any) {
+      throw { statusCode: 502, message: `Không gọi được Bitrix API: ${err.message}` }
+    }
+    const json: any = await res.json()
+    if (json.error) throw { statusCode: 502, message: `Bitrix API lỗi: ${json.error_description ?? json.error}` }
+    return json.result as BitrixCompany[]
+  }
+
+  async listAllContacts(): Promise<BitrixContact[]> {
+    if (!this.webhookUrl) throw { statusCode: 503, message: 'BITRIX_WEBHOOK_URL chưa được cấu hình' }
+
+    const SELECT = ['ID', 'NAME', 'LAST_NAME', 'POST', 'PHONE', 'EMAIL', 'COMPANY_ID']
+    const all: BitrixContact[] = []
+    let start = 0
+
+    while (true) {
+      const parts: string[] = [`start=${start}`]
+      SELECT.forEach((f, i) => parts.push(`select%5B${i}%5D=${encodeURIComponent(f)}`))
+      const url = `${this.webhookUrl.replace(/\/$/, '')}/crm.contact.list?${parts.join('&')}`
+
+      let res: Response
+      try { res = await fetch(url) } catch (err: any) {
+        throw { statusCode: 502, message: `Không gọi được Bitrix API: ${err.message}` }
+      }
+      const json: any = await res.json()
+      if (json.error) throw { statusCode: 502, message: `Bitrix API lỗi: ${json.error_description ?? json.error}` }
+
+      all.push(...(json.result ?? []))
+      if (!json.next) break
+      start = Number(json.next)
+    }
+
+    return all
   }
 
   // Fetch toàn bộ companies từ Bitrix với các UF field cần thiết, xử lý pagination.

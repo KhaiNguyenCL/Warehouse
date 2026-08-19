@@ -77,11 +77,15 @@ export class PurchaseOrderRepository {
 
     const linesWithProgress = lines.map((l: any) => {
       const p = progress.get(l.id) ?? { received_qty: 0, pending_qty: 0 }
+      const qty = Number(l.quantity)
       return {
         ...l,
+        quantity:    qty,
+        unit_price:  l.unit_price  != null ? Number(l.unit_price)  : null,
+        vat_percent: l.vat_percent != null ? Number(l.vat_percent) : null,
         received_qty: p.received_qty,
         pending_qty: p.pending_qty,
-        remaining_qty: Number(l.quantity) - p.received_qty - p.pending_qty,
+        remaining_qty: qty - p.received_qty - p.pending_qty,
         custom_field_values: customValuesByLine.get(l.id) ?? [],
       }
     })

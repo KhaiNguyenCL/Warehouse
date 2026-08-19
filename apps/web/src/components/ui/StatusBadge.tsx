@@ -20,20 +20,20 @@ interface StatusDef {
 }
 
 const STATUS_MAP: Record<string, StatusDef> = {
-  draft:            { label: 'Nháp',            className: 'bg-slate-100 text-slate-600 ring-1 ring-slate-200',           dotClass: 'bg-slate-400' },
-  pending_approval: { label: 'Chờ duyệt',       className: 'bg-amber-100 text-amber-700 ring-1 ring-amber-200',           dotClass: 'bg-amber-500' },
-  approved:         { label: 'Đã duyệt',         className: 'bg-blue-50 text-blue-700 ring-1 ring-blue-200',               dotClass: 'bg-blue-500' },
-  completed:        { label: 'Hoàn thành',       className: 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200',      dotClass: 'bg-emerald-500' },
-  cancelled:        { label: 'Đã hủy',           className: 'bg-red-50 text-red-600 ring-1 ring-red-200',                 dotClass: 'bg-red-500' },
-  confirmed:        { label: 'Đã xác nhận',      className: 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200',      dotClass: 'bg-emerald-500' },
-  in_progress:      { label: 'Đang thực hiện',   className: 'bg-blue-50 text-blue-700 ring-1 ring-blue-200',               dotClass: 'bg-blue-500' },
-  expired:          { label: 'Hết hạn',          className: 'bg-purple-50 text-purple-700 ring-1 ring-purple-200',         dotClass: 'bg-purple-500' },
-  active:           { label: 'Hoạt động',        className: 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200',      dotClass: 'bg-emerald-500' },
-  sold:             { label: 'Đã bán',           className: 'bg-blue-50 text-blue-700 ring-1 ring-blue-200',               dotClass: 'bg-blue-500' },
-  disposed:         { label: 'Đã huỷ',           className: 'bg-zinc-100 text-zinc-500 ring-1 ring-zinc-200',             dotClass: 'bg-zinc-400' },
+  draft:            { label: 'Nháp',            className: 'bg-slate-100 text-slate-900 ring-1 ring-slate-400',           dotClass: 'bg-slate-600' },
+  pending_approval: { label: 'Chờ duyệt',       className: 'bg-amber-200 text-amber-800 ring-1 ring-amber-400',           dotClass: 'bg-amber-600' },
+  approved:         { label: 'Đã duyệt',         className: 'bg-blue-100 text-blue-800 ring-1 ring-blue-300',              dotClass: 'bg-blue-600' },
+  completed:        { label: 'Hoàn thành',       className: 'bg-emerald-100 text-emerald-800 ring-1 ring-emerald-300',     dotClass: 'bg-emerald-600' },
+  cancelled:        { label: 'Đã hủy',           className: 'bg-red-100 text-red-700 ring-1 ring-red-300',                dotClass: 'bg-red-600' },
+  confirmed:        { label: 'Đã xác nhận',      className: 'bg-emerald-100 text-emerald-800 ring-1 ring-emerald-300',     dotClass: 'bg-emerald-600' },
+  in_progress:      { label: 'Đang thực hiện',   className: 'bg-blue-100 text-blue-800 ring-1 ring-blue-300',              dotClass: 'bg-blue-600' },
+  expired:          { label: 'Hết hạn',          className: 'bg-purple-100 text-purple-800 ring-1 ring-purple-300',        dotClass: 'bg-purple-600' },
+  active:           { label: 'Hoạt động',        className: 'bg-emerald-100 text-emerald-800 ring-1 ring-emerald-300',     dotClass: 'bg-emerald-600' },
+  sold:             { label: 'Đã bán',           className: 'bg-blue-100 text-blue-800 ring-1 ring-blue-300',              dotClass: 'bg-blue-600' },
+  disposed:         { label: 'Đã huỷ',           className: 'bg-zinc-100 text-zinc-900 ring-1 ring-zinc-400',             dotClass: 'bg-zinc-600' },
 }
 
-const FALLBACK: StatusDef = { label: 'Không rõ', className: 'bg-zinc-100 text-zinc-500 ring-1 ring-zinc-200', dotClass: 'bg-zinc-400' }
+const FALLBACK: StatusDef = { label: 'Không rõ', className: 'bg-zinc-100 text-zinc-900 ring-1 ring-zinc-400', dotClass: 'bg-zinc-600' }
 
 interface Props {
   status: string

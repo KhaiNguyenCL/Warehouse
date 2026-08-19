@@ -239,7 +239,7 @@ export class QuotationService {
     }
 
     // Bundle → expand thành sản phẩm con để reserved (CLAUDE.md mục 4, 7).
-    const needed: Array<{ variant_id: string; quantity: number; quotation_line_item_id: string }> = []
+    let needed: Array<{ variant_id: string; quantity: number; quotation_line_item_id: string }> = []
     for (const line of reservedLines) {
       if (line.bundle_id) {
         const bundleItems = await this.repo.findBundleItems(line.bundle_id)
@@ -264,17 +264,13 @@ export class QuotationService {
       const inventories = await this.repo.findInventoryByVariants(variantIds, quotation.warehouse_id)
       const invByVariant = new Map(inventories.map((i: any) => [i.variant_id, i]))
 
-      const shortfalls: string[] = []
-      for (const [variantId, qty] of neededByVariant) {
-        const inv: any = invByVariant.get(variantId)
-        const available = inv ? inv.qty_on_hand - inv.qty_reserved : 0
-        if (available < qty) {
-          shortfalls.push(`${inv?.variant_name ?? variantId}: cần ${qty}, còn ${available}`)
-        }
-      }
-      if (shortfalls.length > 0) {
-        throw { statusCode: 400, message: `Không đủ tồn kho để giữ chỗ: ${shortfalls.join('; ')}` }
-      }
+      // Không block confirm khi thiếu tồn kho — báo giá có thể tạo trước khi hàng về.
+      // Chỉ lọc ra những dòng thực sự có thể reserve (available >= qty); các dòng khác bỏ qua.
+      needed = needed.filter((n) => {
+        const inv: any = invByVariant.get(n.variant_id)
+        const available = inv ? Number(inv.qty_on_hand) - Number(inv.qty_reserved) : 0
+        return available >= n.quantity
+      })
     }
 
     // Dùng expired_at đã tính từ quote_date+valid_days lúc create/update; fallback tính lại nếu null

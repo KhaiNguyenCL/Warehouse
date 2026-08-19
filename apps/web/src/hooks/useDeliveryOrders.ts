@@ -31,23 +31,37 @@ export function useDeliveryOrders() {
   }, [quotationIdFromQuery])
 
   const [page, setPage] = useState(1)
+  const [limit, _setLimit] = useState(50)
   const [_searchInput, _setSearchInput] = useState('')
+  const [status, _setStatus] = useState<string | undefined>()
+  const [exportTypeFilter, _setExportTypeFilter] = useState<string | undefined>()
+  const [warehouseIdFilter, _setWarehouseIdFilter] = useState<string | undefined>()
+  const [companyIdFilter, _setCompanyIdFilter] = useState<string | undefined>()
   const [sortBy, setSortBy] = useState<string | null>(null)
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | null>(null)
   const search = useDebounce(_searchInput)
 
   const searchInput = _searchInput
   function setSearchInput(v: string) { _setSearchInput(v); setPage(1) }
+  function setStatus(v: string | undefined) { _setStatus(v); setPage(1) }
+  function setExportTypeFilter(v: string | undefined) { _setExportTypeFilter(v); setPage(1) }
+  function setWarehouseIdFilter(v: string | undefined) { _setWarehouseIdFilter(v); setPage(1) }
+  function setCompanyIdFilter(v: string | undefined) { _setCompanyIdFilter(v); setPage(1) }
+  function setLimit(v: number) { _setLimit(v); setPage(1) }
   function setSort(field: string | null, order: 'asc' | 'desc' | null) {
     setSortBy(field); setSortOrder(order); setPage(1)
   }
 
   const { data, isLoading, isFetching } = useQuery({
-    queryKey: ['deliveries', page, search, sortBy, sortOrder],
+    queryKey: ['deliveries', page, limit, search, status, exportTypeFilter, warehouseIdFilter, companyIdFilter, sortBy, sortOrder],
     placeholderData: keepPreviousData,
     queryFn: async () => {
-      const params: Record<string, any> = { page, limit: 20 }
+      const params: Record<string, any> = { page, limit }
       if (search.trim()) params.search = search.trim()
+      if (status) params.status = status
+      if (exportTypeFilter) params.export_type = exportTypeFilter
+      if (warehouseIdFilter) params.warehouse_id = warehouseIdFilter
+      if (companyIdFilter) params.company_id = companyIdFilter
       if (sortBy) { params.sort_by = sortBy; params.sort_order = sortOrder ?? 'asc' }
       return (await api.get('/deliveries', { params })).data
     },
@@ -164,7 +178,12 @@ export function useDeliveryOrders() {
     quotationId, setQuotationId, quotationIdFromQuery,
     navigate,
     page, setPage,
-    searchInput, setSearchInput, sortBy, sortOrder, setSort,
+    limit, setLimit,
+    searchInput, setSearchInput, status, setStatus,
+    exportTypeFilter, setExportTypeFilter,
+    warehouseIdFilter, setWarehouseIdFilter,
+    companyIdFilter, setCompanyIdFilter,
+    sortBy, sortOrder, setSort,
     data, isLoading, isFetching,
     exportTypes, warehouses,
     exportType, activeExportType, requiresCompanyType, requiresQuotation, isAdjustment,

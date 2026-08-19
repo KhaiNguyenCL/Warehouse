@@ -4,6 +4,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Table, Form, Input, InputNumber, Select, Switch, Button } from 'antd'
 import { api } from '../lib/api'
+import { moneyProps } from '../lib/utils'
 import { useApiMutation } from '../hooks/useApiMutation'
 import { useEntityModal } from '../hooks/useEntityModal'
 import { fw } from '../styles/fieldWidths'
@@ -95,7 +96,7 @@ export default function VariantSuppliersPanel({ productId, variantId }: Props) {
           <Input placeholder="SKU của NCC" style={{ width: 140 }} />
         </Form.Item>
         <Form.Item name="supplier_price">
-          <InputNumber placeholder="Giá NCC" min={0} style={{ width: 120 }} />
+          <InputNumber {...moneyProps} placeholder="Giá NCC" min={0} style={{ width: 120 }} />
         </Form.Item>
         <Form.Item name="lead_time_days">
           <InputNumber placeholder="Lead time (ngày)" min={0} style={{ width: 140 }} />

@@ -54,7 +54,7 @@ export const updateBrandSchema = {
 export const createProductSchema = {
   body: {
     type: 'object',
-    required: ['code', 'name', 'product_type', 'category_id'],
+    required: ['code', 'name', 'product_type', 'category_id', 'brand_id'],
     properties: {
       code:         { type: 'string', minLength: 1 },
       name:         { type: 'string', minLength: 1 },
@@ -92,6 +92,7 @@ export const listProductSchema = {
     type: 'object',
     properties: {
       category_id:  { type: 'string', format: 'uuid' },
+      brand_id:     { type: 'string', format: 'uuid' },
       product_type: { type: 'string', enum: PRODUCT_TYPES },
       search:       { type: 'string' },
       sort_by:      { type: 'string', enum: ['code', 'name', 'product_type', 'category_name', 'brand_name'] },
@@ -114,6 +115,7 @@ export const createVariantSchema = {
       unit:            { type: 'string' },
       cost_price:      { type: 'number', minimum: 0 },
       sale_price:      { type: 'number', minimum: 0 },
+      vat_percent:     { type: 'number', minimum: 0, maximum: 100 },
       currency:        { type: 'string', minLength: 3, maxLength: 3 },
       weight_kg:       { type: 'number', minimum: 0 },
       warranty_months: { type: 'integer', minimum: 0 },
@@ -134,6 +136,7 @@ export const updateVariantSchema = {
       unit:            { type: 'string' },
       cost_price:      { type: 'number', minimum: 0 },
       sale_price:      { type: 'number', minimum: 0 },
+      vat_percent:     { type: 'number', minimum: 0, maximum: 100 },
       currency:        { type: 'string', minLength: 3, maxLength: 3 },
       weight_kg:       { type: 'number', minimum: 0 },
       warranty_months: { type: 'integer', minimum: 0 },
@@ -259,6 +262,7 @@ export interface UpdateProductBody extends Partial<CreateProductBody> {
 
 export interface ListProductQuery {
   category_id?: string
+  brand_id?: string
   product_type?: ProductType
   search?: string
   sort_by?: string
@@ -275,6 +279,7 @@ export interface CreateVariantBody {
   unit?: string
   cost_price?: number
   sale_price?: number
+  vat_percent?: number
   currency?: string
   weight_kg?: number
   warranty_months?: number

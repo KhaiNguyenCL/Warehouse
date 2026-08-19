@@ -4,6 +4,10 @@ export const listInventorySchema = {
     properties: {
       variant_id:   { type: 'string', format: 'uuid' },
       warehouse_id: { type: 'string', format: 'uuid' },
+      product_id:   { type: 'string', format: 'uuid' },
+      category_id:  { type: 'string', format: 'uuid' },
+      brand_id:     { type: 'string', format: 'uuid' },
+      product_type: { type: 'string', enum: ['storable', 'consumable', 'service', 'bundle'] },
       search:       { type: 'string' },
       page:         { type: 'integer', minimum: 1, default: 1 },
       limit:        { type: 'integer', minimum: 1, maximum: 100, default: 20 },
@@ -14,6 +18,10 @@ export const listInventorySchema = {
 export interface ListInventoryQuery {
   variant_id?: string
   warehouse_id?: string
+  product_id?: string
+  category_id?: string
+  brand_id?: string
+  product_type?: string
   search?: string
   page?: number
   limit?: number

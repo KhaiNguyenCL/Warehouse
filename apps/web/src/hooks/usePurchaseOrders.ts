@@ -7,27 +7,32 @@ import { useDebounce } from './useDebounce'
 export function usePurchaseOrders() {
   const navigate = useNavigate()
   const [page, setPage] = useState(1)
+  const [limit, _setLimit] = useState(50)
   const [_searchInput, _setSearchInput] = useState('')
+  const [status, _setStatus] = useState<string | undefined>()
   const [sortBy, setSortBy] = useState<string | null>(null)
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | null>(null)
   const search = useDebounce(_searchInput)
 
   const searchInput = _searchInput
   function setSearchInput(v: string) { _setSearchInput(v); setPage(1) }
+  function setStatus(v: string | undefined) { _setStatus(v); setPage(1) }
+  function setLimit(v: number) { _setLimit(v); setPage(1) }
   function setSort(field: string | null, order: 'asc' | 'desc' | null) {
     setSortBy(field); setSortOrder(order); setPage(1)
   }
 
   const { data, isLoading, isFetching } = useQuery({
-    queryKey: ['purchase-orders', page, search, sortBy, sortOrder],
+    queryKey: ['purchase-orders', page, limit, search, status, sortBy, sortOrder],
     placeholderData: keepPreviousData,
     queryFn: async () => {
-      const params: Record<string, any> = { page, limit: 20 }
+      const params: Record<string, any> = { page, limit }
       if (search.trim()) params.search = search.trim()
+      if (status) params.status = status
       if (sortBy) { params.sort_by = sortBy; params.sort_order = sortOrder ?? 'asc' }
       return (await api.get('/purchase-orders', { params })).data
     },
   })
 
-  return { navigate, page, setPage, searchInput, setSearchInput, sortBy, sortOrder, setSort, data, isLoading, isFetching }
+  return { navigate, page, setPage, limit, setLimit, searchInput, setSearchInput, status, setStatus, sortBy, sortOrder, setSort, data, isLoading, isFetching }
 }

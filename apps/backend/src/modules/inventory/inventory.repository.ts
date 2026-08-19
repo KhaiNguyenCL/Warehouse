@@ -5,11 +5,12 @@ export class InventoryRepository {
   constructor(private db: Knex) {}
 
   async findAll(query: ListInventoryQuery) {
-    const { variant_id, warehouse_id, search, page = 1, limit = 20 } = query
+    const { variant_id, warehouse_id, category_id, brand_id, search, page = 1, limit = 20 } = query
     const offset = (page - 1) * limit
 
     const base = this.db('inventory as i')
       .join('variants as v', 'v.id', 'i.variant_id')
+      .join('products as p', 'p.id', 'v.product_id')
       .join('warehouses as w', 'w.id', 'i.warehouse_id')
       .select(
         'i.variant_id',
@@ -31,6 +32,8 @@ export class InventoryRepository {
 
     if (variant_id) base.where('i.variant_id', variant_id)
     if (warehouse_id) base.where('i.warehouse_id', warehouse_id)
+    if (category_id) base.where('p.category_id', category_id)
+    if (brand_id) base.where('p.brand_id', brand_id)
     if (search) {
       base.where((qb) => {
         qb.whereILike('v.name', `%${search}%`).orWhereILike('v.sku', `%${search}%`).orWhereILike('v.item_code', `%${search}%`)
@@ -93,19 +96,21 @@ export class InventoryRepository {
   // Tồn kho tổng hợp theo variant (gộp tất cả kho) — dùng cho tab Tồn kho SKU-level.
   // 1 dòng/SKU thay vì 1 dòng/SKU+kho như findAll() để user không phải xổ 2 tầng mới thấy SN.
   async findByVariant(query: ListInventoryQuery) {
-    const { variant_id, warehouse_id, search, page = 1, limit = 20 } = query
+    const { variant_id, warehouse_id, product_id, product_type, search, page = 1, limit = 20 } = query
     const offset = (page - 1) * limit
 
     const base = this.db('inventory as i')
       .join('variants as v', 'v.id', 'i.variant_id')
       .join('products as p', 'p.id', 'v.product_id')
-      .groupBy('i.variant_id', 'v.sku', 'v.item_code', 'v.name', 'v.unit', 'p.product_type')
+      .groupBy('i.variant_id', 'v.sku', 'v.item_code', 'v.name', 'v.unit', 'v.model', 'v.part_number', 'p.product_type')
       .select(
         'i.variant_id',
         'v.sku',
         'v.item_code',
         'v.name as variant_name',
         'v.unit',
+        'v.model',
+        'v.part_number',
         'p.product_type',
         this.db.raw('SUM(i.qty_on_hand)::int as qty_on_hand'),
         this.db.raw('SUM(i.qty_reserved)::int as qty_reserved'),
@@ -123,6 +128,8 @@ export class InventoryRepository {
 
     if (variant_id) base.where('i.variant_id', variant_id)
     if (warehouse_id) base.where('i.warehouse_id', warehouse_id)
+    if (product_id) base.where('v.product_id', product_id)
+    if (product_type) base.where('p.product_type', product_type)
     if (search) {
       base.where((qb) => {
         qb.whereILike('v.name', `%${search}%`).orWhereILike('v.sku', `%${search}%`).orWhereILike('v.item_code', `%${search}%`)
@@ -178,6 +185,8 @@ export class InventoryRepository {
           'r.code as receipt_code',
           'r.completed_at',
           'sn.mac_address',
+          'rl.manufacturer_warranty_months',
+          'rl.customer_warranty_months',
           'sn.manufacturer_warranty_end',
           'sn.customer_warranty_end',
         )
@@ -234,6 +243,29 @@ export class InventoryRepository {
         'sn.created_at',
       )
       .orderBy('sn.serial_no')
+  }
+
+  findReservedByVariant(variantId: string) {
+    return this.db('reserved_items as ri')
+      .where('ri.variant_id', variantId)
+      .leftJoin('quotations as q', (j) =>
+        j.on('q.id', 'ri.source_id').andOnVal('ri.source_type', 'quotation'),
+      )
+      .leftJoin('delivery_orders as dord', (j) =>
+        j.on('dord.id', 'ri.source_id').andOnVal('ri.source_type', 'delivery_order'),
+      )
+      .leftJoin('companies as cq', 'cq.id', 'q.company_id')
+      .leftJoin('companies as cd', 'cd.id', 'dord.company_id')
+      .groupBy('ri.source_type', 'ri.source_id', 'q.code', 'q.status', 'cq.name', 'dord.code', 'dord.status', 'cd.name')
+      .select(
+        'ri.source_type',
+        'ri.source_id',
+        this.db.raw('SUM(ri.quantity)::int as qty'),
+        this.db.raw("COALESCE(q.code, dord.code) as doc_code"),
+        this.db.raw("COALESCE(q.status, dord.status) as doc_status"),
+        this.db.raw("COALESCE(cq.name, cd.name) as customer_name"),
+      )
+      .orderBy(this.db.raw("COALESCE(q.code, dord.code)"))
   }
 
   findSerialById(id: string) {

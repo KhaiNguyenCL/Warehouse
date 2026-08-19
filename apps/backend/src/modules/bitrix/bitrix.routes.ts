@@ -99,6 +99,23 @@ const bitrixRoutes: FastifyPluginAsync = async (app) => {
       return reply.code(201).send(contact)
     },
   )
+
+  // Debug: xem raw data Bitrix trả về cho 1 contact
+  app.get<{ Params: { bitrixContactId: string } }>(
+    '/contacts/:bitrixContactId/raw',
+    { preHandler: authenticate },
+    (request) => app.bitrix.getContact(request.params.bitrixContactId),
+  )
+
+  // Debug: xem tất cả company mà 1 contact thuộc về trong Bitrix
+  app.get<{ Params: { bitrixContactId: string } }>(
+    '/contacts/:bitrixContactId/companies',
+    { preHandler: authenticate },
+    (request) => app.bitrix.getContactCompanies(request.params.bitrixContactId),
+  )
+
+  // Sync toàn bộ contacts từ Bitrix (có thể gọi độc lập sau khi sync companies)
+  app.post('/contacts/sync-all', { preHandler: authenticate }, () => service.syncAllContacts())
 }
 
 export default bitrixRoutes

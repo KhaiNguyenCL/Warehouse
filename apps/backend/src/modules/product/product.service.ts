@@ -46,6 +46,17 @@ export class ProductService {
   }
 
   async createCategory(data: CreateCategoryBody) {
+    if (data.short_code) {
+      const existing = await this.repo.findCategoryByShortCode(data.short_code)
+      if (existing) {
+        if (!existing.is_active) {
+          // Soft-deleted category with same short_code → reactivate with new data
+          const { short_code, ...rest } = data
+          return this.repo.reactivateCategory(existing.id, rest)
+        }
+        throw { statusCode: 409, message: `Đã tồn tại danh mục với mã "${data.short_code}"` }
+      }
+    }
     try {
       return await this.repo.createCategory(data)
     } catch (err) {
@@ -63,7 +74,7 @@ export class ProductService {
 
   async deleteCategory(id: string) {
     const result = await this.repo.countProductsByCategory(id)
-    if (Number(result?.count ?? 0) > 0) throw { statusCode: 409, message: 'Category đang được dùng bởi sản phẩm, không thể xóa' }
+    if (Number(result?.count ?? 0) > 0) throw { statusCode: 409, message: 'Danh mục đang được dùng bởi sản phẩm, không thể xóa' }
     await this.repo.deleteCategory(id)
   }
 
@@ -74,6 +85,16 @@ export class ProductService {
   }
 
   async createBrand(data: CreateBrandBody) {
+    if (data.short_code) {
+      const existing = await this.repo.findBrandByShortCode(data.short_code)
+      if (existing) {
+        if (!existing.is_active) {
+          const { short_code, ...rest } = data
+          return this.repo.reactivateBrand(existing.id, rest)
+        }
+        throw { statusCode: 409, message: `Đã tồn tại thương hiệu với mã "${data.short_code}"` }
+      }
+    }
     try {
       return await this.repo.createBrand(data)
     } catch (err) {
@@ -91,7 +112,7 @@ export class ProductService {
 
   async deleteBrand(id: string) {
     const result = await this.repo.countProductsByBrand(id)
-    if (Number(result?.count ?? 0) > 0) throw { statusCode: 409, message: 'Brand đang được dùng bởi sản phẩm, không thể xóa' }
+    if (Number(result?.count ?? 0) > 0) throw { statusCode: 409, message: 'Thương hiệu đang được dùng bởi sản phẩm, không thể xóa' }
     await this.repo.deleteBrand(id)
   }
 
@@ -128,8 +149,15 @@ export class ProductService {
 
   // ─── Variants ──────────────────────────────────────────────────────────
 
-  searchVariants(search?: string, productType?: string, limit?: number) {
-    return this.repo.searchVariants(search, productType, limit)
+  searchVariants(search?: string, productType?: string, limit?: number, inStockOnly?: boolean) {
+    return this.repo.searchVariants(search, productType, limit, inStockOnly)
+  }
+
+  listVariantsPaginated(opts: {
+    search?: string; productType?: string; categoryId?: string; brandId?: string;
+    isActive?: boolean; page?: number; limit?: number
+  }) {
+    return this.repo.listVariantsPaginated(opts)
   }
 
   async addVariant(productId: string, data: CreateVariantBody) {

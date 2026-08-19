@@ -38,6 +38,10 @@ export class InventoryService {
     return this.repo.findMovementsBySerial(serialId)
   }
 
+  reservedByVariant(variantId: string) {
+    return this.repo.findReservedByVariant(variantId)
+  }
+
   lowStock(query: ListLowStockQuery) {
     return this.repo.findLowStock(query)
   }

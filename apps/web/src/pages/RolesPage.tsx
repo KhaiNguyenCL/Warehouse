@@ -2,14 +2,11 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Plus, Trash2, Shield } from 'lucide-react'
+import { Plus, Pencil, Trash2, Shield, X } from 'lucide-react'
 
 import { useRoles } from '@/hooks/useRoles'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
-} from '@/components/ui/dialog'
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
   AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
@@ -86,26 +83,26 @@ export default function RolesPage() {
 
       {/* Table card */}
       <div className="overflow-hidden rounded-xl border border-border bg-background shadow-sm">
-        <table className="w-full text-sm">
+        <table className="w-full">
           <thead>
             <tr className="border-b border-border bg-muted/40">
               <th className="w-12 px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">#</th>
               <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Tên</th>
               <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Mô tả</th>
-              <th className="w-28 px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Hệ thống</th>
+              <th className="w-40 px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground">Hệ thống</th>
               <th className="w-16 px-4 py-2.5" />
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
             {isLoading ? (
               <tr>
-                <td colSpan={5} className="px-4 py-12 text-center text-sm text-muted-foreground">
+                <td colSpan={5} className="px-4 py-12 text-center text-xs text-muted-foreground">
                   Đang tải…
                 </td>
               </tr>
             ) : roles.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-12 text-center text-sm text-muted-foreground">
+                <td colSpan={5} className="px-4 py-12 text-center text-xs text-muted-foreground">
                   Chưa có vai trò nào.
                 </td>
               </tr>
@@ -116,30 +113,38 @@ export default function RolesPage() {
                   onClick={() => openEdit(r)}
                   className="group/row cursor-pointer transition-colors hover:bg-muted/40"
                 >
-                  <td className="px-4 py-3 text-muted-foreground">{i + 1}</td>
-                  <td className="px-4 py-3 font-medium text-foreground">{r.name}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{r.description ?? '—'}</td>
-                  <td className="px-4 py-3">
-                    {r.is_system ? (
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-blue-200">
-                        <Shield className="h-3 w-3" />
-                        Hệ thống
-                      </span>
-                    ) : (
-                      <span className="text-muted-foreground">—</span>
-                    )}
+                  <td className="px-4 py-2 text-muted-foreground">{i + 1}</td>
+                  <td className="px-4 py-2 font-medium text-foreground">{r.name}</td>
+                  <td className="px-4 py-2 text-foreground">{r.description ?? <span className="text-muted-foreground">—</span>}</td>
+                  <td className="px-4 py-2">
+                    <div className="flex justify-center">
+                      {r.is_system ? (
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-blue-200">
+                          <Shield className="h-3 w-3" />
+                          Hệ thống
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </div>
                   </td>
-                  <td className="px-4 py-3">
-                    {!r.is_system && (
-                      <div className="flex items-center justify-end gap-1 opacity-0 transition-opacity group-hover/row:opacity-100">
+                  <td className="px-4 py-2">
+                    <div className="flex items-center justify-end gap-1 opacity-0 transition-opacity group-hover/row:opacity-100">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); openEdit(r) }}
+                        className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
+                      {!r.is_system && (
                         <button
                           onClick={(e) => { e.stopPropagation(); setDeleteTarget(r) }}
                           className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-red-50 hover:text-red-600"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))
@@ -154,62 +159,86 @@ export default function RolesPage() {
         )}
       </div>
 
-      {/* Create / Edit Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className={cn(editing ? 'sm:max-w-2xl' : 'sm:max-w-md')}>
-          <DialogHeader>
-            <DialogTitle>
-              {editing ? `Sửa role "${editing.name}"` : 'Tạo role mới'}
-            </DialogTitle>
-          </DialogHeader>
+      {/* Create / Edit Sheet */}
+      <div
+        className={cn(
+          'fixed inset-0 z-40 bg-black/30 supports-backdrop-filter:backdrop-blur-sm transition-opacity duration-200',
+          dialogOpen ? 'opacity-100' : 'pointer-events-none opacity-0',
+        )}
+        onClick={() => setDialogOpen(false)}
+      />
+      <div
+        className={cn(
+          'fixed right-0 top-0 z-50 flex h-full w-[560px] flex-col bg-background shadow-xl transition-transform duration-200',
+          dialogOpen ? 'translate-x-0' : 'translate-x-full',
+        )}
+      >
+        {/* header */}
+        <div className="flex shrink-0 items-center justify-between border-b border-border px-5 py-4">
+          <h2 className="text-base font-semibold text-foreground">
+            {editing ? `Sửa role "${editing.name}"` : 'Tạo role mới'}
+          </h2>
+          <button
+            onClick={() => setDialogOpen(false)}
+            className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
 
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-4 py-2">
+        {/* scrollable body + footer */}
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="flex min-h-0 flex-1 flex-col">
+            <div className="flex-1 overflow-y-auto px-5 py-5">
+              <div className="flex flex-col gap-4">
 
-              <FormField control={form.control} name="name" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Tên role <span className="text-red-500">*</span></FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="VD: Kế toán"
-                      disabled={editing?.is_system === true}
-                      {...field}
-                    />
-                  </FormControl>
-                  {editing?.is_system && (
-                    <FormDescription className="text-amber-600">
-                      Role hệ thống — không đổi tên được
-                    </FormDescription>
-                  )}
-                  <FormMessage />
-                </FormItem>
-              )} />
+                <FormField control={form.control} name="name" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tên role <span className="text-red-500">*</span></FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="VD: Kế toán"
+                        disabled={editing?.is_system === true}
+                        {...field}
+                      />
+                    </FormControl>
+                    {editing?.is_system && (
+                      <FormDescription className="text-amber-600">
+                        Role hệ thống — không đổi tên được
+                      </FormDescription>
+                    )}
+                    <FormMessage />
+                  </FormItem>
+                )} />
 
-              <FormField control={form.control} name="description" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Mô tả</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Mô tả ngắn về vai trò này" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
+                <FormField control={form.control} name="description" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Mô tả</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Mô tả ngắn về vai trò này" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
 
-              <DialogFooter className="pt-2">
-                <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
-                  Huỷ
-                </Button>
-                <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending}>
-                  {editing ? 'Lưu thay đổi' : 'Tạo mới'}
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
+                {/* Permissions panel — only when editing */}
+                {editing && <RolePermissionsPanel roleId={editing.id} />}
 
-          {/* Permissions panel — outside the form, only when editing */}
-          {editing && <RolePermissionsPanel roleId={editing.id} />}
-        </DialogContent>
-      </Dialog>
+              </div>
+            </div>
+
+            {/* footer */}
+            <div className="flex shrink-0 items-center justify-end gap-2 border-t border-border px-5 py-4">
+              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
+                Huỷ
+              </Button>
+              <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending}>
+                {editing ? 'Lưu thay đổi' : 'Tạo mới'}
+              </Button>
+            </div>
+          </form>
+        </Form>
+      </div>
 
       {/* Delete confirmation */}
       <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>

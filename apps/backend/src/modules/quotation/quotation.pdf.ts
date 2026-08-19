@@ -8,7 +8,7 @@ import path from 'path'
 // __dirname trỏ đúng cả khi chạy ts-node lẫn compiled js.
 function loadLogoDataUri(): string {
   try {
-    const logoPath = path.resolve(__dirname, '../../../../..', 'logodns3.png')
+    const logoPath = path.resolve(__dirname, '../../../../..', 'apps/web/public/logodns3.png')
     const data = fs.readFileSync(logoPath)
     return `data:image/png;base64,${data.toString('base64')}`
   } catch {
@@ -318,11 +318,12 @@ export function buildQuotationHtml(q: any): string {
   }
   .f-label {
     font-size: 10pt; color: #000;
-    text-align: right; white-space: nowrap;
+    text-align: left; white-space: nowrap;
   }
+  .f-label.f-label-r { text-align: right; }
   .f-label-en {
     font-size: 8pt; font-style: italic;
-    color: #9AA1AD; text-align: right; white-space: nowrap;
+    color: #9AA1AD; white-space: nowrap;
   }
   .f-val {
     font-size: 10pt; color: var(--ink); font-weight: bold;
@@ -506,7 +507,7 @@ export function buildQuotationHtml(q: any): string {
   <!-- Hàng 1: Kính gửi | value | Ngày báo giá | value -->
   <div class="f-label">Kính gửi:<br><span class="f-label-en">(To)</span></div>
   <div class="f-val">${esc(q.contact_name || q.company_name)}</div>
-  <div class="f-label">Ngày báo giá:<br><span class="f-label-en">(Quotation Date)</span></div>
+  <div class="f-label f-label-r">Ngày báo giá:<br><span class="f-label-en">(Quotation Date)</span></div>
   <div class="f-val">${fmtDate(q.quote_date)}</div>
 
   <!-- Hàng 2: Email | value | Giá trị | value -->
@@ -514,7 +515,7 @@ export function buildQuotationHtml(q: any): string {
     ? `<div class="f-label">Email:<br><span class="f-label-en">(Email)</span></div>
   <div class="f-val">${esc(q.contact_email)}</div>`
     : `<div></div><div></div>`}
-  <div class="f-label">Giá trị:<br><span class="f-label-en">(Validity)</span></div>
+  <div class="f-label f-label-r">Giá trị:<br><span class="f-label-en">(Validity)</span></div>
   <div class="f-val">${q.valid_days != null ? `${q.valid_days} ngày` : '—'}</div>
 
   <!-- Hàng 3: Dự án | value | Địa điểm | value -->
@@ -523,7 +524,7 @@ export function buildQuotationHtml(q: any): string {
   <div class="f-val">${esc(q.project_name)}</div>`
     : `<div></div><div></div>`}
   ${q.delivery_location
-    ? `<div class="f-label">Địa điểm giao hàng:<br><span class="f-label-en">(Delivery Location)</span></div>
+    ? `<div class="f-label f-label-r">Địa điểm giao hàng:<br><span class="f-label-en">(Delivery Location)</span></div>
   <div class="f-val">${esc(q.delivery_location)}</div>`
     : `<div></div><div></div>`}
 

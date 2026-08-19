@@ -17,6 +17,16 @@ import {
   UpdateCustomerPriceBody,
 } from './product.schema'
 
+function castVariantNumerics(row: any) {
+  if (!row) return row
+  if (row.cost_price     != null) row.cost_price     = parseFloat(row.cost_price)
+  if (row.sale_price     != null) row.sale_price     = parseFloat(row.sale_price)
+  if (row.vat_percent    != null) row.vat_percent    = parseFloat(row.vat_percent)
+  if (row.weight_kg      != null) row.weight_kg      = parseFloat(row.weight_kg)
+  if (row.supplier_price != null) row.supplier_price = parseFloat(row.supplier_price)
+  return row
+}
+
 export class ProductRepository {
   constructor(private db: Knex) {}
 
@@ -25,13 +35,24 @@ export class ProductRepository {
   findAllCategories() {
     return this.db('categories as c')
       .leftJoin('users as u', 'u.id', 'c.created_by')
-      .where('c.is_active', true)
-      .orderBy('c.name')
+      .orderBy([{ column: 'c.is_active', order: 'desc' }, { column: 'c.name', order: 'asc' }])
       .select('c.*', 'u.full_name as created_by_name')
+  }
+
+  findCategoryByShortCode(short_code: string) {
+    return this.db('categories').whereILike('short_code', short_code).first()
   }
 
   createCategory(data: CreateCategoryBody & { created_by?: string }) {
     return this.db('categories').insert(data).returning('*').then(([row]) => row)
+  }
+
+  reactivateCategory(id: string, data: Omit<CreateCategoryBody, 'short_code'>) {
+    return this.db('categories')
+      .where({ id })
+      .update({ ...data, is_active: true })
+      .returning('*')
+      .then(([row]) => row)
   }
 
   async updateCategory(id: string, data: UpdateCategoryBody) {
@@ -40,7 +61,7 @@ export class ProductRepository {
   }
 
   deleteCategory(id: string) {
-    return this.db('categories').where({ id }).update({ is_active: false })
+    return this.db('categories').where({ id }).delete()
   }
 
   // ─── Brands ────────────────────────────────────────────────────────────
@@ -48,9 +69,20 @@ export class ProductRepository {
   findAllBrands() {
     return this.db('brands as b')
       .leftJoin('users as u', 'u.id', 'b.created_by')
-      .where('b.is_active', true)
-      .orderBy('b.name')
+      .orderBy([{ column: 'b.is_active', order: 'desc' }, { column: 'b.name', order: 'asc' }])
       .select('b.*', 'u.full_name as created_by_name')
+  }
+
+  findBrandByShortCode(short_code: string) {
+    return this.db('brands').whereILike('short_code', short_code).first()
+  }
+
+  reactivateBrand(id: string, data: Omit<CreateBrandBody, 'short_code'>) {
+    return this.db('brands')
+      .where({ id })
+      .update({ ...data, is_active: true })
+      .returning('*')
+      .then(([row]) => row)
   }
 
   createBrand(data: CreateBrandBody & { created_by?: string }) {
@@ -63,21 +95,21 @@ export class ProductRepository {
   }
 
   deleteBrand(id: string) {
-    return this.db('brands').where({ id }).update({ is_active: false })
+    return this.db('brands').where({ id }).delete()
   }
 
   countProductsByBrand(brandId: string) {
-    return this.db('products').where({ brand_id: brandId, is_active: true }).count('id as count').first()
+    return this.db('products').where({ brand_id: brandId }).count('id as count').first()
   }
 
   countProductsByCategory(categoryId: string) {
-    return this.db('products').where({ category_id: categoryId, is_active: true }).count('id as count').first()
+    return this.db('products').where({ category_id: categoryId }).count('id as count').first()
   }
 
   // ─── Products ──────────────────────────────────────────────────────────
 
   async findAllProducts(query: ListProductQuery) {
-    const { category_id, product_type, search, sort_by, sort_order, page = 1, limit = 20 } = query
+    const { category_id, brand_id, product_type, search, sort_by, sort_order, page = 1, limit = 20 } = query
     const offset = (page - 1) * limit
 
     const SORTABLE: Record<string, string> = {
@@ -93,6 +125,7 @@ export class ProductRepository {
       .where('p.is_active', true)
 
     if (category_id) base.where('p.category_id', category_id)
+    if (brand_id) base.where('p.brand_id', brand_id)
     if (product_type) base.where('p.product_type', product_type)
     if (search) {
       base.where((qb) => {
@@ -110,14 +143,15 @@ export class ProductRepository {
       ? await this.db('variants')
           .whereIn('product_id', productIds)
           .where('is_active', true)
-          .select('id', 'product_id', 'sku', 'item_code', 'name', 'unit', 'sale_price', 'warranty_months')
+          .select('id', 'product_id', 'sku', 'item_code', 'name', 'unit',
+                  'cost_price', 'sale_price', 'vat_percent', 'weight_kg', 'warranty_months', 'reorder_point')
           .orderBy('created_at')
       : []
 
     const variantsByProduct = new Map<string, any[]>()
     for (const v of variants) {
       if (!variantsByProduct.has(v.product_id)) variantsByProduct.set(v.product_id, [])
-      variantsByProduct.get(v.product_id)!.push({ ...v, _type: 'variant' })
+      variantsByProduct.get(v.product_id)!.push({ ...castVariantNumerics(v), _type: 'variant' })
     }
 
     const data = rows.map((p: any) => {
@@ -215,17 +249,17 @@ export class ProductRepository {
     return this.db('variants')
       .insert({ ...data, product_id: productId, sku })
       .returning('*')
-      .then(([row]: any[]) => row)
+      .then(([row]: any[]) => castVariantNumerics(row))
   }
 
-  searchVariants(search?: string, productType?: string, limit = 50) {
+  async searchVariants(search?: string, productType?: string, limit = 50, inStockOnly = false) {
     const q = this.db('variants as v')
       .join('products as p', 'p.id', 'v.product_id')
       .where('p.is_active', true)
       .select(
         'v.id', 'v.sku', 'v.item_code', 'v.name', 'v.unit',
-        'v.cost_price', 'v.sale_price', 'v.warranty_months',
-        'p.name as product_name', 'p.product_type',
+        'v.cost_price', 'v.sale_price', 'v.vat_percent', 'v.warranty_months',
+        'p.id as product_id', 'p.name as product_name', 'p.product_type',
       )
       .orderBy('v.sku')
       .limit(limit)
@@ -236,11 +270,58 @@ export class ProductRepository {
        .orWhereILike('p.name', `%${search}%`)
     )
     if (productType) q.where('p.product_type', productType)
-    return q
+    if (inStockOnly) {
+      q.whereExists(
+        this.db('inventory as i')
+          .whereRaw('i.variant_id = v.id')
+          .havingRaw('SUM(i.qty_on_hand - i.qty_reserved) > 0')
+          .groupBy('i.variant_id'),
+      )
+    }
+    const rows = await q
+    return rows.map(castVariantNumerics)
   }
 
-  findVariantById(id: string) {
-    return this.db('variants').where({ id }).first()
+  async listVariantsPaginated(opts: {
+    search?: string; productType?: string; categoryId?: string; brandId?: string;
+    isActive?: boolean; page?: number; limit?: number
+  }) {
+    const { search, productType, categoryId, brandId, isActive, page = 1, limit = 20 } = opts
+    const base = this.db('variants as v')
+      .join('products as p', 'p.id', 'v.product_id')
+      .where('p.is_active', true)
+    if (search) base.where((b) =>
+      b.whereILike('v.sku', `%${search}%`)
+       .orWhereILike('v.item_code', `%${search}%`)
+       .orWhereILike('v.name', `%${search}%`)
+       .orWhereILike('p.name', `%${search}%`)
+    )
+    if (productType) base.where('p.product_type', productType)
+    if (categoryId)  base.where('p.category_id', categoryId)
+    if (brandId)     base.where('p.brand_id', brandId)
+    if (isActive != null) base.where('v.is_active', isActive)
+
+    const [{ count }] = await base.clone().count('v.id as count')
+    const rows = await base.clone()
+      .leftJoin(
+        this.db.raw('(SELECT variant_id, SUM(qty_on_hand) as qty_on_hand FROM inventory GROUP BY variant_id) as inv'),
+        'inv.variant_id', 'v.id',
+      )
+      .select(
+        'v.id', 'v.sku', 'v.item_code', 'v.name', 'v.unit',
+        'v.cost_price', 'v.sale_price', 'v.vat_percent', 'v.warranty_months',
+        'v.reorder_point', 'v.weight_kg', 'v.is_active',
+        'p.id as product_id', 'p.name as product_name', 'p.product_type',
+        this.db.raw('COALESCE(inv.qty_on_hand, 0) as qty_on_hand'),
+      )
+      .orderBy('p.code').orderBy('v.sku')
+      .limit(limit).offset((page - 1) * limit)
+    return { data: rows.map(castVariantNumerics), total: Number(count) }
+  }
+
+  async findVariantById(id: string) {
+    const row = await this.db('variants').where({ id }).first()
+    return castVariantNumerics(row)
   }
 
   async updateVariant(id: string, data: UpdateVariantBody) {
@@ -248,17 +329,18 @@ export class ProductRepository {
       .where({ id })
       .update({ ...data, updated_at: this.db.fn.now() })
       .returning('*')
-    return row
+    return castVariantNumerics(row)
   }
 
   // ─── Variant Suppliers ─────────────────────────────────────────────────
 
-  findVariantSuppliers(variantId: string) {
-    return this.db('variant_suppliers as vs')
+  async findVariantSuppliers(variantId: string) {
+    const rows = await this.db('variant_suppliers as vs')
       .join('companies as c', 'c.id', 'vs.company_id')
       .where('vs.variant_id', variantId)
       .select('vs.*', 'c.name as company_name', 'c.code as company_code')
       .orderBy('vs.is_preferred', 'desc')
+    return rows.map(castVariantNumerics)
   }
 
   findVariantSupplierById(id: string) {

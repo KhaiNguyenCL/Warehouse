@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import React, { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Select } from 'antd'
 import { api } from '../lib/api'
@@ -27,6 +27,7 @@ interface Props {
   excludeTypes?: string[]
   productId?: string
   disabled?: boolean
+  inStockOnly?: boolean
 }
 
 export default function VariantSelect({
@@ -38,10 +39,11 @@ export default function VariantSelect({
   excludeTypes,
   productId,
   disabled,
+  inStockOnly = false,
 }: Props) {
   const { data: allVariants } = useQuery<VariantData[]>({
-    queryKey: ['products', 'variants', 'all'],
-    queryFn: async () => (await api.get('/products/variants', { params: { limit: 200 } })).data,
+    queryKey: ['products', 'variants', 'all', inStockOnly],
+    queryFn: async () => (await api.get('/products/variants', { params: { limit: 200, in_stock_only: inStockOnly || undefined } })).data,
   })
 
   const variantMap = useMemo(() => {
@@ -56,12 +58,15 @@ export default function VariantSelect({
       !excludeTypes?.includes(v.product_type) &&
       (!productId || v.product_id === productId),
     )
-    const groups = new Map<string, { label: string; options: any[] }>()
+    const groups = new Map<string, { label: React.ReactNode; options: any[] }>()
     for (const v of filtered) {
       if (!groups.has(v.product_name)) {
-        groups.set(v.product_name, { label: v.product_name, options: [] })
+        groups.set(v.product_name, {
+          label: <span style={{ fontWeight: 600, color: 'var(--foreground)' }}>{v.product_name}</span>,
+          options: [],
+        })
       }
-      const label = `${v.item_code ?? v.sku}${v.name ? ` — ${v.name}` : ''}`
+      const label = `${v.item_code ?? v.sku}${v.name ? ` - ${v.name}` : ''}`
       groups.get(v.product_name)!.options.push({
         value: v.id,
         label,
@@ -69,7 +74,7 @@ export default function VariantSelect({
       })
     }
     return Array.from(groups.values())
-  }, [allVariants, excludeTypes])
+  }, [allVariants, excludeTypes, productId])
 
   function handleChange(val: string | undefined) {
     onChange?.(val)

@@ -31,6 +31,10 @@ export class CompanyService {
     return this.repo.findAll(query)
   }
 
+  listContacts(query: { search?: string; company_id?: string; page?: number; limit?: number }) {
+    return this.repo.findAllContacts(query)
+  }
+
   async getById(id: string) {
     const company = await this.repo.findById(id)
     if (!company) throw { statusCode: 404, message: 'Company not found' }
@@ -71,10 +75,8 @@ export class CompanyService {
   }
 
   async updateContact(companyId: string, contactId: string, data: UpdateContactBody) {
-    const contact = await this.repo.findContactById(contactId)
-    if (!contact || contact.company_id !== companyId) {
-      throw { statusCode: 404, message: 'Contact not found' }
-    }
+    const contact = await this.repo.findContactByIdAndCompany(contactId, companyId)
+    if (!contact) throw { statusCode: 404, message: 'Contact not found' }
 
     return this.db.transaction(async (trx) => {
       if (data.is_primary) {
@@ -85,10 +87,8 @@ export class CompanyService {
   }
 
   async deleteContact(companyId: string, contactId: string) {
-    const contact = await this.repo.findContactById(contactId)
-    if (!contact || contact.company_id !== companyId) {
-      throw { statusCode: 404, message: 'Contact not found' }
-    }
+    const contact = await this.repo.findContactByIdAndCompany(contactId, companyId)
+    if (!contact) throw { statusCode: 404, message: 'Contact not found' }
     await this.repo.deleteContact(contactId)
   }
 

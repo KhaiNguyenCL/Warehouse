@@ -99,7 +99,7 @@ export class QuotationRepository {
       .leftJoin('contacts as ct', 'ct.id', 'q.contact_id')
       .leftJoin('warehouses as w', 'w.id', 'q.warehouse_id')
       .where('q.id', id)
-      .select('q.*', 'c.name as company_name', 'ct.full_name as contact_name', 'w.name as warehouse_name')
+      .select('q.*', 'c.name as company_name', 'ct.full_name as contact_name', 'ct.email as contact_email', 'ct.phone as contact_phone', 'w.name as warehouse_name')
       .first()
 
     if (!quotation) return null
@@ -112,8 +112,8 @@ export class QuotationRepository {
       .where('li.quotation_id', id)
       .select(
         'li.*',
-        'v.sku as variant_sku', 'v.item_code as variant_item_code', 'v.name as variant_name',
-        'bv.sku as bundle_sku', 'bv.item_code as bundle_item_code', 'bv.name as bundle_name',
+        'v.sku as variant_sku', 'v.item_code as variant_item_code', 'v.name as variant_name', 'v.unit as variant_unit',
+        'bv.sku as bundle_sku', 'bv.item_code as bundle_item_code', 'bv.name as bundle_name', 'bv.unit as bundle_unit',
       )
       .orderBy('li.line_order')
 
@@ -126,11 +126,18 @@ export class QuotationRepository {
         .filter((l: any) => l.section_id === s.id)
         .map((l: any) => {
           const p = progress.get(l.id) ?? { exported_qty: 0, pending_qty: 0 }
+          const qty = Number(l.quantity)
           return {
             ...l,
+            quantity:      qty,
+            unit_price:    l.unit_price    != null ? Number(l.unit_price)    : null,
+            vat_percent:   l.vat_percent   != null ? Number(l.vat_percent)   : 0,
+            line_total:    l.line_total    != null ? Number(l.line_total)    : null,
+            vat_amount:    l.vat_amount    != null ? Number(l.vat_amount)    : null,
+            total_amount:  l.total_amount  != null ? Number(l.total_amount)  : null,
             exported_qty: p.exported_qty,
             pending_qty: p.pending_qty,
-            remaining_qty: Number(l.quantity) - p.exported_qty - p.pending_qty,
+            remaining_qty: qty - p.exported_qty - p.pending_qty,
           }
         }),
     }))
@@ -182,10 +189,24 @@ export class QuotationRepository {
 
     const insertedSections = []
     for (const section of sections) {
-      const { line_items, ...sectionHeader } = section
+      const { line_items, sub_sections, ...sectionHeader } = section
       const [insertedSection] = await trx('quotation_sections')
         .insert({ ...sectionHeader, quotation_id: quotation.id })
         .returning('*')
+
+      const insertedSubSections = []
+      for (const ss of (sub_sections ?? [])) {
+        const { line_items: ssLines, ...ssHeader } = ss
+        const [insertedSs] = await trx('quotation_sub_sections')
+          .insert({ ...ssHeader, quotation_id: quotation.id, section_id: insertedSection.id })
+          .returning('*')
+        const insertedSsLines = (ssLines ?? []).length
+          ? await trx('quotation_line_items')
+              .insert((ssLines ?? []).map((li) => ({ ...li, quotation_id: quotation.id, section_id: insertedSection.id, sub_section_id: insertedSs.id })))
+              .returning('*')
+          : []
+        insertedSubSections.push({ ...insertedSs, line_items: insertedSsLines })
+      }
 
       const insertedLines = line_items.length
         ? await trx('quotation_line_items')
@@ -199,7 +220,7 @@ export class QuotationRepository {
             .returning('*')
         : []
 
-      insertedSections.push({ ...insertedSection, line_items: insertedLines })
+      insertedSections.push({ ...insertedSection, sub_sections: insertedSubSections, line_items: insertedLines })
     }
 
     return { ...quotation, sections: insertedSections }
@@ -213,10 +234,24 @@ export class QuotationRepository {
 
     const insertedSections = []
     for (const section of sections) {
-      const { line_items, ...sectionHeader } = section
+      const { line_items, sub_sections, ...sectionHeader } = section
       const [insertedSection] = await trx('quotation_sections')
         .insert({ ...sectionHeader, quotation_id: quotationId })
         .returning('*')
+
+      const insertedSubSections = []
+      for (const ss of (sub_sections ?? [])) {
+        const { line_items: ssLines, ...ssHeader } = ss
+        const [insertedSs] = await trx('quotation_sub_sections')
+          .insert({ ...ssHeader, quotation_id: quotationId, section_id: insertedSection.id })
+          .returning('*')
+        const insertedSsLines = (ssLines ?? []).length
+          ? await trx('quotation_line_items')
+              .insert((ssLines ?? []).map((li) => ({ ...li, quotation_id: quotationId, section_id: insertedSection.id, sub_section_id: insertedSs.id })))
+              .returning('*')
+          : []
+        insertedSubSections.push({ ...insertedSs, line_items: insertedSsLines })
+      }
 
       const insertedLines = line_items.length
         ? await trx('quotation_line_items')
@@ -230,7 +265,7 @@ export class QuotationRepository {
             .returning('*')
         : []
 
-      insertedSections.push({ ...insertedSection, line_items: insertedLines })
+      insertedSections.push({ ...insertedSection, sub_sections: insertedSubSections, line_items: insertedLines })
     }
     return insertedSections
   }

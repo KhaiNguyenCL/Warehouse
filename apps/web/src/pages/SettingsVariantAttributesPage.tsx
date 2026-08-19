@@ -113,7 +113,7 @@ export default function SettingsVariantAttributesPage() {
           rowKey="id"
           dataSource={data}
           loading={isLoading}
-          pagination={{ pageSize: 20, showSizeChanger: false, hideOnSinglePage: true }}
+          pagination={{ pageSize: 50, showSizeChanger: false, hideOnSinglePage: true }}
           size="small"
           tableLayout="fixed"
           columns={[

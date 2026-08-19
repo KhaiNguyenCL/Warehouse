@@ -1,4 +1,6 @@
 import { FastifyPluginAsync } from 'fastify'
+import fs from 'fs/promises'
+import path from 'path'
 import { TemplateService } from './template.service'
 import {
   listTemplateSchema,
@@ -16,6 +18,19 @@ import { authenticate } from '../../middleware/auth'
 // company) — chỉ cần đăng nhập, chưa cần phân quyền chi tiết theo role.
 const templateRoutes: FastifyPluginAsync = async (app) => {
   const service = new TemplateService(app)
+
+  // Serve file mẫu import_1.html để admin tải về làm cơ sở thiết kế template
+  app.get('/sample/import_1', { preHandler: authenticate }, async (_request, reply) => {
+    const samplePath = path.join(app.carbone.uploadDir, 'import_1.html')
+    try {
+      const content = await fs.readFile(samplePath)
+      reply.header('Content-Disposition', 'attachment; filename="import_1.html"')
+      reply.type('text/html')
+      return reply.send(content)
+    } catch {
+      throw { statusCode: 404, message: 'File mẫu import_1.html không tồn tại' }
+    }
+  })
 
   app.get<{ Querystring: ListTemplateQuery }>(
     '/',
@@ -89,9 +104,9 @@ const templateRoutes: FastifyPluginAsync = async (app) => {
     async (request, reply) => {
       const { content, extension } = await service.export(request.params.id, request.body)
       const mimeType =
-        extension === 'pdf'
-          ? 'application/pdf'
-          : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        extension === 'pdf'  ? 'application/pdf'
+        : extension === 'html' ? 'text/html'
+        : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
       reply.header('Content-Disposition', `attachment; filename="export.${extension}"`)
       reply.type(mimeType)
       return reply.send(content)
