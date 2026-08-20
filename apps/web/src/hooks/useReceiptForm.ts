@@ -89,8 +89,10 @@ export function useReceiptForm(options?: { onUpdateSuccess?: () => void }) {
   }, [receipt])
 
   // When PO detail loads → auto-fill lines in create mode
+  // Guard: skip if viewing existing receipt (id is set) — component stays mounted when
+  // navigating from /receipts/new?po_id=X to /receipts/:id, so poId state is stale.
   useEffect(() => {
-    if (!poDetail) return
+    if (!poDetail || id) return
     form.setFieldsValue({
       po_id: poDetail.id,
       company_id: poDetail.company_id,
