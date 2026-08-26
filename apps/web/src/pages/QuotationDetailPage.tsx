@@ -1,9 +1,10 @@
+import React from 'react'
 import { useParams } from 'react-router-dom'
 import {
   Form, Input, InputNumber, Select, Button, Tag, Popconfirm, Table, Skeleton,
-  DatePicker,
+  DatePicker, Tooltip,
 } from 'antd'
-import { ArrowLeftOutlined, EditOutlined, SyncOutlined, FileExcelOutlined, FilePdfOutlined, EyeOutlined } from '@ant-design/icons'
+import { ArrowLeftOutlined, EditOutlined, SyncOutlined, FileExcelOutlined, FilePdfOutlined, EyeOutlined, UserOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { useQuotationDetail } from '../hooks/useQuotationDetail'
 import { useTermTemplates } from '../hooks/useTermTemplates'
@@ -22,23 +23,47 @@ import { StatusBadge } from '../components/ui/StatusBadge'
 import CustomFieldsPanel from '../components/CustomFieldsPanel'
 import QuotationSectionItem from '../components/QuotationSectionItem'
 
-const LINE_COLS = [
-  { title: 'Sản phẩm',   width: 240, render: (_: any, l: any) => l.bundle_name ?? l.variant_name ?? l.description ?? '—' },
-  { title: 'Mã hàng',    width: 130, render: (_: any, l: any) => l.bundle_item_code ?? l.variant_item_code ?? '—' },
-  { title: 'SL',         dataIndex: 'quantity',     width: 60,  align: 'right' as const },
-  { title: 'Đơn giá',   dataIndex: 'unit_price',   width: 120, align: 'right' as const, render: fmt },
-  { title: 'VAT%',       dataIndex: 'vat_percent',  width: 70,  align: 'right' as const },
-  { title: 'Thành tiền', dataIndex: 'line_total',   width: 120, align: 'right' as const, render: fmt },
-  { title: 'Tiền VAT',   dataIndex: 'vat_amount',   width: 100, align: 'right' as const, render: fmt },
-  { title: 'Bảo hành',  dataIndex: 'warranty',     width: 100 },
-  { title: 'Giữ chỗ',   dataIndex: 'is_reserved',  width: 80,  render: (v: boolean) => <Tag color={v ? 'blue' : 'default'}>{v ? 'Có' : 'Không'}</Tag> },
-  { title: 'Đã xuất',   dataIndex: 'exported_qty', width: 80,  align: 'right' as const },
-  { title: 'Chờ xuất',  dataIndex: 'pending_qty',  width: 80,  align: 'right' as const },
-  { title: 'Còn lại',   dataIndex: 'remaining_qty',width: 80,  align: 'right' as const },
-  { title: 'Ghi chú',   dataIndex: 'note',         width: 140 },
-]
+function makeLineCols(retail: boolean) {
+  return [
+    { title: 'Sản phẩm',   width: 240, render: (_: any, l: any) => l.bundle_name ?? l.variant_name ?? l.description ?? '—' },
+    { title: 'Mã hàng',    width: 130, render: (_: any, l: any) => l.bundle_item_code ?? l.variant_item_code ?? '—' },
+    { title: 'SL',         dataIndex: 'quantity',    width: 60,  align: 'right' as const },
+    {
+      title: retail ? 'Đơn giá (đã VAT)' : 'Đơn giá',
+      width: 140,
+      align: 'right' as const,
+      render: (_: any, l: any) => {
+        const base = Number(l.unit_price ?? 0)
+        const vat = Number(l.vat_percent ?? 0)
+        return fmt(retail ? base * (1 + vat / 100) : base)
+      },
+    },
+    ...(!retail ? [
+      { title: 'VAT%',       dataIndex: 'vat_percent', width: 70,  align: 'right' as const },
+    ] : []),
+    {
+      title: 'Thành tiền',
+      width: 130,
+      align: 'right' as const,
+      render: (_: any, l: any) => {
+        const lineTotal = Number(l.line_total ?? 0)
+        const vat = Number(l.vat_percent ?? 0)
+        return fmt(retail ? lineTotal * (1 + vat / 100) : lineTotal)
+      },
+    },
+    ...(!retail ? [
+      { title: 'Tiền VAT',  dataIndex: 'vat_amount',  width: 100, align: 'right' as const, render: fmt },
+    ] : []),
+    { title: 'Bảo hành',  dataIndex: 'warranty',     width: 100 },
+    { title: 'Giữ chỗ',   dataIndex: 'is_reserved',  width: 80,  render: (v: boolean) => <Tag color={v ? 'blue' : 'default'}>{v ? 'Có' : 'Không'}</Tag> },
+    { title: 'Đã xuất',   dataIndex: 'exported_qty', width: 80,  align: 'right' as const },
+    { title: 'Chờ xuất',  dataIndex: 'pending_qty',  width: 80,  align: 'right' as const },
+    { title: 'Còn lại',   dataIndex: 'remaining_qty',width: 80,  align: 'right' as const },
+    { title: 'Ghi chú',   dataIndex: 'note',         width: 140 },
+  ]
+}
 
-function LineTable({ rows, nested }: { rows: any[]; nested?: boolean }) {
+function LineTable({ rows, nested, retail }: { rows: any[]; nested?: boolean; retail?: boolean }) {
   if (!rows.length) return null
   return (
     <Table
@@ -47,7 +72,7 @@ function LineTable({ rows, nested }: { rows: any[]; nested?: boolean }) {
       pagination={false}
       size="small"
       scroll={{ x: 'max-content' }}
-      columns={LINE_COLS}
+      columns={makeLineCols(!!retail)}
       style={nested ? { border: '1px solid #b0c4e8', borderTop: 'none', borderRadius: '0 0 6px 6px' } : undefined}
     />
   )
@@ -100,6 +125,7 @@ export default function QuotationDetailPage() {
   const { id } = useParams<{ id: string }>()
   const hook = useQuotationDetail(id!)
   const { data: termTemplates } = useTermTemplates()
+  const [retailMode, setRetailMode] = React.useState(false)
 
   // Computed expiry preview trong edit mode
   const watchQuoteDate = Form.useWatch('quote_date', hook.form)
@@ -117,6 +143,16 @@ export default function QuotationDetailPage() {
 
   const exportActions = !hook.isNew && !hook.isEditing ? (
     <>
+      <Tooltip title={retailMode ? 'Đang hiện giá gộp VAT (khách lẻ)' : 'Chuyển sang giá gộp VAT (khách lẻ)'}>
+        <Button
+          size="small"
+          icon={<UserOutlined />}
+          type={retailMode ? 'primary' : 'default'}
+          onClick={() => setRetailMode((v) => !v)}
+        >
+          {retailMode ? 'Khách lẻ' : 'Khách lẻ'}
+        </Button>
+      </Tooltip>
       <Button
         size="small"
         icon={<EyeOutlined />}
@@ -358,51 +394,64 @@ export default function QuotationDetailPage() {
             </Form.List>
           </SectionCard>
         ) : (
-          q?.sections?.map((section: any, sIdx: number) => (
-            <SectionCard key={section.id} title={`${toRoman(sIdx + 1)}. ${section.name}`}>
-              <LineTable rows={section.line_items ?? []} />
-              {(section.sub_sections ?? []).map((ss: any, ssIdx: number) => (
-                <div key={ss.id} style={{ marginTop: 10 }}>
-                  <div style={{
-                    padding: '4px 10px',
-                    background: '#dce8fb',
-                    border: '1px solid #b0c4e8',
-                    borderBottom: 'none',
-                    borderRadius: '6px 6px 0 0',
-                    fontSize: 13,
-                    fontWeight: 600,
-                    color: '#4472c4',
-                  }}>
-                    <span style={{ marginRight: 6 }}>{ssIdx + 1}.</span>
-                    {ss.name}
-                    {ss.product_name && ss.product_name !== ss.name && (
-                      <span style={{ fontWeight: 400, color: '#8aa6d4', marginLeft: 6, fontSize: 12 }}>
-                        ({ss.product_name})
-                      </span>
-                    )}
+          q?.sections?.map((section: any, sIdx: number) => {
+            const sectionRetailTotal = retailMode
+              ? (section.line_items ?? []).reduce((acc: number, l: any) => {
+                  const lineTotal = Number(l.line_total ?? 0)
+                  const vat = Number(l.vat_percent ?? 0)
+                  return acc + lineTotal * (1 + vat / 100)
+                }, 0)
+              : null
+            return (
+              <SectionCard key={section.id} title={`${toRoman(sIdx + 1)}. ${section.name}`}>
+                <LineTable rows={section.line_items ?? []} retail={retailMode} />
+                {(section.sub_sections ?? []).map((ss: any, ssIdx: number) => (
+                  <div key={ss.id} style={{ marginTop: 10 }}>
+                    <div style={{
+                      padding: '4px 10px',
+                      background: '#dce8fb',
+                      border: '1px solid #b0c4e8',
+                      borderBottom: 'none',
+                      borderRadius: '6px 6px 0 0',
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: '#4472c4',
+                    }}>
+                      <span style={{ marginRight: 6 }}>{ssIdx + 1}.</span>
+                      {ss.name}
+                      {ss.product_name && ss.product_name !== ss.name && (
+                        <span style={{ fontWeight: 400, color: '#8aa6d4', marginLeft: 6, fontSize: 12 }}>
+                          ({ss.product_name})
+                        </span>
+                      )}
+                    </div>
+                    <LineTable rows={ss.line_items ?? []} nested retail={retailMode} />
                   </div>
-                  <LineTable rows={ss.line_items ?? []} nested />
+                ))}
+                <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '6px 0 0', fontSize: 13, color: 'var(--text-2)' }}>
+                  Tổng nhóm: <strong style={{ marginLeft: 8 }}>{fmt(retailMode ? sectionRetailTotal : section.subtotal)}</strong>
                 </div>
-              ))}
-              <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '6px 0 0', fontSize: 13, color: 'var(--text-2)' }}>
-                Tổng nhóm: <strong style={{ marginLeft: 8 }}>{fmt(section.subtotal)}</strong>
-              </div>
-            </SectionCard>
-          ))
+              </SectionCard>
+            )
+          })
         )}
 
         {/* ── Tổng cộng (chỉ hiện khi đang xem báo giá đã có) ── */}
         {!hook.isNew && !hook.isEditing && q && (
           <SectionCard title="Tổng cộng">
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
-              <div style={{ display: 'flex', gap: 32, fontSize: 14 }}>
-                <span style={{ color: 'var(--text-2)' }}>Tạm tính</span>
-                <span style={{ minWidth: 140, textAlign: 'right' }}>{fmt(q.subtotal)}</span>
-              </div>
-              <div style={{ display: 'flex', gap: 32, fontSize: 14 }}>
-                <span style={{ color: 'var(--text-2)' }}>Tiền VAT</span>
-                <span style={{ minWidth: 140, textAlign: 'right' }}>{fmt(q.vat_total)}</span>
-              </div>
+              {!retailMode && (
+                <>
+                  <div style={{ display: 'flex', gap: 32, fontSize: 14 }}>
+                    <span style={{ color: 'var(--text-2)' }}>Tạm tính</span>
+                    <span style={{ minWidth: 140, textAlign: 'right' }}>{fmt(q.subtotal)}</span>
+                  </div>
+                  <div style={{ display: 'flex', gap: 32, fontSize: 14 }}>
+                    <span style={{ color: 'var(--text-2)' }}>Tiền VAT</span>
+                    <span style={{ minWidth: 140, textAlign: 'right' }}>{fmt(q.vat_total)}</span>
+                  </div>
+                </>
+              )}
               {Number(q.discount) > 0 && (
                 <div style={{ display: 'flex', gap: 32, fontSize: 14 }}>
                   <span style={{ color: 'var(--text-2)' }}>Giảm giá</span>

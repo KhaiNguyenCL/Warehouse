@@ -182,7 +182,8 @@ export function useReceiptForm(options?: { onUpdateSuccess?: () => void }) {
   )
 
   const cancelMutation = useApiMutation(
-    () => api.patch(`/receipts/${id}/cancel`),
+    (body?: { reason?: string; attachments?: Array<{ url: string; originalName: string }> }) =>
+      api.patch(`/receipts/${id}/cancel`, body ?? {}),
     {
       successMessage: 'Đã huỷ phiếu',
       invalidateKey: [['receipts', id!], ['receipts']],
@@ -203,7 +204,7 @@ export function useReceiptForm(options?: { onUpdateSuccess?: () => void }) {
       .filter((l: any) => l.product_type === 'storable')
       .map((l: any) => ({
         line_id: l.id,
-        serials: (serialsRows[l.id] ?? []).filter((r) => r.serial_no.trim()),
+        serials: (serialsRows[l.id] ?? []).filter((r) => r.serial_no.trim() || r.mac_address.trim()),
       }))
     completeMutation.mutate({ lines })
   }

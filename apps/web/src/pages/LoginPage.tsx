@@ -19,7 +19,7 @@ export default function LoginPage() {
       setAuth(data.token, me.data)
       navigate('/')
     } catch (err: any) {
-      message.error(err.response?.data?.error ?? 'Đăng nhập thất bại')
+      message.error(err.response?.data?.message ?? 'Đăng nhập thất bại')
     } finally {
       setLoading(false)
     }

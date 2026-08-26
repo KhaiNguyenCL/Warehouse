@@ -88,10 +88,11 @@ export const completeReceiptSchema = {
               type: 'array',
               items: {
                 type: 'object',
-                required: ['serial_no'],
+                // serial_no hoặc mac_address phải có ít nhất 1 — validate trong service
+                // vì JSON Schema không có cách express "at least one of" gọn.
                 properties: {
                   serial_no:   { type: 'string', minLength: 1 },
-                  mac_address: { type: 'string' },
+                  mac_address: { type: 'string', minLength: 1 },
                   note:        { type: 'string' },
                 },
               },
@@ -104,7 +105,7 @@ export const completeReceiptSchema = {
 }
 
 export interface SerialInput {
-  serial_no: string
+  serial_no?: string
   mac_address?: string
   note?: string
 }

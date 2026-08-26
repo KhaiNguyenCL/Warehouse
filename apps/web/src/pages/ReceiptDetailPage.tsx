@@ -1,8 +1,10 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useParams } from 'react-router-dom'
 import dayjs from 'dayjs'
-import { Table, Button, Typography, Space, Popconfirm, Modal, Input, Form, InputNumber, DatePicker } from 'antd'
-import { QrcodeOutlined } from '@ant-design/icons'
+import { Table, Button, Typography, Space, Modal, Input, Form, InputNumber, DatePicker, Upload, message } from 'antd'
+import { QrcodeOutlined, PaperClipOutlined, UploadOutlined } from '@ant-design/icons'
+import type { UploadFile } from 'antd'
+import { api } from '../lib/api'
 import { useReceiptDetail } from '../hooks/useReceiptDetail'
 import { moneyProps } from '../lib/utils'
 import { SnScanGrid } from '../components/SnScanGrid'
@@ -23,6 +25,34 @@ export default function ReceiptDetailPage() {
   const { id } = useParams<{ id: string }>()
   const hook = useReceiptDetail(id!)
   const [qrOpen, setQrOpen] = useState(false)
+  const [cancelOpen, setCancelOpen] = useState(false)
+  const [cancelReason, setCancelReason] = useState('')
+  const [cancelFiles, setCancelFiles] = useState<UploadFile[]>([])
+  const [cancelLoading, setCancelLoading] = useState(false)
+
+  async function handleCancel() {
+    if (!cancelReason.trim()) {
+      message.warning('Vui lòng nhập lý do hủy')
+      return
+    }
+    setCancelLoading(true)
+    try {
+      // Upload files trước, lấy URL
+      const uploaded: Array<{ url: string; originalName: string }> = []
+      for (const f of cancelFiles) {
+        if (f.url) {
+          // file đã upload xong (có url từ customRequest)
+          uploaded.push({ url: f.url as string, originalName: f.name })
+        }
+      }
+      await hook.cancelMutation.mutateAsync({ reason: cancelReason.trim(), attachments: uploaded })
+      setCancelOpen(false)
+      setCancelReason('')
+      setCancelFiles([])
+    } finally {
+      setCancelLoading(false)
+    }
+  }
 
   if (hook.isLoading || !hook.data) return null
 
@@ -54,9 +84,7 @@ export default function ReceiptDetailPage() {
           </Button>
         )}
         {!['completed', 'cancelled'].includes(hook.data.status) && (
-          <Popconfirm title="Huỷ phiếu này?" onConfirm={() => hook.cancelMutation.mutate()}>
-            <Button danger>Cancel</Button>
-          </Popconfirm>
+          <Button danger onClick={() => setCancelOpen(true)}>Hủy phiếu</Button>
         )}
         {hook.data.status === 'completed' && (
           <Button icon={<QrcodeOutlined />} onClick={() => setQrOpen(true)}>
@@ -158,7 +186,88 @@ export default function ReceiptDetailPage() {
         lines={hook.data.lines}
       />
 
+      {/* Hiển thị lý do hủy nếu phiếu đã cancelled */}
+      {hook.data.status === 'cancelled' && (hook.data.cancel_reason || hook.data.cancel_attachments?.length) && (
+        <div style={{ marginTop: 16, padding: '12px 16px', background: '#fff1f0', border: '1px solid #ffccc7', borderRadius: 8 }}>
+          <div style={{ fontWeight: 600, color: '#cf1322', marginBottom: 6 }}>Lý do hủy</div>
+          {hook.data.cancel_reason && (
+            <div style={{ color: '#434343', whiteSpace: 'pre-wrap', marginBottom: 8 }}>{hook.data.cancel_reason}</div>
+          )}
+          {hook.data.cancel_attachments?.length > 0 && (
+            <div>
+              <div style={{ fontSize: 12, color: '#8c8c8c', marginBottom: 4 }}>Đính kèm:</div>
+              <Space wrap>
+                {hook.data.cancel_attachments.map((f: any, i: number) => (
+                  <a key={i} href={f.url} target="_blank" rel="noopener noreferrer"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 13 }}>
+                    <PaperClipOutlined /> {f.originalName}
+                  </a>
+                ))}
+              </Space>
+            </div>
+          )}
+        </div>
+      )}
+
       <CustomFieldsPanel objectType="receipt" objectId={id!} />
+
+      {/* Modal hủy phiếu — yêu cầu lý do + đính kèm chứng từ */}
+      <Modal
+        title="Hủy phiếu nhập kho"
+        open={cancelOpen}
+        onCancel={() => { setCancelOpen(false); setCancelReason(''); setCancelFiles([]) }}
+        onOk={handleCancel}
+        okText="Xác nhận hủy"
+        okButtonProps={{ danger: true, loading: cancelLoading }}
+        cancelText="Đóng"
+        width={520}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, paddingTop: 8 }}>
+          <div>
+            <div style={{ fontWeight: 500, marginBottom: 6 }}>
+              Lý do hủy <span style={{ color: '#ff4d4f' }}>*</span>
+            </div>
+            <Input.TextArea
+              rows={4}
+              placeholder="Nhập lý do hủy phiếu..."
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
+            />
+          </div>
+          <div>
+            <div style={{ fontWeight: 500, marginBottom: 6 }}>Đính kèm chứng từ (tuỳ chọn)</div>
+            <Upload
+              fileList={cancelFiles}
+              accept="image/*,.pdf"
+              multiple
+              customRequest={async ({ file, onSuccess, onError }) => {
+                try {
+                  const form = new FormData()
+                  form.append('file', file as File)
+                  const res = await api.post('/uploads/file', form, {
+                    headers: { 'Content-Type': 'multipart/form-data' },
+                  })
+                  // Gán url vào fileList để handleCancel lấy ra
+                  setCancelFiles((prev) =>
+                    prev.map((f) =>
+                      f.uid === (file as any).uid
+                        ? { ...f, url: res.data.url, status: 'done' }
+                        : f,
+                    ),
+                  )
+                  onSuccess?.(res.data)
+                } catch (err: any) {
+                  onError?.(err)
+                }
+              }}
+              onChange={({ fileList }) => setCancelFiles(fileList)}
+              listType="text"
+            >
+              <Button icon={<UploadOutlined />}>Chọn file (ảnh / PDF, tối đa 20 MB)</Button>
+            </Upload>
+          </div>
+        </div>
+      </Modal>
 
       <EntityFormModal
         title="Sửa Receipt"

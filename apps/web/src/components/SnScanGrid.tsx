@@ -12,9 +12,10 @@ interface Props {
   onChange: (rows: SnRow[]) => void
 }
 
-// Grid nhập serial number kiểu Excel — hỗ trợ scanner và keyboard navigation.
+// Grid nhập serial/MAC kiểu Excel — hỗ trợ scanner và keyboard navigation.
 // Enter trong SN → nhảy sang MAC; Enter trong MAC → nhảy xuống SN dòng tiếp.
 // Paste nhiều SN cùng lúc vào cột SN → auto split theo dòng.
+// Row "done" khi có ít nhất 1 trong 2: serial_no HOẶC mac_address.
 export function SnScanGrid({ quantity, rows, onChange }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -64,19 +65,22 @@ export function SnScanGrid({ quantity, rows, onChange }: Props) {
     setTimeout(() => focusCell(Math.min(startIdx + lines.length, quantity - 1), 'sn'), 30)
   }
 
-  const filled = fullRows.filter((r) => r.serial_no.trim()).length
+  const filled = fullRows.filter((r) => r.serial_no.trim() || r.mac_address.trim()).length
 
   return (
     <div ref={containerRef}>
       {/* Header */}
       <div style={gridStyle}>
         <span style={headerCell}>#</span>
-        <span style={headerCell}>Serial Number *</span>
+        <span style={headerCell}>Serial Number</span>
         <span style={headerCell}>MAC Address</span>
+      </div>
+      <div style={{ fontSize: 11, color: '#8c8c8c', marginBottom: 6 }}>
+        Nhập Serial Number <strong>hoặc</strong> MAC Address — ít nhất 1 trong 2 là bắt buộc.
       </div>
 
       {fullRows.map((row, idx) => {
-        const done = !!row.serial_no.trim()
+        const done = !!(row.serial_no.trim() || row.mac_address.trim())
         return (
           <div key={idx} style={{ ...gridStyle, marginBottom: 3 }}>
             <span style={{ ...indexCell, color: done ? '#52c41a' : '#bbb', fontWeight: done ? 600 : 400 }}>

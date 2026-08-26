@@ -28,7 +28,11 @@ export function useReceiptDetail(id: string) {
     successMessage: 'Thành công',
     invalidateKey: [['receipts', id], ['receipts'], ['inventory']],
   }
-  const cancelMutation = useApiMutation(() => api.patch(`/receipts/${id}/cancel`), actionOptions)
+  const cancelMutation = useApiMutation(
+    (body?: { reason?: string; attachments?: Array<{ url: string; originalName: string }> }) =>
+      api.patch(`/receipts/${id}/cancel`, body ?? {}),
+    actionOptions,
+  )
   const editModal = useEntityModal()
   const updateMutation = useApiMutation((values: any) => {
     const lines = values.lines?.map((l: any) => ({

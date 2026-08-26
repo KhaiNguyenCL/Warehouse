@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import {
   Button, Form, Input, Select, InputNumber, DatePicker,
-  Space, Popconfirm, Modal, Table,
+  Space, Modal, Table, Upload, message,
 } from 'antd'
-import { ArrowLeftOutlined, QrcodeOutlined } from '@ant-design/icons'
+import { ArrowLeftOutlined, QrcodeOutlined, UploadOutlined } from '@ant-design/icons'
+import type { UploadFile } from 'antd'
+import { api } from '../lib/api'
 import { useReceiptForm } from '../hooks/useReceiptForm'
 import { StatusBadge } from '../components/ui/StatusBadge'
 import { SnScanGrid } from '../components/SnScanGrid'
@@ -49,6 +51,10 @@ function fmt(n: any) {
 export default function ReceiptFormPage() {
   const [isDirty, setIsDirty] = useState(false)
   const [qrOpen, setQrOpen] = useState(false)
+  const [cancelOpen, setCancelOpen] = useState(false)
+  const [cancelReason, setCancelReason] = useState('')
+  const [cancelFiles, setCancelFiles] = useState<UploadFile[]>([])
+  const [cancelLoading, setCancelLoading] = useState(false)
   const hook = useReceiptForm({ onUpdateSuccess: () => setIsDirty(false) })
   const { mode, receipt } = hook
 
@@ -57,6 +63,25 @@ export default function ReceiptFormPage() {
   const isView = mode === 'view'
 
   if (!isCreate && hook.isLoading) return null
+
+  async function handleCancel() {
+    if (!cancelReason.trim()) {
+      message.warning('Vui lòng nhập lý do hủy')
+      return
+    }
+    setCancelLoading(true)
+    try {
+      const uploaded = cancelFiles
+        .filter((f) => f.url)
+        .map((f) => ({ url: f.url as string, originalName: f.name }))
+      await hook.cancelMutation.mutateAsync({ reason: cancelReason.trim(), attachments: uploaded })
+      setCancelOpen(false)
+      setCancelReason('')
+      setCancelFiles([])
+    } finally {
+      setCancelLoading(false)
+    }
+  }
 
   // ── Submit handler ──────────────────────────────────────────────────────
 
@@ -108,9 +133,7 @@ export default function ReceiptFormPage() {
 
           {/* Huỷ phiếu */}
           {!isCreate && !['completed', 'cancelled'].includes(receipt?.status ?? '') && (
-            <Popconfirm title="Huỷ phiếu nhập kho này?" onConfirm={() => hook.cancelMutation.mutate()}>
-              <Button loading={hook.cancelMutation.isPending}>Huỷ phiếu</Button>
-            </Popconfirm>
+            <Button danger onClick={() => setCancelOpen(true)}>Huỷ phiếu</Button>
           )}
 
           {/* In nhãn QR lô — chỉ khi completed */}
@@ -328,6 +351,63 @@ export default function ReceiptFormPage() {
             },
           ]}
         />
+      </Modal>
+
+      {/* ─── Cancel Modal ────────────────────────────────────────────── */}
+      <Modal
+        title="Hủy phiếu nhập kho"
+        open={cancelOpen}
+        onCancel={() => { setCancelOpen(false); setCancelReason(''); setCancelFiles([]) }}
+        onOk={handleCancel}
+        okText="Xác nhận hủy"
+        okButtonProps={{ danger: true, loading: cancelLoading }}
+        cancelText="Đóng"
+        width={520}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, paddingTop: 8 }}>
+          <div>
+            <div style={{ fontWeight: 500, marginBottom: 6 }}>
+              Lý do hủy <span style={{ color: '#ff4d4f' }}>*</span>
+            </div>
+            <Input.TextArea
+              rows={4}
+              placeholder="Nhập lý do hủy phiếu..."
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
+            />
+          </div>
+          <div>
+            <div style={{ fontWeight: 500, marginBottom: 6 }}>Đính kèm chứng từ (tuỳ chọn)</div>
+            <Upload
+              fileList={cancelFiles}
+              accept="image/*,.pdf"
+              multiple
+              customRequest={async ({ file, onSuccess, onError }) => {
+                try {
+                  const form = new FormData()
+                  form.append('file', file as File)
+                  const res = await api.post('/uploads/file', form, {
+                    headers: { 'Content-Type': 'multipart/form-data' },
+                  })
+                  setCancelFiles((prev) =>
+                    prev.map((f) =>
+                      f.uid === (file as any).uid
+                        ? { ...f, url: res.data.url, status: 'done' }
+                        : f,
+                    ),
+                  )
+                  onSuccess?.(res.data)
+                } catch (err: any) {
+                  onError?.(err)
+                }
+              }}
+              onChange={({ fileList }) => setCancelFiles(fileList)}
+              listType="text"
+            >
+              <Button icon={<UploadOutlined />}>Chọn file (ảnh / PDF, tối đa 20 MB)</Button>
+            </Upload>
+          </div>
+        </div>
       </Modal>
     </div>
   )

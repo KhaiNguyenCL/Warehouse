@@ -90,14 +90,41 @@ const receiptRoutes: FastifyPluginAsync = async (app) => {
     },
   )
 
-  // PATCH /receipts/:id/cancel — huỷ phiếu (chỉ khi chưa completed). preHandler chỉ cần
-  // authenticate — authorization thật (chủ phiếu hoặc người có quyền approve) nằm trong
-  // service.cancel(), vì cần biết created_by của chính document đó.
-  app.patch<{ Params: { id: string } }>(
+  // PATCH /receipts/:id/cancel — huỷ phiếu kèm lý do + đính kèm chứng từ.
+  app.patch<{
+    Params: { id: string }
+    Body: { reason?: string; attachments?: Array<{ url: string; originalName: string }> }
+  }>(
     '/:id/cancel',
-    { preHandler: authenticate },
+    {
+      preHandler: authenticate,
+      schema: {
+        body: {
+          type: 'object',
+          properties: {
+            reason:      { type: 'string' },
+            attachments: {
+              type: 'array',
+              items: {
+                type: 'object',
+                required: ['url', 'originalName'],
+                properties: {
+                  url:          { type: 'string' },
+                  originalName: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
     async (request, reply) => {
-      return await service.cancel(request.params.id, request.user.sub, request.user.roleId)
+      return await service.cancel(
+        request.params.id,
+        request.user.sub,
+        request.user.roleId,
+        request.body,
+      )
     },
   )
 }

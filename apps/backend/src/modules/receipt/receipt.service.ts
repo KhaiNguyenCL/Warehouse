@@ -157,38 +157,55 @@ export class ReceiptService {
 
     // Map line_id -> danh sách serial client gửi lên (chỉ cần cho dòng storable)
     const serialsByLine = new Map((body.lines ?? []).map((l) => [l.line_id, l.serials ?? []]))
-    // Helper: lấy serial_no string từ object input (để dùng chung cho validation)
-    const sns = (serials: SerialInput[]) => serials.map((s) => s.serial_no)
 
     // Validate TRƯỚC khi mở transaction — fail nhanh, không mở transaction chỉ để
-    // rollback ngay vì thiếu serial. CLAUDE.md mục 5: storable bắt buộc serial number,
-    // và số serial nhập phải khớp đúng quantity (không thừa, không thiếu).
-    // Đây chỉ là kiểm tra sơ bộ cho UX — guard THẬT chống race condition nằm ở
-    // updateStatus() atomic bên trong transaction phía dưới.
+    // rollback ngay vì thiếu serial. Storable bắt buộc có ít nhất serial_no HOẶC
+    // mac_address — linh hoạt vì một số thiết bị chỉ có MAC, không có SN in trên vỏ.
     for (const line of receipt.lines) {
       if (line.product_type === 'storable') {
         const serials = serialsByLine.get(line.id) ?? []
-        const serialNos = sns(serials)
         if (serials.length !== line.quantity) {
           throw {
             statusCode: 400,
-            message: `Dòng hàng ${line.variant_name} (storable) cần đúng ${line.quantity} serial number, nhận được ${serials.length}`,
+            message: `Dòng hàng ${line.variant_name} (storable) cần đúng ${line.quantity} serial/MAC, nhận được ${serials.length}`,
           }
         }
-        if (new Set(serialNos).size !== serialNos.length) {
-          throw { statusCode: 400, message: `Danh sách serial cho ${line.variant_name} có giá trị trùng nhau` }
+        // Mỗi entry phải có ít nhất serial_no hoặc mac_address
+        const missingId = serials.findIndex((s) => !s.serial_no?.trim() && !s.mac_address?.trim())
+        if (missingId >= 0) {
+          throw { statusCode: 400, message: `Dòng hàng ${line.variant_name}: mục #${missingId + 1} phải có Serial Number hoặc MAC Address` }
+        }
+        // Kiểm tra trùng trong batch: theo serial_no (nếu có) và mac_address (nếu có)
+        const sns  = serials.map((s) => s.serial_no).filter(Boolean) as string[]
+        const macs = serials.map((s) => s.mac_address).filter(Boolean) as string[]
+        if (new Set(sns).size !== sns.length) {
+          throw { statusCode: 400, message: `Danh sách serial cho ${line.variant_name} có Serial Number trùng nhau` }
+        }
+        if (new Set(macs).size !== macs.length) {
+          throw { statusCode: 400, message: `Danh sách serial cho ${line.variant_name} có MAC Address trùng nhau` }
         }
         if (receipt.import_type === 'return_in') {
-          const soldRows = await this.db('serial_numbers')
-            .whereIn('serial_no', serialNos).where({ status: 'sold' }).pluck('serial_no')
-          const notSold = serialNos.filter((s) => !soldRows.includes(s))
-          if (notSold.length > 0) {
-            throw { statusCode: 400, message: `Serial không hợp lệ cho return_in (chưa bán hoặc không tồn tại): ${notSold.join(', ')}` }
+          // return_in chỉ khớp theo serial_no (MAC có thể thay đổi sau khi sửa thiết bị)
+          if (sns.length > 0) {
+            const soldRows = await this.db('serial_numbers')
+              .whereIn('serial_no', sns).where({ status: 'sold' }).pluck('serial_no')
+            const notSold = sns.filter((s) => !soldRows.includes(s))
+            if (notSold.length > 0) {
+              throw { statusCode: 400, message: `Serial không hợp lệ cho return_in (chưa bán hoặc không tồn tại): ${notSold.join(', ')}` }
+            }
           }
         } else {
-          const existing = await this.db('serial_numbers').whereIn('serial_no', serialNos).pluck('serial_no')
-          if (existing.length > 0) {
-            throw { statusCode: 400, message: `Serial đã tồn tại trong hệ thống: ${existing.join(', ')}` }
+          if (sns.length > 0) {
+            const existing = await this.db('serial_numbers').whereIn('serial_no', sns).pluck('serial_no')
+            if (existing.length > 0) {
+              throw { statusCode: 400, message: `Serial đã tồn tại trong hệ thống: ${existing.join(', ')}` }
+            }
+          }
+          if (macs.length > 0) {
+            const existingMac = await this.db('serial_numbers').whereIn('mac_address', macs).pluck('mac_address')
+            if (existingMac.length > 0) {
+              throw { statusCode: 400, message: `MAC Address đã tồn tại trong hệ thống: ${existingMac.join(', ')}` }
+            }
           }
         }
       }
@@ -246,7 +263,7 @@ export class ReceiptService {
         let newSerialIds: string[] = []
         if (line.product_type === 'storable') {
           const serials = serialsByLine.get(line.id) ?? []
-          const serialNos = sns(serials)
+          const serialNos = serials.map((s) => s.serial_no).filter(Boolean) as string[]
           if (receipt.import_type === 'return_in') {
             // return_in: serial đang status='sold' → UPDATE về active tại kho này,
             // gắn lại receipt_line_id của lô nhập trả hàng này.
@@ -289,8 +306,8 @@ export class ReceiptService {
             const insertedSerials = await trx('serial_numbers')
               .insert(
                 serials.map((s) => ({
-                  serial_no:                 s.serial_no,
-                  mac_address:               s.mac_address || null,
+                  serial_no:                 s.serial_no?.trim() || null,
+                  mac_address:               s.mac_address?.trim() || null,
                   note:                      s.note || null,
                   variant_id:                line.variant_id,
                   warehouse_id:              receipt.warehouse_id,
@@ -352,7 +369,12 @@ export class ReceiptService {
   // Huỷ receipt — chỉ chặn huỷ khi ĐÃ completed (vì lúc đó tồn kho đã thay đổi thật,
   // huỷ ngược lại cần nghiệp vụ riêng, không đơn giản là update status) hoặc đã cancelled rồi.
   // Chỉ người tạo phiếu HOẶC người có quyền receipt.approve (Manager/Admin) mới được huỷ.
-  async cancel(id: string, userId: string, roleId: string) {
+  async cancel(
+    id: string,
+    userId: string,
+    roleId: string,
+    body?: { reason?: string; attachments?: Array<{ url: string; originalName: string }> },
+  ) {
     const receipt = await this.repo.findById(id)
     if (!receipt) throw { statusCode: 404, message: 'Receipt not found' }
     if (['completed', 'cancelled'].includes(receipt.status)) {
@@ -374,7 +396,10 @@ export class ReceiptService {
       // Atomic guard: nếu giữa lúc check status ở trên và lúc này, phiếu đã bị complete
       // bởi 1 request khác, whereIn không khớp 'completed' → update dưới đây trả undefined.
       const cancelled = await this.repo.updateStatus(
-        id, ['draft'], 'cancelled', {}, trx,
+        id, ['draft'], 'cancelled', {
+          cancel_reason:      body?.reason ?? null,
+          cancel_attachments: body?.attachments?.length ? JSON.stringify(body.attachments) : null,
+        }, trx,
       )
       if (!cancelled) {
         throw { statusCode: 400, message: 'Không thể huỷ phiếu đã hoàn thành hoặc đã huỷ' }

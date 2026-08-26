@@ -33,7 +33,10 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (res) => res,
   (err) => {
-    if (err.response?.status === 401) {
+    // Không redirect khi chính endpoint login trả 401 — đó là sai credentials, để
+    // catch block ở LoginPage tự show lỗi. Chỉ redirect cho các route khác.
+    const isLoginEndpoint = err.config?.url?.includes('/auth/login')
+    if (err.response?.status === 401 && !isLoginEndpoint) {
       useAuthStore.getState().logout()
       window.location.href = '/login'
     }
