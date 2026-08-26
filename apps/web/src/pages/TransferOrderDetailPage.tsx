@@ -138,7 +138,7 @@ export default function TransferOrderDetailPage() {
         width={600}
       >
         {storableLines.length === 0 && (
-          <p style={{ color: 'var(--text-2)' }}>Không có dòng storable — bấm OK để Complete.</p>
+          <p style={{ color: 'var(--text-2)' }}>Không có dòng Thiết bị — bấm OK để Complete.</p>
         )}
         {storableLines.map((l: any) => (
           <div key={l.id} style={{ marginBottom: 20 }}>

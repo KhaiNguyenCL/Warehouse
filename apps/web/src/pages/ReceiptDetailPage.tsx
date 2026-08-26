@@ -146,7 +146,7 @@ export default function ReceiptDetailPage() {
             </div>
           ))}
         {hook.data.lines.every((l: any) => l.product_type !== 'storable') && (
-          <p>Không có dòng storable — không cần nhập serial, bấm OK để Complete.</p>
+          <p>Không có dòng Thiết bị — không cần nhập serial, bấm OK để Complete.</p>
         )}
       </Modal>
 

@@ -291,7 +291,7 @@ export default function ReceiptFormPage() {
             ))}
 
             {(receipt?.lines ?? []).every((l: any) => l.product_type !== 'storable') && (
-              <p style={{ color: '#888' }}>Không có dòng storable — bấm xác nhận để Complete.</p>
+              <p style={{ color: '#888' }}>Không có dòng Thiết bị — bấm xác nhận để Complete.</p>
             )}
 
             <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>

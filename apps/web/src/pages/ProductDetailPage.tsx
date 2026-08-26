@@ -40,8 +40,8 @@ import { CodeText } from '@/components/ui/CodeText'
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const PRODUCT_TYPES = [
-  { value: 'storable',   label: 'Lưu kho (có serial)' },
-  { value: 'consumable', label: 'Vật tư tiêu hao' },
+  { value: 'storable',   label: 'Thiết bị' },
+  { value: 'consumable', label: 'Vật tư' },
   { value: 'service',    label: 'Dịch vụ' },
   { value: 'bundle',     label: 'Gói sản phẩm' },
 ]
@@ -53,7 +53,7 @@ const TYPE_STYLES: Record<string, string> = {
   bundle:     'bg-teal-100 text-teal-800 ring-1 ring-teal-300',
 }
 const TYPE_LABEL: Record<string, string> = {
-  storable: 'Lưu kho', consumable: 'Vật tư', service: 'Dịch vụ', bundle: 'Gói SP',
+  storable: 'Thiết bị', consumable: 'Vật tư', service: 'Dịch vụ', bundle: 'Gói SP',
 }
 const SKU_COLUMNS = [
   { key: 'sku',         label: 'Mã hàng',    fixed: true },

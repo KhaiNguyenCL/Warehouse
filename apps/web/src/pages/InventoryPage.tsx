@@ -331,7 +331,7 @@ export default function InventoryPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="__all__">Tất cả loại</SelectItem>
-                <SelectItem value="storable">Có SN</SelectItem>
+                <SelectItem value="storable">Thiết bị</SelectItem>
                 <SelectItem value="consumable">Vật tư</SelectItem>
               </SelectContent>
             </Select>
