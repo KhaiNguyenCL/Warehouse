@@ -32,6 +32,7 @@ import settingsRoutes from './modules/settings/settings.routes'
 import customFieldRoutes from './modules/customfield/customfield.routes'
 import reportRoutes from './modules/report/report.routes'
 import uploadRoutes from './modules/upload/upload.routes'
+import shipmentRoutes from './modules/shipment/shipment.routes'
 
 const FIELD_VI: Record<string, string> = {
   vat_percent:                   'VAT%',
@@ -148,7 +149,8 @@ export async function buildApp() {
   await app.register(settingsRoutes,  { prefix: '/api/v1/settings' })
   await app.register(customFieldRoutes, { prefix: '/api/v1/custom-fields' })
   await app.register(reportRoutes,    { prefix: '/api/v1/reports' })
-  await app.register(uploadRoutes,   { prefix: '/api/v1/uploads' })
+  await app.register(uploadRoutes,    { prefix: '/api/v1/uploads' })
+  await app.register(shipmentRoutes,  { prefix: '/api/v1/shipments' })
 
   return app
 }

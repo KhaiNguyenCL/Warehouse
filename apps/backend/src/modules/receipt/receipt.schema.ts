@@ -16,6 +16,7 @@ export const createReceiptSchema = {
       // PO gốc (tuỳ chọn) — phải ở status='confirmed' (receipt.service.ts validate).
       // Không phải mọi receipt purchase đều xuất phát từ 1 PO chính thức.
       po_id:             { type: 'string', format: 'uuid' },
+      shipment_id:       { type: 'string', format: 'uuid' },
       ref_document_type: { type: 'string' },
       ref_document_id:   { type: 'string', format: 'uuid' },
       received_date:     { type: 'string', format: 'date' },
@@ -123,6 +124,7 @@ export interface CreateReceiptBody {
   contact_id?: string
   warehouse_id: string
   po_id?: string
+  shipment_id?: string
   ref_document_type?: string
   ref_document_id?: string
   received_date?: string
