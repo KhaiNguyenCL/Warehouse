@@ -187,7 +187,12 @@ export class DeliveryService {
       const inventory = await this.db('inventory')
         .where({ variant_id: line.variant_id, warehouse_id: delivery.warehouse_id })
         .first()
-      const available = inventory ? inventory.qty_on_hand : 0
+      // Line từ Quotation: reserved đã thuộc về phiếu này → check qty_on_hand.
+      // Line không từ Quotation (internal, demo_out, dispose...): phải trừ reserved của
+      // các Quotation khác, nếu không sẽ xuất âm qty_available.
+      const available = line.quotation_line_item_id
+        ? (inventory?.qty_on_hand ?? 0)
+        : (inventory ? inventory.qty_on_hand - inventory.qty_reserved : 0)
       if (available < line.quantity) {
         throw {
           statusCode: 400,
