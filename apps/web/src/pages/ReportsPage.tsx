@@ -36,7 +36,7 @@ const CHART_COLORS = { receipts: '#3b82f6', deliveries: '#10b981', revenue: '#8b
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
-    <h2 className="text-[11px] font-bold uppercase tracking-widest text-foreground/50">
+    <h2 className="text-xs font-semibold text-muted-foreground">
       {children}
     </h2>
   )
@@ -290,7 +290,7 @@ export default function ReportsPage() {
 
       {/* Page header */}
       <div>
-        <h1 className="text-3xl font-extrabold tracking-tight text-foreground">Dashboard</h1>
+        <h1 className="font-serif text-3xl font-semibold tracking-tight text-foreground">Dashboard</h1>
         <p className="mt-1 text-sm text-muted-foreground">Tổng quan hoạt động kinh doanh · tự động cập nhật mỗi 60 giây</p>
       </div>
 
@@ -527,11 +527,11 @@ export default function ReportsPage() {
               <table className="w-full">
                 <thead className="sticky top-0 z-10">
                   <tr className="border-b border-border bg-muted/60">
-                    <th className="px-3 py-2 text-left text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Mã hàng</th>
-                    <th className="px-3 py-2 text-left text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Tên</th>
-                    <th className="px-3 py-2 text-right text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Khả dụng</th>
-                    <th className="px-3 py-2 text-right text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Ngưỡng</th>
-                    <th className="px-3 py-2 text-center text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Tình trạng</th>
+                    <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground">Mã hàng</th>
+                    <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground">Tên</th>
+                    <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground">Khả dụng</th>
+                    <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground">Ngưỡng</th>
+                    <th className="px-3 py-2 text-center text-xs font-semibold text-muted-foreground">Tình trạng</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
@@ -694,10 +694,10 @@ export default function ReportsPage() {
                 <table className="w-full">
                   <thead className="sticky top-0 z-10">
                     <tr className="border-b border-border bg-muted/60">
-                      <th className="w-6 px-3 py-2 text-center text-[11px] font-bold uppercase tracking-wide text-muted-foreground">#</th>
-                      <th className="px-3 py-2 text-left text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Sản phẩm</th>
-                      <th className="w-14 px-3 py-2 text-right text-[11px] font-bold uppercase tracking-wide text-muted-foreground">SL</th>
-                      <th className="w-28 px-3 py-2 text-right text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Doanh thu</th>
+                      <th className="w-6 px-3 py-2 text-center text-xs font-semibold text-muted-foreground">#</th>
+                      <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground">Sản phẩm</th>
+                      <th className="w-14 px-3 py-2 text-right text-xs font-semibold text-muted-foreground">SL</th>
+                      <th className="w-28 px-3 py-2 text-right text-xs font-semibold text-muted-foreground">Doanh thu</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">

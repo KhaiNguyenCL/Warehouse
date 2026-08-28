@@ -44,7 +44,7 @@ export default function StocktakesPage() {
       {/* Page header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Kiểm kê kho</h1>
+          <h1 className="font-serif text-2xl font-semibold tracking-tight">Kiểm kê kho</h1>
           <p className="mt-0.5 text-sm text-muted-foreground">Quản lý phiếu kiểm kê tồn kho</p>
         </div>
         <Button onClick={() => hook.openCreate()}>
@@ -89,12 +89,12 @@ export default function StocktakesPage() {
           <colgroup>{colWidths.map((w, i) => <col key={i} style={{ width: `${w}%` }} />)}</colgroup>
           <thead>
             <tr className="border-b border-border bg-muted/40">
-              <th style={{ width: `${colWidths[0]}%` }} className="relative px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-foreground/70 select-none">#<ResizeHandle onMouseDown={(e) => startResize(e, 0)} /></th>
-              <th style={{ width: `${colWidths[1]}%` }} className="relative px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-foreground/70 select-none">Mã kiểm kê<ResizeHandle onMouseDown={(e) => startResize(e, 1)} /></th>
-              <th style={{ width: `${colWidths[2]}%` }} className="relative px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-foreground/70 select-none">Kho<ResizeHandle onMouseDown={(e) => startResize(e, 2)} /></th>
-              <th style={{ width: `${colWidths[3]}%` }} className="relative px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-foreground/70 select-none">Phạm vi<ResizeHandle onMouseDown={(e) => startResize(e, 3)} /></th>
-              <th style={{ width: `${colWidths[4]}%` }} className="relative px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-foreground/70 select-none">Trạng thái<ResizeHandle onMouseDown={(e) => startResize(e, 4)} /></th>
-              <th style={{ width: `${colWidths[5]}%` }} className="relative px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-foreground/70 select-none">Bắt đầu</th>
+              <th style={{ width: `${colWidths[0]}%` }} className="relative px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground select-none">#<ResizeHandle onMouseDown={(e) => startResize(e, 0)} /></th>
+              <th style={{ width: `${colWidths[1]}%` }} className="relative px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground select-none">Mã kiểm kê<ResizeHandle onMouseDown={(e) => startResize(e, 1)} /></th>
+              <th style={{ width: `${colWidths[2]}%` }} className="relative px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground select-none">Kho<ResizeHandle onMouseDown={(e) => startResize(e, 2)} /></th>
+              <th style={{ width: `${colWidths[3]}%` }} className="relative px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground select-none">Phạm vi<ResizeHandle onMouseDown={(e) => startResize(e, 3)} /></th>
+              <th style={{ width: `${colWidths[4]}%` }} className="relative px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground select-none">Trạng thái<ResizeHandle onMouseDown={(e) => startResize(e, 4)} /></th>
+              <th style={{ width: `${colWidths[5]}%` }} className="relative px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground select-none">Bắt đầu</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
