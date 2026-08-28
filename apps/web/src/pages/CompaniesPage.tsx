@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Table, Input as AntInput, AutoComplete, Modal, Space, Tag, Checkbox, Spin, Tooltip } from 'antd'
 import { useQuery } from '@tanstack/react-query'
 import { RefreshCw, Phone, Mail, Search, ChevronLeft, ChevronRight, User } from 'lucide-react'
@@ -56,6 +56,32 @@ function TabSwitch({ value, onChange }: {
   )
 }
 
+// Header dùng chung cho cả 2 tab — CÙNG 1 cấu trúc DOM/kích thước cố định, chỉ đổi
+// nội dung chữ + actions. Nhờ vậy khi chuyển tab, header không bị "nhảy" hình dạng,
+// chỉ có bảng dữ liệu bên dưới thay đổi.
+function TabHeader({
+  title, subtitle, activeTab, onTabChange, actions,
+}: {
+  title: string
+  subtitle: string
+  activeTab: 'companies' | 'contacts'
+  onTabChange: (v: 'companies' | 'contacts') => void
+  actions?: ReactNode
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <div>
+        <h1 className="font-serif text-2xl font-semibold tracking-tight">{title}</h1>
+        <p className="mt-0.5 text-sm text-muted-foreground">{subtitle}</p>
+      </div>
+      <div className="flex items-center gap-2">
+        <TabSwitch value={activeTab} onChange={onTabChange} />
+        {actions}
+      </div>
+    </div>
+  )
+}
+
 export default function CompaniesPage() {
   const [activeTab, setActiveTab] = useState<'companies' | 'contacts'>('companies')
 
@@ -107,20 +133,18 @@ function CompaniesTab({ activeTab, onTabChange }: {
   return (
     <div className="flex flex-col gap-4">
 
-      {/* Page header */}
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h1 className="font-serif text-2xl font-semibold tracking-tight">Đối tác</h1>
-          <p className="mt-0.5 text-sm text-muted-foreground">{total.toLocaleString('vi-VN')} công ty</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <TabSwitch value={activeTab} onChange={onTabChange} />
+      <TabHeader
+        title="Đối tác"
+        subtitle={`${total.toLocaleString('vi-VN')} công ty`}
+        activeTab={activeTab}
+        onTabChange={onTabChange}
+        actions={
           <Button variant="outline" onClick={hook.openSync}>
             <RefreshCw className="mr-2 h-4 w-4" />
             Đồng bộ Bitrix
           </Button>
-        </div>
-      </div>
+        }
+      />
 
       {/* Table card */}
       <div className="overflow-hidden rounded-xl border border-border bg-background shadow-sm">
@@ -310,11 +334,19 @@ function ContactsTab({ activeTab, onTabChange }: {
   const totalPages = Math.ceil(total / limit)
 
   return (
-    <div className="flex flex-col gap-0">
-      {/* Toolbar */}
-      <div className="flex items-center justify-between rounded-t-xl border border-border bg-background px-4 py-3">
-        <div className="flex items-center gap-2">
-          <TabSwitch value={activeTab} onChange={onTabChange} />
+    <div className="flex flex-col gap-4">
+      <TabHeader
+        title="Người liên hệ"
+        subtitle={`${total.toLocaleString('vi-VN')} người liên hệ`}
+        activeTab={activeTab}
+        onTabChange={onTabChange}
+      />
+
+      {/* Table card */}
+      <div className="overflow-hidden rounded-xl border border-border bg-background shadow-sm">
+
+        {/* Toolbar */}
+        <div className="flex items-center justify-between border-b border-border px-4 py-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -324,12 +356,9 @@ function ContactsTab({ activeTab, onTabChange }: {
               className="h-9 w-72 pl-9 text-sm shadow-none"
             />
           </div>
+          <span className="text-sm text-muted-foreground">{total.toLocaleString('vi-VN')} kết quả</span>
         </div>
-        <span className="text-sm text-muted-foreground">{total.toLocaleString('vi-VN')} người liên hệ</span>
-      </div>
 
-      {/* Table */}
-      <div className="overflow-hidden border-x border-b border-border bg-background shadow-sm" style={{ borderRadius: total > 0 ? '0 0 0 0' : '0 0 12px 12px' }}>
         <table ref={tableRef} className="w-full table-fixed">
           <colgroup>{colWidths.map((w, i) => <col key={i} style={{ width: `${w}%` }} />)}</colgroup>
           <thead>
@@ -382,7 +411,7 @@ function ContactsTab({ activeTab, onTabChange }: {
 
         {/* Pagination — always show when data loaded */}
         {total > 0 && (
-          <div className="flex items-center justify-between border-t border-border px-4 py-2.5 rounded-b-xl">
+          <div className="flex items-center justify-between border-t border-border px-4 py-2.5">
             <div className="flex items-center gap-3">
               <span className="text-xs text-muted-foreground">{from}–{to} / {total} người liên hệ</span>
               <PageSizeSelector value={limit} onChange={(v) => { setLimit(v); setPage(1) }} />
