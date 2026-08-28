@@ -12,8 +12,6 @@ import { CodeText } from '@/components/ui/CodeText'
 import CompanySheet from '../components/CompanySheet'
 import ContactSheet from '../components/ContactSheet'
 import { PageSizeSelector } from '@/components/ui/PageSizeSelector'
-import { useResizableColumns } from '@/hooks/useResizableColumns'
-import { ResizeHandle } from '@/components/ui/ResizeHandle'
 
 function TypeBadge({ types }: { types: string[] }) {
   return (
@@ -105,8 +103,6 @@ function CompaniesTab({ activeTab, onTabChange, hook }: {
   hook: ReturnType<typeof useCompanies>
 }) {
   const total = hook.data?.total ?? 0
-  const { colWidths, tableRef, startResize } = useResizableColumns([4, 14, 32, 12, 22, 16])
-
   const [sheetOpen, setSheetOpen] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(null)
 
@@ -201,16 +197,23 @@ function CompaniesTab({ activeTab, onTabChange, hook }: {
         </div>
 
         {/* Table */}
-        <table ref={tableRef} className="w-full table-fixed">
-          <colgroup>{colWidths.map((w, i) => <col key={i} style={{ width: `${w}%` }} />)}</colgroup>
+        <table className="w-full table-fixed">
+          <colgroup>
+            <col style={{ width: '4%' }} />
+            <col style={{ width: '14%' }} />
+            <col style={{ width: '32%' }} />
+            <col style={{ width: '12%' }} />
+            <col style={{ width: '22%' }} />
+            <col style={{ width: '16%' }} />
+          </colgroup>
           <thead>
             <tr className="border-b border-border bg-muted/40">
-              <th style={{ width: `${colWidths[0]}%` }} className="relative px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground select-none">#<ResizeHandle onMouseDown={(e) => startResize(e, 0)} /></th>
-              <th style={{ width: `${colWidths[1]}%` }} className="relative px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground select-none">Mã<ResizeHandle onMouseDown={(e) => startResize(e, 1)} /></th>
-              <th style={{ width: `${colWidths[2]}%` }} className="relative px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground select-none">Tên công ty<ResizeHandle onMouseDown={(e) => startResize(e, 2)} /></th>
-              <th style={{ width: `${colWidths[3]}%` }} className="relative px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground select-none">Loại<ResizeHandle onMouseDown={(e) => startResize(e, 3)} /></th>
-              <th style={{ width: `${colWidths[4]}%` }} className="relative px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground select-none">Liên hệ<ResizeHandle onMouseDown={(e) => startResize(e, 4)} /></th>
-              <th style={{ width: `${colWidths[5]}%` }} className="relative px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground select-none">MST</th>
+              <th className="px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground">#</th>
+              <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Mã</th>
+              <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Tên công ty</th>
+              <th className="px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground">Loại</th>
+              <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Liên hệ</th>
+              <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">MST</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -325,8 +328,6 @@ function ContactsTab({ activeTab, onTabChange, onOpenSync }: {
   const [page, setPage] = useState(1)
   const [limit, setLimit] = useState(50)
   const [selectedContact, setSelectedContact] = useState<any | null>(null)
-  const { colWidths, tableRef, startResize } = useResizableColumns([4, 20, 14, 12, 18, 24, 8])
-
   const { data, isFetching } = useQuery({
     queryKey: ['contacts', debouncedSearch, page, limit],
     queryFn: async () =>
@@ -372,17 +373,25 @@ function ContactsTab({ activeTab, onTabChange, onOpenSync }: {
           <span className="text-sm text-muted-foreground">{total.toLocaleString('vi-VN')} kết quả</span>
         </div>
 
-        <table ref={tableRef} className="w-full table-fixed">
-          <colgroup>{colWidths.map((w, i) => <col key={i} style={{ width: `${w}%` }} />)}</colgroup>
+        <table className="w-full table-fixed">
+          <colgroup>
+            <col style={{ width: '4%' }} />
+            <col style={{ width: '20%' }} />
+            <col style={{ width: '14%' }} />
+            <col style={{ width: '12%' }} />
+            <col style={{ width: '18%' }} />
+            <col style={{ width: '24%' }} />
+            <col style={{ width: '8%' }} />
+          </colgroup>
           <thead>
             <tr className="border-b border-border bg-muted/40">
-              <th className="relative px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground select-none">#<ResizeHandle onMouseDown={(e) => startResize(e, 0)} /></th>
-              <th className="relative px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground select-none">Họ tên<ResizeHandle onMouseDown={(e) => startResize(e, 1)} /></th>
-              <th className="relative px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground select-none">Chức vụ<ResizeHandle onMouseDown={(e) => startResize(e, 2)} /></th>
-              <th className="relative px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground select-none">SĐT<ResizeHandle onMouseDown={(e) => startResize(e, 3)} /></th>
-              <th className="relative px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground select-none">Email<ResizeHandle onMouseDown={(e) => startResize(e, 4)} /></th>
-              <th className="relative px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground select-none">Công ty<ResizeHandle onMouseDown={(e) => startResize(e, 5)} /></th>
-              <th className="relative px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground select-none">Chính</th>
+              <th className="px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground">#</th>
+              <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Họ tên</th>
+              <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Chức vụ</th>
+              <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">SĐT</th>
+              <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Email</th>
+              <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Công ty</th>
+              <th className="px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground">Chính</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
