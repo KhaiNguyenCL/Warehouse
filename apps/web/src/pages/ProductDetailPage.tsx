@@ -36,6 +36,7 @@ import {
 import { ColumnToggle, useColumnVisibility } from '@/components/ui/ColumnToggle'
 import { cn } from '@/lib/utils'
 import { CodeText } from '@/components/ui/CodeText'
+import { Sheet, SheetContent } from '@/components/ui/sheet'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -824,15 +825,9 @@ export default function ProductDetailPage() {
         )}
       </div>
 
-      {/* SKU sheet backdrop */}
-      {skuOpen && <div className="fixed inset-x-0 top-12 bottom-0 z-40 bg-black/30 transition-opacity duration-200" onClick={closeSkuSheet} />}
-
       {/* SKU sheet */}
-      <div
-        className={cn('fixed right-0 top-12 z-50 flex h-[calc(100%-3rem)] w-[560px] flex-col bg-background shadow-xl transition-transform duration-200', skuOpen ? 'translate-x-0' : 'translate-x-full')}
-        onKeyDown={(e) => { if (e.key === 'Escape') closeSkuSheet() }}
-        tabIndex={-1}
-      >
+      <Sheet open={skuOpen} onOpenChange={(o) => !o && closeSkuSheet()}>
+        <SheetContent side="right" className="w-[560px] flex flex-col gap-0" showCloseButton={false}>
         <div className="flex shrink-0 items-center justify-between border-b border-border px-5 py-4">
           <div>
             <h2 className="text-base font-semibold">{editingSku ? 'Sửa SKU' : 'Tạo SKU mới'}</h2>
@@ -1015,7 +1010,8 @@ export default function ProductDetailPage() {
             </div>
           </form>
         </Form>
-      </div>
+        </SheetContent>
+      </Sheet>
     </div>
   )
 }

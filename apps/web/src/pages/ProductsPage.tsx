@@ -23,6 +23,7 @@ import { PageSizeSelector } from '@/components/ui/PageSizeSelector'
 import { cn } from '@/lib/utils'
 import { CodeText } from '@/components/ui/CodeText'
 import { ColumnToggle, useColumnVisibility, type ColumnDef } from '@/components/ui/ColumnToggle'
+import { Sheet, SheetContent } from '@/components/ui/sheet'
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
@@ -490,15 +491,8 @@ export default function ProductsPage() {
       </AlertDialog>
 
       {/* Create product Sheet */}
-      <div
-        className={cn('fixed inset-x-0 top-12 bottom-0 z-40 bg-black/30 supports-backdrop-filter:backdrop-blur-sm transition-opacity duration-200', hook.open ? 'opacity-100' : 'pointer-events-none opacity-0')}
-        onClick={hook.closeAndResetModel}
-      />
-      <div
-        className={cn('fixed right-0 top-12 z-50 flex h-[calc(100%-3rem)] w-[480px] flex-col bg-background shadow-xl transition-transform duration-200', hook.open ? 'translate-x-0' : 'translate-x-full')}
-        onKeyDown={(e) => { if (e.key === 'Escape') hook.closeAndResetModel() }}
-        tabIndex={-1}
-      >
+      <Sheet open={hook.open} onOpenChange={(o) => !o && hook.closeAndResetModel()}>
+        <SheetContent side="right" className="w-[480px] flex flex-col gap-0" showCloseButton={false}>
         <div className="flex shrink-0 items-center justify-between border-b border-border px-5 py-4">
           <h2 className="text-base font-semibold">Tạo sản phẩm mới</h2>
           <button onClick={hook.closeAndResetModel} className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors">
@@ -553,7 +547,8 @@ export default function ProductsPage() {
             <Button type="button" disabled={hook.createMutation.isPending} onClick={() => hook.form.submit()}>Tạo mới</Button>
           </div>
         </AntForm>
-      </div>
+        </SheetContent>
+      </Sheet>
     </div>
   )
 }

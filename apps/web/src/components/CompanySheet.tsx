@@ -4,6 +4,7 @@ import { Popconfirm } from 'antd'
 import { X, Plus, Trash2, Pencil, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Sheet, SheetContent } from '@/components/ui/sheet'
 import { cn } from '@/lib/utils'
 import { api } from '../lib/api'
 import { useApiMutation } from '../hooks/useApiMutation'
@@ -156,23 +157,8 @@ export default function CompanySheet({ open, companyId, onClose }: Props) {
   const isSupplier = company?.types?.includes('supplier')
 
   return (
-    <>
-      {/* backdrop — dims but does NOT lock scroll */}
-      <div
-        className={cn(
-          'fixed inset-x-0 top-12 bottom-0 z-40 bg-black/30 supports-backdrop-filter:backdrop-blur-sm transition-opacity duration-200',
-          open ? 'opacity-100' : 'pointer-events-none opacity-0',
-        )}
-        onClick={onClose}
-      />
-
-      {/* panel */}
-      <div
-        className={cn(
-          'fixed right-0 top-12 z-50 flex h-[calc(100%-3rem)] w-1/2 flex-col bg-background shadow-xl transition-transform duration-200',
-          open ? 'translate-x-0' : 'translate-x-full',
-        )}
-      >
+    <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
+      <SheetContent side="right" className="w-1/2 flex flex-col gap-0" showCloseButton={false}>
         {/* header */}
         <div className="flex shrink-0 items-start justify-between gap-3 border-b border-border px-5 py-4">
           {isLoading ? (
@@ -279,7 +265,7 @@ export default function CompanySheet({ open, companyId, onClose }: Props) {
             </div>
           )}
         </div>
-      </div>
-    </>
+      </SheetContent>
+    </Sheet>
   )
 }

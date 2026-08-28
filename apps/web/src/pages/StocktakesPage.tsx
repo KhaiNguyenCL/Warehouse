@@ -8,6 +8,7 @@ import { PageSizeSelector } from '@/components/ui/PageSizeSelector'
 import StocktakeSkuPicker from '../components/StocktakeSkuPicker'
 import { cn } from '@/lib/utils'
 import { CodeText } from '@/components/ui/CodeText'
+import { Sheet, SheetContent } from '@/components/ui/sheet'
 
 const SCOPE_TYPES = [
   { value: 'all',          label: 'Toàn bộ kho' },
@@ -156,22 +157,9 @@ export default function StocktakesPage() {
         )}
       </div>
 
-      {/* Create Sheet — backdrop */}
-      <div
-        className={cn(
-          'fixed inset-x-0 top-12 bottom-0 z-40 bg-black/30 supports-backdrop-filter:backdrop-blur-sm transition-opacity duration-200',
-          hook.open ? 'opacity-100' : 'pointer-events-none opacity-0',
-        )}
-        onClick={hook.close}
-      />
-
-      {/* Create Sheet — panel */}
-      <div
-        className={cn(
-          'fixed right-0 top-12 z-50 flex h-[calc(100%-3rem)] w-[480px] flex-col bg-background shadow-xl transition-transform duration-200',
-          hook.open ? 'translate-x-0' : 'translate-x-full',
-        )}
-      >
+      {/* Create Sheet */}
+      <Sheet open={hook.open} onOpenChange={(o) => !o && hook.close()}>
+        <SheetContent side="right" className="w-[480px] flex flex-col gap-0" showCloseButton={false}>
         {/* Header */}
         <div className="flex shrink-0 items-center justify-between border-b border-border px-5 py-4">
           <h2 className="text-base font-semibold text-foreground">Tạo phiếu kiểm kê</h2>
@@ -237,7 +225,8 @@ export default function StocktakesPage() {
             </Button>
           </div>
         </Form>
-      </div>
+        </SheetContent>
+      </Sheet>
     </div>
   )
 }

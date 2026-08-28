@@ -24,6 +24,7 @@ import { Switch } from '@/components/ui/switch'
 import { cn } from '@/lib/utils'
 import { CodeText } from '@/components/ui/CodeText'
 import { ActiveBadge } from '@/components/ui/ActiveBadge'
+import { Sheet, SheetContent } from '@/components/ui/sheet'
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -358,13 +359,8 @@ export default function CategoriesPage() {
       </TableCard>
 
       {/* ── View / Create / Edit Sheet ───────────────────────────────────── */}
-      {dialogOpen && <div
-        className="fixed inset-x-0 top-12 bottom-0 z-40 bg-black/30"
-        onClick={() => setDialogOpen(false)}
-      />}
-      {dialogOpen && <div
-        className="fixed right-0 top-12 z-50 flex h-[calc(100%-3rem)] w-96 flex-col bg-background shadow-xl animate-in slide-in-from-right duration-200"
-      >
+      <Sheet open={dialogOpen} onOpenChange={(o) => !o && setDialogOpen(false)}>
+        <SheetContent side="right" className="w-96 flex flex-col gap-0" showCloseButton={false}>
         {/* header */}
         <div className="flex shrink-0 items-center justify-between border-b border-border px-5 py-4">
           <h2 className="text-base font-semibold text-foreground">
@@ -482,7 +478,8 @@ export default function CategoriesPage() {
             </form>
           </Form>
         )}
-      </div>}
+        </SheetContent>
+      </Sheet>
 
       {/* ── Delete confirmation ──────────────────────────────────────────── */}
       <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>

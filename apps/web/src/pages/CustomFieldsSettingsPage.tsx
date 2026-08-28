@@ -23,6 +23,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { cn } from '@/lib/utils'
+import { Sheet, SheetContent } from '@/components/ui/sheet'
 import { ActiveBadge } from '@/components/ui/ActiveBadge'
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -196,8 +197,8 @@ function VariantAttributesTab() {
       </div>
 
       {/* Sheet */}
-      <div className={cn('fixed inset-x-0 top-12 bottom-0 z-40 bg-black/30 transition-opacity duration-200', sheetOpen ? 'opacity-100' : 'pointer-events-none opacity-0')} onClick={() => setSheetOpen(false)} />
-      <div className={cn('fixed right-0 top-12 z-50 flex h-[calc(100%-3rem)] w-[480px] flex-col bg-background shadow-xl transition-transform duration-200', sheetOpen ? 'translate-x-0' : 'translate-x-full')}>
+      <Sheet open={sheetOpen} onOpenChange={(o) => !o && setSheetOpen(false)}>
+        <SheetContent side="right" className="w-[480px] flex flex-col gap-0" showCloseButton={false}>
         <div className="flex shrink-0 items-center justify-between border-b border-border px-5 py-4">
           <h2 className="text-base font-semibold">{editing ? `Sửa "${editing.name}"` : 'Thêm thuộc tính SKU'}</h2>
           <button onClick={() => setSheetOpen(false)} className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors">
@@ -326,7 +327,8 @@ function VariantAttributesTab() {
             </div>
           </form>
         </Form>
-      </div>
+        </SheetContent>
+      </Sheet>
 
       <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
         <AlertDialogContent>
@@ -481,8 +483,8 @@ function CustomFieldsTab() {
       </div>
 
       {/* Sheet */}
-      <div className={cn('fixed inset-x-0 top-12 bottom-0 z-40 bg-black/30 transition-opacity duration-200', sheetOpen ? 'opacity-100' : 'pointer-events-none opacity-0')} onClick={() => setSheetOpen(false)} />
-      <div className={cn('fixed right-0 top-12 z-50 flex h-[calc(100%-3rem)] w-[440px] flex-col bg-background shadow-xl transition-transform duration-200', sheetOpen ? 'translate-x-0' : 'translate-x-full')}>
+      <Sheet open={sheetOpen} onOpenChange={(o) => !o && setSheetOpen(false)}>
+        <SheetContent side="right" className="w-[440px] flex flex-col gap-0" showCloseButton={false}>
         <div className="flex shrink-0 items-center justify-between border-b border-border px-5 py-4">
           <h2 className="text-base font-semibold">{editing ? `Sửa "${editing.field_name}"` : 'Tạo trường mới'}</h2>
           <button onClick={() => setSheetOpen(false)} className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors">
@@ -584,7 +586,8 @@ function CustomFieldsTab() {
             </div>
           </form>
         </Form>
-      </div>
+        </SheetContent>
+      </Sheet>
 
       <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
         <AlertDialogContent>

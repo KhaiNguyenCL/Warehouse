@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
+import { Sheet, SheetContent } from '@/components/ui/sheet'
 import { cn } from '@/lib/utils'
 import { api } from '../lib/api'
 import { useApiMutation } from '../hooks/useApiMutation'
@@ -52,15 +53,8 @@ export default function ContactSheet({ open, contact, onClose, onUpdated }: Prop
   if (!open || !contact) return null
 
   return (
-    <>
-      {/* Backdrop */}
-      <div className="fixed inset-x-0 top-12 bottom-0 z-40 bg-black/20" onClick={() => { setEditing(false); onClose() }} />
-
-      {/* Sheet */}
-      <div className={cn(
-        'fixed right-0 top-12 z-50 flex h-[calc(100%-3rem)] flex-col bg-background shadow-xl',
-        'w-[440px] border-l border-border',
-      )}>
+    <Sheet open={open} onOpenChange={(o) => { if (!o) { setEditing(false); onClose() } }}>
+      <SheetContent side="right" className="w-[440px] flex flex-col gap-0" showCloseButton={false}>
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
           <div className="flex flex-col gap-0.5">
@@ -146,7 +140,7 @@ export default function ContactSheet({ open, contact, onClose, onUpdated }: Prop
             </div>
           )}
         </div>
-      </div>
-    </>
+      </SheetContent>
+    </Sheet>
   )
 }

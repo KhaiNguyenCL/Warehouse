@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/form'
 import { cn } from '@/lib/utils'
 import RolePermissionsPanel from '@/components/RolePermissionsPanel'
+import { Sheet, SheetContent } from '@/components/ui/sheet'
 
 // ── Schema ──────────────────────────────────────────────────────────────────
 
@@ -160,19 +161,8 @@ export default function RolesPage() {
       </div>
 
       {/* Create / Edit Sheet */}
-      <div
-        className={cn(
-          'fixed inset-x-0 top-12 bottom-0 z-40 bg-black/30 supports-backdrop-filter:backdrop-blur-sm transition-opacity duration-200',
-          dialogOpen ? 'opacity-100' : 'pointer-events-none opacity-0',
-        )}
-        onClick={() => setDialogOpen(false)}
-      />
-      <div
-        className={cn(
-          'fixed right-0 top-12 z-50 flex h-[calc(100%-3rem)] w-[560px] flex-col bg-background shadow-xl transition-transform duration-200',
-          dialogOpen ? 'translate-x-0' : 'translate-x-full',
-        )}
-      >
+      <Sheet open={dialogOpen} onOpenChange={(o) => !o && setDialogOpen(false)}>
+        <SheetContent side="right" className="w-[560px] flex flex-col gap-0" showCloseButton={false}>
         {/* header */}
         <div className="flex shrink-0 items-center justify-between border-b border-border px-5 py-4">
           <h2 className="text-base font-semibold text-foreground">
@@ -238,7 +228,8 @@ export default function RolesPage() {
             </div>
           </form>
         </Form>
-      </div>
+        </SheetContent>
+      </Sheet>
 
       {/* Delete confirmation */}
       <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
