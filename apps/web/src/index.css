@@ -174,15 +174,18 @@
 .ant-input-number-input,
 .ant-select:not(.ant-select-disabled) .ant-select-selector,
 .ant-picker {
-  transition: border-color 0.15s ease, box-shadow 0.15s ease !important;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease !important;
 }
 
-.ant-input:hover,
+/* Hover — quầng sáng nhạt (glow) để rõ ràng hơn thay vì chỉ đổi màu viền,
+   nhưng vẫn nhạt hơn hẳn focus ring bên dưới để phân biệt 2 trạng thái. */
+.ant-input:not(:disabled):hover,
 .ant-input-affix-wrapper:not(.ant-input-affix-wrapper-disabled):hover,
 .ant-input-number:not(.ant-input-number-disabled):hover,
-.ant-select:not(.ant-select-disabled):hover .ant-select-selector,
-.ant-picker:not(.ant-picker-disabled):hover {
+.ant-select:not(.ant-select-disabled):not(.ant-select-focused):hover .ant-select-selector,
+.ant-picker:not(.ant-picker-disabled):not(.ant-picker-focused):hover {
   border-color: var(--color-primary) !important;
+  box-shadow: 0 0 0 3px rgba(41,171,226,0.12) !important;
 }
 
 .ant-input:focus,
@@ -191,7 +194,21 @@
 .ant-select-focused .ant-select-selector,
 .ant-picker-focused {
   border-color: var(--color-primary) !important;
-  box-shadow: 0 0 0 2px rgba(41,171,226,0.2) !important;
+  box-shadow: 0 0 0 3px rgba(41,171,226,0.28) !important;
+}
+
+/* AntD Switch — cùng kiểu glow khi hover để nhất quán với input/select */
+.ant-switch:not(.ant-switch-disabled):hover {
+  box-shadow: 0 0 0 3px rgba(41,171,226,0.12) !important;
+}
+
+/* Option trong dropdown Select/TreeSelect — hover rõ hơn mặc định AntD */
+.ant-select-dropdown .ant-select-item-option:hover:not(.ant-select-item-option-disabled) {
+  background-color: var(--bg-hover) !important;
+}
+.ant-select-dropdown .ant-select-item-option-selected:not(.ant-select-item-option-disabled) {
+  background-color: var(--accent-bg) !important;
+  font-weight: 600 !important;
 }
 
 /* ── Ant Design Form compact spacing ──────────────────────────────────────── */
