@@ -262,7 +262,7 @@ export default function InventoryPage() {
           <SheetHeader>
             <SheetTitle>Đang giữ chỗ</SheetTitle>
           </SheetHeader>
-          <div className="px-1 mt-2">
+          <div className="px-6 pb-6 mt-2">
           {reservedSheet && (
             <ReservedSheet
               variantId={reservedSheet.variantId}
