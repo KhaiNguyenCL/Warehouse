@@ -73,7 +73,7 @@ export function ColumnToggle({ columns, visible, onToggle }: ColumnToggleProps) 
         align="end"
         className="w-44 rounded-xl p-1.5 shadow-lg"
       >
-        <p className="px-2 pb-1 pt-0.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+        <p className="px-2 pb-1 pt-0.5 text-xs font-semibold text-muted-foreground">
           Hiển thị cột
         </p>
         <div className="flex flex-col gap-0.5">

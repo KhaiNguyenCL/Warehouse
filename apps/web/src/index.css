@@ -9,8 +9,12 @@
    Nguồn màu duy nhất là styles/tokens.css — các biến shadcn (--background,
    --foreground, --border…) chỉ alias sang đó, không định nghĩa palette riêng. */
 @theme inline {
-  --font-sans:  'Inter Variable', ui-sans-serif, sans-serif;
-  --font-serif: 'Lora Variable', Georgia, serif;
+  --font-sans:    'Inter Variable', ui-sans-serif, sans-serif;
+  --font-serif:   'Lora Variable', Georgia, serif;
+  /* Dialog/Sheet/Card/AlertDialog title dùng class "font-heading" (shadcn mặc định) —
+     trước đây không có token nên là utility chết, giờ trỏ về Lora cho nhất quán với
+     PageHeader. */
+  --font-heading: 'Lora Variable', Georgia, serif;
 
   --color-background:              var(--background);
   --color-foreground:              var(--foreground);
@@ -205,4 +209,21 @@
   font-weight: 500;
   height: auto;
   color: var(--foreground);
+}
+
+/* EntityFormModal layout — 2 cột gọn, không kẻ ô ngăn field. Field dài (tên, địa chỉ, ghi
+   chú) dùng className="form-row-full" để chiếm trọn hàng; TextArea tự full-width. */
+.entity-form-compact {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 16px;
+}
+.entity-form-compact .form-row-full,
+.entity-form-compact .ant-form-item:has(textarea) {
+  grid-column: 1 / -1;
+}
+.entity-form-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 4px;
 }

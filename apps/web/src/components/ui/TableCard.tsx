@@ -15,10 +15,9 @@ export function TableCard({ title, count, toolbar, actions, children }: Props) {
     <div
       style={{
         background: 'var(--bg-card)',
-        border: '1px solid #e2e8f0',
+        border: '1px solid var(--border)',
         borderRadius: 'var(--r-lg)',
         overflow: 'hidden',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
       }}
     >
       {hasToolbar && (
