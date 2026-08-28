@@ -84,17 +84,26 @@ function TabHeader({
 
 export default function CompaniesPage() {
   const [activeTab, setActiveTab] = useState<'companies' | 'contacts'>('companies')
+  // Hook nâng lên parent — dùng chung cho cả 2 tab để nút "Đồng bộ Bitrix" luôn
+  // hiện diện ở cùng 1 vị trí bất kể tab nào đang active (switch không bị lệch chỗ),
+  // và modal đồng bộ luôn mount sẵn nên bấm từ tab nào cũng mở được.
+  const hook = useCompanies()
 
-  return activeTab === 'companies'
-    ? <CompaniesTab activeTab={activeTab} onTabChange={setActiveTab} />
-    : <ContactsTab activeTab={activeTab} onTabChange={setActiveTab} />
+  return (
+    <>
+      {activeTab === 'companies'
+        ? <CompaniesTab activeTab={activeTab} onTabChange={setActiveTab} hook={hook} />
+        : <ContactsTab activeTab={activeTab} onTabChange={setActiveTab} onOpenSync={hook.openSync} />}
+      <SyncBitrixModal hook={hook} />
+    </>
+  )
 }
 
-function CompaniesTab({ activeTab, onTabChange }: {
+function CompaniesTab({ activeTab, onTabChange, hook }: {
   activeTab: 'companies' | 'contacts'
   onTabChange: (v: 'companies' | 'contacts') => void
+  hook: ReturnType<typeof useCompanies>
 }) {
-  const hook = useCompanies()
   const total = hook.data?.total ?? 0
   const { colWidths, tableRef, startResize } = useResizableColumns([4, 14, 32, 12, 22, 16])
 
@@ -300,18 +309,16 @@ function CompaniesTab({ activeTab, onTabChange }: {
         companyId={selectedId}
         onClose={closeSheet}
       />
-
-      {/* Bitrix sync modal — AntD */}
-      <SyncBitrixModal hook={hook} />
     </div>
   )
 }
 
 // ─── Contacts Tab ──────────────────────────────────────────────────────────────
 
-function ContactsTab({ activeTab, onTabChange }: {
+function ContactsTab({ activeTab, onTabChange, onOpenSync }: {
   activeTab: 'companies' | 'contacts'
   onTabChange: (v: 'companies' | 'contacts') => void
+  onOpenSync: () => void
 }) {
   const [search, setSearch] = useState('')
   const debouncedSearch = useDebounce(search, 200)
@@ -340,6 +347,12 @@ function ContactsTab({ activeTab, onTabChange }: {
         subtitle={`${total.toLocaleString('vi-VN')} người liên hệ`}
         activeTab={activeTab}
         onTabChange={onTabChange}
+        actions={
+          <Button variant="outline" onClick={onOpenSync}>
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Đồng bộ Bitrix
+          </Button>
+        }
       />
 
       {/* Table card */}
