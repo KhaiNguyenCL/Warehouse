@@ -27,38 +27,47 @@ function TypeBadge({ types }: { types: string[] }) {
   )
 }
 
-export default function CompaniesPage() {
-  const [activeTab, setActiveTab] = useState<'companies' | 'contacts'>('companies')
-
+// Switch nhỏ gọn thay cho dải tab full-width — không chiếm riêng 1 hàng, nhúng thẳng
+// vào toolbar/header sẵn có để bảng không bị đẩy xuống.
+function TabSwitch({ value, onChange }: {
+  value: 'companies' | 'contacts'
+  onChange: (v: 'companies' | 'contacts') => void
+}) {
   return (
-    <div className="flex flex-col gap-6">
-      {/* Tabs */}
-      <div className="flex gap-1 border-b border-border">
-        {([
-          { key: 'companies', label: 'Đối tác' },
-          { key: 'contacts',  label: 'Người liên hệ' },
-        ] as const).map(({ key, label }) => (
-          <button
-            key={key}
-            onClick={() => setActiveTab(key)}
-            className={cn(
-              'px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px',
-              activeTab === key
-                ? 'border-primary text-primary'
-                : 'border-transparent text-muted-foreground hover:text-foreground',
-            )}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {activeTab === 'companies' ? <CompaniesTab /> : <ContactsTab />}
+    <div className="flex items-center gap-1 rounded-lg border border-border bg-muted/40 p-0.5">
+      {([
+        { key: 'companies', label: 'Đối tác' },
+        { key: 'contacts',  label: 'Người liên hệ' },
+      ] as const).map(({ key, label }) => (
+        <button
+          key={key}
+          onClick={() => onChange(key)}
+          className={cn(
+            'rounded-md px-2.5 py-1 text-xs font-medium transition-colors',
+            value === key
+              ? 'bg-background text-foreground shadow-sm'
+              : 'text-muted-foreground hover:text-foreground',
+          )}
+        >
+          {label}
+        </button>
+      ))}
     </div>
   )
 }
 
-function CompaniesTab() {
+export default function CompaniesPage() {
+  const [activeTab, setActiveTab] = useState<'companies' | 'contacts'>('companies')
+
+  return activeTab === 'companies'
+    ? <CompaniesTab activeTab={activeTab} onTabChange={setActiveTab} />
+    : <ContactsTab activeTab={activeTab} onTabChange={setActiveTab} />
+}
+
+function CompaniesTab({ activeTab, onTabChange }: {
+  activeTab: 'companies' | 'contacts'
+  onTabChange: (v: 'companies' | 'contacts') => void
+}) {
   const hook = useCompanies()
   const total = hook.data?.total ?? 0
   const { colWidths, tableRef, startResize } = useResizableColumns([4, 14, 32, 12, 22, 16])
@@ -96,18 +105,21 @@ function CompaniesTab() {
   const to = Math.min(hook.page * hook.limit, total)
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
 
       {/* Page header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         <div>
           <h1 className="font-serif text-2xl font-semibold tracking-tight">Đối tác</h1>
           <p className="mt-0.5 text-sm text-muted-foreground">{total.toLocaleString('vi-VN')} công ty</p>
         </div>
-        <Button variant="outline" onClick={hook.openSync}>
-          <RefreshCw className="mr-2 h-4 w-4" />
-          Đồng bộ Bitrix
-        </Button>
+        <div className="flex items-center gap-2">
+          <TabSwitch value={activeTab} onChange={onTabChange} />
+          <Button variant="outline" onClick={hook.openSync}>
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Đồng bộ Bitrix
+          </Button>
+        </div>
       </div>
 
       {/* Table card */}
@@ -273,7 +285,10 @@ function CompaniesTab() {
 
 // ─── Contacts Tab ──────────────────────────────────────────────────────────────
 
-function ContactsTab() {
+function ContactsTab({ activeTab, onTabChange }: {
+  activeTab: 'companies' | 'contacts'
+  onTabChange: (v: 'companies' | 'contacts') => void
+}) {
   const [search, setSearch] = useState('')
   const debouncedSearch = useDebounce(search, 200)
   const [page, setPage] = useState(1)
@@ -298,14 +313,17 @@ function ContactsTab() {
     <div className="flex flex-col gap-0">
       {/* Toolbar */}
       <div className="flex items-center justify-between rounded-t-xl border border-border bg-background px-4 py-3">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Tìm tên, SĐT, email, công ty…"
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1) }}
-            className="h-9 w-72 pl-9 text-sm shadow-none"
-          />
+        <div className="flex items-center gap-2">
+          <TabSwitch value={activeTab} onChange={onTabChange} />
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Tìm tên, SĐT, email, công ty…"
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setPage(1) }}
+              className="h-9 w-72 pl-9 text-sm shadow-none"
+            />
+          </div>
         </div>
         <span className="text-sm text-muted-foreground">{total.toLocaleString('vi-VN')} người liên hệ</span>
       </div>
