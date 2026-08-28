@@ -92,7 +92,7 @@ function SectionCard({ title, extra, children }: { title: string; extra?: React.
 
 const labelStyle: React.CSSProperties = {
   fontSize: 12, color: 'var(--text-2)', fontWeight: 700,
-  marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.4px',
+  marginBottom: 4,
 }
 const valueStyle: React.CSSProperties = {
   fontSize: 14, color: 'var(--text-1)', minHeight: 32, display: 'flex', alignItems: 'center',

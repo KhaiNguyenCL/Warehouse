@@ -30,7 +30,7 @@ export default function PurchaseOrdersPage() {
       {/* Page header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Phiếu mua hàng</h1>
+          <h1 className="font-serif text-2xl font-semibold tracking-tight">Phiếu mua hàng</h1>
           <p className="mt-0.5 text-sm text-muted-foreground">Quản lý đơn đặt hàng từ nhà cung cấp</p>
         </div>
         <Button onClick={() => hook.navigate('/purchase-orders/new')}>
@@ -75,14 +75,14 @@ export default function PurchaseOrdersPage() {
           <colgroup>{colWidths.map((w, i) => <col key={i} style={{ width: `${w}%` }} />)}</colgroup>
           <thead>
             <tr className="border-b border-border bg-muted/40">
-              <th style={{ width: `${colWidths[0]}%` }} className="relative px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-foreground/70 select-none">#<ResizeHandle onMouseDown={(e) => startResize(e, 0)} /></th>
-              <th style={{ width: `${colWidths[1]}%` }} className="relative px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-foreground/70 select-none">Mã phiếu<ResizeHandle onMouseDown={(e) => startResize(e, 1)} /></th>
-              <th style={{ width: `${colWidths[2]}%` }} className="relative px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-foreground/70 select-none">NCC<ResizeHandle onMouseDown={(e) => startResize(e, 2)} /></th>
-              <th style={{ width: `${colWidths[3]}%` }} className="relative px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-foreground/70 select-none">Dự án<ResizeHandle onMouseDown={(e) => startResize(e, 3)} /></th>
-              <th style={{ width: `${colWidths[4]}%` }} className="relative px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wide text-foreground/70 select-none">Tổng tiền<ResizeHandle onMouseDown={(e) => startResize(e, 4)} /></th>
-              <th style={{ width: `${colWidths[5]}%` }} className="relative px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-foreground/70 select-none">Trạng thái<ResizeHandle onMouseDown={(e) => startResize(e, 5)} /></th>
-              <th style={{ width: `${colWidths[6]}%` }} className="relative px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-foreground/70 select-none">Người tạo<ResizeHandle onMouseDown={(e) => startResize(e, 6)} /></th>
-              <th style={{ width: `${colWidths[7]}%` }} className="relative px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-foreground/70 select-none">Ngày tạo</th>
+              <th style={{ width: `${colWidths[0]}%` }} className="relative px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground select-none">#<ResizeHandle onMouseDown={(e) => startResize(e, 0)} /></th>
+              <th style={{ width: `${colWidths[1]}%` }} className="relative px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground select-none">Mã phiếu<ResizeHandle onMouseDown={(e) => startResize(e, 1)} /></th>
+              <th style={{ width: `${colWidths[2]}%` }} className="relative px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground select-none">NCC<ResizeHandle onMouseDown={(e) => startResize(e, 2)} /></th>
+              <th style={{ width: `${colWidths[3]}%` }} className="relative px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground select-none">Dự án<ResizeHandle onMouseDown={(e) => startResize(e, 3)} /></th>
+              <th style={{ width: `${colWidths[4]}%` }} className="relative px-4 py-2.5 text-right text-xs font-semibold text-muted-foreground select-none">Tổng tiền<ResizeHandle onMouseDown={(e) => startResize(e, 4)} /></th>
+              <th style={{ width: `${colWidths[5]}%` }} className="relative px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground select-none">Trạng thái<ResizeHandle onMouseDown={(e) => startResize(e, 5)} /></th>
+              <th style={{ width: `${colWidths[6]}%` }} className="relative px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground select-none">Người tạo<ResizeHandle onMouseDown={(e) => startResize(e, 6)} /></th>
+              <th style={{ width: `${colWidths[7]}%` }} className="relative px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground select-none">Ngày tạo</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">

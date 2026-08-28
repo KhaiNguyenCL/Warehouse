@@ -32,7 +32,7 @@ function SectionCard({ title, children }: { title: string; children: React.React
 
 const labelStyle: React.CSSProperties = {
   fontSize: 12, color: 'var(--text-2)', fontWeight: 600,
-  marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.4px',
+  marginBottom: 4,
 }
 const valueStyle: React.CSSProperties = {
   fontSize: 14, color: 'var(--text-1)', minHeight: 32, display: 'flex', alignItems: 'center',
