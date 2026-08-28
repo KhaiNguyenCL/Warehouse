@@ -97,9 +97,6 @@ export const antdTheme: ThemeConfig = {
       borderRadiusLG: 12,
       paddingContentHorizontalLG: 24,
     },
-    Drawer: {
-      paddingLG: 0,
-    },
     Card: {
       paddingLG: 20,
       borderRadius: 12,

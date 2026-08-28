@@ -84,7 +84,7 @@ function SnDetailDrawer({
     >
       {sn && (
         <>
-          <div style={{ paddingLeft: 8 }}>
+          <div>
             {[
               { label: 'Trạng thái', value: <StatusBadge status={sn.status} /> },
               { label: 'Kho', value: sn.warehouse_name ?? '—' },
