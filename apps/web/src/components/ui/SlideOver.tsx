@@ -32,8 +32,7 @@ export function SlideOver({
       closable={false}
       styles={{
         body: { padding: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' },
-        wrapper: { boxShadow: 'var(--shadow-lg)', top: 48, height: 'calc(100% - 48px)' },
-        mask: { top: 48 },
+        wrapper: { boxShadow: 'var(--shadow-lg)' },
       }}
       style={{ background: 'var(--bg-card)' }}
     >

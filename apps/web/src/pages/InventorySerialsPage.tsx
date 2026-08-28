@@ -81,7 +81,6 @@ function SnDetailDrawer({
       onClose={() => { setEditOpen(false); onClose() }}
       width={520}
       extra={<Button onClick={() => setEditOpen((v) => !v)}>{editOpen ? 'Huỷ sửa' : 'Sửa'}</Button>}
-      styles={{ wrapper: { top: 48, height: 'calc(100% - 48px)' }, mask: { top: 48 } }}
     >
       {sn && (
         <>

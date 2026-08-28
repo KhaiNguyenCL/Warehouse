@@ -79,7 +79,6 @@ function SnDetailDrawer({ sn, onClose, listQueryKey }: { sn: any | null; onClose
       onClose={() => { setEditOpen(false); onClose() }}
       width={520}
       extra={<AntButton onClick={() => setEditOpen((v) => !v)}>{editOpen ? 'Huỷ sửa' : 'Sửa'}</AntButton>}
-      styles={{ wrapper: { top: 48, height: 'calc(100% - 48px)' }, mask: { top: 48 } }}
     >
       {sn && (
         <>
