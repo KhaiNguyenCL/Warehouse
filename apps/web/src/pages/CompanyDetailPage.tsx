@@ -11,14 +11,9 @@ import { CodeText } from '@/components/ui/CodeText'
 
 function TypeBadge({ types }: { types: string[] }) {
   return (
-    <div className="flex flex-wrap gap-1.5">
+    <div className="flex flex-wrap gap-x-2 gap-y-0.5">
       {types?.map((t) => (
-        <span key={t} className={cn(
-          'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium',
-          t === 'customer'
-            ? 'bg-blue-100 text-blue-800 ring-1 ring-blue-300'
-            : 'bg-purple-100 text-purple-800 ring-1 ring-purple-300',
-        )}>
+        <span key={t} className="text-sm text-foreground whitespace-nowrap">
           {t === 'customer' ? 'Khách hàng' : 'NCC'}
         </span>
       ))}
@@ -43,7 +38,7 @@ function SectionCard({
 function InfoRow({ label, value, full }: { label: string; value?: string | null; full?: boolean }) {
   return (
     <div className={full ? 'col-span-2' : ''}>
-      <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className="text-xs font-semibold text-muted-foreground">{label}</div>
       <div className="mt-1 text-sm text-foreground">{value || '—'}</div>
     </div>
   )
@@ -75,7 +70,7 @@ export default function CompanyDetailPage() {
         <div className="flex items-start justify-between gap-4">
           <div className="flex flex-col gap-2">
             <div className="flex items-center gap-3 flex-wrap">
-              <h1 className="text-2xl font-semibold tracking-tight text-foreground">{company?.name}</h1>
+              <h1 className="font-serif text-2xl font-semibold tracking-tight text-foreground">{company?.name}</h1>
               <TypeBadge types={company?.types ?? []} />
             </div>
             {company?.code && (

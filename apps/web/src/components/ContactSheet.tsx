@@ -105,7 +105,7 @@ export default function ContactSheet({ open, contact, onClose, onUpdated }: Prop
                 )}
               </div>
               {contact.is_primary && (
-                <span className="ml-auto flex-shrink-0 inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 ring-1 ring-emerald-200">
+                <span className="ml-auto flex-shrink-0 text-sm font-medium text-emerald-700">
                   Chính
                 </span>
               )}

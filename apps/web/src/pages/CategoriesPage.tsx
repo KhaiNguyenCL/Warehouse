@@ -23,6 +23,7 @@ import {
 import { Switch } from '@/components/ui/switch'
 import { cn } from '@/lib/utils'
 import { CodeText } from '@/components/ui/CodeText'
+import { ActiveBadge } from '@/components/ui/ActiveBadge'
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -235,19 +236,19 @@ export default function CategoriesPage() {
         <table className="w-full">
           <thead>
             <tr className="border-b border-border bg-muted/40">
-              <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">
                 Tên
               </th>
-              <th className="w-32 px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <th className="w-32 px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">
                 Mã viết tắt
               </th>
-              <th className="w-36 px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <th className="w-36 px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground">
                 Trạng thái
               </th>
-              <th className="w-28 px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <th className="w-28 px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">
                 Ngày tạo
               </th>
-              <th className="w-36 px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <th className="w-36 px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">
                 Người tạo
               </th>
               <th className="w-20" />
@@ -310,18 +311,7 @@ export default function CategoriesPage() {
                   {/* Status badge */}
                   <td className="px-4 py-2">
                     <div className="flex justify-center">
-                      <span className={cn(
-                        'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium',
-                        item.is_active
-                          ? 'bg-emerald-100 text-emerald-800 ring-1 ring-emerald-300'
-                          : 'bg-zinc-200 text-zinc-600 ring-1 ring-zinc-300',
-                      )}>
-                        <span className={cn(
-                          'h-1.5 w-1.5 rounded-full',
-                          item.is_active ? 'bg-emerald-500' : 'bg-zinc-400',
-                        )} />
-                        {item.is_active ? 'Hoạt động' : 'Ngừng'}
-                      </span>
+                      <ActiveBadge active={item.is_active} />
                     </div>
                   </td>
 
@@ -407,15 +397,7 @@ export default function CategoriesPage() {
                   : <span className="text-muted-foreground">Không có (danh mục gốc)</span>}
               </SheetField>
               <SheetField label="Trạng thái">
-                <span className={cn(
-                  'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium',
-                  editing.is_active
-                    ? 'bg-emerald-100 text-emerald-800 ring-1 ring-emerald-300'
-                    : 'bg-zinc-200 text-zinc-600 ring-1 ring-zinc-300',
-                )}>
-                  <span className={cn('h-1.5 w-1.5 rounded-full', editing.is_active ? 'bg-emerald-500' : 'bg-zinc-400')} />
-                  {editing.is_active ? 'Hoạt động' : 'Ngừng'}
-                </span>
+                <ActiveBadge active={editing.is_active} />
               </SheetField>
             </div>
           </div>
@@ -531,7 +513,7 @@ export default function CategoriesPage() {
 function SheetField({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className="text-xs font-semibold text-muted-foreground">{label}</div>
       <div className="mt-1 text-sm text-foreground">{children}</div>
     </div>
   )

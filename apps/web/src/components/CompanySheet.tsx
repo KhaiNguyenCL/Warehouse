@@ -12,14 +12,9 @@ import SupplierProductsPanel from './SupplierProductsPanel'
 
 function TypeBadge({ types }: { types: string[] }) {
   return (
-    <div className="flex flex-wrap gap-1.5">
+    <div className="flex flex-wrap gap-x-2 gap-y-0.5">
       {types?.map((t) => (
-        <span key={t} className={cn(
-          'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium',
-          t === 'customer'
-            ? 'bg-blue-100 text-blue-800 ring-1 ring-blue-300'
-            : 'bg-purple-100 text-purple-800 ring-1 ring-purple-300',
-        )}>
+        <span key={t} className="text-sm text-foreground whitespace-nowrap">
           {t === 'customer' ? 'Khách hàng' : 'NCC'}
         </span>
       ))}
@@ -30,7 +25,7 @@ function TypeBadge({ types }: { types: string[] }) {
 function InfoRow({ label, value }: { label: string; value?: string | null }) {
   return (
     <div>
-      <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className="text-xs font-semibold text-muted-foreground">{label}</div>
       <div className="mt-0.5 text-sm text-foreground">{value || '—'}</div>
     </div>
   )
@@ -228,7 +223,7 @@ export default function CompanySheet({ open, companyId, onClose }: Props) {
                 <div className="grid grid-cols-2 gap-x-8 gap-y-4">
                   {company?.code != null && (
                     <div>
-                      <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Mã đối tác</div>
+                      <div className="text-xs font-semibold text-muted-foreground">Mã đối tác</div>
                       <div className="mt-0.5"><EditableCode companyId={companyId!} initialCode={company.code} /></div>
                     </div>
                   )}

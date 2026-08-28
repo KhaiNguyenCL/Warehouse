@@ -22,6 +22,7 @@ import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
 import { CodeText } from '@/components/ui/CodeText'
+import { ActiveBadge } from '@/components/ui/ActiveBadge'
 
 // ── Schema ─────────────────────────────────────────────────────────────────
 
@@ -109,7 +110,7 @@ export default function WarehousesPage() {
       {/* Page header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Kho hàng</h1>
+          <h1 className="font-serif text-2xl font-semibold tracking-tight">Kho hàng</h1>
           <p className="mt-0.5 text-sm text-muted-foreground">
             Quản lý danh sách kho vật lý và kho ảo
           </p>
@@ -151,13 +152,13 @@ export default function WarehousesPage() {
         <table className="w-full">
           <thead>
             <tr className="border-b border-border bg-muted/40">
-              <th className="w-12 px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground">#</th>
-              <th className="w-28 px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Mã</th>
-              <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Tên</th>
-              <th className="w-28 px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground">Loại</th>
-              <th className="w-48 px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground">Mặc định</th>
-              <th className="w-56 px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground">Trạng thái</th>
-              <th className="w-40 px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Quản lý</th>
+              <th className="w-12 px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground">#</th>
+              <th className="w-28 px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Mã</th>
+              <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Tên</th>
+              <th className="w-28 px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground">Loại</th>
+              <th className="w-48 px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground">Mặc định</th>
+              <th className="w-56 px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground">Trạng thái</th>
+              <th className="w-40 px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Quản lý</th>
               <th className="w-20 px-4 py-2.5" />
             </tr>
           </thead>
@@ -194,7 +195,7 @@ export default function WarehousesPage() {
                   <td className="px-4 py-2">
                     <div className="flex justify-center">
                       {row.is_default && (
-                        <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium bg-emerald-100 text-emerald-800 ring-1 ring-emerald-300">
+                        <span className="inline-flex items-center gap-1.5 text-sm font-medium text-emerald-700">
                           <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
                           Mặc định
                         </span>
@@ -203,15 +204,7 @@ export default function WarehousesPage() {
                   </td>
                   <td className="px-4 py-2">
                     <div className="flex justify-center">
-                      <span className={cn(
-                        'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium',
-                        row.is_active
-                          ? 'bg-emerald-100 text-emerald-800 ring-1 ring-emerald-300'
-                          : 'bg-zinc-200 text-zinc-600 ring-1 ring-zinc-300',
-                      )}>
-                        <span className={cn('h-1.5 w-1.5 rounded-full', row.is_active ? 'bg-emerald-500' : 'bg-zinc-400')} />
-                        {row.is_active ? 'Hoạt động' : 'Ngừng'}
-                      </span>
+                      <ActiveBadge active={row.is_active} />
                     </div>
                   </td>
                   <td className="px-4 py-2 text-muted-foreground">
@@ -294,15 +287,7 @@ export default function WarehousesPage() {
                 {userList.find((u: any) => u.id === editing.manager_id)?.full_name ?? <span className="text-muted-foreground">Không chỉ định</span>}
               </SheetField>
               <SheetField label="Trạng thái">
-                <span className={cn(
-                  'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium',
-                  editing.is_active
-                    ? 'bg-emerald-100 text-emerald-800 ring-1 ring-emerald-300'
-                    : 'bg-zinc-200 text-zinc-600 ring-1 ring-zinc-300',
-                )}>
-                  <span className={cn('h-1.5 w-1.5 rounded-full', editing.is_active ? 'bg-emerald-500' : 'bg-zinc-400')} />
-                  {editing.is_active ? 'Hoạt động' : 'Ngừng'}
-                </span>
+                <ActiveBadge active={editing.is_active} />
               </SheetField>
               {editing.is_default && (
                 <SheetField label="Kho mặc định"><span className="text-emerald-700 text-xs font-medium">Đây là kho mặc định</span></SheetField>
@@ -478,7 +463,7 @@ export default function WarehousesPage() {
 function SheetField({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className="text-xs font-semibold text-muted-foreground">{label}</div>
       <div className="mt-1 text-sm text-foreground">{children}</div>
     </div>
   )
@@ -489,10 +474,8 @@ function SheetField({ label, children }: { label: string; children: React.ReactN
 function TypeBadge({ type }: { type: string }) {
   return (
     <span className={cn(
-      'inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium',
-      type === 'physical'
-        ? 'border-blue-200 bg-blue-50 text-blue-700'
-        : 'border-orange-200 bg-orange-50 text-orange-700',
+      'text-sm font-medium',
+      type === 'physical' ? 'text-blue-700' : 'text-amber-700',
     )}>
       {type === 'physical' ? 'Vật lý' : 'Ảo'}
     </span>

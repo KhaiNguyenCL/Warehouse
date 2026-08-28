@@ -47,10 +47,10 @@ const PRODUCT_TYPES = [
 ]
 const UNITS = ['Cái', 'Chiếc', 'Bộ', 'Hộp', 'Cuộn', 'Mét', 'Cổng', 'License', 'Gói', 'Dây', 'Lần', 'Giờ', 'Ngày']
 const TYPE_STYLES: Record<string, string> = {
-  storable:   'bg-blue-100 text-blue-800 ring-1 ring-blue-300',
-  consumable: 'bg-amber-100 text-amber-800 ring-1 ring-amber-300',
-  service:    'bg-purple-100 text-purple-800 ring-1 ring-purple-300',
-  bundle:     'bg-teal-100 text-teal-800 ring-1 ring-teal-300',
+  storable:   'text-blue-700',
+  consumable: 'text-amber-700',
+  service:    'text-purple-700',
+  bundle:     'text-teal-700',
 }
 const TYPE_LABEL: Record<string, string> = {
   storable: 'Thiết bị', consumable: 'Vật tư', service: 'Dịch vụ', bundle: 'Gói SP',
@@ -112,7 +112,7 @@ function fmtMoney(v: number | null | undefined) {
 
 const labelStyle: React.CSSProperties = {
   fontSize: 12, color: 'var(--text-2)', fontWeight: 600,
-  marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.4px',
+  marginBottom: 4,
 }
 
 function Field({ label, full, children }: { label: string; full?: boolean; children: React.ReactNode }) {
@@ -129,7 +129,7 @@ function InfoRow({ label, value, full, children }: {
 }) {
   return (
     <div className={full ? 'col-span-2' : ''}>
-      <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className="text-xs font-semibold text-muted-foreground">{label}</div>
       <div className="mt-0.5 text-sm text-foreground">{children ?? (value || '—')}</div>
     </div>
   )
@@ -147,7 +147,7 @@ function CompanyCombobox({ companies, value, onChange, placeholder = 'Chọn…'
       <PopoverTrigger asChild>
         <button type="button" disabled={disabled}
           className={cn(
-            'flex h-9 w-full items-center justify-between rounded-3xl border border-input bg-background px-3 text-sm transition-[border-color] outline-none',
+            'flex h-9 w-full items-center justify-between rounded-lg border border-input bg-background px-3 text-sm transition-[border-color] outline-none',
             'hover:border-primary focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40',
             'disabled:cursor-not-allowed disabled:opacity-50',
           )}
@@ -631,7 +631,7 @@ export default function ProductDetailPage() {
             <div className="flex items-center gap-2 flex-wrap">
               <CodeText>{product.code}</CodeText>
               {product.product_type && (
-                <span className={cn('inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium', TYPE_STYLES[product.product_type] ?? 'bg-muted text-muted-foreground')}>
+                <span className={cn('text-sm font-medium', TYPE_STYLES[product.product_type] ?? 'text-muted-foreground')}>
                   {TYPE_LABEL[product.product_type] ?? product.product_type}
                 </span>
               )}
@@ -753,18 +753,18 @@ export default function ProductDetailPage() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border bg-muted/40">
-                  <th className="w-40 px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Mã hàng</th>
-                  <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Tên SKU</th>
-                  {skuCols.isVisible('model')       && <th className="w-32 px-3 py-2.5 text-left   text-xs font-semibold uppercase tracking-wide text-muted-foreground">Model</th>}
-                  {skuCols.isVisible('part_number') && <th className="w-40 px-3 py-2.5 text-left   text-xs font-semibold uppercase tracking-wide text-muted-foreground">Part Number</th>}
-                  {skuCols.isVisible('unit')        && <th className="w-16 px-3 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground">ĐV</th>}
-                  {skuCols.isVisible('cost_price')  && <th className="w-28 px-3 py-2.5 text-right  text-xs font-semibold uppercase tracking-wide text-muted-foreground">Giá vốn</th>}
-                  {skuCols.isVisible('sale_price')  && <th className="w-28 px-3 py-2.5 text-right  text-xs font-semibold uppercase tracking-wide text-muted-foreground">Giá bán</th>}
-                  {skuCols.isVisible('vat_percent') && <th className="w-16 px-3 py-2.5 text-right  text-xs font-semibold uppercase tracking-wide text-muted-foreground">VAT%</th>}
-                  {skuCols.isVisible('weight_kg')   && <th className="w-20 px-3 py-2.5 text-right  text-xs font-semibold uppercase tracking-wide text-muted-foreground">KL (kg)</th>}
-                  {skuCols.isVisible('qty')         && <th className="w-20 px-3 py-2.5 text-right  text-xs font-semibold uppercase tracking-wide text-muted-foreground">Tồn kho</th>}
-                  {skuCols.isVisible('avail')       && <th className="w-24 px-3 py-2.5 text-right  text-xs font-semibold uppercase tracking-wide text-muted-foreground">Khả dụng</th>}
-                  {skuCols.isVisible('warehouse')   && <th className="px-4 py-2.5 text-left        text-xs font-semibold uppercase tracking-wide text-muted-foreground">Phân bổ kho</th>}
+                  <th className="w-40 px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Mã hàng</th>
+                  <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Tên SKU</th>
+                  {skuCols.isVisible('model')       && <th className="w-32 px-3 py-2.5 text-left   text-xs font-semibold text-muted-foreground">Model</th>}
+                  {skuCols.isVisible('part_number') && <th className="w-40 px-3 py-2.5 text-left   text-xs font-semibold text-muted-foreground">Part Number</th>}
+                  {skuCols.isVisible('unit')        && <th className="w-16 px-3 py-2.5 text-center text-xs font-semibold text-muted-foreground">ĐV</th>}
+                  {skuCols.isVisible('cost_price')  && <th className="w-28 px-3 py-2.5 text-right  text-xs font-semibold text-muted-foreground">Giá vốn</th>}
+                  {skuCols.isVisible('sale_price')  && <th className="w-28 px-3 py-2.5 text-right  text-xs font-semibold text-muted-foreground">Giá bán</th>}
+                  {skuCols.isVisible('vat_percent') && <th className="w-16 px-3 py-2.5 text-right  text-xs font-semibold text-muted-foreground">VAT%</th>}
+                  {skuCols.isVisible('weight_kg')   && <th className="w-20 px-3 py-2.5 text-right  text-xs font-semibold text-muted-foreground">KL (kg)</th>}
+                  {skuCols.isVisible('qty')         && <th className="w-20 px-3 py-2.5 text-right  text-xs font-semibold text-muted-foreground">Tồn kho</th>}
+                  {skuCols.isVisible('avail')       && <th className="w-24 px-3 py-2.5 text-right  text-xs font-semibold text-muted-foreground">Khả dụng</th>}
+                  {skuCols.isVisible('warehouse')   && <th className="px-4 py-2.5 text-left        text-xs font-semibold text-muted-foreground">Phân bổ kho</th>}
                   <th className="w-10 px-2 py-2.5" />
                 </tr>
               </thead>
@@ -877,7 +877,7 @@ export default function ProductDetailPage() {
 
                 {/* Giá */}
                 <div className="rounded-lg bg-muted/40 p-4">
-                  <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Giá</p>
+                  <p className="mb-3 text-xs font-semibold text-muted-foreground">Giá</p>
                   <div className="flex flex-col gap-3">
                     <div className="grid grid-cols-2 gap-3">
                       <FormField control={skuForm.control} name="cost_price" render={({ field }) => (
@@ -922,7 +922,7 @@ export default function ProductDetailPage() {
 
                 {/* Thông số kỹ thuật */}
                 <div className="rounded-lg bg-muted/40 p-4">
-                  <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Thông số kỹ thuật</p>
+                  <p className="mb-3 text-xs font-semibold text-muted-foreground">Thông số kỹ thuật</p>
                   <div className="flex flex-col gap-3">
                     <div className="grid grid-cols-2 gap-3">
                       <FormField control={skuForm.control} name="model" render={({ field }) => (
@@ -994,12 +994,12 @@ export default function ProductDetailPage() {
                     )} />
 
                     <div className="rounded-lg bg-muted/40 p-4">
-                      <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Nhà cung cấp</p>
+                      <p className="mb-3 text-xs font-semibold text-muted-foreground">Nhà cung cấp</p>
                       <VariantSuppliersPanel productId={id!} variantId={editingSku.id} supplierCompanies={supplierCompanies} />
                     </div>
 
                     <div className="rounded-lg bg-muted/40 p-4">
-                      <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Giá theo khách hàng</p>
+                      <p className="mb-3 text-xs font-semibold text-muted-foreground">Giá theo khách hàng</p>
                       <VariantCustomerPricesPanel productId={id!} variantId={editingSku.id} customerCompanies={customerCompanies} />
                     </div>
                   </>

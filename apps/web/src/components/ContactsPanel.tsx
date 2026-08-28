@@ -92,11 +92,11 @@ const ContactsPanel = forwardRef<ContactsPanelRef, Props>(function ContactsPanel
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border bg-muted/40">
-              <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Họ tên</th>
-              <th className="w-40 px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Chức vụ</th>
-              <th className="w-36 px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">SĐT</th>
-              <th className="w-56 px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Email</th>
-              <th className="w-20 px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground">Chính</th>
+              <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Họ tên</th>
+              <th className="w-40 px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Chức vụ</th>
+              <th className="w-36 px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">SĐT</th>
+              <th className="w-56 px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Email</th>
+              <th className="w-20 px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground">Chính</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -112,9 +112,7 @@ const ContactsPanel = forwardRef<ContactsPanelRef, Props>(function ContactsPanel
                 <td className="px-4 py-3 text-foreground">{c.email || '—'}</td>
                 <td className="px-4 py-3 text-center">
                   {c.is_primary && (
-                    <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 ring-1 ring-emerald-200">
-                      Chính
-                    </span>
+                    <span className="text-sm font-medium text-emerald-700">Chính</span>
                   )}
                 </td>
               </tr>

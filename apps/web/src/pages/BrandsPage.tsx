@@ -23,6 +23,7 @@ import {
 import { Switch } from '@/components/ui/switch'
 import { cn } from '@/lib/utils'
 import { CodeText } from '@/components/ui/CodeText'
+import { ActiveBadge } from '@/components/ui/ActiveBadge'
 
 // ── Schema ─────────────────────────────────────────────────────────────────
 
@@ -101,18 +102,7 @@ export default function BrandsPage() {
       size: 140,
       cell: ({ getValue }) => (
         <div className="flex justify-center">
-          <span className={cn(
-            'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium',
-            getValue<boolean>()
-              ? 'bg-emerald-100 text-emerald-800 ring-1 ring-emerald-300'
-              : 'bg-zinc-200 text-zinc-600 ring-1 ring-zinc-300',
-          )}>
-            <span className={cn(
-              'h-1.5 w-1.5 rounded-full',
-              getValue<boolean>() ? 'bg-emerald-500' : 'bg-zinc-400',
-            )} />
-            {getValue<boolean>() ? 'Hoạt động' : 'Ngừng'}
-          </span>
+          <ActiveBadge active={getValue<boolean>()} />
         </div>
       ),
     },
@@ -169,7 +159,7 @@ export default function BrandsPage() {
       {/* Page header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Thương hiệu</h1>
+          <h1 className="font-serif text-2xl font-semibold tracking-tight">Thương hiệu</h1>
           <p className="mt-0.5 text-sm text-muted-foreground">
             Quản lý danh sách hãng sản xuất
           </p>
@@ -230,7 +220,7 @@ export default function BrandsPage() {
                 {hg.headers.map((header) => (
                   <th
                     key={header.id}
-                    className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+                    className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground"
                     style={{ width: header.column.getSize() !== 150 ? header.column.getSize() : undefined }}
                   >
                     {flexRender(header.column.columnDef.header, header.getContext())}
@@ -318,15 +308,7 @@ export default function BrandsPage() {
                   <SheetField label="Tên hãng">{editing.name}</SheetField>
                   <SheetField label="Mã viết tắt"><CodeText>{editing.short_code}</CodeText></SheetField>
                   <SheetField label="Trạng thái">
-                    <span className={cn(
-                      'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium',
-                      editing.is_active
-                        ? 'bg-emerald-100 text-emerald-800 ring-1 ring-emerald-300'
-                        : 'bg-zinc-200 text-zinc-600 ring-1 ring-zinc-300',
-                    )}>
-                      <span className={cn('h-1.5 w-1.5 rounded-full', editing.is_active ? 'bg-emerald-500' : 'bg-zinc-400')} />
-                      {editing.is_active ? 'Hoạt động' : 'Ngừng'}
-                    </span>
+                    <ActiveBadge active={editing.is_active} />
                   </SheetField>
                 </div>
               </div>
@@ -406,7 +388,7 @@ export default function BrandsPage() {
 function SheetField({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className="text-xs font-semibold text-muted-foreground">{label}</div>
       <div className="mt-1 text-sm text-foreground">{children}</div>
     </div>
   )

@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { Table, Tag } from 'antd'
+import { Table } from 'antd'
 import { api } from '../lib/api'
 
 export default function SupplierProductsPanel({ companyId }: { companyId: string }) {
@@ -36,7 +36,7 @@ export default function SupplierProductsPanel({ companyId }: { companyId: string
             title: 'Ưu tiên',
             dataIndex: 'is_preferred',
             width: 80,
-            render: (v: boolean) => v ? <Tag color="blue">Ưu tiên</Tag> : null,
+            render: (v: boolean) => v ? <span style={{ color: 'var(--accent-text)', fontWeight: 500 }}>Ưu tiên</span> : null,
           },
         ]}
       />
