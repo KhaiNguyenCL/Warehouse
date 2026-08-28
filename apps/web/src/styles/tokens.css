@@ -43,14 +43,20 @@ html, body, #root {
 }
 
 /* ── Table header ───────────────────────────────────────── */
-/* Background xám để phân biệt header với data rows */
+/* Nền tint nhẹ để phân biệt header với data rows */
 .ant-table-thead > tr > th,
 .ant-table-thead > tr > td {
-  background: #e2e8f0 !important;
+  background: var(--bg-subtle) !important;
   font-size: var(--font-sm) !important;
   font-weight: 600 !important;
   color: var(--text-2) !important;
   white-space: nowrap;
+}
+
+/* Số liệu (tồn kho, giá, số lượng) dùng tabular figures để canh cột thẳng hàng */
+.ant-table-tbody .cell-numeric,
+td.cell-numeric {
+  font-variant-numeric: tabular-nums;
 }
 
 /* Sort icon trước label: đảo ngược flex order, cluster về bên trái */
@@ -66,20 +72,20 @@ html, body, #root {
 }
 
 :root {
-  /* ── Backgrounds ── */
-  --bg-page:    #f5f7fa;   /* nền trang */
+  /* ── Backgrounds — trắng để rõ ràng, dùng border + tint nhạt để phân tách khối ── */
+  --bg-page:    #ffffff;   /* nền trang */
   --bg-card:    #ffffff;   /* nền card / table / modal */
-  --bg-subtle:  #f8fafc;   /* nền thead, footer, row hover nhạt */
-  --bg-hover:   #f1f5f9;   /* hover state của row / item */
+  --bg-subtle:  #f2efe9;   /* nền thead, footer, row hover nhạt */
+  --bg-hover:   #ece8e0;   /* hover state của row / item */
 
   /* ── Borders ── */
-  --border:     #c8d0da;   /* border dùng chung — card, table, divider */
-  --border-md:  #a0aab4;   /* border đậm hơn — button secondary */
+  --border:     #ddd6cc;   /* border dùng chung — card, table, divider */
+  --border-md:  #b6ac9c;   /* border đậm hơn — button secondary */
 
   /* ── Text ── */
-  --text-1:     #0f172a;   /* primary text */
-  --text-2:     #334155;   /* secondary text */
-  --text-3:     #94a3b8;   /* placeholder / caption / label */
+  --text-1:     #1c1917;   /* primary text */
+  --text-2:     #57534e;   /* secondary text */
+  --text-3:     #a8a29e;   /* placeholder / caption / label */
 
   /* ── Brand accent — DNS sky blue ── */
   --accent:      #29ABE2;
@@ -151,20 +157,21 @@ html, body, #root {
 
   /* ── Font family ── */
   --font-mono: 'SF Mono', 'Cascadia Code', 'Fira Code', Consolas, monospace;
+  --font-serif: 'Lora Variable', Georgia, 'Times New Roman', serif;
 }
 
 /* ── Dark mode ──────────────────────────────────────────── */
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg-page:   #0f172a;
-    --bg-card:   #1e293b;
-    --bg-subtle: #162032;
-    --bg-hover:  #273548;
-    --border:    #334155;
-    --border-md: #475569;
-    --text-1:    #f1f5f9;
-    --text-2:    #94a3b8;
-    --text-3:    #64748b;
+    --bg-page:   #1a1815;
+    --bg-card:   #221f1b;
+    --bg-subtle: #29251f;
+    --bg-hover:  #322d26;
+    --border:    #3d372e;
+    --border-md: #554d40;
+    --text-1:    #f5f3ef;
+    --text-2:    #a39c93;
+    --text-3:    #756e64;
     --accent-bg:   rgba(41,171,226,0.15);
     --accent-text: #7dd3f5;
 

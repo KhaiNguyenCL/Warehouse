@@ -2,10 +2,15 @@
 @import "shadcn/tailwind.css";
 @import "tw-animate-css";
 @import "@fontsource-variable/inter";
+@import "@fontsource-variable/lora";
+@import "./styles/tokens.css";
 
-/* Map CSS custom properties → Tailwind design tokens */
+/* Map CSS custom properties → Tailwind design tokens.
+   Nguồn màu duy nhất là styles/tokens.css — các biến shadcn (--background,
+   --foreground, --border…) chỉ alias sang đó, không định nghĩa palette riêng. */
 @theme inline {
-  --font-sans: 'Inter Variable', ui-sans-serif, sans-serif;
+  --font-sans:  'Inter Variable', ui-sans-serif, sans-serif;
+  --font-serif: 'Lora Variable', Georgia, serif;
 
   --color-background:              var(--background);
   --color-foreground:              var(--foreground);
@@ -19,8 +24,11 @@
   --color-secondary-foreground:    var(--secondary-foreground);
   --color-muted:                   var(--muted);
   --color-muted-foreground:        var(--muted-foreground);
-  --color-accent:                  var(--accent);
-  --color-accent-foreground:       var(--accent-foreground);
+  /* Tailwind "accent" = tint nền hover/selected trung tính — KHÔNG dùng chung
+     tên với --accent thương hiệu (#29ABE2) khai báo trong styles/tokens.css,
+     để tránh 2 định nghĩa cùng tên đè lẫn nhau qua cascade layer. */
+  --color-accent:                  var(--tw-accent-tint);
+  --color-accent-foreground:       var(--tw-accent-tint-foreground);
   --color-destructive:             var(--destructive);
   --color-destructive-foreground:  var(--destructive-foreground);
   --color-border:                  var(--border);
@@ -50,46 +58,46 @@
 
 @layer base {
   :root {
-    /* ── Core palette ────────────────────────────── */
-    --background:             oklch(1 0 0);
-    --foreground:             oklch(0.145 0.008 326);
+    /* ── Core palette — alias sang styles/tokens.css, không định nghĩa lại ── */
+    --background:             var(--bg-page);
+    --foreground:             var(--text-1);
 
-    --card:                   oklch(1 0 0);
-    --card-foreground:        oklch(0.145 0.008 326);
+    --card:                   var(--bg-card);
+    --card-foreground:        var(--text-1);
 
-    --popover:                oklch(1 0 0);
-    --popover-foreground:     oklch(0.145 0.008 326);
+    --popover:                var(--bg-card);
+    --popover-foreground:     var(--text-1);
 
-    --primary:                oklch(0.546 0.245 262.881);
-    --primary-foreground:     oklch(1 0 0);
+    /* primary = accent thương hiệu duy nhất (sky blue DNS) — không thêm accent thứ 2 */
+    --primary:                var(--accent);
+    --primary-foreground:     #ffffff;
 
-    --secondary:              oklch(0.967 0.001 286.375);
-    --secondary-foreground:   oklch(0.21 0.006 285.885);
+    --secondary:              var(--bg-subtle);
+    --secondary-foreground:   var(--text-1);
 
-    --muted:                  oklch(0.96 0.003 325.6);
-    --muted-foreground:       oklch(0.542 0.034 322.5);
+    --muted:                  var(--bg-subtle);
+    --muted-foreground:       var(--text-2);
 
-    --accent:                 oklch(0.96 0.003 325.6);
-    --accent-foreground:      oklch(0.212 0.019 322.12);
+    --tw-accent-tint:            var(--bg-hover);
+    --tw-accent-tint-foreground: var(--text-1);
 
-    --destructive:            oklch(0.577 0.245 27.325);
+    --destructive:            oklch(0.577 0.215 27.325);
     --destructive-foreground: oklch(0.985 0 0);
 
-    --border:                 #94a3b8;
-    --input:                  #94a3b8;
-    --ring:                   oklch(0.546 0.245 262.881);
+    --input:                  var(--border);
+    --ring:                   #29ABE2;
 
     --radius: 0.625rem;
 
     /* ── Sidebar ─────────────────────────────────── */
-    --sidebar:                        oklch(0.985 0 0);
-    --sidebar-foreground:             oklch(0.145 0.008 326);
-    --sidebar-primary:                oklch(0.546 0.245 262.881);
-    --sidebar-primary-foreground:     oklch(1 0 0);
-    --sidebar-accent:                 oklch(0.96 0.003 325.6);
-    --sidebar-accent-foreground:      oklch(0.212 0.019 322.12);
-    --sidebar-border:                 oklch(0.88 0.008 325.62);
-    --sidebar-ring:                   oklch(0.711 0.019 323.02);
+    --sidebar:                        var(--bg-card);
+    --sidebar-foreground:             var(--text-1);
+    --sidebar-primary:                #29ABE2;
+    --sidebar-primary-foreground:     #ffffff;
+    --sidebar-accent:                 var(--bg-hover);
+    --sidebar-accent-foreground:      var(--text-1);
+    --sidebar-border:                 var(--border);
+    --sidebar-ring:                   #29ABE2;
 
     /* ── Charts ──────────────────────────────────── */
     --chart-1: oklch(0.855 0.138 181.071);
@@ -100,42 +108,41 @@
   }
 
   .dark {
-    --background:             oklch(0.145 0.008 326);
-    --foreground:             oklch(0.985 0 0);
+    --background:             var(--bg-page);
+    --foreground:             var(--text-1);
 
-    --card:                   oklch(0.212 0.019 322.12);
-    --card-foreground:        oklch(0.985 0 0);
+    --card:                   var(--bg-card);
+    --card-foreground:        var(--text-1);
 
-    --popover:                oklch(0.212 0.019 322.12);
-    --popover-foreground:     oklch(0.985 0 0);
+    --popover:                var(--bg-card);
+    --popover-foreground:     var(--text-1);
 
-    --primary:                oklch(0.623 0.214 259.815);
-    --primary-foreground:     oklch(1 0 0);
+    --primary:                var(--accent);
+    --primary-foreground:     #ffffff;
 
-    --secondary:              oklch(0.274 0.006 286.033);
-    --secondary-foreground:   oklch(0.985 0 0);
+    --secondary:              var(--bg-subtle);
+    --secondary-foreground:   var(--text-1);
 
-    --muted:                  oklch(0.263 0.024 320.12);
-    --muted-foreground:       oklch(0.711 0.019 323.02);
+    --muted:                  var(--bg-subtle);
+    --muted-foreground:       var(--text-2);
 
-    --accent:                 oklch(0.263 0.024 320.12);
-    --accent-foreground:      oklch(0.985 0 0);
+    --tw-accent-tint:            var(--bg-hover);
+    --tw-accent-tint-foreground: var(--text-1);
 
     --destructive:            oklch(0.704 0.191 22.216);
     --destructive-foreground: oklch(0.985 0 0);
 
-    --border:                 rgba(255,255,255,0.35);
-    --input:                  rgba(255,255,255,0.45);
-    --ring:                   oklch(0.623 0.214 259.815);
+    --input:                  var(--border);
+    --ring:                   #7dd3f5;
 
-    --sidebar:                        oklch(0.212 0.019 322.12);
-    --sidebar-foreground:             oklch(0.985 0 0);
-    --sidebar-primary:                oklch(0.623 0.214 259.815);
-    --sidebar-primary-foreground:     oklch(1 0 0);
-    --sidebar-accent:                 oklch(0.263 0.024 320.12);
-    --sidebar-accent-foreground:      oklch(0.985 0 0);
-    --sidebar-border:                 oklch(1 0 0 / 10%);
-    --sidebar-ring:                   oklch(0.542 0.034 322.5);
+    --sidebar:                        var(--bg-card);
+    --sidebar-foreground:             var(--text-1);
+    --sidebar-primary:                #7dd3f5;
+    --sidebar-primary-foreground:     #0f172a;
+    --sidebar-accent:                 var(--bg-hover);
+    --sidebar-accent-foreground:      var(--text-1);
+    --sidebar-border:                 var(--border);
+    --sidebar-ring:                   #7dd3f5;
   }
 
   * {
@@ -180,7 +187,7 @@
 .ant-select-focused .ant-select-selector,
 .ant-picker-focused {
   border-color: var(--color-primary) !important;
-  box-shadow: 0 0 0 2px oklch(0.546 0.245 262.881 / 20%) !important;
+  box-shadow: 0 0 0 2px rgba(41,171,226,0.2) !important;
 }
 
 /* ── Ant Design Form compact spacing ──────────────────────────────────────── */

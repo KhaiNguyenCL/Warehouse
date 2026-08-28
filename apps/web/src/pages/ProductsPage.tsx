@@ -35,10 +35,10 @@ const PRODUCT_TYPES = [
 ]
 const UNITS = ['Cái', 'Chiếc', 'Bộ', 'Hộp', 'Cuộn', 'Mét', 'Cổng', 'License', 'Gói', 'Dây', 'Lần', 'Giờ', 'Ngày']
 const TYPE_STYLES: Record<string, string> = {
-  storable:   'bg-blue-100 text-blue-800 ring-1 ring-blue-300',
-  consumable: 'bg-amber-100 text-amber-800 ring-1 ring-amber-300',
-  service:    'bg-purple-100 text-purple-800 ring-1 ring-purple-300',
-  bundle:     'bg-teal-100 text-teal-800 ring-1 ring-teal-300',
+  storable:   'text-blue-700',
+  consumable: 'text-amber-700',
+  service:    'text-purple-700',
+  bundle:     'text-teal-700',
 }
 const TYPE_LABEL: Record<string, string> = {
   storable: 'Thiết bị', consumable: 'Vật tư', service: 'Dịch vụ', bundle: 'Gói SP',
@@ -314,7 +314,7 @@ export default function ProductsPage() {
                       {productCols.isVisible('product_type') && (
                         <td className="px-4 py-2.5 text-center">
                           {p.product_type ? (
-                            <span className={cn('inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium', TYPE_STYLES[p.product_type] ?? 'bg-muted text-muted-foreground')}>
+                            <span className={cn('text-sm font-medium', TYPE_STYLES[p.product_type] ?? 'text-muted-foreground')}>
                               {TYPE_LABEL[p.product_type] ?? p.product_type}
                             </span>
                           ) : <span className="text-xs text-muted-foreground">—</span>}

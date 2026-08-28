@@ -184,7 +184,7 @@ function SnSearchTable({ search }: { search: string }) {
         <thead>
           <tr className="border-b border-border bg-muted/40">
             {['Serial No', 'Mã hàng', 'Tên SP', 'Trạng thái', 'Kho', 'Phiếu nhập · Ngày', 'MAC', 'Hết BH hãng', 'Hết BH cty'].map((h) => (
-              <th key={h} className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground whitespace-nowrap">{h}</th>
+              <th key={h} className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground whitespace-nowrap">{h}</th>
             ))}
           </tr>
         </thead>
@@ -255,7 +255,7 @@ export default function InventoryPage() {
       {/* Page header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Tồn kho</h1>
+          <h1 className="font-serif text-2xl font-semibold tracking-tight">Tồn kho</h1>
           <p className="mt-0.5 text-sm text-muted-foreground">Theo dõi số lượng tồn kho theo SKU</p>
         </div>
       </div>
@@ -405,7 +405,7 @@ export default function InventoryPage() {
                     <th
                       key={i}
                       style={{ width: `${colWidths[i]}%` }}
-                      className={`relative px-3 py-2.5 text-xs font-semibold uppercase tracking-wide text-foreground/70 select-none ${align === 'left' ? 'text-left' : 'text-center'}`}
+                      className={`relative px-3 py-2.5 text-xs font-semibold text-muted-foreground select-none ${align === 'left' ? 'text-left' : 'text-center'}`}
                     >
                       {label}
                       {i < 9 && <ResizeHandle onMouseDown={(e) => startResize(e, i)} />}

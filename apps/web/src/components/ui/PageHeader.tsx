@@ -23,9 +23,10 @@ export function PageHeader({ title, meta, actions }: Props) {
         <h1
           style={{
             margin: 0,
-            fontSize: '1.5rem',
-            fontWeight: 700,
-            letterSpacing: '-0.5px',
+            fontFamily: 'var(--font-serif)',
+            fontSize: '1.6rem',
+            fontWeight: 600,
+            letterSpacing: '-0.3px',
             color: 'var(--foreground)',
             lineHeight: 1.25,
             textWrap: 'balance',

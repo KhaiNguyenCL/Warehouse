@@ -98,6 +98,7 @@ export default function AppLayout() {
                       isActive={isActive(item.to)}
                       onClick={() => navigate(item.to)}
                       tooltip={item.label}
+                      className="data-[active=true]:bg-[var(--accent-bg)] data-[active=true]:text-[var(--accent-text)] data-[active=true]:font-medium transition-colors"
                     >
                       <item.icon />
                       <span>{item.label}</span>

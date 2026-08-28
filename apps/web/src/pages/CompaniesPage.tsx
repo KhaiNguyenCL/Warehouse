@@ -17,14 +17,9 @@ import { ResizeHandle } from '@/components/ui/ResizeHandle'
 
 function TypeBadge({ types }: { types: string[] }) {
   return (
-    <div className="flex flex-wrap gap-1">
+    <div className="flex flex-wrap gap-x-2 gap-y-0.5">
       {types?.map((t) => (
-        <span key={t} className={cn(
-          'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
-          t === 'customer'
-            ? 'bg-blue-100 text-blue-800 ring-1 ring-blue-300'
-            : 'bg-purple-100 text-purple-800 ring-1 ring-purple-300',
-        )}>
+        <span key={t} className="text-sm text-foreground whitespace-nowrap">
           {t === 'customer' ? 'Khách hàng' : 'NCC'}
         </span>
       ))}
@@ -106,7 +101,7 @@ function CompaniesTab() {
       {/* Page header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Đối tác</h1>
+          <h1 className="font-serif text-2xl font-semibold tracking-tight">Đối tác</h1>
           <p className="mt-0.5 text-sm text-muted-foreground">{total.toLocaleString('vi-VN')} công ty</p>
         </div>
         <Button variant="outline" onClick={hook.openSync}>
@@ -165,12 +160,12 @@ function CompaniesTab() {
           <colgroup>{colWidths.map((w, i) => <col key={i} style={{ width: `${w}%` }} />)}</colgroup>
           <thead>
             <tr className="border-b border-border bg-muted/40">
-              <th style={{ width: `${colWidths[0]}%` }} className="relative px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-foreground/70 select-none">#<ResizeHandle onMouseDown={(e) => startResize(e, 0)} /></th>
-              <th style={{ width: `${colWidths[1]}%` }} className="relative px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-foreground/70 select-none">Mã<ResizeHandle onMouseDown={(e) => startResize(e, 1)} /></th>
-              <th style={{ width: `${colWidths[2]}%` }} className="relative px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-foreground/70 select-none">Tên công ty<ResizeHandle onMouseDown={(e) => startResize(e, 2)} /></th>
-              <th style={{ width: `${colWidths[3]}%` }} className="relative px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-foreground/70 select-none">Loại<ResizeHandle onMouseDown={(e) => startResize(e, 3)} /></th>
-              <th style={{ width: `${colWidths[4]}%` }} className="relative px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-foreground/70 select-none">Liên hệ<ResizeHandle onMouseDown={(e) => startResize(e, 4)} /></th>
-              <th style={{ width: `${colWidths[5]}%` }} className="relative px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-foreground/70 select-none">MST</th>
+              <th style={{ width: `${colWidths[0]}%` }} className="relative px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground select-none">#<ResizeHandle onMouseDown={(e) => startResize(e, 0)} /></th>
+              <th style={{ width: `${colWidths[1]}%` }} className="relative px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground select-none">Mã<ResizeHandle onMouseDown={(e) => startResize(e, 1)} /></th>
+              <th style={{ width: `${colWidths[2]}%` }} className="relative px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground select-none">Tên công ty<ResizeHandle onMouseDown={(e) => startResize(e, 2)} /></th>
+              <th style={{ width: `${colWidths[3]}%` }} className="relative px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground select-none">Loại<ResizeHandle onMouseDown={(e) => startResize(e, 3)} /></th>
+              <th style={{ width: `${colWidths[4]}%` }} className="relative px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground select-none">Liên hệ<ResizeHandle onMouseDown={(e) => startResize(e, 4)} /></th>
+              <th style={{ width: `${colWidths[5]}%` }} className="relative px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground select-none">MST</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -321,13 +316,13 @@ function ContactsTab() {
           <colgroup>{colWidths.map((w, i) => <col key={i} style={{ width: `${w}%` }} />)}</colgroup>
           <thead>
             <tr className="border-b border-border bg-muted/40">
-              <th className="relative px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-foreground/70 select-none">#<ResizeHandle onMouseDown={(e) => startResize(e, 0)} /></th>
-              <th className="relative px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-foreground/70 select-none">Họ tên<ResizeHandle onMouseDown={(e) => startResize(e, 1)} /></th>
-              <th className="relative px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-foreground/70 select-none">Chức vụ<ResizeHandle onMouseDown={(e) => startResize(e, 2)} /></th>
-              <th className="relative px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-foreground/70 select-none">SĐT<ResizeHandle onMouseDown={(e) => startResize(e, 3)} /></th>
-              <th className="relative px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-foreground/70 select-none">Email<ResizeHandle onMouseDown={(e) => startResize(e, 4)} /></th>
-              <th className="relative px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-foreground/70 select-none">Công ty<ResizeHandle onMouseDown={(e) => startResize(e, 5)} /></th>
-              <th className="relative px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-foreground/70 select-none">Chính</th>
+              <th className="relative px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground select-none">#<ResizeHandle onMouseDown={(e) => startResize(e, 0)} /></th>
+              <th className="relative px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground select-none">Họ tên<ResizeHandle onMouseDown={(e) => startResize(e, 1)} /></th>
+              <th className="relative px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground select-none">Chức vụ<ResizeHandle onMouseDown={(e) => startResize(e, 2)} /></th>
+              <th className="relative px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground select-none">SĐT<ResizeHandle onMouseDown={(e) => startResize(e, 3)} /></th>
+              <th className="relative px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground select-none">Email<ResizeHandle onMouseDown={(e) => startResize(e, 4)} /></th>
+              <th className="relative px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground select-none">Công ty<ResizeHandle onMouseDown={(e) => startResize(e, 5)} /></th>
+              <th className="relative px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground select-none">Chính</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -358,7 +353,7 @@ function ContactsTab() {
                   </td>
                   <td className="px-4 py-2.5 text-center">
                     {row.is_primary && (
-                      <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 ring-1 ring-emerald-200">Chính</span>
+                      <span className="text-sm font-medium text-emerald-700">Chính</span>
                     )}
                   </td>
                 </tr>
