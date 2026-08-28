@@ -164,7 +164,7 @@ export default function TemplateMappingsPanel({ templateId, detectedVariables }:
       {/* Bảng tham khảo */}
       <div style={{ display: 'flex', gap: 16, marginTop: 12, marginBottom: 16 }}>
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: '#888', marginBottom: 6, textTransform: 'uppercase' }}>Field header báo giá</div>
+          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-2)', marginBottom: 6 }}>Field header báo giá</div>
           <Table
             size="small"
             dataSource={HEADER_FIELDS}
@@ -176,15 +176,15 @@ export default function TemplateMappingsPanel({ templateId, detectedVariables }:
               {
                 dataIndex: 'variable',
                 width: 220,
-                render: (v: string) => <code style={{ fontSize: 11, color: '#1677ff' }}>{`{${v}}`}</code>,
+                render: (v: string) => <code style={{ fontSize: 11, color: 'var(--accent-text)' }}>{`{${v}}`}</code>,
               },
-              { dataIndex: 'label', render: (v: string) => <span style={{ color: '#666' }}>{v}</span> },
+              { dataIndex: 'label', render: (v: string) => <span style={{ color: 'var(--text-2)' }}>{v}</span> },
             ]}
           />
         </div>
 
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: '#888', marginBottom: 6, textTransform: 'uppercase' }}>Field dòng sản phẩm</div>
+          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-2)', marginBottom: 6 }}>Field dòng sản phẩm</div>
           <Table
             size="small"
             dataSource={LINE_FIELDS}
@@ -196,9 +196,9 @@ export default function TemplateMappingsPanel({ templateId, detectedVariables }:
               {
                 dataIndex: 'variable',
                 width: 270,
-                render: (v: string) => <code style={{ fontSize: 11, color: '#52c41a' }}>{`{${v}}`}</code>,
+                render: (v: string) => <code style={{ fontSize: 11, color: 'var(--s-completed-color)' }}>{`{${v}}`}</code>,
               },
-              { dataIndex: 'label', render: (v: string) => <span style={{ color: '#666' }}>{v}</span> },
+              { dataIndex: 'label', render: (v: string) => <span style={{ color: 'var(--text-2)' }}>{v}</span> },
             ]}
           />
         </div>
@@ -210,7 +210,7 @@ export default function TemplateMappingsPanel({ templateId, detectedVariables }:
           {(fields, { add, remove }) => (
             <>
               {fields.length === 0 && (
-                <div style={{ color: '#bbb', fontSize: 13, marginBottom: 12 }}>
+                <div style={{ color: 'var(--text-3)', fontSize: 13, marginBottom: 12 }}>
                   Chưa có mapping — nhấn "Thêm tất cả field mặc định" hoặc "Thêm biến" để bắt đầu.
                 </div>
               )}
@@ -239,7 +239,7 @@ export default function TemplateMappingsPanel({ templateId, detectedVariables }:
                   <Form.Item {...restField} name={[name, 'is_required']} valuePropName="checked">
                     <Switch checkedChildren="Bắt buộc" unCheckedChildren="Tuỳ chọn" size="small" />
                   </Form.Item>
-                  <MinusCircleOutlined onClick={() => remove(name)} style={{ color: '#ff4d4f' }} />
+                  <MinusCircleOutlined onClick={() => remove(name)} style={{ color: 'var(--s-cancelled-color)' }} />
                 </Space>
               ))}
               <Button type="dashed" icon={<PlusOutlined />} onClick={() => add({ source_type: 'database', is_required: false })} style={{ marginBottom: 12 }}>

@@ -122,13 +122,13 @@ export default function SettingsVariantAttributesPage() {
               title: 'Đơn vị',
               dataIndex: 'unit',
               width: 80,
-              render: (v: string | null) => v ?? <span style={{ color: '#aaa' }}>—</span>,
+              render: (v: string | null) => v ?? <span style={{ color: 'var(--text-3)' }}>—</span>,
             },
             {
               title: 'Các giá trị',
               dataIndex: 'options',
               render: (opts: string[]) =>
-                opts.length ? opts.map((o) => <Tag key={o}>{o}</Tag>) : <span style={{ color: '#aaa' }}>Chưa có</span>,
+                opts.length ? opts.map((o) => <Tag key={o}>{o}</Tag>) : <span style={{ color: 'var(--text-3)' }}>Chưa có</span>,
             },
             {
               title: 'Áp dụng',
@@ -191,7 +191,7 @@ export default function SettingsVariantAttributesPage() {
 
           <div style={{ marginBottom: 16 }}>
             <div style={{ marginBottom: 4, fontWeight: 500 }}>
-              Các giá trị <span style={{ fontWeight: 400, color: '#888' }}>(nhấn Enter hoặc +)</span>
+              Các giá trị <span style={{ fontWeight: 400, color: 'var(--text-2)' }}>(nhấn Enter hoặc +)</span>
             </div>
             <Space wrap>
               {options.map((o) => (

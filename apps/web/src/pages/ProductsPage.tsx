@@ -237,20 +237,20 @@ export default function ProductsPage() {
               </colgroup>
               <thead>
                 <tr className="border-b border-border bg-muted/40">
-                  <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-foreground/70">#</th>
-                  <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-foreground/70">Mã SP</th>
-                  <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-foreground/70">Tên sản phẩm</th>
+                  <th className="px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground">#</th>
+                  <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Mã SP</th>
+                  <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Tên sản phẩm</th>
                   {productCols.isVisible('product_type') && (
-                    <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-foreground/70">Loại</th>
+                    <th className="px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground">Loại</th>
                   )}
                   {productCols.isVisible('brand_name') && (
-                    <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-foreground/70">Hãng</th>
+                    <th className="px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground">Hãng</th>
                   )}
                   {productCols.isVisible('category_name') && (
-                    <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-foreground/70">Danh mục</th>
+                    <th className="px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground">Danh mục</th>
                   )}
                   {productCols.isVisible('sku_count') && (
-                    <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-foreground/70">SKU</th>
+                    <th className="px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground">SKU</th>
                   )}
                   <th className="w-8 px-2 py-2.5" />
                 </tr>
@@ -393,18 +393,18 @@ export default function ProductsPage() {
                 </colgroup>
                 <thead>
                   <tr className="border-b border-border bg-muted/40">
-                    <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-foreground/70">#</th>
-                    <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-foreground/70">Mã hàng</th>
-                    <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-foreground/70">Tên SKU</th>
-                    <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-foreground/70">Sản phẩm</th>
-                    {skuCols.isVisible('unit') && <th className="px-3 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-foreground/70">ĐV</th>}
-                    {skuCols.isVisible('cost_price') && <th className="px-3 py-2.5 text-right text-xs font-semibold uppercase tracking-wide text-foreground/70">Giá vốn</th>}
-                    {skuCols.isVisible('sale_price') && <th className="px-3 py-2.5 text-right text-xs font-semibold uppercase tracking-wide text-foreground/70">Giá bán</th>}
-                    {skuCols.isVisible('vat_percent') && <th className="px-3 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-foreground/70">VAT%</th>}
-                    {skuCols.isVisible('warranty_months') && <th className="px-3 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-foreground/70">BH (tháng)</th>}
-                    {skuCols.isVisible('reorder_point') && <th className="px-3 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-foreground/70">Điểm ĐH</th>}
-                    {skuCols.isVisible('weight_kg') && <th className="px-3 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-foreground/70">KL (kg)</th>}
-                    <th className="px-3 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-foreground/70">Tồn kho</th>
+                    <th className="px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground">#</th>
+                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Mã hàng</th>
+                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Tên SKU</th>
+                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Sản phẩm</th>
+                    {skuCols.isVisible('unit') && <th className="px-3 py-2.5 text-center text-xs font-semibold text-muted-foreground">ĐV</th>}
+                    {skuCols.isVisible('cost_price') && <th className="px-3 py-2.5 text-right text-xs font-semibold text-muted-foreground">Giá vốn</th>}
+                    {skuCols.isVisible('sale_price') && <th className="px-3 py-2.5 text-right text-xs font-semibold text-muted-foreground">Giá bán</th>}
+                    {skuCols.isVisible('vat_percent') && <th className="px-3 py-2.5 text-center text-xs font-semibold text-muted-foreground">VAT%</th>}
+                    {skuCols.isVisible('warranty_months') && <th className="px-3 py-2.5 text-center text-xs font-semibold text-muted-foreground">BH (tháng)</th>}
+                    {skuCols.isVisible('reorder_point') && <th className="px-3 py-2.5 text-center text-xs font-semibold text-muted-foreground">Điểm ĐH</th>}
+                    {skuCols.isVisible('weight_kg') && <th className="px-3 py-2.5 text-center text-xs font-semibold text-muted-foreground">KL (kg)</th>}
+                    <th className="px-3 py-2.5 text-center text-xs font-semibold text-muted-foreground">Tồn kho</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
@@ -530,7 +530,7 @@ export default function ProductsPage() {
             <AntForm.Item name="description" label="Mô tả"><AntInput.TextArea /></AntForm.Item>
             {productType === 'service' && (
               <>
-                <Divider orientation="left" style={{ fontSize: 13, color: '#888' }}>Thông tin SKU dịch vụ</Divider>
+                <Divider orientation="left" style={{ fontSize: 13, color: 'var(--text-2)' }}>Thông tin SKU dịch vụ</Divider>
                 <AntForm.Item name="sku" label="SKU" rules={[{ required: true }]} extra="Tự điền từ Mã sản phẩm"><AntInput /></AntForm.Item>
                 <AntForm.Item name="variant_name" label="Tên SKU" rules={[{ required: true }]} extra="Tự điền từ Tên"><AntInput /></AntForm.Item>
                 <AntForm.Item name="unit" label="Đơn vị" initialValue="Lần">

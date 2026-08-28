@@ -259,8 +259,8 @@ export default function QuotationDetailPage() {
                     title="Fetch & điền form từ Bitrix" />
                 )}
               </div>
-              {hook.bitrixError && <div style={{ color: '#f5222d', fontSize: 12, marginTop: 4 }}>{hook.bitrixError}</div>}
-              {hook.bitrixInfo  && <div style={{ color: '#52c41a', fontSize: 12, marginTop: 4 }}>{hook.bitrixInfo}</div>}
+              {hook.bitrixError && <div style={{ color: 'var(--s-cancelled-color)', fontSize: 12, marginTop: 4 }}>{hook.bitrixError}</div>}
+              {hook.bitrixInfo  && <div style={{ color: 'var(--s-completed-color)', fontSize: 12, marginTop: 4 }}>{hook.bitrixInfo}</div>}
             </div>
 
             <Field editing={hook.isEditing} label="Số báo giá">
@@ -409,18 +409,18 @@ export default function QuotationDetailPage() {
                   <div key={ss.id} style={{ marginTop: 10 }}>
                     <div style={{
                       padding: '4px 10px',
-                      background: '#dce8fb',
-                      border: '1px solid #b0c4e8',
+                      background: 'var(--accent-bg)',
+                      border: '1px solid var(--accent)',
                       borderBottom: 'none',
                       borderRadius: '6px 6px 0 0',
                       fontSize: 13,
                       fontWeight: 600,
-                      color: '#4472c4',
+                      color: 'var(--accent-text)',
                     }}>
                       <span style={{ marginRight: 6 }}>{ssIdx + 1}.</span>
                       {ss.name}
                       {ss.product_name && ss.product_name !== ss.name && (
-                        <span style={{ fontWeight: 400, color: '#8aa6d4', marginLeft: 6, fontSize: 12 }}>
+                        <span style={{ fontWeight: 400, color: 'var(--accent)', marginLeft: 6, fontSize: 12 }}>
                           ({ss.product_name})
                         </span>
                       )}
@@ -455,7 +455,7 @@ export default function QuotationDetailPage() {
               {Number(q.discount) > 0 && (
                 <div style={{ display: 'flex', gap: 32, fontSize: 14 }}>
                   <span style={{ color: 'var(--text-2)' }}>Giảm giá</span>
-                  <span style={{ minWidth: 140, textAlign: 'right', color: '#f5222d' }}>- {fmt(q.discount)}</span>
+                  <span style={{ minWidth: 140, textAlign: 'right', color: 'var(--s-cancelled-color)' }}>- {fmt(q.discount)}</span>
                 </div>
               )}
               <div style={{ display: 'flex', gap: 32, fontSize: 16, fontWeight: 700, borderTop: '1px solid var(--border)', paddingTop: 8, marginTop: 4 }}>

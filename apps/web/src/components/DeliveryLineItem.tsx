@@ -41,9 +41,9 @@ export default function DeliveryLineItem({ name, remove, exportType }: Props) {
         <VariantSelect onSelectVariant={onSelectVariant} style={{ width: '100%' }} inStockOnly={inStockOnly} />
       </Form.Item>
       {variantId && !isService && (
-        <div style={{ fontSize: 12, color: '#888', flex: '0 0 160px', paddingBottom: 4 }}>
+        <div style={{ fontSize: 12, color: 'var(--text-2)', flex: '0 0 160px', paddingBottom: 4 }}>
           {breakdown.length === 0
-            ? <span style={{ color: '#ff4d4f' }}>Hết hàng</span>
+            ? <span style={{ color: 'var(--s-cancelled-color)' }}>Hết hàng</span>
             : breakdown.map((w) => (
                 <span key={w.name} style={{ display: 'block', whiteSpace: 'nowrap' }}>
                   {w.name}: <b>{w.qty}</b>

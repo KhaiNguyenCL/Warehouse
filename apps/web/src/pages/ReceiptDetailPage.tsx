@@ -134,7 +134,7 @@ export default function ReceiptDetailPage() {
             <div key={l.id} style={{ marginBottom: 24 }}>
               <p style={{ fontWeight: 600, marginBottom: 8 }}>
                 {l.item_code} — {l.variant_name}
-                <span style={{ fontWeight: 400, color: '#888', marginLeft: 8 }}>
+                <span style={{ fontWeight: 400, color: 'var(--text-2)', marginLeft: 8 }}>
                   (cần {l.quantity} SN)
                 </span>
               </p>
@@ -188,14 +188,14 @@ export default function ReceiptDetailPage() {
 
       {/* Hiển thị lý do hủy nếu phiếu đã cancelled */}
       {hook.data.status === 'cancelled' && (hook.data.cancel_reason || hook.data.cancel_attachments?.length) && (
-        <div style={{ marginTop: 16, padding: '12px 16px', background: '#fff1f0', border: '1px solid #ffccc7', borderRadius: 8 }}>
-          <div style={{ fontWeight: 600, color: '#cf1322', marginBottom: 6 }}>Lý do hủy</div>
+        <div style={{ marginTop: 16, padding: '12px 16px', background: 'var(--s-cancelled-bg)', border: '1px solid var(--s-cancelled-color)', borderRadius: 8 }}>
+          <div style={{ fontWeight: 600, color: 'var(--s-cancelled-color)', marginBottom: 6 }}>Lý do hủy</div>
           {hook.data.cancel_reason && (
-            <div style={{ color: '#434343', whiteSpace: 'pre-wrap', marginBottom: 8 }}>{hook.data.cancel_reason}</div>
+            <div style={{ color: 'var(--text-1)', whiteSpace: 'pre-wrap', marginBottom: 8 }}>{hook.data.cancel_reason}</div>
           )}
           {hook.data.cancel_attachments?.length > 0 && (
             <div>
-              <div style={{ fontSize: 12, color: '#8c8c8c', marginBottom: 4 }}>Đính kèm:</div>
+              <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 4 }}>Đính kèm:</div>
               <Space wrap>
                 {hook.data.cancel_attachments.map((f: any, i: number) => (
                   <a key={i} href={f.url} target="_blank" rel="noopener noreferrer"
@@ -225,7 +225,7 @@ export default function ReceiptDetailPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16, paddingTop: 8 }}>
           <div>
             <div style={{ fontWeight: 500, marginBottom: 6 }}>
-              Lý do hủy <span style={{ color: '#ff4d4f' }}>*</span>
+              Lý do hủy <span style={{ color: 'var(--s-cancelled-color)' }}>*</span>
             </div>
             <Input.TextArea
               rows={4}

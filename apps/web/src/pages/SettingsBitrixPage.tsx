@@ -103,8 +103,8 @@ function PreviewSyncTable({ dealId }: { dealId: string }) {
             dataIndex: 'skipped',
             width: 160,
             render: (skipped: boolean, row: any) => skipped
-              ? <span style={{ color: '#ff4d4f', fontSize: 12 }}><CloseCircleOutlined /> {row.reason}</span>
-              : <span style={{ color: '#52c41a', fontSize: 12 }}><CheckCircleOutlined /> Sẽ được điền</span>,
+              ? <span style={{ color: 'var(--s-cancelled-color)', fontSize: 12 }}><CloseCircleOutlined /> {row.reason}</span>
+              : <span style={{ color: 'var(--s-completed-color)', fontSize: 12 }}><CheckCircleOutlined /> Sẽ được điền</span>,
           },
         ]}
       />

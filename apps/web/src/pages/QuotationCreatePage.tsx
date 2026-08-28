@@ -177,8 +177,8 @@ export default function QuotationCreatePage() {
                   title="Fetch & điền form từ Bitrix"
                 />
               </div>
-              {bitrixError && <div style={{ color: '#f5222d', fontSize: 12, marginTop: 4 }}>{bitrixError}</div>}
-              {bitrixInfo  && <div style={{ color: '#52c41a', fontSize: 12, marginTop: 4 }}>{bitrixInfo}</div>}
+              {bitrixError && <div style={{ color: 'var(--s-cancelled-color)', fontSize: 12, marginTop: 4 }}>{bitrixError}</div>}
+              {bitrixInfo  && <div style={{ color: 'var(--s-completed-color)', fontSize: 12, marginTop: 4 }}>{bitrixInfo}</div>}
             </div>
 
             <Field label="Số báo giá">

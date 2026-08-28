@@ -278,7 +278,7 @@ export default function ReceiptFormPage() {
               <div key={l.id} style={{ marginBottom: 24 }}>
                 <p style={{ fontWeight: 600, marginBottom: 8 }}>
                   {l.item_code} — {l.variant_name}
-                  <span style={{ fontWeight: 400, color: '#888', marginLeft: 8 }}>
+                  <span style={{ fontWeight: 400, color: 'var(--text-2)', marginLeft: 8 }}>
                     (cần {l.quantity} SN)
                   </span>
                 </p>
@@ -291,7 +291,7 @@ export default function ReceiptFormPage() {
             ))}
 
             {(receipt?.lines ?? []).every((l: any) => l.product_type !== 'storable') && (
-              <p style={{ color: '#888' }}>Không có dòng Thiết bị — bấm xác nhận để Complete.</p>
+              <p style={{ color: 'var(--text-2)' }}>Không có dòng Thiết bị — bấm xác nhận để Complete.</p>
             )}
 
             <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
@@ -367,7 +367,7 @@ export default function ReceiptFormPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16, paddingTop: 8 }}>
           <div>
             <div style={{ fontWeight: 500, marginBottom: 6 }}>
-              Lý do hủy <span style={{ color: '#ff4d4f' }}>*</span>
+              Lý do hủy <span style={{ color: 'var(--s-cancelled-color)' }}>*</span>
             </div>
             <Input.TextArea
               rows={4}

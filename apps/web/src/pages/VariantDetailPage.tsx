@@ -45,8 +45,6 @@ const labelStyle: React.CSSProperties = {
   color: 'var(--text-2)',
   fontWeight: 600,
   marginBottom: 4,
-  textTransform: 'uppercase',
-  letterSpacing: '0.4px',
 }
 
 const valueStyle: React.CSSProperties = {

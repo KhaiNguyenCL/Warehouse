@@ -75,7 +75,7 @@ export function SnScanGrid({ quantity, rows, onChange }: Props) {
         <span style={headerCell}>Serial Number</span>
         <span style={headerCell}>MAC Address</span>
       </div>
-      <div style={{ fontSize: 11, color: '#8c8c8c', marginBottom: 6 }}>
+      <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 6 }}>
         Nhập Serial Number <strong>hoặc</strong> MAC Address — ít nhất 1 trong 2 là bắt buộc.
       </div>
 
@@ -83,7 +83,7 @@ export function SnScanGrid({ quantity, rows, onChange }: Props) {
         const done = !!(row.serial_no.trim() || row.mac_address.trim())
         return (
           <div key={idx} style={{ ...gridStyle, marginBottom: 3 }}>
-            <span style={{ ...indexCell, color: done ? '#52c41a' : '#bbb', fontWeight: done ? 600 : 400 }}>
+            <span style={{ ...indexCell, color: done ? 'var(--s-completed-color)' : 'var(--text-3)', fontWeight: done ? 600 : 400 }}>
               {idx + 1}
             </span>
             <input
@@ -94,7 +94,7 @@ export function SnScanGrid({ quantity, rows, onChange }: Props) {
               onKeyDown={(e) => handleSnKey(e, idx)}
               onPaste={(e) => handleSnPaste(e, idx)}
               placeholder="Scan hoặc gõ SN..."
-              style={{ ...cellInput, borderColor: done ? '#b7eb8f' : '#d9d9d9', background: done ? '#f6ffed' : '#fff' }}
+              style={{ ...cellInput, borderColor: done ? 'var(--s-completed-color)' : 'var(--border)', background: done ? 'var(--s-completed-bg)' : 'var(--bg-card)' }}
             />
             <input
               data-r={idx}
@@ -109,8 +109,8 @@ export function SnScanGrid({ quantity, rows, onChange }: Props) {
         )
       })}
 
-      <div style={{ fontSize: 12, color: '#888', marginTop: 8 }}>
-        Đã nhập: <strong style={{ color: filled === quantity ? '#52c41a' : 'inherit' }}>{filled}/{quantity}</strong>
+      <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 8 }}>
+        Đã nhập: <strong style={{ color: filled === quantity ? 'var(--s-completed-color)' : 'inherit' }}>{filled}/{quantity}</strong>
         {filled === quantity && ' ✓ Đủ số lượng'}
       </div>
     </div>
@@ -127,7 +127,7 @@ const gridStyle: React.CSSProperties = {
 const headerCell: React.CSSProperties = {
   fontSize: 11,
   fontWeight: 600,
-  color: '#888',
+  color: 'var(--text-2)',
   paddingLeft: 2,
 }
 

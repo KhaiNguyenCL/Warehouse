@@ -94,13 +94,13 @@ function SubSectionBlock({ form, sectionName, name, subIndex, allVariants, remov
         alignItems: 'center',
         gap: 8,
         padding: '5px 10px',
-        background: '#dce8fb',
-        borderBottom: '1px solid #b0c4e8',
+        background: 'var(--accent-bg)',
+        borderBottom: '1px solid var(--accent)',
       }}>
-        <span style={{ fontSize: 11, fontWeight: 700, color: '#4472c4', whiteSpace: 'nowrap', minWidth: 20 }}>
+        <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent-text)', whiteSpace: 'nowrap', minWidth: 20 }}>
           {subIndex + 1}.
         </span>
-        <span style={{ fontSize: 11, fontWeight: 600, color: '#4472c4', whiteSpace: 'nowrap' }}>
+        <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--accent-text)', whiteSpace: 'nowrap' }}>
           Sản phẩm
         </span>
         <Select
@@ -233,7 +233,7 @@ export default function QuotationSectionItem({ form, name, sectionIndex, remove 
               <Button
                 size="small"
                 icon={<AppstoreAddOutlined />}
-                style={{ marginBottom: 10, borderColor: '#4472c4', color: '#4472c4' }}
+                style={{ marginBottom: 10, borderColor: 'var(--accent)', color: 'var(--accent-text)' }}
                 onClick={() => addSub({ name: '', product_id: undefined, line_items: [{}] })}
               >
                 + Thêm sub-section (sản phẩm)

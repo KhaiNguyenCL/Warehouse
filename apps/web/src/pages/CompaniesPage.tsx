@@ -502,11 +502,11 @@ function SyncBitrixModal({ hook }: { hook: any }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div style={{ display: 'flex', gap: 20, fontSize: 13, color: 'var(--text-2)' }}>
             <span>Tổng Bitrix: <strong style={{ color: 'var(--text-1)' }}>{preview.total_bitrix}</strong></span>
-            <span>Mới: <strong style={{ color: '#15803d' }}>{newList.length}</strong></span>
-            <span>Có thay đổi: <strong style={{ color: '#d97706' }}>{changedList.length}</strong></span>
+            <span>Mới: <strong style={{ color: 'var(--s-completed-color)' }}>{newList.length}</strong></span>
+            <span>Có thay đổi: <strong style={{ color: 'var(--s-pending-color)' }}>{changedList.length}</strong></span>
             <span>Không đổi: <strong>{preview.unchanged_count}</strong></span>
             {preview.locked_count > 0 && (
-              <span>Đã khoá: <strong style={{ color: '#d97706' }}>{preview.locked_count}</strong></span>
+              <span>Đã khoá: <strong style={{ color: 'var(--s-pending-color)' }}>{preview.locked_count}</strong></span>
             )}
           </div>
 
@@ -549,9 +549,9 @@ function SyncBitrixModal({ hook }: { hook: any }) {
                       {r.changes.map((ch: any) => (
                         <div key={ch.field} style={{ display: 'flex', gap: 8, marginBottom: 4, fontSize: 13 }}>
                           <span style={{ width: 90, color: 'var(--text-3)', flexShrink: 0 }}>{FIELD_LABEL[ch.field] ?? ch.field}</span>
-                          <span style={{ color: '#b91c1c', textDecoration: 'line-through' }}>{ch.old ?? '—'}</span>
+                          <span style={{ color: 'var(--s-cancelled-color)', textDecoration: 'line-through' }}>{ch.old ?? '—'}</span>
                           <span style={{ color: 'var(--text-3)' }}>→</span>
-                          <span style={{ color: '#15803d' }}>{ch.new ?? '—'}</span>
+                          <span style={{ color: 'var(--s-completed-color)' }}>{ch.new ?? '—'}</span>
                         </div>
                       ))}
                     </div>

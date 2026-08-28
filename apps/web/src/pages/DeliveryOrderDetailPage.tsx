@@ -52,7 +52,7 @@ function WarehouseBreakdown({ variantId, productType }: { variantId: string; pro
   if (productType === 'service') return <span style={{ color: 'var(--text-3)', fontSize: 12 }}>Dịch vụ</span>
   const row = data?.data?.find((r: any) => r.variant_id === variantId)
   const breakdown: { name: string; qty: number }[] = row?.warehouse_breakdown ?? []
-  if (!breakdown.length) return <span style={{ color: '#ff4d4f', fontSize: 12 }}>Hết hàng</span>
+  if (!breakdown.length) return <span style={{ color: 'var(--s-cancelled-color)', fontSize: 12 }}>Hết hàng</span>
   return (
     <span style={{ fontSize: 12 }}>
       {breakdown.map((w) => (
