@@ -54,11 +54,11 @@ export default function ContactSheet({ open, contact, onClose, onUpdated }: Prop
   return (
     <>
       {/* Backdrop */}
-      <div className="fixed inset-0 z-40 bg-black/20" onClick={() => { setEditing(false); onClose() }} />
+      <div className="fixed inset-x-0 top-12 bottom-0 z-40 bg-black/20" onClick={() => { setEditing(false); onClose() }} />
 
       {/* Sheet */}
       <div className={cn(
-        'fixed right-0 top-0 z-50 flex h-full flex-col bg-background shadow-xl',
+        'fixed right-0 top-12 z-50 flex h-[calc(100%-3rem)] flex-col bg-background shadow-xl',
         'w-[440px] border-l border-border',
       )}>
         {/* Header */}

@@ -825,11 +825,11 @@ export default function ProductDetailPage() {
       </div>
 
       {/* SKU sheet backdrop */}
-      {skuOpen && <div className="fixed inset-0 z-40 bg-black/30 transition-opacity duration-200" onClick={closeSkuSheet} />}
+      {skuOpen && <div className="fixed inset-x-0 top-12 bottom-0 z-40 bg-black/30 transition-opacity duration-200" onClick={closeSkuSheet} />}
 
       {/* SKU sheet */}
       <div
-        className={cn('fixed right-0 top-0 z-50 flex h-full w-[560px] flex-col bg-background shadow-xl transition-transform duration-200', skuOpen ? 'translate-x-0' : 'translate-x-full')}
+        className={cn('fixed right-0 top-12 z-50 flex h-[calc(100%-3rem)] w-[560px] flex-col bg-background shadow-xl transition-transform duration-200', skuOpen ? 'translate-x-0' : 'translate-x-full')}
         onKeyDown={(e) => { if (e.key === 'Escape') closeSkuSheet() }}
         tabIndex={-1}
       >

@@ -277,10 +277,10 @@ export default function BrandsPage() {
       {dialogOpen && (
         <>
           <div
-            className="fixed inset-0 z-40 bg-black/30 transition-opacity duration-200"
+            className="fixed inset-x-0 top-12 bottom-0 z-40 bg-black/30 transition-opacity duration-200"
             onClick={() => setDialogOpen(false)}
           />
-          <div className="fixed right-0 top-0 z-50 flex h-full w-96 flex-col bg-background shadow-xl animate-in slide-in-from-right duration-200">
+          <div className="fixed right-0 top-12 z-50 flex h-[calc(100%-3rem)] w-96 flex-col bg-background shadow-xl animate-in slide-in-from-right duration-200">
             {/* header */}
             <div className="flex shrink-0 items-center justify-between border-b border-border px-5 py-4">
               <h2 className="text-base font-semibold text-foreground">

@@ -160,7 +160,7 @@ export default function CompanySheet({ open, companyId, onClose }: Props) {
       {/* backdrop — dims but does NOT lock scroll */}
       <div
         className={cn(
-          'fixed inset-0 z-40 bg-black/30 supports-backdrop-filter:backdrop-blur-sm transition-opacity duration-200',
+          'fixed inset-x-0 top-12 bottom-0 z-40 bg-black/30 supports-backdrop-filter:backdrop-blur-sm transition-opacity duration-200',
           open ? 'opacity-100' : 'pointer-events-none opacity-0',
         )}
         onClick={onClose}
@@ -169,7 +169,7 @@ export default function CompanySheet({ open, companyId, onClose }: Props) {
       {/* panel */}
       <div
         className={cn(
-          'fixed right-0 top-0 z-50 flex h-full w-1/2 flex-col bg-background shadow-xl transition-transform duration-200',
+          'fixed right-0 top-12 z-50 flex h-[calc(100%-3rem)] w-1/2 flex-col bg-background shadow-xl transition-transform duration-200',
           open ? 'translate-x-0' : 'translate-x-full',
         )}
       >

@@ -1,9 +1,8 @@
-import { useState, useCallback } from 'react'
+import { useState } from 'react'
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Table, Tag, Button, Drawer, Descriptions, Divider, Form, Input, message } from 'antd'
 import type { ColumnType } from 'antd/es/table'
-import { Resizable } from 'react-resizable'
 import { ArrowLeftOutlined } from '@ant-design/icons'
 import { Search } from 'lucide-react'
 import { api } from '../lib/api'
@@ -26,54 +25,6 @@ const REF_DOCUMENT_LABEL: Record<string, string> = {
 function fmt(d: string | null) {
   if (!d) return '—'
   return new Date(d).toLocaleDateString('vi-VN')
-}
-
-// Resizable column header wrapper for Ant Design Table
-function ResizableTitle(props: any) {
-  const { onResize, width, ...restProps } = props
-  if (!width) return <th {...restProps} />
-  return (
-    <Resizable
-      width={width}
-      height={0}
-      handle={
-        <span
-          onClick={(e) => e.stopPropagation()}
-          style={{
-            position: 'absolute', right: 0, top: '50%', transform: 'translateY(-50%)',
-            zIndex: 1, width: 4, height: '60%', cursor: 'col-resize',
-            borderRight: '2px solid var(--border)',
-          }}
-        />
-      }
-      onResize={onResize}
-      draggableOpts={{ enableUserSelectHack: false }}
-    >
-      <th {...restProps} style={{ ...restProps.style, position: 'relative' }} />
-    </Resizable>
-  )
-}
-
-function useResizableColumns<T>(initialCols: ColumnType<T>[]) {
-  const [cols, setCols] = useState(initialCols)
-  const handleResize = useCallback(
-    (index: number) => (_: any, { size }: { size: { width: number } }) => {
-      setCols((prev) => {
-        const next = [...prev]
-        next[index] = { ...next[index], width: size.width }
-        return next
-      })
-    },
-    [],
-  )
-  const mergedCols = cols.map((col, i) => ({
-    ...col,
-    onHeaderCell: (column: ColumnType<T>) => ({
-      width: column.width,
-      onResize: handleResize(i),
-    }),
-  }))
-  return mergedCols
 }
 
 function fmtReceipt(code: string | null, completedAt: string | null) {
@@ -130,6 +81,7 @@ function SnDetailDrawer({
       onClose={() => { setEditOpen(false); onClose() }}
       width={520}
       extra={<Button onClick={() => setEditOpen((v) => !v)}>{editOpen ? 'Huỷ sửa' : 'Sửa'}</Button>}
+      styles={{ wrapper: { top: 48, height: 'calc(100% - 48px)' }, mask: { top: 48 } }}
     >
       {sn && (
         <>
@@ -272,7 +224,7 @@ export default function InventorySerialsPage() {
       )
     : data
 
-  const columns = useResizableColumns(INITIAL_COLS)
+  const columns = INITIAL_COLS
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -306,10 +258,8 @@ export default function InventorySerialsPage() {
         <Table
           rowKey="id"
           size="small"
-          tableLayout="fixed"
           loading={isLoading}
           dataSource={filteredData}
-          components={{ header: { cell: ResizableTitle } }}
           pagination={{ pageSize: 50, showSizeChanger: false, hideOnSinglePage: true, showTotal: (t, [from, to]) => `${from}–${to} / ${t}` }}
           locale={{ emptyText: 'Không có serial nào' }}
           onRow={(r) => ({ onClick: () => setSelected(r), style: { cursor: 'pointer' } })}

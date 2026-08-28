@@ -15,8 +15,6 @@ import {
 import { cn } from '@/lib/utils'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { CodeText } from '@/components/ui/CodeText'
-import { useResizableColumns } from '@/hooks/useResizableColumns'
-import { ResizeHandle } from '@/components/ui/ResizeHandle'
 import { PageSizeSelector } from '@/components/ui/PageSizeSelector'
 
 const REF_DOCUMENT_PATH: Record<string, string> = {
@@ -81,6 +79,7 @@ function SnDetailDrawer({ sn, onClose, listQueryKey }: { sn: any | null; onClose
       onClose={() => { setEditOpen(false); onClose() }}
       width={520}
       extra={<AntButton onClick={() => setEditOpen((v) => !v)}>{editOpen ? 'Huỷ sửa' : 'Sửa'}</AntButton>}
+      styles={{ wrapper: { top: 48, height: 'calc(100% - 48px)' }, mask: { top: 48 } }}
     >
       {sn && (
         <>
@@ -220,7 +219,6 @@ export default function InventoryPage() {
   const navigate = useNavigate()
   const [searchType, setSearchType] = useState<'sku' | 'sn'>('sku')
   const [searchValue, setSearchValue] = useState('')
-  const { colWidths, tableRef, startResize } = useResizableColumns([3, 10, 20, 12, 13, 7, 7, 8, 11, 9])
   const [reservedSheet, setReservedSheet] = useState<{ variantId: string; variantName: string; unit: string | null } | null>(null)
 
   function handleSearchTypeChange(type: 'sku' | 'sn') {
@@ -382,12 +380,9 @@ export default function InventoryPage() {
           <SnSearchTable search={hook.snSearch} />
         ) : (
           <>
-            {/* Main inventory table — click dòng storable để xem danh sách SN, kéo border header để resize cột */}
+            {/* Main inventory table — click dòng storable để xem danh sách SN */}
             <div className="overflow-x-auto">
-            <table ref={tableRef} className="w-full table-fixed">
-              <colgroup>
-                {colWidths.map((w, i) => <col key={i} style={{ width: `${w}%` }} />)}
-              </colgroup>
+            <table className="w-full">
               <thead>
                 <tr className="border-b border-border bg-muted/40">
                   {([
@@ -404,11 +399,9 @@ export default function InventoryPage() {
                   ] as [string, string][]).map(([label, align], i) => (
                     <th
                       key={i}
-                      style={{ width: `${colWidths[i]}%` }}
-                      className={`relative px-3 py-2.5 text-xs font-semibold text-muted-foreground select-none ${align === 'left' ? 'text-left' : 'text-center'}`}
+                      className={`px-3 py-2.5 text-xs font-semibold text-muted-foreground ${align === 'left' ? 'text-left' : 'text-center'}`}
                     >
                       {label}
-                      {i < 9 && <ResizeHandle onMouseDown={(e) => startResize(e, i)} />}
                     </th>
                   ))}
                 </tr>

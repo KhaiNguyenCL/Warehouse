@@ -8,8 +8,6 @@ import { PageSizeSelector } from '@/components/ui/PageSizeSelector'
 import StocktakeSkuPicker from '../components/StocktakeSkuPicker'
 import { cn } from '@/lib/utils'
 import { CodeText } from '@/components/ui/CodeText'
-import { useResizableColumns } from '@/hooks/useResizableColumns'
-import { ResizeHandle } from '@/components/ui/ResizeHandle'
 
 const SCOPE_TYPES = [
   { value: 'all',          label: 'Toàn bộ kho' },
@@ -31,8 +29,6 @@ const STATUS_OPTIONS = [
 
 export default function StocktakesPage() {
   const hook = useStocktakes()
-  const { colWidths, tableRef, startResize } = useResizableColumns([4, 16, 16, 32, 14, 18])
-
   const rows: any[] = hook.data?.data ?? []
   const total: number = hook.data?.total ?? 0
   const from = total === 0 ? 0 : (hook.page - 1) * hook.limit + 1
@@ -85,16 +81,15 @@ export default function StocktakesPage() {
         </div>
 
         {/* Table */}
-        <table ref={tableRef} className="w-full table-fixed">
-          <colgroup>{colWidths.map((w, i) => <col key={i} style={{ width: `${w}%` }} />)}</colgroup>
+        <table className="w-full">
           <thead>
             <tr className="border-b border-border bg-muted/40">
-              <th style={{ width: `${colWidths[0]}%` }} className="relative px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground select-none">#<ResizeHandle onMouseDown={(e) => startResize(e, 0)} /></th>
-              <th style={{ width: `${colWidths[1]}%` }} className="relative px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground select-none">Mã kiểm kê<ResizeHandle onMouseDown={(e) => startResize(e, 1)} /></th>
-              <th style={{ width: `${colWidths[2]}%` }} className="relative px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground select-none">Kho<ResizeHandle onMouseDown={(e) => startResize(e, 2)} /></th>
-              <th style={{ width: `${colWidths[3]}%` }} className="relative px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground select-none">Phạm vi<ResizeHandle onMouseDown={(e) => startResize(e, 3)} /></th>
-              <th style={{ width: `${colWidths[4]}%` }} className="relative px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground select-none">Trạng thái<ResizeHandle onMouseDown={(e) => startResize(e, 4)} /></th>
-              <th style={{ width: `${colWidths[5]}%` }} className="relative px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground select-none">Bắt đầu</th>
+              <th className="px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground">#</th>
+              <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Mã kiểm kê</th>
+              <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Kho</th>
+              <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Phạm vi</th>
+              <th className="px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground">Trạng thái</th>
+              <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Bắt đầu</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -164,7 +159,7 @@ export default function StocktakesPage() {
       {/* Create Sheet — backdrop */}
       <div
         className={cn(
-          'fixed inset-0 z-40 bg-black/30 supports-backdrop-filter:backdrop-blur-sm transition-opacity duration-200',
+          'fixed inset-x-0 top-12 bottom-0 z-40 bg-black/30 supports-backdrop-filter:backdrop-blur-sm transition-opacity duration-200',
           hook.open ? 'opacity-100' : 'pointer-events-none opacity-0',
         )}
         onClick={hook.close}
@@ -173,7 +168,7 @@ export default function StocktakesPage() {
       {/* Create Sheet — panel */}
       <div
         className={cn(
-          'fixed right-0 top-0 z-50 flex h-full w-[480px] flex-col bg-background shadow-xl transition-transform duration-200',
+          'fixed right-0 top-12 z-50 flex h-[calc(100%-3rem)] w-[480px] flex-col bg-background shadow-xl transition-transform duration-200',
           hook.open ? 'translate-x-0' : 'translate-x-full',
         )}
       >

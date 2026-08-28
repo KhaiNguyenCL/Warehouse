@@ -208,8 +208,8 @@ export default function TemplatesPage() {
       )}
 
       {/* Edit Sheet */}
-      <div className={cn('fixed inset-0 z-40 bg-black/30 transition-opacity duration-200', hook.open ? 'opacity-100' : 'pointer-events-none opacity-0')} onClick={hook.close} />
-      <div className={cn('fixed right-0 top-0 z-50 flex h-full w-[680px] flex-col bg-background shadow-xl transition-transform duration-200', hook.open ? 'translate-x-0' : 'translate-x-full')}>
+      <div className={cn('fixed inset-x-0 top-12 bottom-0 z-40 bg-black/30 transition-opacity duration-200', hook.open ? 'opacity-100' : 'pointer-events-none opacity-0')} onClick={hook.close} />
+      <div className={cn('fixed right-0 top-12 z-50 flex h-[calc(100%-3rem)] w-[680px] flex-col bg-background shadow-xl transition-transform duration-200', hook.open ? 'translate-x-0' : 'translate-x-full')}>
         <div className="flex shrink-0 items-center justify-between border-b border-border px-5 py-4">
           <h2 className="text-base font-semibold">
             {hook.editing ? `Sửa template "${hook.editing.name}"` : 'Template'}

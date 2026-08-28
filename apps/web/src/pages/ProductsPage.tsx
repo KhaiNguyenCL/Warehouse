@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { Form as AntForm, Input as AntInput, Select as AntSelect, Divider, InputNumber } from 'antd'
@@ -23,7 +23,6 @@ import { PageSizeSelector } from '@/components/ui/PageSizeSelector'
 import { cn } from '@/lib/utils'
 import { CodeText } from '@/components/ui/CodeText'
 import { ColumnToggle, useColumnVisibility, type ColumnDef } from '@/components/ui/ColumnToggle'
-import { ResizeHandle } from '@/components/ui/ResizeHandle'
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
@@ -126,28 +125,6 @@ export default function ProductsPage() {
   const productCols = useColumnVisibility('products-page-products', PRODUCT_COLUMNS)
   const skuCols     = useColumnVisibility('products-page-skus', SKU_COLUMNS)
 
-  // ── Resizable columns (pixel-based, works with optional columns) ──────────
-  const prodRef = useRef<HTMLTableElement>(null)
-  const [prodW, setProdW] = useState({ num: 40, code: 160, name: 260, product_type: 90, brand_name: 130, category_name: 150, sku_count: 55 })
-
-  function startProdResize(e: React.MouseEvent, key: keyof typeof prodW) {
-    e.preventDefault()
-    const startX = e.clientX; const startW = prodW[key]
-    const onMove = (ev: MouseEvent) => setProdW(w => ({ ...w, [key]: Math.max(40, startW + ev.clientX - startX) }))
-    const onUp = () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp) }
-    document.addEventListener('mousemove', onMove); document.addEventListener('mouseup', onUp)
-  }
-
-  const skuRef = useRef<HTMLTableElement>(null)
-  const [skuW, setSkuW] = useState({ num: 40, item_code: 150, name: 220, product_name: 180, unit: 60, cost_price: 110, sale_price: 110, vat_percent: 60, warranty_months: 70, reorder_point: 75, weight_kg: 80, qty_on_hand: 80 })
-
-  function startSkuResize(e: React.MouseEvent, key: keyof typeof skuW) {
-    e.preventDefault()
-    const startX = e.clientX; const startW = skuW[key]
-    const onMove = (ev: MouseEvent) => setSkuW(w => ({ ...w, [key]: Math.max(40, startW + ev.clientX - startX) }))
-    const onUp = () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp) }
-    document.addEventListener('mousemove', onMove); document.addEventListener('mouseup', onUp)
-  }
 
   // ── Data ─────────────────────────────────────────────────────────────────
   const products: any[] = hook.data?.data ?? []
@@ -246,40 +223,33 @@ export default function ProductsPage() {
             </div>
 
             {/* Table */}
-            <table ref={prodRef} className="w-full">
+            <table className="w-full">
+              <colgroup>
+                <col className="w-10" />
+                <col className="w-36" />
+                <col />
+                {productCols.isVisible('product_type') && <col className="w-24" />}
+                {productCols.isVisible('brand_name') && <col className="w-32" />}
+                {productCols.isVisible('category_name') && <col className="w-36" />}
+                {productCols.isVisible('sku_count') && <col className="w-14" />}
+                <col className="w-8" />
+              </colgroup>
               <thead>
                 <tr className="border-b border-border bg-muted/40">
-                  <th style={{ width: prodW.num }} className="relative px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-foreground/70 select-none">
-                    #<ResizeHandle onMouseDown={(e) => startProdResize(e, 'num')} />
-                  </th>
-                  <th style={{ width: prodW.code }} className="relative px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-foreground/70 select-none">
-                    Mã SP<ResizeHandle onMouseDown={(e) => startProdResize(e, 'code')} />
-                  </th>
-                  <th className="relative px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-foreground/70 select-none">
-                    Tên sản phẩm
-                    {(productCols.isVisible('product_type') || productCols.isVisible('brand_name') || productCols.isVisible('category_name') || productCols.isVisible('sku_count')) && (
-                      <ResizeHandle onMouseDown={(e) => startProdResize(e, 'name')} />
-                    )}
-                  </th>
+                  <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-foreground/70">#</th>
+                  <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-foreground/70">Mã SP</th>
+                  <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-foreground/70">Tên sản phẩm</th>
                   {productCols.isVisible('product_type') && (
-                    <th style={{ width: prodW.product_type }} className="relative px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-foreground/70 select-none">
-                      Loại<ResizeHandle onMouseDown={(e) => startProdResize(e, 'product_type')} />
-                    </th>
+                    <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-foreground/70">Loại</th>
                   )}
                   {productCols.isVisible('brand_name') && (
-                    <th style={{ width: prodW.brand_name }} className="relative px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-foreground/70 select-none">
-                      Hãng<ResizeHandle onMouseDown={(e) => startProdResize(e, 'brand_name')} />
-                    </th>
+                    <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-foreground/70">Hãng</th>
                   )}
                   {productCols.isVisible('category_name') && (
-                    <th style={{ width: prodW.category_name }} className="relative px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-foreground/70 select-none">
-                      Danh mục<ResizeHandle onMouseDown={(e) => startProdResize(e, 'category_name')} />
-                    </th>
+                    <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-foreground/70">Danh mục</th>
                   )}
                   {productCols.isVisible('sku_count') && (
-                    <th style={{ width: prodW.sku_count }} className="relative px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-foreground/70 select-none">
-                      SKU
-                    </th>
+                    <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-foreground/70">SKU</th>
                   )}
                   <th className="w-8 px-2 py-2.5" />
                 </tr>
@@ -405,62 +375,35 @@ export default function ProductsPage() {
 
             {/* SKU table */}
             <div className="overflow-x-auto">
-              <table ref={skuRef} className="w-full">
+              <table className="w-full">
+                <colgroup>
+                  <col className="w-10" />
+                  <col className="w-36" />
+                  <col className="w-52" />
+                  <col />
+                  {skuCols.isVisible('unit') && <col className="w-16" />}
+                  {skuCols.isVisible('cost_price') && <col className="w-28" />}
+                  {skuCols.isVisible('sale_price') && <col className="w-28" />}
+                  {skuCols.isVisible('vat_percent') && <col className="w-16" />}
+                  {skuCols.isVisible('warranty_months') && <col className="w-24" />}
+                  {skuCols.isVisible('reorder_point') && <col className="w-24" />}
+                  {skuCols.isVisible('weight_kg') && <col className="w-20" />}
+                  <col className="w-20" />
+                </colgroup>
                 <thead>
                   <tr className="border-b border-border bg-muted/40">
-                    <th style={{ width: skuW.num }} className="relative px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-foreground/70 select-none">
-                      #<ResizeHandle onMouseDown={(e) => startSkuResize(e, 'num')} />
-                    </th>
-                    <th style={{ width: skuW.item_code }} className="relative px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-foreground/70 select-none">
-                      Mã hàng<ResizeHandle onMouseDown={(e) => startSkuResize(e, 'item_code')} />
-                    </th>
-                    <th style={{ width: skuW.name }} className="relative px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-foreground/70 select-none">
-                      Tên SKU<ResizeHandle onMouseDown={(e) => startSkuResize(e, 'name')} />
-                    </th>
-                    <th style={{ width: skuW.product_name }} className="relative px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-foreground/70 select-none">
-                      Sản phẩm
-                      {(skuCols.isVisible('unit') || skuCols.isVisible('cost_price') || skuCols.isVisible('sale_price') || skuCols.isVisible('vat_percent') || skuCols.isVisible('warranty_months') || skuCols.isVisible('reorder_point') || skuCols.isVisible('weight_kg')) && (
-                        <ResizeHandle onMouseDown={(e) => startSkuResize(e, 'product_name')} />
-                      )}
-                    </th>
-                    {skuCols.isVisible('unit') && (
-                      <th style={{ width: skuW.unit }} className="relative px-3 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-foreground/70 select-none">
-                        ĐV<ResizeHandle onMouseDown={(e) => startSkuResize(e, 'unit')} />
-                      </th>
-                    )}
-                    {skuCols.isVisible('cost_price') && (
-                      <th style={{ width: skuW.cost_price }} className="relative px-3 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-foreground/70 select-none">
-                        Giá vốn<ResizeHandle onMouseDown={(e) => startSkuResize(e, 'cost_price')} />
-                      </th>
-                    )}
-                    {skuCols.isVisible('sale_price') && (
-                      <th style={{ width: skuW.sale_price }} className="relative px-3 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-foreground/70 select-none">
-                        Giá bán<ResizeHandle onMouseDown={(e) => startSkuResize(e, 'sale_price')} />
-                      </th>
-                    )}
-                    {skuCols.isVisible('vat_percent') && (
-                      <th style={{ width: skuW.vat_percent }} className="relative px-3 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-foreground/70 select-none">
-                        VAT%<ResizeHandle onMouseDown={(e) => startSkuResize(e, 'vat_percent')} />
-                      </th>
-                    )}
-                    {skuCols.isVisible('warranty_months') && (
-                      <th style={{ width: skuW.warranty_months }} className="relative px-3 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-foreground/70 select-none">
-                        BH (tháng)<ResizeHandle onMouseDown={(e) => startSkuResize(e, 'warranty_months')} />
-                      </th>
-                    )}
-                    {skuCols.isVisible('reorder_point') && (
-                      <th style={{ width: skuW.reorder_point }} className="relative px-3 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-foreground/70 select-none">
-                        Điểm ĐH<ResizeHandle onMouseDown={(e) => startSkuResize(e, 'reorder_point')} />
-                      </th>
-                    )}
-                    {skuCols.isVisible('weight_kg') && (
-                      <th style={{ width: skuW.weight_kg }} className="relative px-3 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-foreground/70 select-none">
-                        KL (kg)<ResizeHandle onMouseDown={(e) => startSkuResize(e, 'weight_kg')} />
-                      </th>
-                    )}
-                    <th style={{ width: skuW.qty_on_hand }} className="relative px-3 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-foreground/70 select-none">
-                      Tồn kho
-                    </th>
+                    <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-foreground/70">#</th>
+                    <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-foreground/70">Mã hàng</th>
+                    <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-foreground/70">Tên SKU</th>
+                    <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-foreground/70">Sản phẩm</th>
+                    {skuCols.isVisible('unit') && <th className="px-3 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-foreground/70">ĐV</th>}
+                    {skuCols.isVisible('cost_price') && <th className="px-3 py-2.5 text-right text-xs font-semibold uppercase tracking-wide text-foreground/70">Giá vốn</th>}
+                    {skuCols.isVisible('sale_price') && <th className="px-3 py-2.5 text-right text-xs font-semibold uppercase tracking-wide text-foreground/70">Giá bán</th>}
+                    {skuCols.isVisible('vat_percent') && <th className="px-3 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-foreground/70">VAT%</th>}
+                    {skuCols.isVisible('warranty_months') && <th className="px-3 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-foreground/70">BH (tháng)</th>}
+                    {skuCols.isVisible('reorder_point') && <th className="px-3 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-foreground/70">Điểm ĐH</th>}
+                    {skuCols.isVisible('weight_kg') && <th className="px-3 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-foreground/70">KL (kg)</th>}
+                    <th className="px-3 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-foreground/70">Tồn kho</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
@@ -548,11 +491,11 @@ export default function ProductsPage() {
 
       {/* Create product Sheet */}
       <div
-        className={cn('fixed inset-0 z-40 bg-black/30 supports-backdrop-filter:backdrop-blur-sm transition-opacity duration-200', hook.open ? 'opacity-100' : 'pointer-events-none opacity-0')}
+        className={cn('fixed inset-x-0 top-12 bottom-0 z-40 bg-black/30 supports-backdrop-filter:backdrop-blur-sm transition-opacity duration-200', hook.open ? 'opacity-100' : 'pointer-events-none opacity-0')}
         onClick={hook.closeAndResetModel}
       />
       <div
-        className={cn('fixed right-0 top-0 z-50 flex h-full w-[480px] flex-col bg-background shadow-xl transition-transform duration-200', hook.open ? 'translate-x-0' : 'translate-x-full')}
+        className={cn('fixed right-0 top-12 z-50 flex h-[calc(100%-3rem)] w-[480px] flex-col bg-background shadow-xl transition-transform duration-200', hook.open ? 'translate-x-0' : 'translate-x-full')}
         onKeyDown={(e) => { if (e.key === 'Escape') hook.closeAndResetModel() }}
         tabIndex={-1}
       >
