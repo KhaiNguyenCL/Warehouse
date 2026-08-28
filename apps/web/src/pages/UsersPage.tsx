@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { cn } from '@/lib/utils'
+import { ActiveBadge } from '@/components/ui/ActiveBadge'
 
 // ── Schema ──────────────────────────────────────────────────────────────────
 
@@ -99,7 +100,7 @@ export default function UsersPage() {
       {/* Page header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Người dùng</h1>
+          <h1 className="font-serif text-2xl font-semibold tracking-tight">Người dùng</h1>
           <p className="mt-0.5 text-sm text-muted-foreground">
             Quản lý tài khoản và phân quyền truy cập
           </p>
@@ -131,12 +132,12 @@ export default function UsersPage() {
         <table className="w-full">
           <thead>
             <tr className="border-b border-border bg-muted/40">
-              <th className="w-12 px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">#</th>
-              <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Họ tên</th>
-              <th className="w-56 px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Email</th>
-              <th className="w-32 px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">SĐT</th>
-              <th className="w-36 px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Vai trò</th>
-              <th className="w-40 px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground">Trạng thái</th>
+              <th className="w-12 px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">#</th>
+              <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Họ tên</th>
+              <th className="w-56 px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Email</th>
+              <th className="w-32 px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">SĐT</th>
+              <th className="w-36 px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Vai trò</th>
+              <th className="w-40 px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground">Trạng thái</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -166,18 +167,7 @@ export default function UsersPage() {
                   <td className="px-4 py-2 text-foreground">{r.role_name ?? <span className="text-muted-foreground">—</span>}</td>
                   <td className="px-4 py-2">
                     <div className="flex justify-center">
-                      <span className={cn(
-                        'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium',
-                        r.is_active
-                          ? 'bg-emerald-100 text-emerald-800 ring-1 ring-emerald-300'
-                          : 'bg-red-100 text-red-700 ring-1 ring-red-200',
-                      )}>
-                        <span className={cn(
-                          'h-1.5 w-1.5 rounded-full',
-                          r.is_active ? 'bg-emerald-500' : 'bg-red-500',
-                        )} />
-                        {r.is_active ? 'Hoạt động' : 'Ngừng'}
-                      </span>
+                      <ActiveBadge active={r.is_active} />
                     </div>
                   </td>
                 </tr>

@@ -41,7 +41,7 @@ export default function TemplatesPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Mẫu báo giá / phiếu</h1>
+          <h1 className="font-serif text-2xl font-semibold tracking-tight">Mẫu báo giá / phiếu</h1>
           <p className="mt-0.5 text-sm text-muted-foreground">Quản lý template HTML dùng để xuất phiếu</p>
         </div>
         <Button onClick={() => hook.setUploadOpen(true)}>
@@ -55,12 +55,12 @@ export default function TemplatesPage() {
         <table className="w-full">
           <thead>
             <tr className="border-b border-border bg-muted/40">
-              <th className="w-10 px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">#</th>
-              <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Tên</th>
-              <th className="w-40 px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Loại đối tượng</th>
-              <th className="w-28 px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground">Đang dùng</th>
-              <th className="w-32 px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground">Mặc định</th>
-              <th className="w-40 px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Ngày tạo</th>
+              <th className="w-10 px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">#</th>
+              <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Tên</th>
+              <th className="w-40 px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Loại đối tượng</th>
+              <th className="w-28 px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground">Đang dùng</th>
+              <th className="w-32 px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground">Mặc định</th>
+              <th className="w-40 px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Ngày tạo</th>
               <th className="w-16 px-4 py-2.5" />
             </tr>
           </thead>
@@ -91,9 +91,7 @@ export default function TemplatesPage() {
                 <td className="px-4 py-2.5">
                   <div className="flex justify-center" onClick={(e) => e.stopPropagation()}>
                     {r.is_default ? (
-                      <span className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800 ring-1 ring-blue-300">
-                        Mặc định
-                      </span>
+                      <span className="text-sm font-medium text-blue-700">Mặc định</span>
                     ) : (
                       <Button
                         size="xs"

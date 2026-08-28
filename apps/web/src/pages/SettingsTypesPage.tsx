@@ -21,6 +21,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { cn } from '@/lib/utils'
+import { ActiveBadge } from '@/components/ui/ActiveBadge'
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -52,25 +53,9 @@ function SectionHeader({ title, onAdd }: { title: string; onAdd: () => void }) {
 
 function YesNoBadge({ value }: { value: boolean }) {
   return value ? (
-    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800 ring-1 ring-emerald-300">
-      Có
-    </span>
+    <span className="text-sm font-medium text-emerald-700">Có</span>
   ) : (
     <span className="text-muted-foreground text-xs">—</span>
-  )
-}
-
-function ActiveBadge({ value }: { value: boolean }) {
-  return (
-    <span className={cn(
-      'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium',
-      value
-        ? 'bg-emerald-100 text-emerald-800 ring-1 ring-emerald-300'
-        : 'bg-red-100 text-red-700 ring-1 ring-red-200',
-    )}>
-      <span className={cn('h-1.5 w-1.5 rounded-full', value ? 'bg-emerald-500' : 'bg-red-500')} />
-      {value ? 'Hoạt động' : 'Ngừng'}
-    </span>
   )
 }
 
@@ -148,13 +133,13 @@ function ImportTypesSection() {
         <table className="w-full">
           <thead>
             <tr className="border-b border-border bg-muted/40">
-              <th className="w-10 px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">#</th>
-              <th className="w-40 px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Mã key</th>
-              <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Tên hiển thị</th>
-              <th className="w-32 px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Cần đối tác</th>
-              <th className="w-36 px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Cần tham chiếu</th>
-              <th className="w-32 px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground">Trạng thái</th>
-              <th className="w-24 px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground">Hệ thống</th>
+              <th className="w-10 px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">#</th>
+              <th className="w-40 px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Mã key</th>
+              <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Tên hiển thị</th>
+              <th className="w-32 px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Cần đối tác</th>
+              <th className="w-36 px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Cần tham chiếu</th>
+              <th className="w-32 px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground">Trạng thái</th>
+              <th className="w-24 px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground">Hệ thống</th>
               <th className="w-12 px-4 py-2.5" />
             </tr>
           </thead>
@@ -170,11 +155,11 @@ function ImportTypesSection() {
                 <td className="px-4 py-2.5 font-medium text-foreground">{r.label}</td>
                 <td className="px-4 py-2.5 text-foreground">{REQUIRES_COMPANY_OPTS.find(o => o.value === r.requires_company)?.label ?? r.requires_company}</td>
                 <td className="px-4 py-2.5 text-foreground">{REQUIRES_REF_OPTS.find(o => o.value === r.requires_ref_document)?.label ?? r.requires_ref_document}</td>
-                <td className="px-4 py-2.5"><div className="flex justify-center"><ActiveBadge value={r.is_active} /></div></td>
+                <td className="px-4 py-2.5"><div className="flex justify-center"><ActiveBadge active={r.is_active} /></div></td>
                 <td className="px-4 py-2.5">
                   <div className="flex justify-center">
                     {r.is_system ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-blue-200">
+                      <span className="inline-flex items-center gap-1 text-sm font-medium text-blue-700">
                         <Shield className="h-3 w-3" /> Hệ thống
                       </span>
                     ) : <span className="text-muted-foreground">—</span>}
@@ -373,13 +358,13 @@ function ExportTypesSection() {
         <table className="w-full">
           <thead>
             <tr className="border-b border-border bg-muted/40">
-              <th className="w-10 px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">#</th>
-              <th className="w-40 px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Mã key</th>
-              <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Tên hiển thị</th>
-              <th className="w-32 px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Cần đối tác</th>
-              <th className="w-28 px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground">Cần báo giá</th>
-              <th className="w-32 px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground">Trạng thái</th>
-              <th className="w-24 px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground">Hệ thống</th>
+              <th className="w-10 px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">#</th>
+              <th className="w-40 px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Mã key</th>
+              <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Tên hiển thị</th>
+              <th className="w-32 px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Cần đối tác</th>
+              <th className="w-28 px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground">Cần báo giá</th>
+              <th className="w-32 px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground">Trạng thái</th>
+              <th className="w-24 px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground">Hệ thống</th>
               <th className="w-12 px-4 py-2.5" />
             </tr>
           </thead>
@@ -395,11 +380,11 @@ function ExportTypesSection() {
                 <td className="px-4 py-2.5 font-medium text-foreground">{r.label}</td>
                 <td className="px-4 py-2.5 text-foreground">{REQUIRES_COMPANY_OPTS.find(o => o.value === r.requires_company)?.label ?? r.requires_company}</td>
                 <td className="px-4 py-2.5"><div className="flex justify-center"><YesNoBadge value={r.requires_quotation} /></div></td>
-                <td className="px-4 py-2.5"><div className="flex justify-center"><ActiveBadge value={r.is_active} /></div></td>
+                <td className="px-4 py-2.5"><div className="flex justify-center"><ActiveBadge active={r.is_active} /></div></td>
                 <td className="px-4 py-2.5">
                   <div className="flex justify-center">
                     {r.is_system ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-blue-200">
+                      <span className="inline-flex items-center gap-1 text-sm font-medium text-blue-700">
                         <Shield className="h-3 w-3" /> Hệ thống
                       </span>
                     ) : <span className="text-muted-foreground">—</span>}
@@ -526,7 +511,7 @@ export default function SettingsTypesPage() {
   return (
     <div className="flex flex-col gap-10">
       <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Loại nhập / xuất kho</h1>
+        <h1 className="font-serif text-2xl font-semibold tracking-tight">Loại nhập / xuất kho</h1>
         <p className="text-sm text-muted-foreground">Cấu hình các loại phiếu nhập và xuất kho trong hệ thống</p>
       </div>
       <ImportTypesSection />

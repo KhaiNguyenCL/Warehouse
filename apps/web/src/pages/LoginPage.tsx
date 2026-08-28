@@ -31,7 +31,7 @@ export default function LoginPage() {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      background: '#f1f5f9',
+      background: 'var(--bg-subtle)',
     }}>
       <div style={{
         width: '100%',
@@ -47,16 +47,16 @@ export default function LoginPage() {
         {/* Card */}
         <div style={{
           width: '100%',
-          background: '#fff',
+          background: 'var(--bg-card)',
           borderRadius: 16,
-          border: '1px solid #e2e8f0',
-          boxShadow: '0 4px 24px rgba(0,0,0,0.07)',
+          border: '1px solid var(--border)',
+          boxShadow: 'var(--shadow-md)',
           padding: '36px 40px',
         }}>
-          <h2 style={{ fontSize: 22, fontWeight: 700, color: '#0f172a', margin: '0 0 4px', textAlign: 'center' }}>
+          <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 22, fontWeight: 600, color: 'var(--text-1)', margin: '0 0 4px', textAlign: 'center' }}>
             Đăng nhập
           </h2>
-          <p style={{ fontSize: 14, color: '#64748b', margin: '0 0 28px', textAlign: 'center' }}>
+          <p style={{ fontSize: 14, color: 'var(--text-2)', margin: '0 0 28px', textAlign: 'center' }}>
             Warehouse Management System
           </p>
 
@@ -67,7 +67,7 @@ export default function LoginPage() {
               rules={[{ required: true, message: 'Nhập email' }, { type: 'email', message: 'Email không hợp lệ' }]}
             >
               <Input
-                prefix={<MailOutlined style={{ color: '#94a3b8' }} />}
+                prefix={<MailOutlined style={{ color: 'var(--text-3)' }} />}
                 placeholder="admin@wms.local"
                 size="large"
                 style={{ borderRadius: 8 }}
@@ -81,7 +81,7 @@ export default function LoginPage() {
               style={{ marginBottom: 24 }}
             >
               <Input.Password
-                prefix={<LockOutlined style={{ color: '#94a3b8' }} />}
+                prefix={<LockOutlined style={{ color: 'var(--text-3)' }} />}
                 placeholder="••••••••"
                 size="large"
                 style={{ borderRadius: 8 }}
@@ -101,7 +101,7 @@ export default function LoginPage() {
           </Form>
         </div>
 
-        <p style={{ color: '#94a3b8', fontSize: 12, margin: 0 }}>
+        <p style={{ color: 'var(--text-3)', fontSize: 12, margin: 0 }}>
           © 2025 DNS Technology Invest Co., Ltd
         </p>
       </div>

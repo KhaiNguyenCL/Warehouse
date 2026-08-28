@@ -58,7 +58,7 @@ export default function RolePermissionsPanel({ roleId }: Props) {
       <div className="space-y-0">
         {groups.map(([group, perms], idx) => (
           <div key={group}>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <p className="mb-2 text-xs font-semibold text-muted-foreground">
               {group}
             </p>
             <div className="grid grid-cols-3 gap-x-4 gap-y-2 pb-4">

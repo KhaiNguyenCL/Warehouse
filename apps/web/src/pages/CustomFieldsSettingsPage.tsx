@@ -23,6 +23,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { cn } from '@/lib/utils'
+import { ActiveBadge } from '@/components/ui/ActiveBadge'
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -52,20 +53,6 @@ const ATTR_FIELD_TYPES = [
   { value: 'date',    label: 'Ngày' },
 ]
 
-// ── Shared helpers ───────────────────────────────────────────────────────────
-
-function ActiveBadge({ value }: { value: boolean }) {
-  return (
-    <span className={cn(
-      'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium',
-      value ? 'bg-emerald-100 text-emerald-800 ring-1 ring-emerald-300'
-            : 'bg-red-100 text-red-700 ring-1 ring-red-200',
-    )}>
-      <span className={cn('h-1.5 w-1.5 rounded-full', value ? 'bg-emerald-500' : 'bg-red-500')} />
-      {value ? 'Hoạt động' : 'Ngừng'}
-    </span>
-  )
-}
 
 // ── Tab 1: Thuộc tính SKU ────────────────────────────────────────────────────
 
@@ -167,11 +154,11 @@ function VariantAttributesTab() {
         <table className="w-full">
           <thead>
             <tr className="border-b border-border bg-muted/40">
-              <th className="w-10 px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">#</th>
-              <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Tên thuộc tính</th>
-              <th className="w-28 px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Loại</th>
-              <th className="w-20 px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Đơn vị</th>
-              <th className="w-32 px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground">Trạng thái</th>
+              <th className="w-10 px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">#</th>
+              <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Tên thuộc tính</th>
+              <th className="w-28 px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Loại</th>
+              <th className="w-20 px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Đơn vị</th>
+              <th className="w-32 px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground">Trạng thái</th>
               <th className="w-16 px-4 py-2.5" />
             </tr>
           </thead>
@@ -186,7 +173,7 @@ function VariantAttributesTab() {
                 <td className="px-4 py-2.5 font-medium text-foreground">{r.name}</td>
                 <td className="px-4 py-2.5 text-foreground">{ATTR_TYPE_LABELS[r.field_type] ?? r.field_type}</td>
                 <td className="px-4 py-2.5 text-foreground">{r.unit ?? <span className="text-muted-foreground">—</span>}</td>
-                <td className="px-4 py-2.5"><div className="flex justify-center"><ActiveBadge value={r.is_active} /></div></td>
+                <td className="px-4 py-2.5"><div className="flex justify-center"><ActiveBadge active={r.is_active} /></div></td>
                 <td className="px-4 py-2.5">
                   <div className="flex items-center justify-end gap-1 opacity-0 transition-opacity group-hover/row:opacity-100">
                     <button onClick={(e) => { e.stopPropagation(); openEdit(r) }} className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors">
@@ -450,12 +437,12 @@ function CustomFieldsTab() {
         <table className="w-full">
           <thead>
             <tr className="border-b border-border bg-muted/40">
-              <th className="w-10 px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">#</th>
-              <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Tên trường</th>
-              <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Nhãn hiển thị</th>
-              <th className="w-24 px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Loại</th>
-              <th className="w-16 px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground">Thứ tự</th>
-              <th className="w-32 px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground">Trạng thái</th>
+              <th className="w-10 px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">#</th>
+              <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Tên trường</th>
+              <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Nhãn hiển thị</th>
+              <th className="w-24 px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Loại</th>
+              <th className="w-16 px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground">Thứ tự</th>
+              <th className="w-32 px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground">Trạng thái</th>
               <th className="w-16 px-4 py-2.5" />
             </tr>
           </thead>
@@ -471,7 +458,7 @@ function CustomFieldsTab() {
                 <td className="px-4 py-2.5 font-medium text-foreground">{r.field_label}</td>
                 <td className="px-4 py-2.5 text-foreground">{FIELD_TYPE_LABELS[r.field_type] ?? r.field_type}</td>
                 <td className="px-4 py-2.5 text-center text-foreground">{r.sort_order}</td>
-                <td className="px-4 py-2.5"><div className="flex justify-center"><ActiveBadge value={r.is_active} /></div></td>
+                <td className="px-4 py-2.5"><div className="flex justify-center"><ActiveBadge active={r.is_active} /></div></td>
                 <td className="px-4 py-2.5">
                   <div className="flex items-center justify-end gap-1 opacity-0 transition-opacity group-hover/row:opacity-100">
                     <button onClick={(e) => { e.stopPropagation(); openEditField(r) }} className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors">
@@ -621,7 +608,7 @@ export default function CustomFieldsSettingsPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Trường tùy chỉnh</h1>
+        <h1 className="font-serif text-2xl font-semibold tracking-tight">Trường tùy chỉnh</h1>
         <p className="mt-0.5 text-sm text-muted-foreground">Quản lý thuộc tính SKU và các trường bổ sung cho phiếu/đơn</p>
       </div>
       <Tabs defaultValue="attr">

@@ -70,7 +70,7 @@ export default function RolesPage() {
       {/* Page header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Vai trò & Phân quyền</h1>
+          <h1 className="font-serif text-2xl font-semibold tracking-tight">Vai trò & Phân quyền</h1>
           <p className="mt-0.5 text-sm text-muted-foreground">
             Quản lý vai trò và phân quyền cho từng nhóm người dùng
           </p>
@@ -86,10 +86,10 @@ export default function RolesPage() {
         <table className="w-full">
           <thead>
             <tr className="border-b border-border bg-muted/40">
-              <th className="w-12 px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">#</th>
-              <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Tên</th>
-              <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Mô tả</th>
-              <th className="w-40 px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground">Hệ thống</th>
+              <th className="w-12 px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">#</th>
+              <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Tên</th>
+              <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Mô tả</th>
+              <th className="w-40 px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground">Hệ thống</th>
               <th className="w-16 px-4 py-2.5" />
             </tr>
           </thead>
@@ -119,7 +119,7 @@ export default function RolesPage() {
                   <td className="px-4 py-2">
                     <div className="flex justify-center">
                       {r.is_system ? (
-                        <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-blue-200">
+                        <span className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-700">
                           <Shield className="h-3 w-3" />
                           Hệ thống
                         </span>
