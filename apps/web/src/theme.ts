@@ -23,6 +23,10 @@ export const antdTheme: ThemeConfig = {
     colorTextSecondary:    '#57534e',
     colorTextTertiary:     '#a8a29e',
     colorTextQuaternary:   '#ddd6cc',
+    // AntD mặc định colorTextDisabled rất mờ (rgba(0,0,0,.25)) — dùng cho pattern
+    // "form luôn hiện input, disable khi ở chế độ xem" nên cần đủ tương phản để đọc.
+    colorTextDisabled:        '#57534e',
+    colorBgContainerDisabled: '#f2efe9',
 
     borderRadius:     6,
     borderRadiusSM:   4,
