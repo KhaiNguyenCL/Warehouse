@@ -37,6 +37,7 @@ import { ColumnToggle, useColumnVisibility } from '@/components/ui/ColumnToggle'
 import { cn } from '@/lib/utils'
 import { CodeText } from '@/components/ui/CodeText'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
+import { ImageUpload } from '../components/ImageUpload'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -88,6 +89,7 @@ const skuSchema = z.object({
   reorder_point:   intOpt,
   weight_kg:       numOpt,
   is_active:       z.boolean().optional(),
+  image_url:       z.string().optional(),
 })
 type SkuForm = z.infer<typeof skuSchema>
 
@@ -434,7 +436,7 @@ export default function ProductDetailPage() {
       cost_price: '', sale_price: '', vat_percent: '',
       model: '', part_number: '',
       warranty_months: '', reorder_point: '', weight_kg: '',
-      is_active: true,
+      is_active: true, image_url: '',
     },
   })
 
@@ -496,6 +498,7 @@ export default function ProductDetailPage() {
       if (values.warranty_months !== '' && values.warranty_months != null) body.warranty_months = Number(values.warranty_months)
       if (values.reorder_point   !== '' && values.reorder_point   != null) body.reorder_point   = Number(values.reorder_point)
       if (values.weight_kg       !== '' && values.weight_kg       != null) body.weight_kg       = Number(values.weight_kg)
+      if (values.image_url       !== '' && values.image_url       != null) body.image_url       = values.image_url
       if (editingSku && values.is_active != null) body.is_active = values.is_active
       if (editingSku) return (await api.patch(`/products/${id}/variants/${editingSku.id}`, body)).data
       return (await api.post(`/products/${id}/variants`, body)).data
@@ -557,7 +560,7 @@ export default function ProductDetailPage() {
       item_code: product?.code ? `${product.code}-` : '',
       name: '', unit: '', cost_price: '', sale_price: '', vat_percent: '',
       model: '', part_number: '', warranty_months: '', reorder_point: '', weight_kg: '',
-      is_active: true,
+      is_active: true, image_url: '',
     })
     setSkuOpen(true)
   }
@@ -577,6 +580,7 @@ export default function ProductDetailPage() {
       reorder_point:   v.reorder_point   != null ? Number(v.reorder_point)   : '',
       weight_kg:       v.weight_kg       != null ? Number(v.weight_kg)       : '',
       is_active:       v.is_active ?? true,
+      image_url:       v.image_url ?? '',
     })
     setSkuOpen(true)
   }
@@ -824,7 +828,7 @@ export default function ProductDetailPage() {
 
       {/* SKU sheet */}
       <Sheet open={skuOpen} onOpenChange={(o) => !o && closeSkuSheet()}>
-        <SheetContent side="right" className="w-[560px] flex flex-col gap-0" showCloseButton={false}>
+        <SheetContent side="right" className="w-[840px] sm:max-w-[840px] flex flex-col gap-0" showCloseButton={false}>
         <div className="flex shrink-0 items-center justify-between border-b border-border px-5 py-4">
           <div>
             <h2 className="text-base font-semibold">{editingSku ? 'Sửa SKU' : 'Tạo SKU mới'}</h2>
@@ -838,7 +842,21 @@ export default function ProductDetailPage() {
         <Form {...skuForm}>
           <form onSubmit={skuForm.handleSubmit((v) => skuMutation.mutate(v))} className="flex min-h-0 flex-1 flex-col">
             <div className="flex-1 overflow-y-auto px-5 py-5">
-              <div className="flex flex-col gap-4">
+              <div className="flex gap-6">
+              <div className="w-[200px] shrink-0 flex flex-col gap-2">
+                <FormField control={skuForm.control} name="image_url" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-xs">Hình ảnh</FormLabel>
+                    <FormControl>
+                      <div className="product-image-upload aspect-square w-full">
+                        <ImageUpload value={field.value || undefined} onChange={(url) => field.onChange(url ?? '')} />
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+              </div>
+              <div className="flex min-w-0 flex-1 flex-col gap-4">
 
                 <FormField control={skuForm.control} name="item_code" render={({ field }) => (
                   <FormItem>
@@ -996,6 +1014,7 @@ export default function ProductDetailPage() {
                     </div>
                   </>
                 )}
+              </div>
               </div>
             </div>
 

@@ -211,6 +211,14 @@
   font-weight: 600 !important;
 }
 
+/* ImageUpload (picture-card) — co giãn theo wrapper thay vì kích thước cố định
+   104x104 mặc định của AntD, dùng ở form nào cần preview ảnh lớn hơn */
+.product-image-upload .ant-upload-wrapper,
+.product-image-upload .ant-upload-select {
+  width: 100% !important;
+  height: 100% !important;
+}
+
 /* ── Ant Design Form compact spacing ──────────────────────────────────────── */
 .ant-form-vertical .ant-form-item {
   margin-bottom: 12px;
