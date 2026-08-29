@@ -688,12 +688,12 @@ export default function ProductDetailPage() {
               </Field>
               <Field label="Mã dòng sản phẩm">
                 <AntForm.Item name="model_number" noStyle>
-                  <AntInput placeholder="VD: SG110" style={{ width: '100%' }} disabled={!isEditing} />
+                  <AntInput placeholder="VD: SG110" style={{ width: 200 }} disabled={!isEditing} />
                 </AntForm.Item>
               </Field>
               <Field label="Mã sản phẩm *">
                 <AntForm.Item name="code" noStyle rules={[{ required: true, message: 'Bắt buộc' }]}>
-                  <AntInput style={{ width: '100%' }} disabled={!isEditing} />
+                  <AntInput style={{ width: 200 }} disabled={!isEditing} />
                 </AntForm.Item>
               </Field>
               <Field label="Trạng thái">
