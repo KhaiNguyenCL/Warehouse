@@ -125,17 +125,6 @@ function Field({ label, full, children }: { label: string; full?: boolean; child
   )
 }
 
-function InfoRow({ label, value, full, children }: {
-  label: string; value?: string | null; full?: boolean; children?: React.ReactNode
-}) {
-  return (
-    <div className={full ? 'col-span-2' : ''}>
-      <div className="text-xs font-semibold text-muted-foreground">{label}</div>
-      <div className="mt-0.5 text-sm text-foreground">{children ?? (value || '—')}</div>
-    </div>
-  )
-}
-
 // ─── CompanyCombobox ──────────────────────────────────────────────────────────
 
 function CompanyCombobox({ companies, value, onChange, placeholder = 'Chọn…', disabled = false }: {
@@ -520,8 +509,10 @@ export default function ProductDetailPage() {
 
   // ── Edit form setup ───────────────────────────────────────────────────────
 
+  // Form luôn hiển thị input (kể cả ở chế độ xem, disabled) nên phải đồng bộ
+  // giá trị mỗi khi product thay đổi — không chỉ lúc bấm Sửa.
   useEffect(() => {
-    if (product && isEditing) {
+    if (product) {
       editForm.setFieldsValue({
         category_id:  product.category_id,
         brand_id:     product.brand_id,
@@ -534,7 +525,24 @@ export default function ProductDetailPage() {
         is_active:    product.is_active ?? true,
       })
     }
-  }, [product?.id, isEditing])
+  }, [product, editForm])
+
+  function cancelProductEdit() {
+    if (product) {
+      editForm.setFieldsValue({
+        category_id:  product.category_id,
+        brand_id:     product.brand_id,
+        model_number: product.model_number,
+        code:         product.code,
+        name:         product.name,
+        name_en:      product.name_en,
+        product_type: product.product_type,
+        description:  product.description,
+        is_active:    product.is_active ?? true,
+      })
+    }
+    setIsEditing(false)
+  }
 
   async function saveProductEdit() {
     const values = await editForm.validateFields()
@@ -644,7 +652,7 @@ export default function ProductDetailPage() {
           <div className="flex shrink-0 items-center gap-2">
             {isEditing ? (
               <>
-                <Button variant="ghost" size="sm" onClick={() => setIsEditing(false)}>
+                <Button variant="ghost" size="sm" onClick={cancelProductEdit}>
                   <X className="mr-1.5 h-3.5 w-3.5" />Huỷ
                 </Button>
                 <Button size="sm" onClick={saveProductEdit} disabled={updateProduct.isPending}>
@@ -661,68 +669,57 @@ export default function ProductDetailPage() {
 
         {/* Card body */}
         <div className="px-5 py-5">
-          {isEditing ? (
-            <AntForm form={editForm} layout="vertical">
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '22px 28px' }}>
-                <Field label="Danh mục *">
-                  <AntForm.Item name="category_id" noStyle rules={[{ required: true, message: 'Bắt buộc' }]}>
-                    <TreeSelect treeData={categoryTree} showSearch treeNodeFilterProp="title" treeDefaultExpandAll style={{ width: '100%' }} allowClear />
+          <AntForm form={editForm} layout="vertical">
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '22px 28px' }}>
+              <Field label="Danh mục *">
+                <AntForm.Item name="category_id" noStyle rules={[{ required: true, message: 'Bắt buộc' }]}>
+                  <TreeSelect treeData={categoryTree} showSearch treeNodeFilterProp="title" treeDefaultExpandAll style={{ width: '100%' }} allowClear disabled={!isEditing} />
+                </AntForm.Item>
+              </Field>
+              <Field label="Hãng">
+                <AntForm.Item name="brand_id" noStyle>
+                  <AntSelect showSearch optionFilterProp="label" options={(brands ?? []).map((b: any) => ({ value: b.id, label: b.name }))} allowClear style={{ width: '100%' }} disabled={!isEditing} />
+                </AntForm.Item>
+              </Field>
+              <Field label="Loại sản phẩm *">
+                <AntForm.Item name="product_type" noStyle rules={[{ required: true, message: 'Bắt buộc' }]}>
+                  <AntSelect options={PRODUCT_TYPES} style={{ width: '100%' }} disabled={!isEditing} />
+                </AntForm.Item>
+              </Field>
+              <Field label="Mã dòng sản phẩm">
+                <AntForm.Item name="model_number" noStyle>
+                  <AntInput placeholder="VD: SG110" style={{ width: '100%' }} disabled={!isEditing} />
+                </AntForm.Item>
+              </Field>
+              <Field label="Mã sản phẩm *">
+                <AntForm.Item name="code" noStyle rules={[{ required: true, message: 'Bắt buộc' }]}>
+                  <AntInput style={{ width: '100%' }} disabled={!isEditing} />
+                </AntForm.Item>
+              </Field>
+              <Field label="Trạng thái">
+                <div style={{ paddingTop: 4 }}>
+                  <AntForm.Item name="is_active" noStyle valuePropName="checked">
+                    <AntSwitch checkedChildren="Active" unCheckedChildren="Inactive" disabled={!isEditing} />
                   </AntForm.Item>
-                </Field>
-                <Field label="Hãng">
-                  <AntForm.Item name="brand_id" noStyle>
-                    <AntSelect showSearch optionFilterProp="label" options={(brands ?? []).map((b: any) => ({ value: b.id, label: b.name }))} allowClear style={{ width: '100%' }} />
-                  </AntForm.Item>
-                </Field>
-                <Field label="Loại sản phẩm *">
-                  <AntForm.Item name="product_type" noStyle rules={[{ required: true, message: 'Bắt buộc' }]}>
-                    <AntSelect options={PRODUCT_TYPES} style={{ width: '100%' }} />
-                  </AntForm.Item>
-                </Field>
-                <Field label="Mã dòng sản phẩm">
-                  <AntForm.Item name="model_number" noStyle>
-                    <AntInput placeholder="VD: SG110" style={{ width: '100%' }} />
-                  </AntForm.Item>
-                </Field>
-                <Field label="Mã sản phẩm *">
-                  <AntForm.Item name="code" noStyle rules={[{ required: true, message: 'Bắt buộc' }]}>
-                    <AntInput style={{ width: '100%' }} />
-                  </AntForm.Item>
-                </Field>
-                <Field label="Trạng thái">
-                  <div style={{ paddingTop: 4 }}>
-                    <AntForm.Item name="is_active" noStyle valuePropName="checked">
-                      <AntSwitch checkedChildren="Active" unCheckedChildren="Inactive" />
-                    </AntForm.Item>
-                  </div>
-                </Field>
-                <Field label="Tên *" full>
-                  <AntForm.Item name="name" noStyle rules={[{ required: true, message: 'Bắt buộc' }]}>
-                    <AntInput style={{ width: '100%' }} />
-                  </AntForm.Item>
-                </Field>
-                <Field label="Tên (English)" full>
-                  <AntForm.Item name="name_en" noStyle>
-                    <AntInput style={{ width: '100%' }} />
-                  </AntForm.Item>
-                </Field>
-                <Field label="Mô tả" full>
-                  <AntForm.Item name="description" noStyle>
-                    <AntInput.TextArea rows={3} style={{ width: '100%' }} />
-                  </AntForm.Item>
-                </Field>
-              </div>
-            </AntForm>
-          ) : (
-            <div className="grid grid-cols-2 gap-x-8 gap-y-4">
-              <InfoRow label="Danh mục" value={product.category_name} />
-              <InfoRow label="Hãng"     value={product.brand_name} />
-              <InfoRow label="Loại SP"  value={TYPE_LABEL[product.product_type] ?? product.product_type} />
-              <InfoRow label="Mã dòng SP" value={product.model_number} />
-              {product.name_en && <InfoRow label="Tên (English)" value={product.name_en} />}
-              {product.description && <InfoRow label="Mô tả" value={product.description} full />}
+                </div>
+              </Field>
+              <Field label="Tên *" full>
+                <AntForm.Item name="name" noStyle rules={[{ required: true, message: 'Bắt buộc' }]}>
+                  <AntInput style={{ width: '100%' }} disabled={!isEditing} />
+                </AntForm.Item>
+              </Field>
+              <Field label="Tên (English)" full>
+                <AntForm.Item name="name_en" noStyle>
+                  <AntInput style={{ width: '100%' }} disabled={!isEditing} />
+                </AntForm.Item>
+              </Field>
+              <Field label="Mô tả" full>
+                <AntForm.Item name="description" noStyle>
+                  <AntInput.TextArea rows={3} style={{ width: '100%' }} disabled={!isEditing} />
+                </AntForm.Item>
+              </Field>
             </div>
-          )}
+          </AntForm>
         </div>
       </div>
 
