@@ -33,7 +33,7 @@ function SectionCard({ title, children }: { title: string; children: React.React
       boxShadow: 'var(--shadow-sm)',
       overflow: 'hidden',
     }}>
-      <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)', fontSize: 15, fontWeight: 700, color: 'var(--text-1)' }}>
+      <div style={{ padding: '12px 16px', background: 'var(--bg-subtle)', borderBottom: '1px solid var(--border)', fontSize: 15, fontWeight: 700, color: 'var(--text-1)' }}>
         {title}
       </div>
       <div style={{ padding: 16 }}>{children}</div>
