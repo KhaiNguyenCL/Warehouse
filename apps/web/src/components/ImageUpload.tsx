@@ -6,11 +6,12 @@ import { api } from '../lib/api'
 interface Props {
   value?: string
   onChange?: (url: string | undefined) => void
+  disabled?: boolean
 }
 
 // ImageUpload — dùng trong Form.Item, trả về URL ảnh sau khi upload thành công.
 // Hiển thị preview ảnh khi đã có URL; click vào để đổi ảnh khác.
-export function ImageUpload({ value, onChange }: Props) {
+export function ImageUpload({ value, onChange, disabled }: Props) {
   const [loading, setLoading] = useState(false)
 
   async function handleUpload(file: File) {
@@ -39,6 +40,7 @@ export function ImageUpload({ value, onChange }: Props) {
       showUploadList={false}
       accept="image/jpeg,image/png,image/webp,image/gif"
       beforeUpload={handleUpload}
+      disabled={disabled}
     >
       {loading ? (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, color: 'var(--text-3)' }}>

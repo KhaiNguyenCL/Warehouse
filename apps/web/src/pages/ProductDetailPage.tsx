@@ -1,38 +1,28 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import {
   Form as AntForm, Input as AntInput, Select as AntSelect,
-  TreeSelect, Switch as AntSwitch, InputNumber, message,
+  TreeSelect, Switch as AntSwitch, InputNumber,
 } from 'antd'
 import {
-  ArrowLeft, Plus, Pencil, Trash2, X, ChevronRight,
-  Layers, Star, ChevronsUpDown, Package,
+  ArrowLeft, Plus, Pencil, X, ChevronRight,
+  Layers, Package,
 } from 'lucide-react'
 import { api } from '../lib/api'
 import { useApiMutation } from '../hooks/useApiMutation'
 import { moneyProps } from '../lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Switch } from '@/components/ui/switch'
 import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from '@/components/ui/form'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
-import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel,
-  AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
-  AlertDialogHeader, AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import {
-  Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
-} from '@/components/ui/command'
 import { ColumnToggle, useColumnVisibility } from '@/components/ui/ColumnToggle'
 import { cn } from '@/lib/utils'
 import { CodeText } from '@/components/ui/CodeText'
@@ -127,294 +117,6 @@ function Field({ label, full, children }: { label: string; full?: boolean; child
   )
 }
 
-// ─── CompanyCombobox ──────────────────────────────────────────────────────────
-
-function CompanyCombobox({ companies, value, onChange, placeholder = 'Chọn…', disabled = false }: {
-  companies: any[]; value: string; onChange: (v: string) => void; placeholder?: string; disabled?: boolean
-}) {
-  const [open, setOpen] = useState(false)
-  const selected = companies.find((c) => c.id === value)
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <button type="button" disabled={disabled}
-          className={cn(
-            'flex h-9 w-full items-center justify-between rounded-lg border border-input bg-background px-3 text-sm transition-[border-color] outline-none',
-            'hover:border-primary focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40',
-            'disabled:cursor-not-allowed disabled:opacity-50',
-          )}
-        >
-          <span className={cn('truncate', !selected && 'text-muted-foreground')}>
-            {selected ? selected.name : placeholder}
-          </span>
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 text-muted-foreground" />
-        </button>
-      </PopoverTrigger>
-      <PopoverContent align="start" sideOffset={4} style={{ width: 'var(--radix-popover-trigger-width)' }} className="gap-0 p-0">
-        <Command>
-          <CommandInput placeholder="Tìm…" />
-          <CommandList>
-            <CommandEmpty>Không tìm thấy.</CommandEmpty>
-            <CommandGroup>
-              {companies.map((c) => (
-                <CommandItem key={c.id} value={c.name} data-checked={c.id === value}
-                  onSelect={() => { onChange(c.id); setOpen(false) }}>
-                  {c.name}
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
-  )
-}
-
-// ─── VariantSuppliersPanel ────────────────────────────────────────────────────
-
-const SUPPLIER_DRAFT_DEFAULT = { company_id: '', supplier_sku: '', supplier_price: '', lead_time_days: '', is_preferred: false }
-
-function VariantSuppliersPanel({ productId, variantId, supplierCompanies }: {
-  productId: string; variantId: string; supplierCompanies: any[]
-}) {
-  const qc = useQueryClient()
-  const [formOpen, setFormOpen]   = useState(false)
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [draft, setDraft]         = useState(SUPPLIER_DRAFT_DEFAULT)
-  const [deleteId, setDeleteId]   = useState<string | null>(null)
-
-  const { data: suppliers = [], isLoading } = useQuery({
-    queryKey: ['variant-suppliers', variantId],
-    queryFn:  () => api.get(`/products/${productId}/variants/${variantId}/suppliers`).then(r => r.data),
-  })
-
-  const addMutation = useMutation({
-    mutationFn: (body: any) => api.post(`/products/${productId}/variants/${variantId}/suppliers`, body),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['variant-suppliers', variantId] }); setFormOpen(false); message.success('Đã thêm nhà cung cấp') },
-    onError: (e: any) => message.error(e.response?.data?.message ?? 'Lỗi khi thêm NCC'),
-  })
-  const updateMutation = useMutation({
-    mutationFn: ({ id, ...body }: any) => api.patch(`/products/${productId}/variants/${variantId}/suppliers/${id}`, body),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['variant-suppliers', variantId] }); setFormOpen(false); message.success('Đã cập nhật') },
-    onError: (e: any) => message.error(e.response?.data?.message ?? 'Lỗi'),
-  })
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => api.delete(`/products/${productId}/variants/${variantId}/suppliers/${id}`),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['variant-suppliers', variantId] }); setDeleteId(null); message.success('Đã xoá nhà cung cấp') },
-    onError: (e: any) => message.error(e.response?.data?.message ?? 'Lỗi'),
-  })
-
-  function openAdd() { setEditingId(null); setDraft(SUPPLIER_DRAFT_DEFAULT); setFormOpen(true) }
-  function openEdit(s: any) {
-    setEditingId(s.id)
-    setDraft({ company_id: s.company_id, supplier_sku: s.supplier_sku ?? '', supplier_price: s.supplier_price != null ? String(s.supplier_price) : '', lead_time_days: s.lead_time_days != null ? String(s.lead_time_days) : '', is_preferred: s.is_preferred ?? false })
-    setFormOpen(true)
-  }
-  function handleSave() {
-    const body: any = { is_preferred: draft.is_preferred }
-    if (draft.supplier_sku.trim())   body.supplier_sku   = draft.supplier_sku.trim()
-    if (draft.supplier_price !== '') body.supplier_price = Number(draft.supplier_price)
-    if (draft.lead_time_days !== '') body.lead_time_days = Number(draft.lead_time_days)
-    if (editingId) { updateMutation.mutate({ id: editingId, ...body }) }
-    else { if (!draft.company_id) { message.warning('Chọn nhà cung cấp'); return }; addMutation.mutate({ company_id: draft.company_id, ...body }) }
-  }
-  const isPending = addMutation.isPending || updateMutation.isPending
-
-  return (
-    <div className="flex flex-col gap-2">
-      {isLoading ? (
-        <div className="text-xs text-muted-foreground">Đang tải…</div>
-      ) : (suppliers as any[]).length > 0 ? (
-        <div className="flex flex-col divide-y divide-border overflow-hidden rounded-lg border border-border">
-          {(suppliers as any[]).map((s: any) => (
-            <div key={s.id} className="group/row flex items-center gap-2 px-3 py-2 hover:bg-muted/30 transition-colors">
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-1.5">
-                  {s.is_preferred && <Star className="h-3 w-3 shrink-0 fill-amber-400 text-amber-400" />}
-                  <span className="truncate text-sm font-medium">{s.company_name}</span>
-                </div>
-                <div className="mt-0.5 flex items-center gap-3 text-xs text-muted-foreground">
-                  {s.supplier_sku   && <span className="font-mono">{s.supplier_sku}</span>}
-                  {s.supplier_price != null && <span>{Number(s.supplier_price).toLocaleString('vi-VN')}đ</span>}
-                  {s.lead_time_days != null && <span>{s.lead_time_days} ngày</span>}
-                </div>
-              </div>
-              <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover/row:opacity-100">
-                <button onClick={() => openEdit(s)} className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"><Pencil className="h-3 w-3" /></button>
-                <button onClick={() => setDeleteId(s.id)} className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-red-50 hover:text-red-600 transition-colors"><Trash2 className="h-3 w-3" /></button>
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : !formOpen ? (
-        <p className="text-xs italic text-muted-foreground">Chưa có nhà cung cấp</p>
-      ) : null}
-
-      {formOpen && (
-        <div className="rounded-lg border border-border bg-muted/30 p-3">
-          <div className="flex flex-col gap-3">
-            <div className="flex flex-col gap-1.5">
-              <p className="text-xs font-medium">Nhà cung cấp <span className="text-destructive">*</span></p>
-              <CompanyCombobox companies={supplierCompanies} value={draft.company_id} onChange={(v) => setDraft(d => ({ ...d, company_id: v }))} placeholder="Chọn NCC…" disabled={!!editingId} />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <p className="text-xs font-medium">Mã SKU của NCC</p>
-              <Input placeholder="VD: CS-SG110-16" value={draft.supplier_sku} onChange={(e) => setDraft(d => ({ ...d, supplier_sku: e.target.value }))} className="h-9 text-sm" />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="flex flex-col gap-1.5">
-                <p className="text-xs font-medium">Giá NCC (VND)</p>
-                <InputNumber {...moneyProps} min={0} placeholder="0" value={draft.supplier_price !== '' ? Number(draft.supplier_price) : undefined} onChange={(val) => setDraft(d => ({ ...d, supplier_price: val != null ? String(val) : '' }))} />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <p className="text-xs font-medium">Lead time (ngày)</p>
-                <Input type="number" min={0} step={1} placeholder="0" value={draft.lead_time_days} onChange={(e) => setDraft(d => ({ ...d, lead_time_days: e.target.value }))} className="h-9 text-sm" />
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Switch id="sup-preferred" checked={draft.is_preferred} onCheckedChange={(v) => setDraft(d => ({ ...d, is_preferred: v }))} />
-              <label htmlFor="sup-preferred" className="cursor-pointer text-sm">NCC ưu tiên</label>
-            </div>
-            <div className="flex justify-end gap-2 pt-1">
-              <Button size="sm" variant="outline" type="button" onClick={() => setFormOpen(false)}>Huỷ</Button>
-              <Button size="sm" type="button" onClick={handleSave} disabled={isPending}>{isPending ? 'Đang lưu…' : editingId ? 'Cập nhật' : 'Thêm'}</Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {!formOpen && (
-        <button type="button" onClick={openAdd} className="flex w-fit items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors">
-          <Plus className="h-3 w-3" />Thêm nhà cung cấp
-        </button>
-      )}
-
-      <AlertDialog open={!!deleteId} onOpenChange={(o) => !o && setDeleteId(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader><AlertDialogTitle>Xoá nhà cung cấp?</AlertDialogTitle><AlertDialogDescription>Không thể hoàn tác.</AlertDialogDescription></AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Huỷ</AlertDialogCancel>
-            <AlertDialogAction className="bg-red-600 hover:bg-red-700" onClick={() => deleteId && deleteMutation.mutate(deleteId)}>Xoá</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </div>
-  )
-}
-
-// ─── VariantCustomerPricesPanel ───────────────────────────────────────────────
-
-const PRICE_DRAFT_DEFAULT = { company_id: '', price: '', note: '' }
-
-function VariantCustomerPricesPanel({ productId, variantId, customerCompanies }: {
-  productId: string; variantId: string; customerCompanies: any[]
-}) {
-  const qc = useQueryClient()
-  const [formOpen, setFormOpen]   = useState(false)
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [draft, setDraft]         = useState(PRICE_DRAFT_DEFAULT)
-  const [deleteId, setDeleteId]   = useState<string | null>(null)
-
-  const { data: prices = [], isLoading } = useQuery({
-    queryKey: ['variant-customer-prices', variantId],
-    queryFn:  () => api.get(`/products/${productId}/variants/${variantId}/customer-prices`).then(r => r.data),
-  })
-
-  const addMutation = useMutation({
-    mutationFn: (body: any) => api.post(`/products/${productId}/variants/${variantId}/customer-prices`, body),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['variant-customer-prices', variantId] }); setFormOpen(false); message.success('Đã thêm giá khách hàng') },
-    onError: (e: any) => message.error(e.response?.data?.message ?? 'Lỗi khi thêm giá'),
-  })
-  const updateMutation = useMutation({
-    mutationFn: ({ id, ...body }: any) => api.patch(`/products/${productId}/variants/${variantId}/customer-prices/${id}`, body),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['variant-customer-prices', variantId] }); setFormOpen(false); message.success('Đã cập nhật') },
-    onError: (e: any) => message.error(e.response?.data?.message ?? 'Lỗi'),
-  })
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => api.delete(`/products/${productId}/variants/${variantId}/customer-prices/${id}`),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['variant-customer-prices', variantId] }); setDeleteId(null); message.success('Đã xoá') },
-    onError: (e: any) => message.error(e.response?.data?.message ?? 'Lỗi'),
-  })
-
-  function openAdd() { setEditingId(null); setDraft(PRICE_DRAFT_DEFAULT); setFormOpen(true) }
-  function openEdit(p: any) { setEditingId(p.id); setDraft({ company_id: p.company_id, price: p.price != null ? String(p.price) : '', note: p.note ?? '' }); setFormOpen(true) }
-  function handleSave() {
-    if (!draft.price) { message.warning('Nhập giá'); return }
-    const body: any = { price: Number(draft.price) }
-    if (draft.note.trim()) body.note = draft.note.trim()
-    if (editingId) { updateMutation.mutate({ id: editingId, ...body }) }
-    else { if (!draft.company_id) { message.warning('Chọn khách hàng'); return }; addMutation.mutate({ company_id: draft.company_id, ...body }) }
-  }
-  const isPending = addMutation.isPending || updateMutation.isPending
-
-  return (
-    <div className="flex flex-col gap-2">
-      {isLoading ? (
-        <div className="text-xs text-muted-foreground">Đang tải…</div>
-      ) : (prices as any[]).length > 0 ? (
-        <div className="flex flex-col divide-y divide-border overflow-hidden rounded-lg border border-border">
-          {(prices as any[]).map((p: any) => (
-            <div key={p.id} className="group/row flex items-center gap-2 px-3 py-2 hover:bg-muted/30 transition-colors">
-              <div className="min-w-0 flex-1">
-                <span className="truncate text-sm font-medium">{p.company_name}</span>
-                <div className="mt-0.5 flex items-center gap-3 text-xs text-muted-foreground">
-                  <span className="font-medium text-foreground">{Number(p.price).toLocaleString('vi-VN')}đ</span>
-                  {p.note && <span className="truncate">{p.note}</span>}
-                </div>
-              </div>
-              <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover/row:opacity-100">
-                <button onClick={() => openEdit(p)} className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"><Pencil className="h-3 w-3" /></button>
-                <button onClick={() => setDeleteId(p.id)} className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-red-50 hover:text-red-600 transition-colors"><Trash2 className="h-3 w-3" /></button>
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : !formOpen ? (
-        <p className="text-xs italic text-muted-foreground">Chưa có giá theo khách hàng</p>
-      ) : null}
-
-      {formOpen && (
-        <div className="rounded-lg border border-border bg-muted/30 p-3">
-          <div className="flex flex-col gap-3">
-            <div className="flex flex-col gap-1.5">
-              <p className="text-xs font-medium">Khách hàng <span className="text-destructive">*</span></p>
-              <CompanyCombobox companies={customerCompanies} value={draft.company_id} onChange={(v) => setDraft(d => ({ ...d, company_id: v }))} placeholder="Chọn khách hàng…" disabled={!!editingId} />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <p className="text-xs font-medium">Giá (VND) <span className="text-destructive">*</span></p>
-              <InputNumber {...moneyProps} min={0} placeholder="0" value={draft.price !== '' ? Number(draft.price) : undefined} onChange={(val) => setDraft(d => ({ ...d, price: val != null ? String(val) : '' }))} />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <p className="text-xs font-medium">Ghi chú</p>
-              <Input placeholder="VD: Giá hợp đồng Q1" value={draft.note} onChange={(e) => setDraft(d => ({ ...d, note: e.target.value }))} className="h-9 text-sm" />
-            </div>
-            <div className="flex justify-end gap-2 pt-1">
-              <Button size="sm" variant="outline" type="button" onClick={() => setFormOpen(false)}>Huỷ</Button>
-              <Button size="sm" type="button" onClick={handleSave} disabled={isPending}>{isPending ? 'Đang lưu…' : editingId ? 'Cập nhật' : 'Thêm'}</Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {!formOpen && (
-        <button type="button" onClick={openAdd} className="flex w-fit items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors">
-          <Plus className="h-3 w-3" />Thêm giá khách hàng
-        </button>
-      )}
-
-      <AlertDialog open={!!deleteId} onOpenChange={(o) => !o && setDeleteId(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader><AlertDialogTitle>Xoá giá khách hàng?</AlertDialogTitle><AlertDialogDescription>Không thể hoàn tác.</AlertDialogDescription></AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Huỷ</AlertDialogCancel>
-            <AlertDialogAction className="bg-red-600 hover:bg-red-700" onClick={() => deleteId && deleteMutation.mutate(deleteId)}>Xoá</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </div>
-  )
-}
-
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function ProductDetailPage() {
@@ -424,7 +126,6 @@ export default function ProductDetailPage() {
 
   const [isEditing, setIsEditing] = useState(false)
   const [skuOpen, setSkuOpen]     = useState(false)
-  const [editingSku, setEditingSku] = useState<any | null>(null)
 
   const skuCols = useColumnVisibility('products-sku', SKU_COLUMNS)
   const [editForm] = AntForm.useForm()
@@ -463,21 +164,6 @@ export default function ProductDetailPage() {
     queryFn: async () => (await api.get('/products/brands')).data,
   })
 
-  const { data: suppliersListData } = useQuery({
-    queryKey: ['companies', 'supplier', 100],
-    queryFn: async () => (await api.get('/companies', { params: { type: 'supplier', limit: 100 } })).data,
-    staleTime: 60_000,
-    enabled: !!editingSku,
-  })
-  const { data: customersListData } = useQuery({
-    queryKey: ['companies', 'customer', 100],
-    queryFn: async () => (await api.get('/companies', { params: { type: 'customer', limit: 100 } })).data,
-    staleTime: 60_000,
-    enabled: !!editingSku,
-  })
-  const supplierCompanies: any[] = suppliersListData?.data ?? []
-  const customerCompanies: any[] = customersListData?.data ?? []
-
   // ── Mutations ─────────────────────────────────────────────────────────────
 
   const updateProduct = useApiMutation((values: any) => api.patch(`/products/${id}`, values), {
@@ -499,12 +185,10 @@ export default function ProductDetailPage() {
       if (values.reorder_point   !== '' && values.reorder_point   != null) body.reorder_point   = Number(values.reorder_point)
       if (values.weight_kg       !== '' && values.weight_kg       != null) body.weight_kg       = Number(values.weight_kg)
       if (values.image_url       !== '' && values.image_url       != null) body.image_url       = values.image_url
-      if (editingSku && values.is_active != null) body.is_active = values.is_active
-      if (editingSku) return (await api.patch(`/products/${id}/variants/${editingSku.id}`, body)).data
       return (await api.post(`/products/${id}/variants`, body)).data
     },
     {
-      successMessage: editingSku ? 'Đã cập nhật SKU' : 'Đã tạo SKU',
+      successMessage: 'Đã tạo SKU',
       invalidateKey: [['product-detail', id], ['inventory-by-product', id]],
       onSuccess: () => closeSkuSheet(),
     },
@@ -555,32 +239,11 @@ export default function ProductDetailPage() {
   // ── SKU sheet helpers ─────────────────────────────────────────────────────
 
   function openCreateSku() {
-    setEditingSku(null)
     skuForm.reset({
       item_code: product?.code ? `${product.code}-` : '',
       name: '', unit: '', cost_price: '', sale_price: '', vat_percent: '',
       model: '', part_number: '', warranty_months: '', reorder_point: '', weight_kg: '',
       is_active: true, image_url: '',
-    })
-    setSkuOpen(true)
-  }
-
-  function openEditSku(v: any) {
-    setEditingSku(v)
-    skuForm.reset({
-      item_code:       v.item_code ?? v.sku ?? '',
-      name:            v.name ?? '',
-      unit:            v.unit ?? '',
-      cost_price:      v.cost_price      != null ? Number(v.cost_price)      : '',
-      sale_price:      v.sale_price      != null ? Number(v.sale_price)      : '',
-      vat_percent:     v.vat_percent     != null ? Number(v.vat_percent)     : '',
-      model:           v.model           ?? '',
-      part_number:     v.part_number     ?? '',
-      warranty_months: v.warranty_months != null ? Number(v.warranty_months) : '',
-      reorder_point:   v.reorder_point   != null ? Number(v.reorder_point)   : '',
-      weight_kg:       v.weight_kg       != null ? Number(v.weight_kg)       : '',
-      is_active:       v.is_active ?? true,
-      image_url:       v.image_url ?? '',
     })
     setSkuOpen(true)
   }
@@ -776,7 +439,7 @@ export default function ProductDetailPage() {
                   const qtyOnHand = v.qty_on_hand ?? 0
                   const qtyAvail  = v.qty_available ?? 0
                   return (
-                    <tr key={v.id} onClick={() => openEditSku(v)} className="group/row cursor-pointer transition-colors hover:bg-muted/30">
+                    <tr key={v.id} onClick={() => navigate(`/products/${id}/variants/${v.id}`)} className="group/row cursor-pointer transition-colors hover:bg-muted/30">
                       <td className="w-40 px-4 py-2.5">
                         <CodeText>{v.item_code || v.sku || '—'}</CodeText>
                       </td>
@@ -814,7 +477,7 @@ export default function ProductDetailPage() {
                       )}
                       <td className="px-2 py-2.5">
                         <div className="flex justify-end opacity-0 transition-opacity group-hover/row:opacity-100">
-                          <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
                         </div>
                       </td>
                     </tr>
@@ -831,7 +494,7 @@ export default function ProductDetailPage() {
         <SheetContent side="right" className="w-[840px] sm:max-w-[840px] flex flex-col gap-0" showCloseButton={false}>
         <div className="flex shrink-0 items-center justify-between border-b border-border px-5 py-4">
           <div>
-            <h2 className="text-base font-semibold">{editingSku ? 'Sửa SKU' : 'Tạo SKU mới'}</h2>
+            <h2 className="text-base font-semibold">Tạo SKU mới</h2>
             <p className="text-xs text-muted-foreground">{product.name}</p>
           </div>
           <button onClick={closeSkuSheet} className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors">
@@ -994,26 +657,6 @@ export default function ProductDetailPage() {
                 </div>
 
                 {/* Edit-only sections */}
-                {editingSku && (
-                  <>
-                    <FormField control={skuForm.control} name="is_active" render={({ field }) => (
-                      <FormItem className="flex items-center justify-between rounded-lg border border-border px-4 py-3">
-                        <FormLabel className="cursor-pointer text-sm font-normal">Đang hoạt động</FormLabel>
-                        <FormControl><Switch checked={field.value ?? true} onCheckedChange={field.onChange} /></FormControl>
-                      </FormItem>
-                    )} />
-
-                    <div className="rounded-lg bg-muted/40 p-4">
-                      <p className="mb-3 text-xs font-semibold text-muted-foreground">Nhà cung cấp</p>
-                      <VariantSuppliersPanel productId={id!} variantId={editingSku.id} supplierCompanies={supplierCompanies} />
-                    </div>
-
-                    <div className="rounded-lg bg-muted/40 p-4">
-                      <p className="mb-3 text-xs font-semibold text-muted-foreground">Giá theo khách hàng</p>
-                      <VariantCustomerPricesPanel productId={id!} variantId={editingSku.id} customerCompanies={customerCompanies} />
-                    </div>
-                  </>
-                )}
               </div>
               </div>
             </div>
@@ -1021,7 +664,7 @@ export default function ProductDetailPage() {
             <div className="flex shrink-0 items-center justify-end gap-2 border-t border-border px-5 py-4">
               <Button type="button" variant="outline" onClick={closeSkuSheet}>Huỷ</Button>
               <Button type="submit" disabled={skuMutation.isPending}>
-                {skuMutation.isPending ? 'Đang lưu…' : editingSku ? 'Lưu thay đổi' : 'Tạo SKU'}
+                {skuMutation.isPending ? 'Đang lưu…' : 'Tạo SKU'}
               </Button>
             </div>
           </form>

@@ -13,6 +13,7 @@ import CustomerPricesPanel from '../components/CustomerPricesPanel'
 import BundleItemsPanel from '../components/BundleItemsPanel'
 import CustomFieldsPanel from '../components/CustomFieldsPanel'
 import { moneyProps } from '../lib/utils'
+import { ImageUpload } from '../components/ImageUpload'
 
 const UNITS = ['Cái', 'Chiếc', 'Bộ', 'Hộp', 'Cuộn', 'Mét', 'Cổng', 'License', 'Gói', 'Dây', 'Lần', 'Giờ', 'Ngày']
 const CURRENCIES = [
@@ -84,27 +85,33 @@ export default function VariantDetailPage() {
 
   // Form luôn hiển thị input (kể cả ở chế độ xem, disabled) nên phải đồng bộ
   // giá trị mỗi khi variant thay đổi — không chỉ lúc bấm Sửa.
+  function syncFormFromVariant() {
+    if (!hook.variant) return
+    form.setFieldsValue({
+      item_code:       hook.variant.item_code,
+      name:            hook.variant.name,
+      model:           hook.variant.model,
+      part_number:     hook.variant.part_number,
+      unit:            hook.variant.unit,
+      cost_price:      hook.variant.cost_price ?? undefined,
+      sale_price:      hook.variant.sale_price ?? undefined,
+      currency:        hook.variant.currency ?? 'VND',
+      weight_kg:       hook.variant.weight_kg ?? undefined,
+      warranty_months: hook.variant.warranty_months ?? undefined,
+      reorder_point:   hook.variant.reorder_point ?? undefined,
+      is_active:       hook.variant.is_active ?? true,
+      image_url:       hook.variant.image_url ?? undefined,
+    })
+  }
+
   useEffect(() => {
-    if (hook.variant) {
-      form.setFieldsValue({
-        item_code:       hook.variant.item_code,
-        name:            hook.variant.name,
-        model:           hook.variant.model,
-        part_number:     hook.variant.part_number,
-        unit:            hook.variant.unit,
-        cost_price:      hook.variant.cost_price ?? undefined,
-        sale_price:      hook.variant.sale_price ?? undefined,
-        currency:        hook.variant.currency ?? 'VND',
-        weight_kg:       hook.variant.weight_kg ?? undefined,
-        warranty_months: hook.variant.warranty_months ?? undefined,
-        reorder_point:   hook.variant.reorder_point ?? undefined,
-        is_active:       hook.variant.is_active ?? true,
-      })
-    }
+    syncFormFromVariant()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hook.variant, form])
 
   function cancelEdit() {
     hook.buildAttrValues(hook.variant?.attribute_values ?? [])
+    syncFormFromVariant()
     setIsEditing(false)
   }
 
@@ -160,9 +167,22 @@ export default function VariantDetailPage() {
         }
       />
 
-      {/* ── Thông tin SKU ── */}
+      {/* ── Hình ảnh + Thông tin SKU ── */}
+      <Form form={form} layout="vertical" style={{ marginBottom: 0 }}>
+      <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+
+        <div style={{ width: 200, flexShrink: 0 }}>
+          <SectionCard title="Hình ảnh">
+            <div className="product-image-upload" style={{ aspectRatio: '1 / 1', width: '100%' }}>
+              <Form.Item name="image_url" noStyle>
+                <ImageUpload disabled={!isEditing} />
+              </Form.Item>
+            </div>
+          </SectionCard>
+        </div>
+
+        <div style={{ flex: 1, minWidth: 0 }}>
       <SectionCard title="Thông tin SKU">
-        <Form form={form} layout="vertical" style={{ marginBottom: 0 }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '14px 24px' }}>
 
             <Field label="SKU (hệ thống)">
@@ -242,9 +262,12 @@ export default function VariantDetailPage() {
             </Field>
 
           </div>
-        </Form>
         <CustomFieldsPanel objectType="variant" objectId={variantId!} inline />
       </SectionCard>
+        </div>
+
+      </div>
+      </Form>
 
       {/* ── Thuộc tính SKU ── */}
       {hook.attrValues.length > 0 && (
