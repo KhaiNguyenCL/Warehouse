@@ -418,7 +418,7 @@ export default function ProductsPage() {
                     skus.map((v: any, i) => (
                       <tr
                         key={v.id}
-                        onClick={() => navigate(`/products/${v.product_id}`)}
+                        onClick={() => navigate(`/products/${v.product_id}/variants/${v.id}`)}
                         className="cursor-pointer transition-colors hover:bg-muted/30"
                       >
                         <td className="px-4 py-2.5 text-center text-xs text-muted-foreground">{skuFrom + i}</td>
