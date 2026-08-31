@@ -310,7 +310,7 @@ export default function ReportsPage() {
             <span className="text-emerald-700/70">— Không có phiếu chờ duyệt, tồn kho đủ, báo giá hợp lệ.</span>
           </div>
         ) : (
-          <div className="overflow-hidden rounded-xl border border-border bg-background shadow-sm">
+          <div className="overflow-hidden rounded-xl border border-border-md bg-background shadow-sm">
             <div className="flex items-center gap-2 border-b border-border bg-muted/30 px-4 py-2.5">
               <AlertCircle className="h-3.5 w-3.5 text-amber-600" />
               <SectionTitle>Cần xử lý ngay</SectionTitle>
@@ -327,7 +327,7 @@ export default function ReportsPage() {
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
 
         {/* Pipeline — 3/5 */}
-        <div className="lg:col-span-3 overflow-hidden rounded-xl border border-border bg-background shadow-sm">
+        <div className="lg:col-span-3 overflow-hidden rounded-xl border border-border-md bg-background shadow-sm">
           <div className="flex items-center justify-between border-b border-border bg-muted/20 px-4 py-2.5">
             <SectionTitle>Pipeline bán hàng</SectionTitle>
             <button
@@ -406,7 +406,7 @@ export default function ReportsPage() {
         </div>
 
         {/* Inventory — 2/5 */}
-        <div className="lg:col-span-2 overflow-hidden rounded-xl border border-border bg-background shadow-sm">
+        <div className="lg:col-span-2 overflow-hidden rounded-xl border border-border-md bg-background shadow-sm">
           <div className="flex items-center justify-between border-b border-border bg-muted/20 px-4 py-2.5">
             <SectionTitle>Tình hình kho</SectionTitle>
             <Select
@@ -460,7 +460,7 @@ export default function ReportsPage() {
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
 
         {/* Category donut */}
-        <div className="overflow-hidden rounded-xl border border-border bg-background shadow-sm">
+        <div className="overflow-hidden rounded-xl border border-border-md bg-background shadow-sm">
           <div className="border-b border-border bg-muted/20 px-4 py-2.5">
             <SectionTitle>Phân bổ vốn theo danh mục</SectionTitle>
           </div>
@@ -508,7 +508,7 @@ export default function ReportsPage() {
         </div>
 
         {/* Low stock */}
-        <div className="overflow-hidden rounded-xl border border-border bg-background shadow-sm">
+        <div className="overflow-hidden rounded-xl border border-border-md bg-background shadow-sm">
           <div className="flex items-center gap-2 border-b border-border bg-muted/20 px-4 py-2.5">
             <SectionTitle>SKU cần bổ sung hàng</SectionTitle>
             {lowItems.length > 0 && (
@@ -567,7 +567,7 @@ export default function ReportsPage() {
       </div>
 
       {/* ── Stock flow chart ──────────────────────────────────────────────── */}
-      <div className="overflow-hidden rounded-xl border border-border bg-background shadow-sm">
+      <div className="overflow-hidden rounded-xl border border-border-md bg-background shadow-sm">
         <div className="flex items-center justify-between border-b border-border bg-muted/20 px-4 py-2.5">
           <SectionTitle>Dòng chảy nhập / xuất (theo giá trị)</SectionTitle>
           <DateRangeBar
@@ -608,7 +608,7 @@ export default function ReportsPage() {
       </div>
 
       {/* ── Revenue section ───────────────────────────────────────────────── */}
-      <div className="overflow-hidden rounded-xl border border-border bg-background shadow-sm">
+      <div className="overflow-hidden rounded-xl border border-border-md bg-background shadow-sm">
         <div className="flex items-center justify-between border-b border-border bg-muted/20 px-4 py-2.5">
           <SectionTitle>Doanh thu (phiếu xuất hoàn thành)</SectionTitle>
           <DateRangeBar

@@ -130,7 +130,7 @@ function ImportTypesSection() {
     <div className="flex flex-col gap-4">
       <SectionHeader title="Loại nhập kho" onAdd={openCreate} />
 
-      <div className="overflow-hidden rounded-xl border border-border bg-background shadow-sm">
+      <div className="overflow-hidden rounded-xl border border-border-md bg-background shadow-sm">
         <table className="w-full">
           <thead>
             <tr className="border-b border-border bg-muted/40">
@@ -356,7 +356,7 @@ function ExportTypesSection() {
     <div className="flex flex-col gap-4">
       <SectionHeader title="Loại xuất kho" onAdd={openCreate} />
 
-      <div className="overflow-hidden rounded-xl border border-border bg-background shadow-sm">
+      <div className="overflow-hidden rounded-xl border border-border-md bg-background shadow-sm">
         <table className="w-full">
           <thead>
             <tr className="border-b border-border bg-muted/40">

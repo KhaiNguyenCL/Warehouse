@@ -25,7 +25,7 @@ function SectionCard({
   title, children, actions,
 }: { title: string; children: React.ReactNode; actions?: React.ReactNode }) {
   return (
-    <div className="overflow-hidden rounded-xl border border-border bg-background shadow-sm">
+    <div className="overflow-hidden rounded-xl border border-border-md bg-background shadow-sm">
       <div className="flex items-center justify-between border-b border-border px-4 py-3">
         <h2 className="text-sm font-semibold text-foreground">{title}</h2>
         {actions}

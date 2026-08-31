@@ -151,7 +151,7 @@ function VariantAttributesTab() {
         <Button size="sm" onClick={openCreate}><Plus className="h-4 w-4" />Thêm thuộc tính</Button>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-border bg-background shadow-sm">
+      <div className="overflow-hidden rounded-xl border border-border-md bg-background shadow-sm">
         <table className="w-full">
           <thead>
             <tr className="border-b border-border bg-muted/40">
@@ -435,7 +435,7 @@ function CustomFieldsTab() {
         <Button size="sm" onClick={openCreate}><Plus className="h-4 w-4" />Tạo field</Button>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-border bg-background shadow-sm">
+      <div className="overflow-hidden rounded-xl border border-border-md bg-background shadow-sm">
         <table className="w-full">
           <thead>
             <tr className="border-b border-border bg-muted/40">

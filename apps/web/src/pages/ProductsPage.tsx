@@ -155,7 +155,7 @@ export default function ProductsPage() {
       </div>
 
       {/* Tabs */}
-      <div className="overflow-hidden rounded-xl border border-border bg-background shadow-sm">
+      <div className="overflow-hidden rounded-xl border border-border-md bg-background shadow-sm">
 
         {/* Tab nav */}
         <div className="flex items-center gap-0 border-b border-border px-4 pt-3">

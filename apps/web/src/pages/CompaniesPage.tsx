@@ -32,7 +32,7 @@ function TabSwitch({ value, onChange }: {
   onChange: (v: 'companies' | 'contacts') => void
 }) {
   return (
-    <div className="flex items-center gap-1 rounded-lg border border-border bg-muted/40 p-0.5">
+    <div className="flex items-center gap-1 rounded-lg border border-border-md bg-muted/40 p-0.5">
       {([
         { key: 'companies', label: 'Đối tác' },
         { key: 'contacts',  label: 'Người liên hệ' },
@@ -152,7 +152,7 @@ function CompaniesTab({ activeTab, onTabChange, hook }: {
       />
 
       {/* Table card */}
-      <div className="overflow-hidden rounded-xl border border-border bg-background shadow-sm">
+      <div className="overflow-hidden rounded-xl border border-border-md bg-background shadow-sm">
 
         {/* Toolbar */}
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
@@ -357,7 +357,7 @@ function ContactsTab({ activeTab, onTabChange, onOpenSync }: {
       />
 
       {/* Table card */}
-      <div className="overflow-hidden rounded-xl border border-border bg-background shadow-sm">
+      <div className="overflow-hidden rounded-xl border border-border-md bg-background shadow-sm">
 
         {/* Toolbar */}
         <div className="flex items-center justify-between border-b border-border px-4 py-3">

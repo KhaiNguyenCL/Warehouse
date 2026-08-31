@@ -42,7 +42,7 @@ function TabsList({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="tabs-list"
       className={cn(
-        "inline-flex items-center gap-1 rounded-xl border border-border bg-muted/40 p-1",
+        "inline-flex items-center gap-1 rounded-xl border border-border-md bg-muted/40 p-1",
         className,
       )}
       {...props}

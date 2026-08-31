@@ -44,7 +44,7 @@ export default function TransferOrdersPage() {
       </div>
 
       {/* Table card */}
-      <div className="overflow-hidden rounded-xl border border-border bg-background shadow-sm">
+      <div className="overflow-hidden rounded-xl border border-border-md bg-background shadow-sm">
 
         {/* Toolbar */}
         <div className="flex items-center justify-between border-b border-border px-4 py-3">

@@ -207,7 +207,7 @@ export default function CategoriesPage() {
                 className="h-9 w-64 rounded-lg border-border pl-9 text-sm shadow-none focus-visible:ring-1"
               />
             </div>
-            <div className="flex items-center gap-1 rounded-lg border border-border bg-muted/40 p-0.5">
+            <div className="flex items-center gap-1 rounded-lg border border-border-md bg-muted/40 p-0.5">
               {(['all', 'active', 'inactive'] as const).map((f) => (
                 <button
                   key={f}

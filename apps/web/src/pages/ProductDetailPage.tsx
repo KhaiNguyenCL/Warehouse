@@ -299,7 +299,7 @@ export default function ProductDetailPage() {
       </div>
 
       {/* Product info card */}
-      <div className="overflow-hidden rounded-xl border border-border bg-background shadow-sm">
+      <div className="overflow-hidden rounded-xl border border-border-md bg-background shadow-sm">
         {/* Card header */}
         <div className="flex items-start justify-between gap-4 border-b border-border px-5 py-4">
           <div className="flex flex-col gap-1.5 min-w-0">
@@ -391,7 +391,7 @@ export default function ProductDetailPage() {
       </div>
 
       {/* SKU table */}
-      <div className="overflow-hidden rounded-xl border border-border bg-background shadow-sm">
+      <div className="overflow-hidden rounded-xl border border-border-md bg-background shadow-sm">
         <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
           <div className="flex items-center gap-2">
             <Layers className="h-4 w-4 text-muted-foreground" />

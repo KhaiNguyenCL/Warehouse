@@ -57,8 +57,7 @@ export function ColumnToggle({ columns, visible, onToggle }: ColumnToggleProps) 
     <Popover>
       <PopoverTrigger asChild>
         <button className={cn(
-          'flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs font-medium transition-colors hover:bg-accent hover:text-accent-foreground',
-          hiddenCount > 0 ? 'text-foreground' : 'text-muted-foreground',
+          'flex items-center gap-1.5 rounded-md border border-border-md bg-background px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-accent hover:text-accent-foreground',
         )}>
           <SlidersHorizontal className="h-3.5 w-3.5" />
           Cột
@@ -87,7 +86,7 @@ export function ColumnToggle({ columns, visible, onToggle }: ColumnToggleProps) 
               >
                 <span className={cn(
                   'flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors',
-                  on ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-background',
+                  on ? 'border-primary bg-primary text-primary-foreground' : 'border-border-md bg-background',
                 )}>
                   {on && <Check className="h-3 w-3" />}
                 </span>
