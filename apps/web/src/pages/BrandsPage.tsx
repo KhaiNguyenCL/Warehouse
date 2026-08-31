@@ -108,6 +108,24 @@ export default function BrandsPage() {
       ),
     },
     {
+      accessorKey: 'created_at',
+      header: () => 'Ngày tạo',
+      size: 110,
+      cell: ({ getValue }) => (
+        <span className="text-xs text-muted-foreground">
+          {getValue<string>() ? new Date(getValue<string>()).toLocaleDateString('vi-VN') : '—'}
+        </span>
+      ),
+    },
+    {
+      accessorKey: 'created_by_name',
+      header: () => 'Người tạo',
+      size: 160,
+      cell: ({ getValue }) => (
+        <span className="text-xs text-muted-foreground">{getValue<string>() ?? '—'}</span>
+      ),
+    },
+    {
       id: 'actions',
       size: 90,
       cell: ({ row }) => (
@@ -214,7 +232,15 @@ export default function BrandsPage() {
         </div>
 
         {/* Table */}
-        <table className="w-full">
+        <table className="w-full table-fixed">
+          <colgroup>
+            <col style={{ width: '30%' }} />
+            <col style={{ width: '14%' }} />
+            <col style={{ width: '14%' }} />
+            <col style={{ width: '12%' }} />
+            <col style={{ width: '20%' }} />
+            <col style={{ width: '10%' }} />
+          </colgroup>
           <thead>
             {table.getHeaderGroups().map((hg) => (
               <tr key={hg.id} className="border-b border-border bg-muted/40">
@@ -222,7 +248,6 @@ export default function BrandsPage() {
                   <th
                     key={header.id}
                     className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground"
-                    style={{ width: header.column.getSize() !== 150 ? header.column.getSize() : undefined }}
                   >
                     {flexRender(header.column.columnDef.header, header.getContext())}
                   </th>

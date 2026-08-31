@@ -234,25 +234,33 @@ export default function CategoriesPage() {
           <span className="text-sm text-muted-foreground">{flatRows.length} kết quả</span>
         }
       >
-        <table className="w-full">
+        <table className="w-full table-fixed">
+          <colgroup>
+            <col style={{ width: '32%' }} />
+            <col style={{ width: '12%' }} />
+            <col style={{ width: '12%' }} />
+            <col style={{ width: '12%' }} />
+            <col style={{ width: '20%' }} />
+            <col style={{ width: '12%' }} />
+          </colgroup>
           <thead>
             <tr className="border-b border-border bg-muted/40">
               <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">
                 Tên
               </th>
-              <th className="w-32 px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">
+              <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">
                 Mã viết tắt
               </th>
-              <th className="w-36 px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground">
+              <th className="px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground">
                 Trạng thái
               </th>
-              <th className="w-28 px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">
+              <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">
                 Ngày tạo
               </th>
-              <th className="w-36 px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">
+              <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">
                 Người tạo
               </th>
-              <th className="w-20" />
+              <th />
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
