@@ -12,6 +12,7 @@ export type WmsStatus =
   | 'active'
   | 'sold'
   | 'disposed'
+  | 'received'
 
 interface StatusDef {
   label: string
@@ -33,6 +34,7 @@ const STATUS_MAP: Record<string, StatusDef> = {
   active:           { label: 'Hoạt động',        className: 'text-emerald-700',      dotClass: 'bg-emerald-500' },
   sold:             { label: 'Đã bán',           className: 'text-blue-700',         dotClass: 'bg-blue-500' },
   disposed:         { label: 'Đã huỷ',           className: 'text-muted-foreground', dotClass: 'bg-zinc-400' },
+  received:         { label: 'Đã nhận hàng',      className: 'text-emerald-700',      dotClass: 'bg-emerald-500' },
 }
 
 const FALLBACK: StatusDef = { label: 'Không rõ', className: 'text-muted-foreground', dotClass: 'bg-zinc-400' }

@@ -13,6 +13,7 @@ export function useReceiptForm(options?: { onUpdateSuccess?: () => void }) {
   const { id } = useParams<{ id?: string }>()
   const [searchParams] = useSearchParams()
   const poIdFromQuery = searchParams.get('po_id') ?? undefined
+  const shipmentIdFromQuery = searchParams.get('shipment_id') ?? undefined
   const [form] = Form.useForm()
   const navigate = useNavigate()
 
@@ -58,6 +59,12 @@ export function useReceiptForm(options?: { onUpdateSuccess?: () => void }) {
     enabled: !!poId,
   })
 
+  const { data: shipmentDetail } = useQuery({
+    queryKey: ['shipments', shipmentIdFromQuery],
+    queryFn: async () => (await api.get(`/shipments/${shipmentIdFromQuery}`)).data,
+    enabled: !!shipmentIdFromQuery && !id,
+  })
+
   const { data: variantOptions } = useQuery({
     queryKey: ['variants-search', variantSearch],
     queryFn: async () => (await api.get('/products/variants', { params: { search: variantSearch || undefined, limit: 50 } })).data,
@@ -91,8 +98,10 @@ export function useReceiptForm(options?: { onUpdateSuccess?: () => void }) {
   // When PO detail loads → auto-fill lines in create mode
   // Guard: skip if viewing existing receipt (id is set) — component stays mounted when
   // navigating from /receipts/new?po_id=X to /receipts/:id, so poId state is stale.
+  // Also skip when creating from a Shipment (shipmentIdFromQuery) — that flow fills lines
+  // from the shipment's actual received qty/condition instead, see effect below.
   useEffect(() => {
-    if (!poDetail || id) return
+    if (!poDetail || id || shipmentIdFromQuery) return
     form.setFieldsValue({
       po_id: poDetail.id,
       company_id: poDetail.company_id,
@@ -109,6 +118,29 @@ export function useReceiptForm(options?: { onUpdateSuccess?: () => void }) {
         })),
     })
   }, [poDetail])
+
+  // Create from a received Shipment (?shipment_id=X) → auto-fill PO, NCC, ghi chú và các
+  // dòng hàng theo đúng số lượng/tình trạng đã xác nhận thực nhận (không dùng remaining_qty
+  // của PO vì có thể hàng về thiếu/hỏng khác với PO gốc).
+  useEffect(() => {
+    if (!shipmentDetail || id) return
+    form.setFieldsValue({
+      shipment_id: shipmentDetail.id,
+      po_id: shipmentDetail.po_id ?? undefined,
+      company_id: shipmentDetail.supplier_id ?? undefined,
+      warehouse_id: shipmentDetail.warehouse_id,
+      note: shipmentDetail.notes ?? undefined,
+      lines: (shipmentDetail.lines ?? [])
+        .filter((l: any) => l.condition !== 'missing')
+        .map((l: any) => ({
+          variant_id: l.variant_id,
+          variant_label: `${l.item_code} — ${l.variant_name}`,
+          po_line_id: l.po_line_id ?? undefined,
+          quantity: l.qty_received || l.qty_expected,
+        })),
+    })
+    if (shipmentDetail.po_id) setPoId(shipmentDetail.po_id)
+  }, [shipmentDetail])
 
   // When poId cleared → reset po-related fields
   useEffect(() => {
@@ -220,6 +252,7 @@ export function useReceiptForm(options?: { onUpdateSuccess?: () => void }) {
     poId,
     setPoId,
     poIdFromQuery,
+    shipmentDetail,
     variantSearch,
     setVariantSearch,
     variantOptions,

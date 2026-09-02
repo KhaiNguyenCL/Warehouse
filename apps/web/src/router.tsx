@@ -12,6 +12,8 @@ import VariantDetailPage from './pages/VariantDetailPage'
 import WarehousesPage from './pages/WarehousesPage'
 import PurchaseOrdersPage from './pages/PurchaseOrdersPage'
 import PurchaseOrderCreatePage from './pages/PurchaseOrderCreatePage'
+import ShipmentsPage from './pages/ShipmentsPage'
+import ShipmentFormPage from './pages/ShipmentFormPage'
 import ReceiptsPage from './pages/ReceiptsPage'
 import ReceiptFormPage from './pages/ReceiptFormPage'
 import InventoryPage from './pages/InventoryPage'
@@ -61,6 +63,9 @@ const routes: RouteObject[] = [
           { path: '/purchase-orders', element: <PurchaseOrdersPage /> },
           { path: '/purchase-orders/new', element: <PurchaseOrderCreatePage /> },
           { path: '/purchase-orders/:id', element: <PurchaseOrderCreatePage /> },
+          { path: '/shipments', element: <ShipmentsPage /> },
+          { path: '/shipments/new', element: <ShipmentFormPage /> },
+          { path: '/shipments/:id', element: <ShipmentFormPage /> },
           { path: '/receipts', element: <ReceiptsPage /> },
           { path: '/receipts/new', element: <ReceiptFormPage /> },
           { path: '/receipts/:id', element: <ReceiptFormPage /> },

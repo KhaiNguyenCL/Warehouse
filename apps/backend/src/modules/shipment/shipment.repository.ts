@@ -35,15 +35,6 @@ export class ShipmentRepository {
     if (warehouse_id) base.where('s.warehouse_id', warehouse_id)
     if (search)       base.where((qb) => qb.whereILike('s.code', `%${search}%`).orWhereILike('c.name', `%${search}%`))
 
-    // Đếm tổng dòng hàng và lệch số lượng để hiển thị trên list
-    base.leftJoin(
-      this.db('shipment_lines')
-        .select('shipment_id')
-        .count('* as total_lines')
-        .sum(this.db.raw('qty_received - qty_expected'))
-        .as('sl_agg'),
-      'sl_agg.shipment_id', 's.id',
-    )
 
     const [rows, countResult] = await Promise.all([
       base.clone().orderBy(SORTABLE[sort_by ?? ''] ?? 's.created_at', sortDir).limit(limit).offset(offset),

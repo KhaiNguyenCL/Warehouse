@@ -1,7 +1,7 @@
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import {
   Users, Tags, ShoppingBag, Boxes, Warehouse, ClipboardList,
-  PackageCheck, FileText, PackageOpen, ArrowLeftRight, Database,
+  PackageCheck, PackageSearch, FileText, PackageOpen, ArrowLeftRight, Database,
   ClipboardCheck, BarChart3, Shield, UserCog, UsersRound, Settings, Layers,
   GitBranch, FormInput, LogOut,
 } from 'lucide-react'
@@ -33,6 +33,7 @@ const NAV = [
     label: 'Giao dịch',
     items: [
       { to: '/purchase-orders', icon: ClipboardList,  label: 'Phiếu mua hàng' },
+      { to: '/shipments',       icon: PackageSearch,  label: 'Phiếu nhận hàng' },
       { to: '/receipts',        icon: PackageCheck,   label: 'Phiếu nhập kho' },
       { to: '/quotations',      icon: FileText,       label: 'Báo giá' },
       { to: '/deliveries',      icon: PackageOpen,    label: 'Phiếu xuất kho' },

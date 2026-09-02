@@ -164,6 +164,15 @@ export default function ReceiptFormPage() {
         onValuesChange={() => { if (!isCreate) setIsDirty(true) }}
       >
 
+        {isCreate && hook.shipmentDetail && (
+          <div style={{
+            marginBottom: 16, padding: '10px 16px', borderRadius: 8,
+            background: 'var(--s-completed-bg)', color: 'var(--s-completed-color)', fontSize: 13,
+          }}>
+            Đang tạo từ Phiếu nhận hàng <strong>{hook.shipmentDetail.code}</strong> — dòng hàng đã điền theo số lượng thực nhận.
+          </div>
+        )}
+
         {/* ─── Card 1: Thông tin phiếu ──────────────────────────────── */}
         <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: '20px 24px', marginBottom: 16 }}>
           <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 16, color: 'var(--text-1)' }}>
@@ -220,6 +229,7 @@ export default function ReceiptFormPage() {
               </Form.Item>
               <Form.Item name="po_id" hidden><Input /></Form.Item>
               <Form.Item name="company_id" hidden><Input /></Form.Item>
+              <Form.Item name="shipment_id" hidden><Input /></Form.Item>
             </>
           )}
           {!isCreate && receipt?.po_code && (
