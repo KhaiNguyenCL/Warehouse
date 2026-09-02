@@ -8,9 +8,9 @@ export function useUsers() {
     queryFn: async () => (await api.get('/settings/users')).data,
   })
 
-  const { data: roles } = useQuery({
-    queryKey: ['settings', 'roles'],
-    queryFn: async () => (await api.get('/settings/roles')).data,
+  const { data: groups } = useQuery({
+    queryKey: ['settings', 'groups'],
+    queryFn: async () => (await api.get('/settings/groups')).data,
   })
 
   const createMutation = useApiMutation((values: any) => api.post('/settings/users', values), {
@@ -28,5 +28,5 @@ export function useUsers() {
     { successMessage: 'Cập nhật thành công', invalidateKey: ['settings', 'users'] },
   )
 
-  return { data, isLoading, roles, createMutation, updateMutation }
+  return { data, isLoading, groups, createMutation, updateMutation }
 }

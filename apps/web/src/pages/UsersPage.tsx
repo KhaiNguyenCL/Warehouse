@@ -2,17 +2,16 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { useQueryClient } from '@tanstack/react-query'
 import { Plus, Search, X } from 'lucide-react'
 
 import { useUsers } from '@/hooks/useUsers'
+import { api } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from '@/components/ui/form'
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { cn } from '@/lib/utils'
 import { ActiveBadge } from '@/components/ui/ActiveBadge'
@@ -24,7 +23,7 @@ const schema = z.object({
   full_name: z.string().min(1, 'Nhập họ tên'),
   email:     z.string().email('Email không hợp lệ').optional().or(z.literal('')),
   phone:     z.string().optional(),
-  role_id:   z.string().min(1, 'Chọn vai trò'),
+  group_ids: z.array(z.string()),
   password:  z.string().optional(),
   is_active: z.boolean(),
 })
@@ -33,7 +32,8 @@ type UserForm = z.infer<typeof schema>
 // ── Component ────────────────────────────────────────────────────────────────
 
 export default function UsersPage() {
-  const { data, isLoading, roles, createMutation, updateMutation } = useUsers()
+  const { data, isLoading, groups, createMutation, updateMutation } = useUsers()
+  const qc = useQueryClient()
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing]       = useState<any | null>(null)
@@ -41,12 +41,12 @@ export default function UsersPage() {
 
   const form = useForm<UserForm>({
     resolver: zodResolver(schema),
-    defaultValues: { full_name: '', email: '', phone: '', role_id: '', password: '', is_active: true },
+    defaultValues: { full_name: '', email: '', phone: '', group_ids: [], password: '', is_active: true },
   })
 
   function openCreate() {
     setEditing(null)
-    form.reset({ full_name: '', email: '', phone: '', role_id: '', password: '', is_active: true })
+    form.reset({ full_name: '', email: '', phone: '', group_ids: [], password: '', is_active: true })
     setDialogOpen(true)
   }
 
@@ -56,7 +56,7 @@ export default function UsersPage() {
       full_name: record.full_name ?? '',
       email:     '',
       phone:     record.phone ?? '',
-      role_id:   record.role_id ?? '',
+      group_ids: (record.groups ?? []).map((g: any) => g.id),
       password:  '',
       is_active: record.is_active ?? true,
     })
@@ -64,21 +64,45 @@ export default function UsersPage() {
   }
 
   function onSubmit(values: UserForm) {
+    const { group_ids, ...userValues } = values
+
     if (!editing) {
       // Extra validation for create-only required fields
       let hasError = false
-      if (!values.email) {
+      if (!userValues.email) {
         form.setError('email', { message: 'Nhập email' })
         hasError = true
       }
-      if (!values.password || values.password.length < 6) {
+      if (!userValues.password || userValues.password.length < 6) {
         form.setError('password', { message: 'Tối thiểu 6 ký tự' })
         hasError = true
       }
       if (hasError) return
-      createMutation.mutate(values, { onSuccess: () => setDialogOpen(false) })
+      createMutation.mutate(userValues, {
+        onSuccess: async (res: any) => {
+          const userId = res.data.id
+          await Promise.all(group_ids.map((gid) => api.post(`/settings/groups/${gid}/members`, { user_id: userId })))
+          qc.invalidateQueries({ queryKey: ['settings', 'users'] })
+          qc.invalidateQueries({ queryKey: ['settings', 'groups'] })
+          setDialogOpen(false)
+        },
+      })
     } else {
-      updateMutation.mutate({ id: editing.id, ...values }, { onSuccess: () => setDialogOpen(false) })
+      const before = new Set<string>((editing.groups ?? []).map((g: any) => g.id))
+      const after = new Set(group_ids)
+      const toAdd = group_ids.filter((id) => !before.has(id))
+      const toRemove = [...before].filter((id) => !after.has(id))
+      updateMutation.mutate({ id: editing.id, ...userValues }, {
+        onSuccess: async () => {
+          await Promise.all([
+            ...toAdd.map((gid) => api.post(`/settings/groups/${gid}/members`, { user_id: editing.id })),
+            ...toRemove.map((gid) => api.delete(`/settings/groups/${gid}/members/${editing.id}`)),
+          ])
+          qc.invalidateQueries({ queryKey: ['settings', 'users'] })
+          qc.invalidateQueries({ queryKey: ['settings', 'groups'] })
+          setDialogOpen(false)
+        },
+      })
     }
   }
 
@@ -89,7 +113,7 @@ export default function UsersPage() {
     return (
       r.full_name?.toLowerCase().includes(q) ||
       r.email?.toLowerCase().includes(q) ||
-      r.role_name?.toLowerCase().includes(q)
+      (r.groups ?? []).some((g: any) => g.name?.toLowerCase().includes(q))
     )
   })
 
@@ -120,7 +144,7 @@ export default function UsersPage() {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Tìm tên, email, vai trò…"
+              placeholder="Tìm tên, email, nhóm…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="h-9 w-64 pl-9 text-sm shadow-none focus-visible:ring-1"
@@ -137,7 +161,7 @@ export default function UsersPage() {
               <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Họ tên</th>
               <th className="w-56 px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Email</th>
               <th className="w-32 px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">SĐT</th>
-              <th className="w-36 px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Vai trò</th>
+              <th className="w-48 px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Nhóm</th>
               <th className="w-40 px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground">Trạng thái</th>
             </tr>
           </thead>
@@ -165,7 +189,11 @@ export default function UsersPage() {
                   <td className="px-4 py-2 font-medium text-foreground">{r.full_name}</td>
                   <td className="px-4 py-2 text-foreground">{r.email}</td>
                   <td className="px-4 py-2 text-foreground">{r.phone ?? <span className="text-muted-foreground">—</span>}</td>
-                  <td className="px-4 py-2 text-foreground">{r.role_name ?? <span className="text-muted-foreground">—</span>}</td>
+                  <td className="px-4 py-2 text-foreground">
+                    {(r.groups ?? []).length > 0
+                      ? (r.groups ?? []).map((g: any) => g.name).join(', ')
+                      : <span className="text-muted-foreground">—</span>}
+                  </td>
                   <td className="px-4 py-2">
                     <div className="flex justify-center">
                       <ActiveBadge active={r.is_active} />
@@ -239,21 +267,32 @@ export default function UsersPage() {
                   </FormItem>
                 )} />
 
-                <FormField control={form.control} name="role_id" render={({ field }) => (
+                <FormField control={form.control} name="group_ids" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Vai trò <span className="text-red-500">*</span></FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Chọn vai trò" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {(roles ?? []).map((r: any) => (
-                          <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
+                    <FormLabel>Nhóm</FormLabel>
+                    <FormControl>
+                      <div className="flex flex-col gap-2 rounded-lg border border-border-md p-3">
+                        {(groups ?? []).length === 0 ? (
+                          <p className="text-xs text-muted-foreground">Chưa có nhóm nào — tạo nhóm ở trang Nhóm người dùng trước.</p>
+                        ) : (groups ?? []).map((g: any) => (
+                          <label key={g.id} className="flex cursor-pointer items-center gap-2 text-sm">
+                            <input
+                              type="checkbox"
+                              className="h-4 w-4 rounded border-border accent-primary"
+                              checked={field.value?.includes(g.id) ?? false}
+                              onChange={(e) => {
+                                const next = e.target.checked
+                                  ? [...(field.value ?? []), g.id]
+                                  : (field.value ?? []).filter((id: string) => id !== g.id)
+                                field.onChange(next)
+                              }}
+                            />
+                            <span className="text-foreground">{g.name}</span>
+                            <span className="text-xs text-muted-foreground">({g.role_name})</span>
+                          </label>
                         ))}
-                      </SelectContent>
-                    </Select>
+                      </div>
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />

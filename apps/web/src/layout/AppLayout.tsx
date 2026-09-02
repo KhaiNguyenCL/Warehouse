@@ -2,7 +2,7 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import {
   Users, Tags, ShoppingBag, Boxes, Warehouse, ClipboardList,
   PackageCheck, FileText, PackageOpen, ArrowLeftRight, Database,
-  ClipboardCheck, BarChart3, Shield, UserCog, Settings, Layers,
+  ClipboardCheck, BarChart3, Shield, UserCog, UsersRound, Settings, Layers,
   GitBranch, FormInput, LogOut,
 } from 'lucide-react'
 import {
@@ -51,6 +51,7 @@ const NAV = [
     label: 'Cài đặt',
     items: [
       { to: '/settings/roles',         icon: Shield,     label: 'Vai trò & Quyền' },
+      { to: '/settings/groups',        icon: UsersRound, label: 'Nhóm người dùng' },
       { to: '/settings/users',         icon: UserCog,    label: 'Người dùng' },
       { to: '/settings/types',         icon: Settings,   label: 'Loại nhập/xuất' },
       { to: '/settings/templates',     icon: Layers,     label: 'Cài đặt báo giá' },
@@ -136,7 +137,7 @@ export default function AppLayout() {
               <DropdownMenuContent side="bottom" align="end" className="w-48">
                 <div className="px-2 py-1.5">
                   <p className="text-sm font-semibold">{user?.full_name}</p>
-                  <p className="text-xs text-muted-foreground">{user?.role}</p>
+                  <p className="text-xs text-muted-foreground">{user?.groups?.map(g => g.name).join(', ') || 'Không có nhóm'}</p>
                 </div>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem

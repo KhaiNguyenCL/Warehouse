@@ -29,6 +29,7 @@ import StocktakesPage from './pages/StocktakesPage'
 import StocktakeDetailPage from './pages/StocktakeDetailPage'
 import SettingsTypesPage from './pages/SettingsTypesPage'
 import RolesPage from './pages/RolesPage'
+import GroupsPage from './pages/GroupsPage'
 import UsersPage from './pages/UsersPage'
 import ReportsPage from './pages/ReportsPage'
 import TemplatesPage from './pages/TemplatesPage'
@@ -81,6 +82,7 @@ const routes: RouteObject[] = [
           { path: '/settings/custom-fields', element: <CustomFieldsSettingsPage /> },
           { path: '/settings/types', element: <SettingsTypesPage /> },
           { path: '/settings/roles', element: <RolesPage /> },
+          { path: '/settings/groups', element: <GroupsPage /> },
           { path: '/settings/users', element: <UsersPage /> },
         ],
       },
