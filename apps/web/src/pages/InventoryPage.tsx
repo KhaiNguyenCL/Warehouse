@@ -180,7 +180,7 @@ function SnSearchTable({ search }: { search: string }) {
     <>
       <table className="w-full">
         <thead>
-          <tr className="border-b border-border bg-muted/40">
+          <tr className="border-b border-border bg-muted/60">
             {['Serial No', 'Mã hàng', 'Tên SP', 'Trạng thái', 'Kho', 'Phiếu nhập · Ngày', 'MAC', 'Hết BH hãng', 'Hết BH cty'].map((h) => (
               <th key={h} className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground whitespace-nowrap">{h}</th>
             ))}
@@ -192,7 +192,7 @@ function SnSearchTable({ search }: { search: string }) {
           ) : rows.length === 0 ? (
             <tr><td colSpan={9} className="px-4 py-12 text-center text-xs text-muted-foreground">Không tìm thấy Serial No nào khớp</td></tr>
           ) : rows.map((r) => (
-            <tr key={r.id} onClick={() => setSelected(r)} className="cursor-pointer transition-colors hover:bg-muted/40">
+            <tr key={r.id} onClick={() => setSelected(r)} className="cursor-pointer transition-colors hover:bg-muted/30">
               <td className="px-4 py-2 font-mono font-medium text-foreground">{r.serial_no}</td>
               <td className="px-4 py-2">
                 <CodeText>{r.item_code}</CodeText>
@@ -383,7 +383,7 @@ export default function InventoryPage() {
             <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-border bg-muted/40">
+                <tr className="border-b border-border bg-muted/60">
                   {([
                     ['#', 'center'],
                     ['Mã hàng', 'center'],
@@ -420,7 +420,7 @@ export default function InventoryPage() {
                   rows.map((row, i) => (
                     <tr
                       key={row.variant_id}
-                      className={cn('transition-colors hover:bg-muted/40', row.product_type === 'storable' && 'cursor-pointer')}
+                      className={cn('transition-colors hover:bg-muted/30', row.product_type === 'storable' && 'cursor-pointer')}
                       onClick={() => {
                         if (row.product_type === 'storable') {
                           navigate(`/inventory/serials/${row.variant_id}?code=${encodeURIComponent(row.item_code ?? '')}&name=${encodeURIComponent(row.variant_name ?? '')}`)

@@ -36,7 +36,7 @@ export default function StocktakeDetailPage() {
       </Space>
 
       {hook.data.result && (
-        <div style={{ marginBottom: 16, padding: 12, background: '#f6ffed', border: '1px solid #b7eb8f' }}>
+        <div style={{ marginBottom: 16, padding: 12, background: 'var(--s-completed-bg)', border: '1px solid var(--s-completed-color)' }}>
           <p>
             Kết quả: {hook.data.result.total_sku} SKU — Khớp: {hook.data.result.matched} — Thiếu: {hook.data.result.shortage} — Dư:{' '}
             {hook.data.result.surplus}

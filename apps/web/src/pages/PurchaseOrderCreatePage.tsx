@@ -21,7 +21,7 @@ function BBox({ children }: { children: React.ReactNode }) {
     <div style={{
       height: 32, display: 'flex', alignItems: 'center', padding: '0 11px',
       border: '1px solid var(--border, #d9d9d9)', borderRadius: 6,
-      background: 'var(--surface)', fontSize: 14, userSelect: 'text',
+      background: 'var(--bg-subtle)', fontSize: 14, userSelect: 'text',
     }}>
       {children}
     </div>
@@ -181,7 +181,7 @@ export default function PurchaseOrderCreatePage() {
         }}
       >
         {/* ─── Thông tin phiếu ─────────────────────────────────────────── */}
-        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: '20px 24px', marginBottom: 16 }}>
+        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, padding: '20px 24px', marginBottom: 16 }}>
           <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 16, color: 'var(--text-1)' }}>
             Thông tin phiếu
           </div>
@@ -253,7 +253,7 @@ export default function PurchaseOrderCreatePage() {
               <div style={{
                 minHeight: 54, padding: '6px 11px',
                 border: '1px solid var(--border, #d9d9d9)', borderRadius: 6,
-                background: 'var(--surface)', fontSize: 14, userSelect: 'text',
+                background: 'var(--bg-subtle)', fontSize: 14, userSelect: 'text',
                 whiteSpace: 'pre-wrap', lineHeight: 1.5,
                 color: po?.note ? undefined : 'var(--text-3, #bbb)',
               }}>
@@ -266,7 +266,7 @@ export default function PurchaseOrderCreatePage() {
         </div>
 
         {/* ─── Danh sách sản phẩm ─────────────────────────────────────── */}
-        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: '20px 24px', marginBottom: 16 }}>
+        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, padding: '20px 24px', marginBottom: 16 }}>
           <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 16, color: 'var(--text-1)' }}>
             Danh sách sản phẩm
           </div>
@@ -378,6 +378,7 @@ function ViewLinesTable({ lines }: { lines: any[] }) {
   const thStyle: React.CSSProperties = {
     padding: '8px 10px', textAlign: 'left', fontSize: 13,
     fontWeight: 500, color: 'var(--text-2, #666)',
+    background: 'var(--bg-subtle)',
     borderBottom: '1px solid var(--border, #f0f0f0)',
     whiteSpace: 'nowrap',
   }

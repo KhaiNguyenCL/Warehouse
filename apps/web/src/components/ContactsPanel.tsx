@@ -91,7 +91,7 @@ const ContactsPanel = forwardRef<ContactsPanelRef, Props>(function ContactsPanel
       ) : (
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-border bg-muted/40">
+            <tr className="border-b border-border bg-muted/60">
               <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Họ tên</th>
               <th className="w-40 px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Chức vụ</th>
               <th className="w-36 px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">SĐT</th>
@@ -104,7 +104,7 @@ const ContactsPanel = forwardRef<ContactsPanelRef, Props>(function ContactsPanel
               <tr
                 key={c.id}
                 onClick={() => openEdit(c)}
-                className="cursor-pointer transition-colors hover:bg-muted/40"
+                className="cursor-pointer transition-colors hover:bg-muted/30"
               >
                 <td className="px-4 py-3 font-medium text-foreground">{c.full_name}</td>
                 <td className="px-4 py-3 text-foreground">{c.position || '—'}</td>

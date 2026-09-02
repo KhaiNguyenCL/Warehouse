@@ -84,7 +84,7 @@ export default function StocktakesPage() {
         {/* Table */}
         <table className="w-full">
           <thead>
-            <tr className="border-b border-border bg-muted/40">
+            <tr className="border-b border-border bg-muted/60">
               <th className="px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground">#</th>
               <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Mã kiểm kê</th>
               <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Kho</th>
@@ -109,7 +109,7 @@ export default function StocktakesPage() {
                 <tr
                   key={row.id}
                   onClick={() => hook.navigate(`/stocktakes/${row.id}`)}
-                  className="cursor-pointer transition-colors hover:bg-muted/40"
+                  className="cursor-pointer transition-colors hover:bg-muted/30"
                 >
                   <td className="px-4 py-2 text-center text-xs text-muted-foreground">{from + i}</td>
                   <td className="px-4 py-2"><CodeText>{row.code}</CodeText></td>

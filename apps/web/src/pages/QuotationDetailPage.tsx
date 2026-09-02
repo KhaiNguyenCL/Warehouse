@@ -81,7 +81,7 @@ function LineTable({ rows, nested, retail }: { rows: any[]; nested?: boolean; re
 function SectionCard({ title, extra, children }: { title: string; extra?: React.ReactNode; children: React.ReactNode }) {
   return (
     <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--r-lg)', boxShadow: 'var(--shadow-sm)', overflow: 'hidden' }}>
-      <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div style={{ padding: '12px 16px', background: 'var(--bg-subtle)', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-1)' }}>{title}</span>
         {extra}
       </div>
@@ -355,7 +355,7 @@ export default function QuotationDetailPage() {
                   </Form.Item>
                 </div>
               ) : (
-                <div style={{ ...valueStyle, whiteSpace: 'pre-wrap' }}><Val v={q?.terms} /></div>
+                <div style={{ ...valueViewStyle, whiteSpace: 'pre-wrap' }}><Val v={q?.terms} /></div>
               )}
             </div>
 

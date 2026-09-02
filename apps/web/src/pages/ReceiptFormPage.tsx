@@ -19,7 +19,7 @@ function BBox({ children }: { children: React.ReactNode }) {
     <div style={{
       height: 32, display: 'flex', alignItems: 'center', padding: '0 11px',
       border: '1px solid var(--border, #d9d9d9)', borderRadius: 6,
-      background: 'var(--surface)', fontSize: 14, userSelect: 'text',
+      background: 'var(--bg-subtle)', fontSize: 14, userSelect: 'text',
     }}>
       {children}
     </div>
@@ -33,7 +33,7 @@ function ReadOnlyText({ value }: { value?: string }) {
     <div style={{
       height: 32, display: 'flex', alignItems: 'center', padding: '0 11px',
       border: '1px solid var(--border, #d9d9d9)', borderRadius: 6,
-      background: 'var(--surface)', fontSize: 14,
+      background: 'var(--bg-subtle)', fontSize: 14,
       cursor: 'not-allowed', userSelect: 'text',
     }}>
       {value}
@@ -125,7 +125,7 @@ export default function ReceiptFormPage() {
               type="primary"
               disabled={hook.completeMode}
               onClick={() => hook.setCompleteMode(true)}
-              style={{ background: '#52c41a', borderColor: '#52c41a' }}
+              style={{ background: 'var(--s-completed-color)', borderColor: 'var(--s-completed-color)' }}
             >
               Complete
             </Button>
@@ -174,7 +174,7 @@ export default function ReceiptFormPage() {
         )}
 
         {/* ─── Card 1: Thông tin phiếu ──────────────────────────────── */}
-        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: '20px 24px', marginBottom: 16 }}>
+        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, padding: '20px 24px', marginBottom: 16 }}>
           <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 16, color: 'var(--text-1)' }}>
             Thông tin phiếu
           </div>
@@ -212,21 +212,30 @@ export default function ReceiptFormPage() {
             </Form.Item>
           </div>
 
-          {/* Row 2 — PO liên kết (chiếm 2/3, tránh lệch chiều cao với textarea) */}
+          {/* Row 2 — PO liên kết + NCC (chiếm 2/3, tránh lệch chiều cao với textarea) */}
           {isCreate && (
             <>
-              <Form.Item label="Chọn PO (tuỳ chọn)" style={{ maxWidth: '66%', marginBottom: 12 }}>
-                <Select
-                  allowClear
-                  value={hook.poId}
-                  placeholder="Chọn PO đã Confirmed để tự điền dòng hàng"
-                  options={hook.confirmedPOs?.data?.map((p: any) => ({
-                    value: p.id,
-                    label: [p.bitrix_deal_id, p.deal_title].filter(Boolean).join(' — ') || p.code,
-                  }))}
-                  onChange={(v) => hook.setPoId(v)}
-                />
-              </Form.Item>
+              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '0 16px', maxWidth: '66%' }}>
+                <Form.Item label="Chọn PO (tuỳ chọn)" style={{ marginBottom: 12 }}>
+                  <Select
+                    allowClear
+                    value={hook.poId}
+                    placeholder="Chọn PO đã Confirmed để tự điền dòng hàng"
+                    options={hook.confirmedPOs?.data?.map((p: any) => ({
+                      value: p.id,
+                      label: [p.bitrix_deal_id, p.deal_title].filter(Boolean).join(' — ') || p.code || p.id,
+                    }))}
+                    onChange={(v) => hook.setPoId(v)}
+                  />
+                </Form.Item>
+                <Form.Item label="NCC" style={{ marginBottom: 12 }}>
+                  <BBox>
+                    {hook.poDetail?.company_name
+                      ? <span>{hook.poDetail.company_name}</span>
+                      : <span style={{ color: 'var(--text-3, #bbb)' }}>—</span>}
+                  </BBox>
+                </Form.Item>
+              </div>
               <Form.Item name="po_id" hidden><Input /></Form.Item>
               <Form.Item name="company_id" hidden><Input /></Form.Item>
               <Form.Item name="shipment_id" hidden><Input /></Form.Item>
@@ -244,7 +253,7 @@ export default function ReceiptFormPage() {
               <div style={{
                 minHeight: 32, padding: '4px 11px',
                 border: '1px solid var(--border, #d9d9d9)', borderRadius: 6,
-                background: 'var(--surface)', fontSize: 14, userSelect: 'text',
+                background: 'var(--bg-subtle)', fontSize: 14, userSelect: 'text',
                 whiteSpace: 'pre-wrap', lineHeight: 1.5,
                 color: receipt?.note ? undefined : 'var(--text-3, #bbb)',
               }}>
@@ -257,7 +266,7 @@ export default function ReceiptFormPage() {
         </div>
 
         {/* ─── Card 2: Danh sách sản phẩm ──────────────────────────── */}
-        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: '20px 24px', marginBottom: 16 }}>
+        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, padding: '20px 24px', marginBottom: 16 }}>
           <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 16, color: 'var(--text-1)' }}>
             Danh sách sản phẩm
           </div>
@@ -277,7 +286,7 @@ export default function ReceiptFormPage() {
         {/* ─── Card 3: Nhập Serial Number ───────────────────────────── */}
         {hook.completeMode && (
           <div style={{
-            background: 'var(--surface)', border: '2px solid #52c41a',
+            background: 'var(--bg-card)', border: '2px solid var(--s-completed-color)',
             borderRadius: 8, padding: '20px 24px', marginBottom: 16,
           }}>
             <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 16 }}>
@@ -310,7 +319,7 @@ export default function ReceiptFormPage() {
                 type="primary"
                 onClick={hook.submitComplete}
                 loading={hook.completeMutation.isPending}
-                style={{ background: '#52c41a', borderColor: '#52c41a' }}
+                style={{ background: 'var(--s-completed-color)', borderColor: 'var(--s-completed-color)' }}
               >
                 Xác nhận Complete
               </Button>
@@ -615,6 +624,7 @@ function ViewLinesTable({
   const thStyle: React.CSSProperties = {
     padding: '8px 10px', textAlign: 'left', fontSize: 13,
     fontWeight: 500, color: 'var(--text-2, #666)',
+    background: 'var(--bg-subtle)',
     borderBottom: '1px solid var(--border, #f0f0f0)',
     whiteSpace: 'nowrap',
   }

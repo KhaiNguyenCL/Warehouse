@@ -18,7 +18,7 @@ const EXPORT_TYPE_LABEL: Record<string, string> = {
 function SectionCard({ title, extra, children }: { title: string; extra?: React.ReactNode; children: React.ReactNode }) {
   return (
     <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--r-lg)', boxShadow: 'var(--shadow-sm)', overflow: 'hidden' }}>
-      <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div style={{ padding: '12px 16px', background: 'var(--bg-subtle)', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-1)' }}>{title}</span>
         {extra}
       </div>
@@ -28,7 +28,10 @@ function SectionCard({ title, extra, children }: { title: string; extra?: React.
 }
 
 const labelStyle: React.CSSProperties = { fontSize: 11, fontWeight: 600, color: 'var(--text-2)', marginBottom: 4 }
-const valueStyle: React.CSSProperties = { fontSize: 14, color: 'var(--text-1)', minHeight: 28, display: 'flex', alignItems: 'center' }
+const valueStyle: React.CSSProperties = {
+  fontSize: 14, color: 'var(--text-1)', minHeight: 32, display: 'flex', alignItems: 'center',
+  padding: '0 11px', border: '1px solid var(--border)', borderRadius: 6, background: 'var(--bg-subtle)',
+}
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return <div><div style={labelStyle}>{label}</div><div style={valueStyle}>{children}</div></div>

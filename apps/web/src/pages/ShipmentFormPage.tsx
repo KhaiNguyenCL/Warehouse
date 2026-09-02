@@ -14,7 +14,7 @@ function BBox({ children }: { children: React.ReactNode }) {
     <div style={{
       height: 32, display: 'flex', alignItems: 'center', padding: '0 11px',
       border: '1px solid var(--border, #d9d9d9)', borderRadius: 6,
-      background: 'var(--surface)', fontSize: 14, userSelect: 'text',
+      background: 'var(--bg-subtle)', fontSize: 14, userSelect: 'text',
     }}>
       {children}
     </div>
@@ -28,7 +28,7 @@ function ReadOnlyText({ value }: { value?: string }) {
     <div style={{
       height: 32, display: 'flex', alignItems: 'center', padding: '0 11px',
       border: '1px solid var(--border, #d9d9d9)', borderRadius: 6,
-      background: 'var(--surface)', fontSize: 14,
+      background: 'var(--bg-subtle)', fontSize: 14,
       cursor: 'not-allowed', userSelect: 'text',
     }}>
       {value}
@@ -133,7 +133,7 @@ export default function ShipmentFormPage() {
       >
 
         {/* ─── Card 1: Thông tin phiếu ──────────────────────────────── */}
-        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: '20px 24px', marginBottom: 16 }}>
+        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, padding: '20px 24px', marginBottom: 16 }}>
           <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 16, color: 'var(--text-1)' }}>
             Thông tin phiếu
           </div>
@@ -202,7 +202,7 @@ export default function ShipmentFormPage() {
               <div style={{
                 minHeight: 32, padding: '4px 11px',
                 border: '1px solid var(--border, #d9d9d9)', borderRadius: 6,
-                background: 'var(--surface)', fontSize: 14, userSelect: 'text',
+                background: 'var(--bg-subtle)', fontSize: 14, userSelect: 'text',
                 whiteSpace: 'pre-wrap', lineHeight: 1.5,
                 color: shipment?.notes ? undefined : 'var(--text-3, #bbb)',
               }}>
@@ -215,7 +215,7 @@ export default function ShipmentFormPage() {
         </div>
 
         {/* ─── Card 2: Danh sách sản phẩm ──────────────────────────── */}
-        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: '20px 24px', marginBottom: 16 }}>
+        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, padding: '20px 24px', marginBottom: 16 }}>
           <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 16, color: 'var(--text-1)' }}>
             Danh sách sản phẩm
           </div>
@@ -230,7 +230,7 @@ export default function ShipmentFormPage() {
         {/* ─── Card 3: Xác nhận nhận hàng ───────────────────────────── */}
         {hook.receiveMode && (
           <div style={{
-            background: 'var(--surface)', border: '2px solid var(--s-completed-color)',
+            background: 'var(--bg-card)', border: '2px solid var(--s-completed-color)',
             borderRadius: 8, padding: '20px 24px', marginBottom: 16,
           }}>
             <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 16 }}>
@@ -313,7 +313,7 @@ export default function ShipmentFormPage() {
 
         {/* ─── Card 4: Phiếu nhập kho đã tạo từ phiếu này ────────────── */}
         {!isCreate && (shipment?.receipts ?? []).length > 0 && (
-          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: '20px 24px', marginBottom: 16 }}>
+          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, padding: '20px 24px', marginBottom: 16 }}>
             <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 16, color: 'var(--text-1)' }}>
               Phiếu nhập kho liên quan
             </div>
@@ -436,6 +436,7 @@ function ViewLinesTable({ lines }: { lines: any[] }) {
   const thStyle: React.CSSProperties = {
     padding: '8px 10px', textAlign: 'left', fontSize: 13,
     fontWeight: 500, color: 'var(--text-2, #666)',
+    background: 'var(--bg-subtle)',
     borderBottom: '1px solid var(--border, #f0f0f0)',
     whiteSpace: 'nowrap',
   }

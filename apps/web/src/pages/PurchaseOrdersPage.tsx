@@ -6,8 +6,6 @@ import { StatusBadge } from '@/components/ui/StatusBadge'
 import { PageSizeSelector } from '@/components/ui/PageSizeSelector'
 import { cn } from '@/lib/utils'
 import { CodeText } from '@/components/ui/CodeText'
-import { useResizableColumns } from '@/hooks/useResizableColumns'
-import { ResizeHandle } from '@/components/ui/ResizeHandle'
 
 const STATUS_OPTIONS = [
   { value: 'draft',     label: 'Nháp' },
@@ -17,8 +15,6 @@ const STATUS_OPTIONS = [
 
 export default function PurchaseOrdersPage() {
   const hook = usePurchaseOrders()
-  const { colWidths, tableRef, startResize } = useResizableColumns([4, 13, 18, 23, 14, 12, 10, 6])
-
   const rows: any[] = hook.data?.data ?? []
   const total: number = hook.data?.total ?? 0
   const from = total === 0 ? 0 : (hook.page - 1) * hook.limit + 1
@@ -71,18 +67,27 @@ export default function PurchaseOrdersPage() {
         </div>
 
         {/* Table */}
-        <table ref={tableRef} className="w-full table-fixed">
-          <colgroup>{colWidths.map((w, i) => <col key={i} style={{ width: `${w}%` }} />)}</colgroup>
+        <table className="w-full table-fixed">
+          <colgroup>
+            <col style={{ width: '4%' }} />
+            <col style={{ width: '13%' }} />
+            <col style={{ width: '18%' }} />
+            <col style={{ width: '23%' }} />
+            <col style={{ width: '14%' }} />
+            <col style={{ width: '12%' }} />
+            <col style={{ width: '10%' }} />
+            <col style={{ width: '6%' }} />
+          </colgroup>
           <thead>
-            <tr className="border-b border-border bg-muted/40">
-              <th style={{ width: `${colWidths[0]}%` }} className="relative px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground select-none">#<ResizeHandle onMouseDown={(e) => startResize(e, 0)} /></th>
-              <th style={{ width: `${colWidths[1]}%` }} className="relative px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground select-none">Mã phiếu<ResizeHandle onMouseDown={(e) => startResize(e, 1)} /></th>
-              <th style={{ width: `${colWidths[2]}%` }} className="relative px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground select-none">NCC<ResizeHandle onMouseDown={(e) => startResize(e, 2)} /></th>
-              <th style={{ width: `${colWidths[3]}%` }} className="relative px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground select-none">Dự án<ResizeHandle onMouseDown={(e) => startResize(e, 3)} /></th>
-              <th style={{ width: `${colWidths[4]}%` }} className="relative px-4 py-2.5 text-right text-xs font-semibold text-muted-foreground select-none">Tổng tiền<ResizeHandle onMouseDown={(e) => startResize(e, 4)} /></th>
-              <th style={{ width: `${colWidths[5]}%` }} className="relative px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground select-none">Trạng thái<ResizeHandle onMouseDown={(e) => startResize(e, 5)} /></th>
-              <th style={{ width: `${colWidths[6]}%` }} className="relative px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground select-none">Người tạo<ResizeHandle onMouseDown={(e) => startResize(e, 6)} /></th>
-              <th style={{ width: `${colWidths[7]}%` }} className="relative px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground select-none">Ngày tạo</th>
+            <tr className="border-b border-border bg-muted/60">
+              <th className="px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground">#</th>
+              <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Mã phiếu</th>
+              <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">NCC</th>
+              <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Dự án</th>
+              <th className="px-4 py-2.5 text-right text-xs font-semibold text-muted-foreground">Tổng tiền</th>
+              <th className="px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground">Trạng thái</th>
+              <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Người tạo</th>
+              <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Ngày tạo</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -101,7 +106,7 @@ export default function PurchaseOrdersPage() {
                 <tr
                   key={row.id}
                   onClick={() => hook.navigate(`/purchase-orders/${row.id}`)}
-                  className="cursor-pointer transition-colors hover:bg-muted/40"
+                  className="cursor-pointer transition-colors hover:bg-muted/30"
                 >
                   <td className="px-4 py-2 text-center text-xs text-muted-foreground">{from + i}</td>
                   <td className="px-4 py-2"><CodeText>{row.code}</CodeText></td>

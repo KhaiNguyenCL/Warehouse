@@ -257,6 +257,7 @@ export function useReceiptForm(options?: { onUpdateSuccess?: () => void }) {
     setVariantSearch,
     variantOptions,
     confirmedPOs,
+    poDetail,
     // queries
     warehouses,
     importTypes,

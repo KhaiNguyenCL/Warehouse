@@ -108,7 +108,7 @@ export default function POLineItem({ form, name, remove, showLabel = true }: Pro
         <div style={{
           height: 32, border: '1px solid var(--border, #d9d9d9)', borderRadius: 6,
           padding: '0 11px', display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
-          background: 'var(--surface-2, rgba(0,0,0,0.02))', fontSize: 15, color: 'var(--text-2, #555)',
+          background: 'var(--bg-subtle)', fontSize: 15, color: 'var(--text-2)',
           whiteSpace: 'nowrap',
         }}>
           {total != null

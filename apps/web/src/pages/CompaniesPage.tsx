@@ -207,7 +207,7 @@ function CompaniesTab({ activeTab, onTabChange, hook }: {
             <col style={{ width: '16%' }} />
           </colgroup>
           <thead>
-            <tr className="border-b border-border bg-muted/40">
+            <tr className="border-b border-border bg-muted/60">
               <th className="px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground">#</th>
               <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Mã</th>
               <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Tên công ty</th>
@@ -232,7 +232,7 @@ function CompaniesTab({ activeTab, onTabChange, hook }: {
                 <tr
                   key={row.id}
                   onClick={() => openView(row.id)}
-                  className="cursor-pointer transition-colors hover:bg-muted/40"
+                  className="cursor-pointer transition-colors hover:bg-muted/30"
                 >
                   <td className="px-4 py-2 text-center text-xs text-muted-foreground">{from + i}</td>
                   <td className="px-4 py-2 whitespace-nowrap">
@@ -384,7 +384,7 @@ function ContactsTab({ activeTab, onTabChange, onOpenSync }: {
             <col style={{ width: '8%' }} />
           </colgroup>
           <thead>
-            <tr className="border-b border-border bg-muted/40">
+            <tr className="border-b border-border bg-muted/60">
               <th className="px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground">#</th>
               <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Họ tên</th>
               <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Chức vụ</th>
@@ -404,7 +404,7 @@ function ContactsTab({ activeTab, onTabChange, onOpenSync }: {
                 <tr
                   key={row.id}
                   onClick={() => setSelectedContact(row)}
-                  className="cursor-pointer transition-colors hover:bg-muted/40"
+                  className="cursor-pointer transition-colors hover:bg-muted/30"
                 >
                   <td className="px-4 py-2.5 text-center text-xs text-muted-foreground">{from + i}</td>
                   <td className="px-4 py-2.5">

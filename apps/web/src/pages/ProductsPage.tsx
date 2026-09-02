@@ -236,7 +236,7 @@ export default function ProductsPage() {
                 <col className="w-8" />
               </colgroup>
               <thead>
-                <tr className="border-b border-border bg-muted/40">
+                <tr className="border-b border-border bg-muted/60">
                   <th className="px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground">#</th>
                   <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Mã SP</th>
                   <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Tên sản phẩm</th>
@@ -392,7 +392,7 @@ export default function ProductsPage() {
                   <col className="w-20" />
                 </colgroup>
                 <thead>
-                  <tr className="border-b border-border bg-muted/40">
+                  <tr className="border-b border-border bg-muted/60">
                     <th className="px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground">#</th>
                     <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Mã hàng</th>
                     <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Tên SKU</th>

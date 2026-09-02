@@ -154,7 +154,7 @@ function VariantAttributesTab() {
       <div className="overflow-hidden rounded-xl border border-border-md bg-background shadow-sm">
         <table className="w-full">
           <thead>
-            <tr className="border-b border-border bg-muted/40">
+            <tr className="border-b border-border bg-muted/60">
               <th className="w-10 px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">#</th>
               <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Tên thuộc tính</th>
               <th className="w-28 px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Loại</th>
@@ -169,7 +169,7 @@ function VariantAttributesTab() {
             ) : rows.length === 0 ? (
               <tr><td colSpan={6} className="px-4 py-10 text-center text-xs text-muted-foreground">Chưa có thuộc tính nào.</td></tr>
             ) : rows.map((r, i) => (
-              <tr key={r.id} onClick={() => openEdit(r)} className="group/row cursor-pointer transition-colors hover:bg-muted/40">
+              <tr key={r.id} onClick={() => openEdit(r)} className="group/row cursor-pointer transition-colors hover:bg-muted/30">
                 <td className="px-4 py-2.5 text-muted-foreground">{i + 1}</td>
                 <td className="px-4 py-2.5 font-medium text-foreground">{r.name}</td>
                 <td className="px-4 py-2.5 text-foreground">{ATTR_TYPE_LABELS[r.field_type] ?? r.field_type}</td>
@@ -438,7 +438,7 @@ function CustomFieldsTab() {
       <div className="overflow-hidden rounded-xl border border-border-md bg-background shadow-sm">
         <table className="w-full">
           <thead>
-            <tr className="border-b border-border bg-muted/40">
+            <tr className="border-b border-border bg-muted/60">
               <th className="w-10 px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">#</th>
               <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Tên trường</th>
               <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Nhãn hiển thị</th>
@@ -454,7 +454,7 @@ function CustomFieldsTab() {
             ) : rows.length === 0 ? (
               <tr><td colSpan={7} className="px-4 py-10 text-center text-xs text-muted-foreground">Chưa có field nào cho loại này.</td></tr>
             ) : rows.map((r, i) => (
-              <tr key={r.id} onClick={() => openEditField(r)} className="group/row cursor-pointer transition-colors hover:bg-muted/40">
+              <tr key={r.id} onClick={() => openEditField(r)} className="group/row cursor-pointer transition-colors hover:bg-muted/30">
                 <td className="px-4 py-2.5 text-muted-foreground">{i + 1}</td>
                 <td className="px-4 py-2.5 font-mono text-sm text-foreground">{r.field_name}</td>
                 <td className="px-4 py-2.5 font-medium text-foreground">{r.field_label}</td>

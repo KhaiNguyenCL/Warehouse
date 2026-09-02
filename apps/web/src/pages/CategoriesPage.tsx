@@ -244,7 +244,7 @@ export default function CategoriesPage() {
             <col style={{ width: '12%' }} />
           </colgroup>
           <thead>
-            <tr className="border-b border-border bg-muted/40">
+            <tr className="border-b border-border bg-muted/60">
               <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">
                 Tên
               </th>
@@ -282,7 +282,7 @@ export default function CategoriesPage() {
                   key={item.id}
                   onClick={() => openEdit(item)}
                   className={cn(
-                    'group/row cursor-pointer transition-colors hover:bg-muted/40',
+                    'group/row cursor-pointer transition-colors hover:bg-muted/30',
                     !item.is_active && 'opacity-50',
                   )}
                 >

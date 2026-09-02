@@ -55,7 +55,7 @@ export default function TemplatesPage() {
       <div className="overflow-hidden rounded-xl border border-border-md bg-background shadow-sm">
         <table className="w-full">
           <thead>
-            <tr className="border-b border-border bg-muted/40">
+            <tr className="border-b border-border bg-muted/60">
               <th className="w-10 px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">#</th>
               <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Tên</th>
               <th className="w-40 px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Loại đối tượng</th>
@@ -74,7 +74,7 @@ export default function TemplatesPage() {
               <tr
                 key={r.id}
                 onClick={() => { hook.setDetectedVariables(undefined); hook.openEdit(r) }}
-                className="group/row cursor-pointer transition-colors hover:bg-muted/40"
+                className="group/row cursor-pointer transition-colors hover:bg-muted/30"
               >
                 <td className="px-4 py-2.5 text-muted-foreground">{i + 1}</td>
                 <td className="px-4 py-2.5 font-medium text-foreground">{r.name}</td>

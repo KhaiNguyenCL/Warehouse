@@ -243,7 +243,7 @@ export default function BrandsPage() {
           </colgroup>
           <thead>
             {table.getHeaderGroups().map((hg) => (
-              <tr key={hg.id} className="border-b border-border bg-muted/40">
+              <tr key={hg.id} className="border-b border-border bg-muted/60">
                 {hg.headers.map((header) => (
                   <th
                     key={header.id}
@@ -274,7 +274,7 @@ export default function BrandsPage() {
                   key={row.id}
                   onClick={() => openEdit(row.original)}
                   className={cn(
-                    'group/row cursor-pointer transition-colors hover:bg-muted/40',
+                    'group/row cursor-pointer transition-colors hover:bg-muted/30',
                     !row.original.is_active && 'opacity-50',
                   )}
                 >
