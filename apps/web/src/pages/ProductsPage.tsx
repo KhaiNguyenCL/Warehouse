@@ -231,7 +231,7 @@ export default function ProductsPage() {
                 <col />
                 {productCols.isVisible('product_type') && <col className="w-24" />}
                 {productCols.isVisible('brand_name') && <col className="w-32" />}
-                {productCols.isVisible('category_name') && <col className="w-36" />}
+                {productCols.isVisible('category_name') && <col className="w-48" />}
                 {productCols.isVisible('sku_count') && <col className="w-14" />}
                 <col className="w-8" />
               </colgroup>

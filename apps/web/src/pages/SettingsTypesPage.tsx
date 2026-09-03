@@ -140,7 +140,7 @@ function ImportTypesSection() {
               <th className="w-32 px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Cần đối tác</th>
               <th className="w-36 px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Cần tham chiếu</th>
               <th className="w-32 px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground">Trạng thái</th>
-              <th className="w-24 px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground">Hệ thống</th>
+              <th className="w-32 px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground">Hệ thống</th>
               <th className="w-12 px-4 py-2.5" />
             </tr>
           </thead>
@@ -366,7 +366,7 @@ function ExportTypesSection() {
               <th className="w-32 px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Cần đối tác</th>
               <th className="w-28 px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground">Cần báo giá</th>
               <th className="w-32 px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground">Trạng thái</th>
-              <th className="w-24 px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground">Hệ thống</th>
+              <th className="w-32 px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground">Hệ thống</th>
               <th className="w-12 px-4 py-2.5" />
             </tr>
           </thead>
