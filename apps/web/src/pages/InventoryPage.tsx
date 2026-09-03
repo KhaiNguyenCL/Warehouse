@@ -172,6 +172,7 @@ function SnSearchTable({ search }: { search: string }) {
   const { data, isLoading } = useQuery({
     queryKey,
     queryFn: async () => (await api.get('/inventory/serials', { params: { search } })).data,
+    enabled: search.length > 0,
   })
   const [selected, setSelected] = useState<any>(null)
   const rows: any[] = data ?? []
@@ -187,7 +188,9 @@ function SnSearchTable({ search }: { search: string }) {
           </tr>
         </thead>
         <tbody className="divide-y divide-border">
-          {isLoading ? (
+          {search.length === 0 ? (
+            <tr><td colSpan={9} className="px-4 py-12 text-center text-xs text-muted-foreground">Nhập Serial No để tìm kiếm</td></tr>
+          ) : isLoading ? (
             <tr><td colSpan={9} className="px-4 py-12 text-center text-xs text-muted-foreground">Đang tìm…</td></tr>
           ) : rows.length === 0 ? (
             <tr><td colSpan={9} className="px-4 py-12 text-center text-xs text-muted-foreground">Không tìm thấy Serial No nào khớp</td></tr>
@@ -216,26 +219,13 @@ function SnSearchTable({ search }: { search: string }) {
 export default function InventoryPage() {
   const hook = useInventory()
   const navigate = useNavigate()
-  const [searchType, setSearchType] = useState<'sku' | 'sn'>('sku')
-  const [searchValue, setSearchValue] = useState('')
+  const [viewMode, setViewMode] = useState<'sku' | 'sn'>('sku')
   const [reservedSheet, setReservedSheet] = useState<{ variantId: string; variantName: string; unit: string | null } | null>(null)
 
-  function handleSearchTypeChange(type: 'sku' | 'sn') {
-    setSearchType(type)
-    setSearchValue('')
+  function handleViewModeChange(mode: 'sku' | 'sn') {
+    setViewMode(mode)
     hook.setSearchInput('')
     hook.setSnSearchInput('')
-  }
-
-  function handleSearchValueChange(v: string) {
-    setSearchValue(v)
-    if (searchType === 'sku') {
-      hook.setSearchInput(v)
-      hook.setSnSearchInput('')
-    } else {
-      hook.setSnSearchInput(v)
-      hook.setSearchInput('')
-    }
   }
 
   const rows: any[] = hook.data?.data ?? []
@@ -278,107 +268,114 @@ export default function InventoryPage() {
       {/* Table card */}
       <div className="overflow-hidden rounded-xl border border-border-md bg-background shadow-sm">
 
-        {/* Toolbar */}
-        <div className="flex items-center justify-between border-b border-border px-4 py-3">
-
-          <div className="flex items-center gap-2">
-            {/* Warehouse filter */}
-            <Select
-              value={hook.warehouseId ?? '__all__'}
-              onValueChange={(v) => hook.setWarehouseId(v === '__all__' ? undefined : v)}
+        {/* Tab nav — tách rõ 2 chế độ xem thay vì đổi ngầm qua dropdown */}
+        <div className="flex items-center gap-0 border-b border-border px-4 pt-3">
+          {[
+            { key: 'sku', label: 'Theo SKU' },
+            { key: 'sn',  label: 'Tra cứu Serial No' },
+          ].map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => handleViewModeChange(tab.key as 'sku' | 'sn')}
+              className={cn(
+                'relative -mb-px pb-3 px-4 text-sm font-medium transition-colors',
+                viewMode === tab.key
+                  ? 'text-primary border-b-2 border-primary'
+                  : 'text-muted-foreground hover:text-foreground',
+              )}
             >
-              <SelectTrigger className="h-9 w-44 text-sm shadow-none">
-                <SelectValue placeholder="Tất cả kho" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__all__">Tất cả kho</SelectItem>
-                {warehouses.map((w: any) => (
-                  <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            {/* Combined search */}
-            <Select value={searchType} onValueChange={(v) => handleSearchTypeChange(v as 'sku' | 'sn')}>
-              <SelectTrigger className="h-9 w-32 text-sm shadow-none">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="sku">Mã hàng / Tên</SelectItem>
-                <SelectItem value="sn">Serial No</SelectItem>
-              </SelectContent>
-            </Select>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder={searchType === 'sku' ? 'Tìm mã hàng / tên sản phẩm…' : 'Nhập serial number…'}
-                value={searchValue}
-                onChange={(e) => handleSearchValueChange(e.target.value)}
-                className="h-9 w-56 pl-9 text-sm shadow-none focus-visible:ring-1"
-              />
-            </div>
-
-            {/* Product type filter */}
-            <Select
-              value={hook.productType ?? '__all__'}
-              onValueChange={(v) => hook.setProductType(v === '__all__' ? undefined : v)}
-            >
-              <SelectTrigger className="h-9 w-40 text-sm shadow-none">
-                <SelectValue placeholder="Loại SP" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__all__">Tất cả loại</SelectItem>
-                <SelectItem value="storable">Thiết bị</SelectItem>
-                <SelectItem value="consumable">Vật tư</SelectItem>
-              </SelectContent>
-            </Select>
-
-            {/* Category filter */}
-            {categories.length > 0 && (
-              <Select
-                value={hook.categoryId ?? '__all__'}
-                onValueChange={(v) => hook.setCategoryId(v === '__all__' ? undefined : v)}
-              >
-                <SelectTrigger className="h-9 w-44 text-sm shadow-none">
-                  <SelectValue placeholder="Danh mục" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__all__">Tất cả danh mục</SelectItem>
-                  {categories.map((c: any) => (
-                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-
-            {/* Brand filter */}
-            {brands.length > 0 && (
-              <Select
-                value={hook.brandId ?? '__all__'}
-                onValueChange={(v) => hook.setBrandId(v === '__all__' ? undefined : v)}
-              >
-                <SelectTrigger className="h-9 w-40 text-sm shadow-none">
-                  <SelectValue placeholder="Hãng" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__all__">Tất cả hãng</SelectItem>
-                  {brands.map((b: any) => (
-                    <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-
-          </div>
-          {!hook.snSearch && (
-            <span className="text-sm text-muted-foreground">{total.toLocaleString('vi-VN')} SKU</span>
-          )}
+              {tab.label}
+            </button>
+          ))}
         </div>
 
-        {hook.snSearch ? (
-          <SnSearchTable search={hook.snSearch} />
-        ) : (
+        {viewMode === 'sku' ? (
           <>
+            {/* Toolbar */}
+            <div className="flex items-center justify-between border-b border-border px-4 py-3">
+
+              <div className="flex items-center gap-2">
+                {/* Warehouse filter */}
+                <Select
+                  value={hook.warehouseId ?? '__all__'}
+                  onValueChange={(v) => hook.setWarehouseId(v === '__all__' ? undefined : v)}
+                >
+                  <SelectTrigger className="h-9 w-44 text-sm shadow-none">
+                    <SelectValue placeholder="Tất cả kho" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__all__">Tất cả kho</SelectItem>
+                    {warehouses.map((w: any) => (
+                      <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    placeholder="Tìm mã hàng / tên sản phẩm…"
+                    value={hook.searchInput}
+                    onChange={(e) => hook.setSearchInput(e.target.value)}
+                    className="h-9 w-56 pl-9 text-sm shadow-none focus-visible:ring-1"
+                  />
+                </div>
+
+                {/* Product type filter */}
+                <Select
+                  value={hook.productType ?? '__all__'}
+                  onValueChange={(v) => hook.setProductType(v === '__all__' ? undefined : v)}
+                >
+                  <SelectTrigger className="h-9 w-40 text-sm shadow-none">
+                    <SelectValue placeholder="Loại SP" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__all__">Tất cả loại</SelectItem>
+                    <SelectItem value="storable">Thiết bị</SelectItem>
+                    <SelectItem value="consumable">Vật tư</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                {/* Category filter */}
+                {categories.length > 0 && (
+                  <Select
+                    value={hook.categoryId ?? '__all__'}
+                    onValueChange={(v) => hook.setCategoryId(v === '__all__' ? undefined : v)}
+                  >
+                    <SelectTrigger className="h-9 w-44 text-sm shadow-none">
+                      <SelectValue placeholder="Danh mục" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__all__">Tất cả danh mục</SelectItem>
+                      {categories.map((c: any) => (
+                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+
+                {/* Brand filter */}
+                {brands.length > 0 && (
+                  <Select
+                    value={hook.brandId ?? '__all__'}
+                    onValueChange={(v) => hook.setBrandId(v === '__all__' ? undefined : v)}
+                  >
+                    <SelectTrigger className="h-9 w-40 text-sm shadow-none">
+                      <SelectValue placeholder="Hãng" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__all__">Tất cả hãng</SelectItem>
+                      {brands.map((b: any) => (
+                        <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+
+              </div>
+              <span className="text-sm text-muted-foreground">{total.toLocaleString('vi-VN')} SKU</span>
+            </div>
+
             {/* Main inventory table — click dòng storable để xem danh sách SN */}
             <div className="overflow-x-auto">
             <table className="w-full">
@@ -441,7 +438,8 @@ export default function InventoryPage() {
                         {row.qty_reserved ? (
                           <button
                             onClick={(e) => { e.stopPropagation(); setReservedSheet({ variantId: row.variant_id, variantName: row.variant_name, unit: row.unit }) }}
-                            className="tabular-nums underline decoration-dashed underline-offset-2 hover:text-primary transition-colors"
+                            title="Xem chi tiết giữ chỗ"
+                            className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-0.5 text-xs font-semibold tabular-nums text-foreground hover:border-primary/50 hover:bg-primary/10 hover:text-primary transition-colors"
                           >
                             {row.qty_reserved}{row.unit ? ` ${row.unit}` : ''}
                           </button>
@@ -464,12 +462,7 @@ export default function InventoryPage() {
                       </td>
                       <td className="px-3 py-2 text-center">
                         {row.product_type === 'storable' && (
-                          <button
-                            onClick={(e) => { e.stopPropagation(); navigate(`/inventory/serials/${row.variant_id}?code=${encodeURIComponent(row.item_code ?? '')}&name=${encodeURIComponent(row.variant_name ?? '')}`) }}
-                            className="rounded px-2 py-1 text-xs text-primary hover:bg-primary/10 transition-colors whitespace-nowrap"
-                          >
-                            Xem SN
-                          </button>
+                          <ChevronRight className="inline h-4 w-4 text-muted-foreground" aria-label="Xem Serial No" />
                         )}
                       </td>
                     </tr>
@@ -509,6 +502,23 @@ export default function InventoryPage() {
                 </div>
               </div>
             )}
+          </>
+        ) : (
+          <>
+            {/* Toolbar — chỉ ô tìm Serial No, các filter kho/loại/danh mục/hãng không áp dụng cho tra cứu SN */}
+            <div className="border-b border-border px-4 py-3">
+              <div className="relative w-72">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Nhập serial number…"
+                  value={hook.snSearchInput}
+                  onChange={(e) => hook.setSnSearchInput(e.target.value)}
+                  className="h-9 w-full pl-9 text-sm shadow-none focus-visible:ring-1"
+                  autoFocus
+                />
+              </div>
+            </div>
+            <SnSearchTable search={hook.snSearch} />
           </>
         )}
       </div>
