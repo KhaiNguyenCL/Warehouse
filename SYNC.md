@@ -123,3 +123,32 @@ cấu trúc card/section nào cả (chỉ `<Typography.Title>`/`<p>` trần) —
 cần thêm card wrapper, nhưng đó là thay đổi layout nên để lại làm việc riêng nếu user yêu cầu.
 
 Không đụng API/backend.
+
+### [Frontend+Backend] 2026-09-03 — Compact field widths, zoom +10%, enforce PO→Shipment→Receipt
+Ba việc riêng biệt trong cùng phiên:
+
+1. **Thu hẹp field ngắn** trên các form: ProductDetailPage (Danh mục/Hãng/Loại SP/Mã dòng/Mã SP
+   gộp gọn, Tên+Tên English chia đôi 1 hàng), ImageUpload (chữ "Đổi ảnh" giờ chỉ hiện khi hover),
+   ShipmentFormPage/ReceiptFormPage (Ngày dự kiến/Ngày nhập kho thu hẹp), DeliveryOrderCreatePage/
+   DeliveryOrderDetailPage/TransferOrderDetailPage (field ngắn gộp 1 hàng, Ghi chú full width).
+
+2. **Zoom toàn trang +10%**: `apps/web/src/index.css` — `html { zoom: 0.95 → 1.045 }`.
+
+3. **Enforce quy trình PO → Shipment → Receipt (1-N, 1-N)** — theo yêu cầu rõ ràng của user:
+   hàng mua từ NCC (`import_type='purchase'`) giờ BẮT BUỘC phải tạo Receipt từ 1 Shipment đã
+   "Đã nhận hàng", không còn cách tạo Receipt-purchase trực tiếp.
+   - Backend: `receipt.service.ts::validateShipment()` — chặn 400 nếu `import_type='purchase'`
+     mà thiếu `shipment_id` hoặc shipment chưa `status='received'`.
+   - Frontend: `ReceiptFormPage.tsx` loại "Mua hàng từ NCC" khỏi dropdown Loại nhập khi tạo
+     receipt không qua `?shipment_id=`, khoá field khi có; bỏ "Chọn PO (tuỳ chọn)" selector thủ
+     công (PO giờ chỉ đến từ Shipment). `PurchaseOrderCreatePage.tsx`: nút "Tạo phiếu nhập" đổi
+     thành "Tạo phiếu nhận hàng" → `/shipments/new?po_id=`.
+   - `return_in`/`adjustment` không đổi (không xuất phát từ NCC nên không cần Shipment).
+   - Verified end-to-end bằng Playwright: PO confirmed → Shipment → Xác nhận nhận hàng → Receipt
+     (prefill đúng) → Complete; POST `/receipts` trực tiếp `import_type=purchase` không kèm
+     `shipment_id` → 400 đúng như mong đợi.
+
+   **Lưu ý cho session backend khác đang sửa `receipt.service.ts::cancel()`** (bỏ `roleId` param,
+   dùng `userHasPermission()`) — 2 thay đổi đã tách hunk sạch, không đụng nhau, nhưng hunk của
+   session kia (cancel + `import { userHasPermission }`) vẫn đang UNSTAGED trên máy tại thời điểm
+   commit này — tự stage/commit khi sẵn sàng.
