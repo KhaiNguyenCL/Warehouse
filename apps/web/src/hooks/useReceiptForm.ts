@@ -20,9 +20,6 @@ export function useReceiptForm(options?: { onUpdateSuccess?: () => void }) {
   // create-mode: PO selector state
   const [poId, setPoId] = useState<string | undefined>(poIdFromQuery)
 
-  // variant search (no-PO create mode)
-  const [variantSearch, setVariantSearch] = useState('')
-
   // complete mode: inline SN entry section
   const [completeMode, setCompleteMode] = useState(false)
   const [serialsRows, setSerialsRows] = useState<Record<string, SnRow[]>>({})
@@ -58,11 +55,6 @@ export function useReceiptForm(options?: { onUpdateSuccess?: () => void }) {
     queryKey: ['shipments', shipmentIdFromQuery],
     queryFn: async () => (await api.get(`/shipments/${shipmentIdFromQuery}`)).data,
     enabled: !!shipmentIdFromQuery && !id,
-  })
-
-  const { data: variantOptions } = useQuery({
-    queryKey: ['variants-search', variantSearch],
-    queryFn: async () => (await api.get('/products/variants', { params: { search: variantSearch || undefined, limit: 50 } })).data,
   })
 
   const { data: serials, isLoading: serialsLoading } = useQuery({
@@ -249,9 +241,6 @@ export function useReceiptForm(options?: { onUpdateSuccess?: () => void }) {
     poIdFromQuery,
     shipmentIdFromQuery,
     shipmentDetail,
-    variantSearch,
-    setVariantSearch,
-    variantOptions,
     poDetail,
     // queries
     warehouses,

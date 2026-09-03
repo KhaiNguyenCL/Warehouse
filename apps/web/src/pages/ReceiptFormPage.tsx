@@ -10,6 +10,7 @@ import { useReceiptForm } from '../hooks/useReceiptForm'
 import { StatusBadge } from '../components/ui/StatusBadge'
 import { SnScanGrid } from '../components/SnScanGrid'
 import { BatchQRPrint } from '../components/BatchQRPrint'
+import VariantSelect from '../components/VariantSelect'
 import { moneyProps } from '../lib/utils'
 
 // ── Shared display helpers ────────────────────────────────────────────────────
@@ -457,17 +458,7 @@ function CreateLinesTable({ hook }: { hook: ReturnType<typeof useReceiptForm> })
                       </Form.Item>
                     ) : (
                       <Form.Item name={[f.name, 'variant_id']} noStyle rules={[{ required: true, message: 'Chọn SKU' }]}>
-                        <Select
-                          showSearch
-                          placeholder="Tìm SKU / tên sản phẩm"
-                          style={{ width: '100%' }}
-                          filterOption={false}
-                          onSearch={hook.setVariantSearch}
-                          options={hook.variantOptions?.map((v: any) => ({
-                            value: v.id,
-                            label: `${v.item_code ?? v.sku} — ${v.name}`,
-                          }))}
-                        />
+                        <VariantSelect style={{ width: '100%' }} />
                       </Form.Item>
                     ),
                 },
