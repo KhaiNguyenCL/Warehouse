@@ -3,7 +3,7 @@ import {
   Button, Form, Input, Select, InputNumber, DatePicker,
   Space, Modal, Table, Upload, message,
 } from 'antd'
-import { ArrowLeftOutlined, QrcodeOutlined, UploadOutlined } from '@ant-design/icons'
+import { ArrowLeftOutlined, QrcodeOutlined, UploadOutlined, PaperClipOutlined } from '@ant-design/icons'
 import type { UploadFile } from 'antd'
 import { api } from '../lib/api'
 import { useReceiptForm } from '../hooks/useReceiptForm'
@@ -337,6 +337,36 @@ export default function ReceiptFormPage() {
                 Xác nhận Complete
               </Button>
             </div>
+          </div>
+        )}
+
+        {/* ─── Lý do hủy — chỉ hiện khi phiếu đã bị hủy ──────────────── */}
+        {receipt?.status === 'cancelled' && (receipt?.cancel_reason || receipt?.cancel_attachments?.length > 0) && (
+          <div style={{
+            background: 'var(--s-cancelled-bg)', border: '1px solid var(--s-cancelled-color)',
+            borderRadius: 8, padding: '20px 24px', marginBottom: 16,
+          }}>
+            <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 8, color: 'var(--s-cancelled-color)' }}>
+              Lý do hủy
+            </div>
+            {receipt.cancel_reason && (
+              <div style={{ color: 'var(--text-1)', whiteSpace: 'pre-wrap', marginBottom: receipt.cancel_attachments?.length ? 12 : 0 }}>
+                {receipt.cancel_reason}
+              </div>
+            )}
+            {receipt.cancel_attachments?.length > 0 && (
+              <div>
+                <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 4 }}>Đính kèm:</div>
+                <Space wrap>
+                  {receipt.cancel_attachments.map((f: any, i: number) => (
+                    <a key={i} href={f.url} target="_blank" rel="noopener noreferrer"
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 13 }}>
+                      <PaperClipOutlined /> {f.originalName}
+                    </a>
+                  ))}
+                </Space>
+              </div>
+            )}
           </div>
         )}
 
