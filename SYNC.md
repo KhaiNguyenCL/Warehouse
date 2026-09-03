@@ -14,6 +14,33 @@ Quy ước:
 
 ## Log
 
+### [Frontend+Backend] 2026-09-03 — Redesign trang Báo cáo, thêm bảng report_snapshots
+Dựng lại `ReportsPage.tsx` theo artifact đã duyệt: dải 5 KPI (doanh thu, tồn kho, backlog, tỷ lệ
+hoàn thành, vòng quay tồn kho) kèm sparkline + delta thật, card Pipeline thu gọn, 2 card mới
+"Tồn kho theo kho" + "Tồn kho chậm luân chuyển".
+
+- **Migration mới**: `apps/backend/migrations/20260903020000_report_snapshots.ts` — bảng
+  `report_snapshots` (snapshot 1 dòng/ngày cho tồn kho + pipeline, nguồn dữ liệu lịch sử cho
+  sparkline/delta KPI). Đã `pnpm migrate:latest` trên `wms_db` (Batch 7) — **session khác chạy
+  migration trên `wms_db` nhớ pull commit này trước khi migrate tiếp** để tránh conflict thứ tự.
+- Cron job mới trong `scheduler.ts`: `captureReportSnapshot()` chạy lúc `onReady` + `10 0 * * *`
+  hàng ngày, upsert theo `snapshot_date` (idempotent).
+- 3 route mới: `GET /reports/inventory/by-warehouse`, `GET /reports/inventory/slow-moving`,
+  `GET /reports/kpi-trend`.
+- **Phát hiện `wms_test_db` bị lệch migration chain**: tại thời điểm làm việc, `knex_migrations`
+  trên `wms_test_db` đang dừng ở `20260829000000_user_groups.ts`, chậm hơn `wms_db` 4 migration
+  (bao gồm `20260821000000_serial_no_optional.ts` — chạy lại bị lỗi `constraint
+  "serial_numbers_sn_or_mac" already exists`, nghĩa là đã áp dụng thủ công/khác cách trên
+  `wms_test_db` mà không ghi vào `knex_migrations`). Đây là lệch từ trước, **không phải do
+  session này gây ra** — không tự sửa vì rủi ro đụng việc đang dở của session khác. Đã tạo riêng
+  bảng `report_snapshots` bằng raw SQL trực tiếp trên `wms_test_db` để không bị chặn (khớp cột
+  với `wms_db`). **Session backend nào sở hữu các migration đó nên kiểm tra lại và đồng bộ
+  `knex_migrations` giữa 2 DB sớm.**
+
+Không đụng file nào khác ngoài `report.repository/service/schema/routes.ts`, `scheduler.ts`,
+`useReports.ts`, `ReportsPage.tsx`.
+
+
 ### [Frontend] 2026-09-02 — Thêm UI cho Shipment (Phiếu nhận hàng) + fix bug backend
 User hỏi "phiếu nhận hàng" — hoá ra bảng `shipments`/`shipment_lines` + module backend
 (`modules/shipment/*`, migration `20260826000000_shipments.ts`) đã có sẵn từ trước nhưng chưa
