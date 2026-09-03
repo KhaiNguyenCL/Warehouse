@@ -197,6 +197,44 @@ export class ReportRepository {
     }
   }
 
+  // Danh sách báo giá confirmed đang có backlog (chưa xuất hết) — cho hover ở card Pipeline
+  async backlogQuotations(limit = 20) {
+    const rows = await this.db('quotation_line_items as qli')
+      .join('quotation_sections as qs', 'qs.id', 'qli.section_id')
+      .join('quotations as q', 'q.id', 'qs.quotation_id')
+      .leftJoin('companies as c', 'c.id', 'q.company_id')
+      .leftJoin(
+        this.db('delivery_order_lines as dl2')
+          .join('delivery_orders as d2', 'd2.id', 'dl2.delivery_order_id')
+          .where('d2.status', 'completed')
+          .whereNotNull('dl2.quotation_line_item_id')
+          .select('dl2.quotation_line_item_id')
+          .sum({ delivered_qty: 'dl2.quantity' })
+          .groupBy('dl2.quotation_line_item_id')
+          .as('del'),
+        'del.quotation_line_item_id', 'qli.id',
+      )
+      .where('q.status', 'confirmed')
+      .whereNotNull('qli.variant_id')
+      .groupBy('q.id', 'q.code', 'c.name')
+      .havingRaw('COALESCE(SUM((qli.quantity - COALESCE(del.delivered_qty, 0)) * qli.unit_price), 0) > 0')
+      .select(
+        'q.id as quotation_id',
+        'q.code as quotation_code',
+        'c.name as customer_name',
+        this.db.raw('COALESCE(SUM((qli.quantity - COALESCE(del.delivered_qty, 0)) * qli.unit_price), 0)::numeric as backlog_value'),
+      )
+      .orderByRaw('backlog_value desc')
+      .limit(limit)
+
+    return rows.map((r: any) => ({
+      quotation_id:   r.quotation_id,
+      quotation_code: r.quotation_code,
+      customer_name:  r.customer_name ?? null,
+      backlog_value:  Number(r.backlog_value),
+    }))
+  }
+
   // Dòng chảy hàng hoá: nhập kho vs xuất kho theo giá trị tiền, group by ngày/tháng
   stockFlow(from: string | undefined, to: string | undefined, groupBy: 'day' | 'month') {
     const trunc = groupBy === 'month' ? 'month' : 'day'

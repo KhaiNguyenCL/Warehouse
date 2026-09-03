@@ -1,15 +1,19 @@
-import { useMemo } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts'
 import dayjs from 'dayjs'
-import { ChevronRight } from 'lucide-react'
+import {
+  ChevronRight, TrendingUp, Wallet, Clock3, Target, RotateCw,
+  Warehouse, PieChartIcon, History, ArrowLeftRight, Banknote,
+} from 'lucide-react'
 import { useReports } from '../hooks/useReports'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -35,11 +39,24 @@ const REVENUE_COLOR = CHART_PALETTE[3]
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
-function SectionTitle({ children }: { children: React.ReactNode }) {
+function SectionTitle({ children, icon: Icon }: { children: React.ReactNode; icon?: React.ComponentType<{ className?: string }> }) {
   return (
-    <h2 className="text-xs font-semibold text-muted-foreground">
+    <h2 className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+      {Icon && <Icon className="h-3.5 w-3.5" />}
       {children}
     </h2>
+  )
+}
+
+// Card section — vỏ bọc chuẩn cho mọi block trong trang, có hover lift nhẹ để không bị phẳng.
+function Card({ children, className }: { children: React.ReactNode; className?: string }) {
+  return (
+    <div className={cn(
+      'overflow-hidden rounded-xl border border-border-md bg-background shadow-sm transition-shadow duration-200 hover:shadow-md',
+      className,
+    )}>
+      {children}
+    </div>
   )
 }
 
@@ -58,13 +75,13 @@ function DateRangeBar({
   onFrom: (v: string) => void; onTo: (v: string) => void; onGroupBy: (v: 'day' | 'month') => void
 }) {
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2">
       <input type="date" value={from} max={to} onChange={(e) => onFrom(e.target.value)}
-        className="h-7 rounded-lg border border-border bg-background px-2 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
+        className="h-7 rounded-lg border border-border bg-background px-2 text-xs transition-colors focus:outline-none focus:ring-1 focus:ring-ring"
       />
       <span className="text-xs text-muted-foreground">—</span>
       <input type="date" value={to} min={from} onChange={(e) => onTo(e.target.value)}
-        className="h-7 rounded-lg border border-border bg-background px-2 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
+        className="h-7 rounded-lg border border-border bg-background px-2 text-xs transition-colors focus:outline-none focus:ring-1 focus:ring-ring"
       />
       <Select value={groupBy} onValueChange={(v) => onGroupBy(v as 'day' | 'month')}>
         <SelectTrigger className="h-7 w-28 text-xs shadow-none">
@@ -120,7 +137,7 @@ function Sparkline({ data, color }: { data: number[]; color: string }) {
 // direction: 'up-good' = tăng là tích cực (doanh thu, tỷ lệ hoàn thành, vòng quay), 'up-bad' =
 // tăng là tiêu cực (backlog), 'neutral' = không có hướng tốt/xấu rõ ràng (giá trị tồn kho).
 function KpiTile({
-  label, value, unit, delta, direction, sparklineData, sparklineColor, caption, noDeltaText,
+  label, value, unit, delta, direction, sparklineData, sparklineColor, caption, noDeltaText, icon: Icon,
 }: {
   label: string
   value: React.ReactNode
@@ -131,13 +148,18 @@ function KpiTile({
   sparklineColor: string
   caption?: string
   noDeltaText?: string
+  icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>
 }) {
   const isGood = delta == null ? null : direction === 'up-good' ? delta > 0 : direction === 'up-bad' ? delta < 0 : null
   const deltaCls = isGood == null ? 'bg-muted text-muted-foreground' : 'text-white'
   const deltaStyle = isGood == null ? undefined : { background: isGood ? 'var(--s-completed-color)' : 'var(--s-cancelled-color)' }
   return (
-    <div className="min-w-0 px-5 py-4">
-      <p className="text-xs font-medium text-muted-foreground">{label}</p>
+    <div className="group relative min-w-0 overflow-hidden rounded-xl border border-border-md bg-background px-5 py-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+      <span className="absolute inset-x-0 top-0 h-0.5 origin-left scale-x-0 transition-transform duration-300 group-hover:scale-x-100" style={{ background: sparklineColor }} />
+      <div className="flex items-center gap-1.5">
+        <Icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" style={{ color: sparklineColor }} />
+        <p className="truncate text-xs font-medium text-muted-foreground">{label}</p>
+      </div>
       <p className="mt-1.5 text-xl font-extrabold tabular-nums tracking-tight text-foreground">
         {value}{unit && <span className="ml-1 text-xs font-medium text-muted-foreground">{unit}</span>}
       </p>
@@ -158,6 +180,18 @@ function KpiTile({
 export default function ReportsPage() {
   const navigate = useNavigate()
   const hook = useReports()
+
+  // Hover (không phải click) mở popover danh sách báo giá đang backlog — đóng có độ trễ nhỏ
+  // để di chuột từ thanh bar sang popover không bị đóng giữa chừng.
+  const [backlogOpen, setBacklogOpen] = useState(false)
+  const backlogCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  function openBacklogPopover() {
+    if (backlogCloseTimer.current) clearTimeout(backlogCloseTimer.current)
+    setBacklogOpen(true)
+  }
+  function scheduleCloseBacklogPopover() {
+    backlogCloseTimer.current = setTimeout(() => setBacklogOpen(false), 150)
+  }
 
   const pipeline = hook.pipeline
   const invSum   = hook.invSummary
@@ -205,7 +239,7 @@ export default function ReportsPage() {
       </div>
 
       {/* ── KPI band ─────────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 divide-x divide-y divide-border overflow-hidden rounded-xl border border-border-md bg-background shadow-sm sm:grid-cols-3 lg:grid-cols-5 lg:divide-y-0">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         <KpiTile
           label="Doanh thu 14 ngày"
           value={fmtMoney(revenueSum)}
@@ -213,6 +247,7 @@ export default function ReportsPage() {
           direction="up-good"
           sparklineData={trendPoints.map((p) => p.revenue)}
           sparklineColor="#2563eb"
+          icon={TrendingUp}
         />
         <KpiTile
           label="Giá trị tồn kho"
@@ -221,6 +256,7 @@ export default function ReportsPage() {
           direction="neutral"
           sparklineData={trendPoints.map((p) => p.inventory_value)}
           sparklineColor="#7c3aed"
+          icon={Wallet}
         />
         <KpiTile
           label="Backlog chưa xuất"
@@ -229,6 +265,7 @@ export default function ReportsPage() {
           direction="up-bad"
           sparklineData={trendPoints.map((p) => p.backlog_value)}
           sparklineColor="#d97706"
+          icon={Clock3}
         />
         <KpiTile
           label="Tỷ lệ hoàn thành"
@@ -239,6 +276,7 @@ export default function ReportsPage() {
           caption=" điểm"
           sparklineData={trendPoints.map((p) => p.fulfillment_rate)}
           sparklineColor="#059669"
+          icon={Target}
         />
         <KpiTile
           label="Vòng quay tồn kho"
@@ -248,6 +286,7 @@ export default function ReportsPage() {
           direction="neutral"
           sparklineColor="#0891b2"
           noDeltaText="Doanh thu 14 ngày ÷ tồn kho TB"
+          icon={RotateCw}
         />
       </div>
 
@@ -255,26 +294,26 @@ export default function ReportsPage() {
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
 
         {/* Pipeline — 3/5 */}
-        <div className="lg:col-span-3 overflow-hidden rounded-xl border border-border-md bg-background shadow-sm">
+        <Card className="lg:col-span-3">
           <div className="flex items-center justify-between border-b border-border bg-muted/60 px-4 py-2.5">
-            <SectionTitle>Pipeline bán hàng</SectionTitle>
+            <SectionTitle icon={TrendingUp}>Pipeline bán hàng</SectionTitle>
             <button
               onClick={() => navigate('/quotations')}
-              className="flex items-center gap-0.5 text-xs font-semibold text-primary hover:text-primary/80"
+              className="group flex items-center gap-0.5 text-xs font-semibold text-primary transition-colors hover:text-primary/80"
             >
-              Xem báo giá <ChevronRight className="h-3 w-3" />
+              Xem báo giá <ChevronRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
             </button>
           </div>
-          <div className="grid grid-cols-3 divide-x divide-border">
-            <div className="px-4 py-3">
+          <div className="grid grid-cols-3 gap-2.5 p-3">
+            <div className="rounded-lg border border-border bg-muted/30 px-3 py-2.5 transition-colors hover:bg-muted/50">
               <p className="text-[11px] font-medium text-muted-foreground">Báo giá confirmed</p>
               <p className="mt-0.5 text-base font-bold tabular-nums text-foreground">{pipeline?.confirmed_count ?? '—'}</p>
             </div>
-            <div className="px-4 py-3">
+            <div className="rounded-lg border border-border bg-muted/30 px-3 py-2.5 transition-colors hover:bg-muted/50">
               <p className="text-[11px] font-medium text-muted-foreground">Tổng pipeline</p>
               <p className="mt-0.5 text-base font-bold tabular-nums text-blue-600">{fmtMoney(pipeline?.total_value)}</p>
             </div>
-            <div className="px-4 py-3">
+            <div className="rounded-lg border border-border bg-muted/30 px-3 py-2.5 transition-colors hover:bg-muted/50">
               <p className="text-[11px] font-medium text-muted-foreground">Đã xuất tháng này</p>
               <p className={cn('mt-0.5 text-base font-bold tabular-nums', pipeline?.this_month_delivered ? 'text-emerald-600' : 'text-red-600')}>
                 {fmtMoney(pipeline?.this_month_delivered)}
@@ -307,13 +346,54 @@ export default function ReportsPage() {
                 >
                   {deliveredPct > 14 && <span className="text-[10px] font-bold text-white">Đã xuất</span>}
                 </div>
-                <div
-                  className="flex h-full items-center justify-center bg-amber-400 transition-all"
-                  style={{ width: `${backlogPct}%` }}
-                  title={`Backlog: ${fmtMoneyFull(pipeline.backlog_value)}`}
-                >
-                  {backlogPct > 14 && <span className="text-[10px] font-bold text-white">Backlog</span>}
-                </div>
+                <Popover open={backlogOpen} onOpenChange={setBacklogOpen}>
+                  <PopoverTrigger asChild>
+                    <div
+                      className="flex h-full items-center justify-center bg-amber-400 transition-all cursor-pointer"
+                      style={{ width: `${backlogPct}%` }}
+                      onMouseEnter={openBacklogPopover}
+                      onMouseLeave={scheduleCloseBacklogPopover}
+                    >
+                      {backlogPct > 14 && <span className="text-[10px] font-bold text-white">Backlog</span>}
+                    </div>
+                  </PopoverTrigger>
+                  <PopoverContent
+                    align="center"
+                    className="w-80 p-0"
+                    onMouseEnter={openBacklogPopover}
+                    onMouseLeave={scheduleCloseBacklogPopover}
+                  >
+                    <div className="border-b border-border px-3 py-2">
+                      <p className="text-xs font-semibold text-foreground">Báo giá đang có backlog</p>
+                      <p className="text-[11px] text-muted-foreground">Bấm vào 1 dòng để mở báo giá đó</p>
+                    </div>
+                    <div className="max-h-72 overflow-y-auto">
+                      {hook.backlogQuotationsLoading ? (
+                        <div className="px-3 py-6 text-center text-xs text-muted-foreground">Đang tải…</div>
+                      ) : !hook.backlogQuotations?.length ? (
+                        <div className="px-3 py-6 text-center text-xs text-muted-foreground">Không có báo giá nào đang backlog</div>
+                      ) : (
+                        <div className="divide-y divide-border">
+                          {hook.backlogQuotations.map((q: any) => (
+                            <button
+                              key={q.quotation_id}
+                              onClick={() => { setBacklogOpen(false); navigate(`/quotations/${q.quotation_id}`) }}
+                              className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left transition-colors hover:bg-muted/50"
+                            >
+                              <span className="min-w-0">
+                                <span className="block font-mono text-xs font-semibold text-foreground">{q.quotation_code}</span>
+                                {q.customer_name && (
+                                  <span className="block truncate text-[11px] text-muted-foreground">{q.customer_name}</span>
+                                )}
+                              </span>
+                              <span className="shrink-0 text-xs font-bold tabular-nums text-amber-600">{fmtMoneyFull(q.backlog_value)}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </PopoverContent>
+                </Popover>
                 <div className="h-full flex-1 rounded-r-lg bg-muted" />
               </div>
               <div className="mt-2 flex gap-4 text-xs font-medium text-muted-foreground">
@@ -326,12 +406,12 @@ export default function ReportsPage() {
               </div>
             </div>
           )}
-        </div>
+        </Card>
 
         {/* Tồn kho theo kho — 2/5 */}
-        <div className="lg:col-span-2 overflow-hidden rounded-xl border border-border-md bg-background shadow-sm">
+        <Card className="lg:col-span-2">
           <div className="flex items-center justify-between border-b border-border bg-muted/60 px-4 py-2.5">
-            <SectionTitle>Tồn kho theo kho</SectionTitle>
+            <SectionTitle icon={Warehouse}>Tồn kho theo kho</SectionTitle>
           </div>
           <table className="w-full">
             <thead>
@@ -345,7 +425,7 @@ export default function ReportsPage() {
               {whData.length === 0 ? (
                 <tr><td colSpan={3} className="px-4 py-6 text-center text-xs text-muted-foreground">Không có dữ liệu</td></tr>
               ) : whData.map((w: any) => (
-                <tr key={w.warehouse_id}>
+                <tr key={w.warehouse_id} className="transition-colors hover:bg-muted/30">
                   <td className="px-4 py-2.5 text-sm font-medium text-foreground">{w.warehouse_name}</td>
                   <td className="px-4 py-2.5 text-right text-sm font-semibold tabular-nums text-violet-600">
                     {Number(w.total_value) > 0 ? fmtMoney(Number(w.total_value)) : <span className="italic text-muted-foreground">trống</span>}
@@ -366,14 +446,14 @@ export default function ReportsPage() {
               <ProgressBar pct={reservedPct} color="bg-amber-400" />
             </div>
           )}
-        </div>
+        </Card>
       </div>
 
       {/* ── Category donut + Tồn kho chậm luân chuyển ───────────────────────── */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <div className="overflow-hidden rounded-xl border border-border-md bg-background shadow-sm">
+        <Card>
           <div className="flex items-center justify-between border-b border-border bg-muted/60 px-4 py-2.5">
-            <SectionTitle>Phân bổ vốn theo danh mục</SectionTitle>
+            <SectionTitle icon={PieChartIcon}>Phân bổ vốn theo danh mục</SectionTitle>
             <Select
               value={hook.warehouseId ?? '__all__'}
               onValueChange={(v) => hook.setWarehouseId(v === '__all__' ? undefined : v)}
@@ -392,8 +472,8 @@ export default function ReportsPage() {
           {donutData.length === 0 ? (
             <div className="flex h-52 items-center justify-center text-xs text-muted-foreground">Không có dữ liệu</div>
           ) : (
-            <div className="flex items-center gap-6 p-5">
-              <div className="relative shrink-0">
+            <div className="flex flex-col items-center gap-4 p-5 sm:flex-row sm:gap-6">
+              <div className="relative shrink-0 transition-transform duration-300 hover:scale-[1.03]">
                 <PieChart width={168} height={168}>
                   <Pie
                     data={donutData}
@@ -415,11 +495,11 @@ export default function ReportsPage() {
                   <span className="text-[10px] text-muted-foreground">tổng vốn</span>
                 </div>
               </div>
-              <div className="grid min-w-0 flex-1 grid-cols-1 gap-x-6 gap-y-1.5">
+              <div className="grid w-full min-w-0 flex-1 grid-cols-1 gap-x-6 gap-y-1">
                 {donutData.map((d, i) => {
                   const pct = donutTotal > 0 ? Math.round((d.value / donutTotal) * 100) : 0
                   return (
-                    <div key={d.name} className="flex items-center gap-2">
+                    <div key={d.name} className="flex items-center gap-2 rounded-md px-1.5 py-1 transition-colors hover:bg-muted/40">
                       <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: CHART_PALETTE[i % CHART_PALETTE.length] }} />
                       <span className="flex-1 truncate text-xs font-medium text-foreground">{d.name}</span>
                       <span className="w-8 shrink-0 text-right text-xs font-bold tabular-nums" style={{ color: CHART_PALETTE[i % CHART_PALETTE.length] }}>{pct}%</span>
@@ -430,11 +510,11 @@ export default function ReportsPage() {
               </div>
             </div>
           )}
-        </div>
+        </Card>
 
-        <div className="overflow-hidden rounded-xl border border-border-md bg-background shadow-sm">
+        <Card>
           <div className="flex items-center gap-2 border-b border-border bg-muted/60 px-4 py-2.5">
-            <SectionTitle>Tồn kho chậm luân chuyển</SectionTitle>
+            <SectionTitle icon={History}>Tồn kho chậm luân chuyển</SectionTitle>
             {slowData.length > 0 && (
               <span
                 className="ml-auto shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold"
@@ -453,7 +533,7 @@ export default function ReportsPage() {
           ) : (
             <div className="max-h-52 overflow-auto p-2">
               {slowData.map((r: any) => (
-                <div key={r.variant_id} className="flex items-center justify-between gap-3 rounded-lg px-3 py-2 hover:bg-muted/30">
+                <div key={r.variant_id} className="flex items-center justify-between gap-3 rounded-lg px-3 py-2 transition-colors hover:bg-muted/30">
                   <div className="min-w-0">
                     <p className="truncate text-xs font-medium text-foreground">{r.variant_name}</p>
                     <p className="font-mono text-[10.5px] text-muted-foreground">{r.item_code}</p>
@@ -468,13 +548,13 @@ export default function ReportsPage() {
               ))}
             </div>
           )}
-        </div>
+        </Card>
       </div>
 
       {/* ── Stock flow chart ──────────────────────────────────────────────── */}
-      <div className="overflow-hidden rounded-xl border border-border-md bg-background shadow-sm">
-        <div className="flex items-center justify-between border-b border-border bg-muted/60 px-4 py-2.5">
-          <SectionTitle>Dòng chảy nhập / xuất (theo giá trị)</SectionTitle>
+      <Card>
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-muted/60 px-4 py-2.5">
+          <SectionTitle icon={ArrowLeftRight}>Dòng chảy nhập / xuất (theo giá trị)</SectionTitle>
           <DateRangeBar
             from={hook.flowFrom} to={hook.flowTo} groupBy={hook.flowGroupBy}
             onFrom={hook.setFlowFrom} onTo={hook.setFlowTo} onGroupBy={hook.setFlowGroupBy}
@@ -510,12 +590,12 @@ export default function ReportsPage() {
             </ResponsiveContainer>
           )}
         </div>
-      </div>
+      </Card>
 
       {/* ── Revenue section ───────────────────────────────────────────────── */}
-      <div className="overflow-hidden rounded-xl border border-border-md bg-background shadow-sm">
-        <div className="flex items-center justify-between border-b border-border bg-muted/60 px-4 py-2.5">
-          <SectionTitle>Doanh thu (phiếu xuất hoàn thành)</SectionTitle>
+      <Card>
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-muted/60 px-4 py-2.5">
+          <SectionTitle icon={Banknote}>Doanh thu (phiếu xuất hoàn thành)</SectionTitle>
           <DateRangeBar
             from={hook.revFrom} to={hook.revTo} groupBy={hook.revGroupBy}
             onFrom={hook.setRevFrom} onTo={hook.setRevTo} onGroupBy={hook.setRevGroupBy}
@@ -523,7 +603,7 @@ export default function ReportsPage() {
         </div>
 
         {/* KPI strip */}
-        <div className="grid grid-cols-3 divide-x divide-border border-b border-border">
+        <div className="grid grid-cols-1 gap-2.5 border-b border-border p-3 sm:grid-cols-3">
           {[
             {
               label: 'Tổng doanh thu',
@@ -544,7 +624,7 @@ export default function ReportsPage() {
               color: 'text-foreground',
             },
           ].map((item) => (
-            <div key={item.label} className="px-4 py-4">
+            <div key={item.label} className="rounded-lg border border-border bg-muted/30 px-4 py-3.5 transition-colors hover:bg-muted/50">
               <p className="text-xs font-medium text-muted-foreground">{item.label}</p>
               <p className={cn('mt-1 text-2xl font-extrabold tabular-nums tracking-tight', item.color)}>
                 {item.value}
@@ -555,7 +635,7 @@ export default function ReportsPage() {
         </div>
 
         {/* Chart + top products */}
-        <div className="grid grid-cols-1 divide-x divide-border lg:grid-cols-2">
+        <div className="grid grid-cols-1 divide-y divide-border lg:grid-cols-2 lg:divide-x lg:divide-y-0">
           <div className="p-4">
             <p className="mb-3 text-xs font-semibold text-muted-foreground">
               Doanh thu {hook.revGroupBy === 'month' ? 'theo tháng' : 'theo ngày'}
@@ -607,7 +687,7 @@ export default function ReportsPage() {
                   </thead>
                   <tbody className="divide-y divide-border">
                     {(hook.topProducts ?? []).map((r: any, i: number) => (
-                      <tr key={r.variant_id} className="hover:bg-muted/30">
+                      <tr key={r.variant_id} className="transition-colors hover:bg-muted/30">
                         <td className="px-3 py-2 text-center text-xs font-bold text-muted-foreground">{i + 1}</td>
                         <td className="px-3 py-2">
                           <p className="max-w-[160px] truncate text-xs font-medium text-foreground">{r.variant_name}</p>
@@ -627,7 +707,7 @@ export default function ReportsPage() {
             )}
           </div>
         </div>
-      </div>
+      </Card>
     </div>
   )
 }

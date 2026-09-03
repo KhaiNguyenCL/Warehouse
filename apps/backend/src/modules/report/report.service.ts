@@ -36,6 +36,10 @@ export class ReportService {
     return this.repo.salesPipeline()
   }
 
+  backlogQuotations(limit = 20) {
+    return this.repo.backlogQuotations(limit)
+  }
+
   stockFlow(from?: string, to?: string, groupBy: 'day' | 'month' = 'day') {
     return this.repo.stockFlow(from, to, groupBy)
   }

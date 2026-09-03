@@ -102,3 +102,16 @@ export interface SlowMovingStockQuery {
 export interface KpiTrendQuery {
   days?: number
 }
+
+export const backlogQuotationsSchema = {
+  querystring: {
+    type: 'object',
+    properties: {
+      limit: { type: 'integer', minimum: 1, maximum: 100, default: 20 },
+    },
+  },
+}
+
+export interface BacklogQuotationsQuery {
+  limit?: number
+}

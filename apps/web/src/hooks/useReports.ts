@@ -28,6 +28,12 @@ export function useReports() {
     refetchInterval: 60_000,
   })
 
+  const { data: backlogQuotations, isLoading: backlogQuotationsLoading } = useQuery({
+    queryKey: ['reports', 'pipeline', 'backlog'],
+    queryFn: async () => (await api.get('/reports/pipeline/backlog', { params: { limit: 20 } })).data,
+    refetchInterval: 60_000,
+  })
+
   const { data: kpiTrend, isLoading: kpiTrendLoading } = useQuery({
     queryKey: ['reports', 'kpi-trend'],
     queryFn: async () => (await api.get('/reports/kpi-trend', { params: { days: 14 } })).data,
@@ -83,6 +89,7 @@ export function useReports() {
     flowFrom, flowTo, setFlowFrom, setFlowTo,
     revFrom, revTo, setRevFrom, setRevTo,
     pipeline, pipelineLoading,
+    backlogQuotations, backlogQuotationsLoading,
     kpiTrend, kpiTrendLoading,
     invSummary, invSummaryLoading,
     invByCategory, invByCategoryLoading,

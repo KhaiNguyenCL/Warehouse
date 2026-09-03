@@ -8,6 +8,7 @@ import {
   lowStockItemsSchema,
   slowMovingStockSchema,
   kpiTrendSchema,
+  backlogQuotationsSchema,
   InventoryReportQuery,
   RevenueReportQuery,
   TopProductsQuery,
@@ -15,6 +16,7 @@ import {
   LowStockItemsQuery,
   SlowMovingStockQuery,
   KpiTrendQuery,
+  BacklogQuotationsQuery,
 } from './report.schema'
 import { requirePermission } from '../../middleware/permission'
 
@@ -54,6 +56,12 @@ const reportRoutes: FastifyPluginAsync = async (app) => {
   app.get('/dashboard', { preHandler: requirePermission('report.view') }, () => service.dashboard())
 
   app.get('/pipeline', { preHandler: requirePermission('report.revenue') }, () => service.salesPipeline())
+
+  app.get<{ Querystring: BacklogQuotationsQuery }>(
+    '/pipeline/backlog',
+    { schema: backlogQuotationsSchema, preHandler: requirePermission('report.revenue') },
+    (request) => service.backlogQuotations(request.query.limit),
+  )
 
   app.get<{ Querystring: StockFlowQuery }>(
     '/stock-flow',
