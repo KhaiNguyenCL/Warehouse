@@ -20,6 +20,11 @@ export function useReceiptForm(options?: { onUpdateSuccess?: () => void }) {
   // create-mode: PO selector state
   const [poId, setPoId] = useState<string | undefined>(poIdFromQuery)
 
+  // create-mode: Shipment selector state — có thể tới từ query (?shipment_id=, khi bấm
+  // "Tạo phiếu nhập kho" trên Shipment) HOẶC tự chọn tay ngay trong form khi Loại nhập =
+  // "purchase" (xem Row 2 ở ReceiptFormPage.tsx).
+  const [shipmentId, setShipmentId] = useState<string | undefined>(shipmentIdFromQuery)
+
   // complete mode: inline SN entry section
   const [completeMode, setCompleteMode] = useState(false)
   const [serialsRows, setSerialsRows] = useState<Record<string, SnRow[]>>({})
@@ -52,9 +57,17 @@ export function useReceiptForm(options?: { onUpdateSuccess?: () => void }) {
   })
 
   const { data: shipmentDetail } = useQuery({
-    queryKey: ['shipments', shipmentIdFromQuery],
-    queryFn: async () => (await api.get(`/shipments/${shipmentIdFromQuery}`)).data,
-    enabled: !!shipmentIdFromQuery && !id,
+    queryKey: ['shipments', shipmentId],
+    queryFn: async () => (await api.get(`/shipments/${shipmentId}`)).data,
+    enabled: !!shipmentId && !id,
+  })
+
+  // Danh sách Phiếu nhận hàng đã "Đã nhận hàng" — cho phép chọn tay khi tạo Receipt trực
+  // tiếp với Loại nhập = "purchase" (không bắt buộc phải đi từ nút trên trang Shipment).
+  const { data: receivedShipments } = useQuery({
+    queryKey: ['shipments', 'received-list'],
+    queryFn: async () => (await api.get('/shipments', { params: { status: 'received', limit: 100 } })).data,
+    enabled: !id,
   })
 
   const { data: serials, isLoading: serialsLoading } = useQuery({
@@ -85,10 +98,10 @@ export function useReceiptForm(options?: { onUpdateSuccess?: () => void }) {
   // When PO detail loads → auto-fill lines in create mode
   // Guard: skip if viewing existing receipt (id is set) — component stays mounted when
   // navigating from /receipts/new?po_id=X to /receipts/:id, so poId state is stale.
-  // Also skip when creating from a Shipment (shipmentIdFromQuery) — that flow fills lines
+  // Also skip when creating from a Shipment (shipmentId) — that flow fills lines
   // from the shipment's actual received qty/condition instead, see effect below.
   useEffect(() => {
-    if (!poDetail || id || shipmentIdFromQuery) return
+    if (!poDetail || id || shipmentId) return
     form.setFieldsValue({
       po_id: poDetail.id,
       company_id: poDetail.company_id,
@@ -106,12 +119,13 @@ export function useReceiptForm(options?: { onUpdateSuccess?: () => void }) {
     })
   }, [poDetail])
 
-  // Create from a received Shipment (?shipment_id=X) → auto-fill PO, NCC, ghi chú và các
-  // dòng hàng theo đúng số lượng/tình trạng đã xác nhận thực nhận (không dùng remaining_qty
-  // của PO vì có thể hàng về thiếu/hỏng khác với PO gốc).
+  // Chọn 1 Phiếu nhận hàng (?shipment_id=X hoặc tự chọn tay ở Row 2) → auto-fill PO, NCC,
+  // ghi chú và các dòng hàng theo đúng số lượng/tình trạng đã xác nhận thực nhận (không
+  // dùng remaining_qty của PO vì có thể hàng về thiếu/hỏng khác với PO gốc).
   useEffect(() => {
     if (!shipmentDetail || id) return
     form.setFieldsValue({
+      import_type: 'purchase',
       shipment_id: shipmentDetail.id,
       po_id: shipmentDetail.po_id ?? undefined,
       company_id: shipmentDetail.supplier_id ?? undefined,
@@ -132,9 +146,18 @@ export function useReceiptForm(options?: { onUpdateSuccess?: () => void }) {
   // When poId cleared → reset po-related fields
   useEffect(() => {
     if (!poId) {
-      form.setFieldsValue({ po_id: undefined, company_id: undefined, lines: [{}] })
+      form.setFieldsValue({ po_id: undefined, company_id: undefined })
     }
   }, [poId])
+
+  // When shipmentId cleared (user bỏ chọn Phiếu nhận hàng, hoặc đổi Loại nhập khỏi
+  // "purchase") → reset toàn bộ field liên quan, kể cả dòng hàng, về trạng thái trống.
+  useEffect(() => {
+    if (!shipmentId) {
+      setPoId(undefined)
+      form.setFieldsValue({ shipment_id: undefined, po_id: undefined, company_id: undefined, lines: [{}] })
+    }
+  }, [shipmentId])
 
   // ── Derived mode ─────────────────────────────────────────────────────────
 
@@ -239,8 +262,11 @@ export function useReceiptForm(options?: { onUpdateSuccess?: () => void }) {
     poId,
     setPoId,
     poIdFromQuery,
+    shipmentId,
+    setShipmentId,
     shipmentIdFromQuery,
     shipmentDetail,
+    receivedShipments,
     poDetail,
     // queries
     warehouses,

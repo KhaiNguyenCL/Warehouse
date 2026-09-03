@@ -58,6 +58,7 @@ export default function ReceiptFormPage() {
   const [cancelLoading, setCancelLoading] = useState(false)
   const hook = useReceiptForm({ onUpdateSuccess: () => setIsDirty(false) })
   const { mode, receipt } = hook
+  const importTypeValue = Form.useWatch('import_type', hook.form)
 
   const isCreate = mode === 'create'
   const isEdit = mode === 'edit'
@@ -185,15 +186,13 @@ export default function ReceiptFormPage() {
             <Form.Item
               name="import_type" label="Loại nhập" style={{ gridColumn: 'span 4' }}
               rules={isCreate ? [{ required: true }] : undefined}
-              extra={isCreate && !hook.shipmentIdFromQuery ? 'Mua hàng từ NCC phải tạo qua Phiếu nhận hàng' : undefined}
             >
               {isCreate ? (
                 <Select
                   disabled={!!hook.shipmentIdFromQuery}
-                  options={hook.importTypes
-                    ?.filter((t: any) => hook.shipmentIdFromQuery || t.key !== 'purchase')
-                    .map((t: any) => ({ value: t.key, label: t.label }))}
+                  options={hook.importTypes?.map((t: any) => ({ value: t.key, label: t.label }))}
                   placeholder="Chọn loại nhập"
+                  onChange={(v) => { if (v !== 'purchase') hook.setShipmentId(undefined) }}
                 />
               ) : (
                 <BBox>{receipt?.import_type ?? ph}</BBox>
@@ -220,20 +219,32 @@ export default function ReceiptFormPage() {
             </Form.Item>
           </div>
 
-          {/* Row 2 — PO liên kết (chỉ có khi tạo từ Phiếu nhận hàng — PO đã gắn sẵn ở đó,
-              không cho chọn tay ở đây nữa vì luồng "mua hàng" giờ luôn đi qua Shipment) */}
-          {isCreate && hook.shipmentIdFromQuery && hook.poDetail && (
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '0 16px', maxWidth: '66%' }}>
-              <Form.Item label="PO liên kết" style={{ marginBottom: 12 }}>
-                <BBox>{[hook.poDetail.bitrix_deal_id, hook.poDetail.deal_title].filter(Boolean).join(' — ') || hook.poDetail.code}</BBox>
+          {/* Row 2 — chọn Phiếu nhận hàng (bắt buộc khi Loại nhập = "purchase") + PO/NCC
+              đọc ra từ đó (nếu Shipment có gắn PO). Có thể tới từ query (bấm "Tạo phiếu
+              nhập kho" trên trang Shipment, lúc đó khoá lại) hoặc tự chọn tay ở đây. */}
+          {isCreate && importTypeValue === 'purchase' && (
+            <div style={{ display: 'grid', gridTemplateColumns: hook.poDetail ? '2fr 1fr' : '1fr', gap: '0 16px', maxWidth: '66%' }}>
+              <Form.Item label="Phiếu nhận hàng" required style={{ marginBottom: 12 }}>
+                <Select
+                  disabled={!!hook.shipmentIdFromQuery}
+                  value={hook.shipmentId}
+                  placeholder="Chọn Phiếu nhận hàng đã xác nhận nhận hàng"
+                  options={hook.receivedShipments?.data?.map((s: any) => ({
+                    value: s.id,
+                    label: [s.code, s.supplier_name].filter(Boolean).join(' — '),
+                  }))}
+                  onChange={(v) => hook.setShipmentId(v)}
+                />
               </Form.Item>
-              <Form.Item label="NCC" style={{ marginBottom: 12 }}>
-                <BBox>
-                  {hook.poDetail?.company_name
-                    ? <span>{hook.poDetail.company_name}</span>
-                    : <span style={{ color: 'var(--text-3, #bbb)' }}>—</span>}
-                </BBox>
-              </Form.Item>
+              {hook.poDetail && (
+                <Form.Item label="NCC" style={{ marginBottom: 12 }}>
+                  <BBox>
+                    {hook.poDetail?.company_name
+                      ? <span>{hook.poDetail.company_name}</span>
+                      : <span style={{ color: 'var(--text-3, #bbb)' }}>—</span>}
+                  </BBox>
+                </Form.Item>
+              )}
             </div>
           )}
           {isCreate && (
