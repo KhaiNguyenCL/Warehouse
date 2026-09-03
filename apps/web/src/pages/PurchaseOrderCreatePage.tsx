@@ -122,14 +122,16 @@ export default function PurchaseOrderCreatePage() {
         {po?.status && <StatusBadge status={po.status} />}
 
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
-          {/* Tạo phiếu nhập — luôn hiện khi xem chi tiết, chỉ enable khi confirmed */}
+          {/* Tạo phiếu nhận hàng — luôn hiện khi xem chi tiết, chỉ enable khi confirmed.
+              Không còn nút "Tạo Receipt" trực tiếp từ PO nữa — hàng mua từ NCC phải qua
+              Phiếu nhận hàng (xác nhận nhận hàng vật lý) trước rồi mới tạo Receipt. */}
           {!isCreate && (
             <Button
               type="primary"
               disabled={po?.status !== 'confirmed'}
-              onClick={() => hook.navigate(`/receipts/new?po_id=${po?.id}`)}
+              onClick={() => hook.navigate(`/shipments/new?po_id=${po?.id}`)}
             >
-              Tạo phiếu nhập
+              Tạo phiếu nhận hàng
             </Button>
           )}
 

@@ -40,10 +40,28 @@ export class ReceiptService {
   async create(data: CreateReceiptBody, userId: string) {
     const importType = await this.resolveActiveImportType(data.import_type)
     await this.validateRefDocument(data, importType.requires_ref_document)
+    await this.validateShipment(data)
     return this.db.transaction(async (trx) => {
       await this.validatePurchaseOrder(data, trx)
       return this.repo.create(data, userId, trx)
     })
+  }
+
+  // Quy trình chuẩn: hàng mua từ NCC (import_type='purchase') PHẢI đi qua Phiếu nhận
+  // hàng (Shipment) trước — người nhận xác nhận hàng vật lý về (status='received') rồi
+  // mới tạo Receipt để nhập kho chính thức. Quan hệ PO 1-N Shipment 1-N Receipt: 1
+  // shipment có thể sinh nhiều Receipt (nhập nhiều đợt/nhiều kho), nên KHÔNG chặn theo
+  // "đã có Receipt rồi". return_in/adjustment không xuất phát từ NCC nên không áp dụng.
+  private async validateShipment(data: CreateReceiptBody) {
+    if (data.import_type !== 'purchase') return
+    if (!data.shipment_id) {
+      throw { statusCode: 400, message: 'Phiếu nhập kho (mua hàng) phải được tạo từ 1 Phiếu nhận hàng đã xác nhận nhận hàng' }
+    }
+    const shipment = await this.db('shipments').where({ id: data.shipment_id }).first()
+    if (!shipment) throw { statusCode: 400, message: 'Phiếu nhận hàng tham chiếu không tồn tại' }
+    if (shipment.status !== 'received') {
+      throw { statusCode: 400, message: 'Phiếu nhận hàng phải ở trạng thái "Đã nhận hàng" để tạo Phiếu nhập kho' }
+    }
   }
 
   // PO tham chiếu (po_id/po_line_id) là TUỲ CHỌN — không phải mọi receipt purchase đều

@@ -159,7 +159,7 @@ export default function ReceiptFormPage() {
       <Form
         form={hook.form}
         layout="vertical"
-        initialValues={isCreate ? { import_type: 'purchase', lines: [{}] } : undefined}
+        initialValues={isCreate ? { import_type: hook.shipmentIdFromQuery ? 'purchase' : undefined, lines: [{}] } : undefined}
         onFinish={isView ? undefined : handleSubmit}
         onValuesChange={() => { if (!isCreate) setIsDirty(true) }}
       >
@@ -181,10 +181,17 @@ export default function ReceiptFormPage() {
 
           {/* Row 1 — 3 field ngắn, cùng chiều cao */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: '0 16px' }}>
-            <Form.Item name="import_type" label="Loại nhập" style={{ gridColumn: 'span 4' }} rules={isCreate ? [{ required: true }] : undefined}>
+            <Form.Item
+              name="import_type" label="Loại nhập" style={{ gridColumn: 'span 4' }}
+              rules={isCreate ? [{ required: true }] : undefined}
+              extra={isCreate && !hook.shipmentIdFromQuery ? 'Mua hàng từ NCC phải tạo qua Phiếu nhận hàng' : undefined}
+            >
               {isCreate ? (
                 <Select
-                  options={hook.importTypes?.map((t: any) => ({ value: t.key, label: t.label }))}
+                  disabled={!!hook.shipmentIdFromQuery}
+                  options={hook.importTypes
+                    ?.filter((t: any) => hook.shipmentIdFromQuery || t.key !== 'purchase')
+                    .map((t: any) => ({ value: t.key, label: t.label }))}
                   placeholder="Chọn loại nhập"
                 />
               ) : (
@@ -212,30 +219,24 @@ export default function ReceiptFormPage() {
             </Form.Item>
           </div>
 
-          {/* Row 2 — PO liên kết + NCC (chiếm 2/3, tránh lệch chiều cao với textarea) */}
+          {/* Row 2 — PO liên kết (chỉ có khi tạo từ Phiếu nhận hàng — PO đã gắn sẵn ở đó,
+              không cho chọn tay ở đây nữa vì luồng "mua hàng" giờ luôn đi qua Shipment) */}
+          {isCreate && hook.shipmentIdFromQuery && hook.poDetail && (
+            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '0 16px', maxWidth: '66%' }}>
+              <Form.Item label="PO liên kết" style={{ marginBottom: 12 }}>
+                <BBox>{[hook.poDetail.bitrix_deal_id, hook.poDetail.deal_title].filter(Boolean).join(' — ') || hook.poDetail.code}</BBox>
+              </Form.Item>
+              <Form.Item label="NCC" style={{ marginBottom: 12 }}>
+                <BBox>
+                  {hook.poDetail?.company_name
+                    ? <span>{hook.poDetail.company_name}</span>
+                    : <span style={{ color: 'var(--text-3, #bbb)' }}>—</span>}
+                </BBox>
+              </Form.Item>
+            </div>
+          )}
           {isCreate && (
             <>
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '0 16px', maxWidth: '66%' }}>
-                <Form.Item label="Chọn PO (tuỳ chọn)" style={{ marginBottom: 12 }}>
-                  <Select
-                    allowClear
-                    value={hook.poId}
-                    placeholder="Chọn PO đã Confirmed để tự điền dòng hàng"
-                    options={hook.confirmedPOs?.data?.map((p: any) => ({
-                      value: p.id,
-                      label: [p.bitrix_deal_id, p.deal_title].filter(Boolean).join(' — ') || p.code || p.id,
-                    }))}
-                    onChange={(v) => hook.setPoId(v)}
-                  />
-                </Form.Item>
-                <Form.Item label="NCC" style={{ marginBottom: 12 }}>
-                  <BBox>
-                    {hook.poDetail?.company_name
-                      ? <span>{hook.poDetail.company_name}</span>
-                      : <span style={{ color: 'var(--text-3, #bbb)' }}>—</span>}
-                  </BBox>
-                </Form.Item>
-              </div>
               <Form.Item name="po_id" hidden><Input /></Form.Item>
               <Form.Item name="company_id" hidden><Input /></Form.Item>
               <Form.Item name="shipment_id" hidden><Input /></Form.Item>

@@ -48,11 +48,6 @@ export function useReceiptForm(options?: { onUpdateSuccess?: () => void }) {
     queryFn: async () => (await api.get('/settings/import-types')).data,
   })
 
-  const { data: confirmedPOs } = useQuery({
-    queryKey: ['purchase-orders', 'confirmed'],
-    queryFn: async () => (await api.get('/purchase-orders', { params: { status: 'confirmed', limit: 100 } })).data,
-  })
-
   const { data: poDetail } = useQuery({
     queryKey: ['purchase-orders', poId],
     queryFn: async () => (await api.get(`/purchase-orders/${poId}`)).data,
@@ -252,11 +247,11 @@ export function useReceiptForm(options?: { onUpdateSuccess?: () => void }) {
     poId,
     setPoId,
     poIdFromQuery,
+    shipmentIdFromQuery,
     shipmentDetail,
     variantSearch,
     setVariantSearch,
     variantOptions,
-    confirmedPOs,
     poDetail,
     // queries
     warehouses,
