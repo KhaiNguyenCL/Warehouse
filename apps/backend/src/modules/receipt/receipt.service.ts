@@ -4,6 +4,7 @@ import { Knex } from 'knex'
 import { ReceiptRepository } from './receipt.repository'
 import { CreateReceiptBody, ListReceiptQuery, CompleteReceiptBody, SerialInput } from './receipt.schema'
 import { userHasPermission } from '../../lib/permission-check'
+import { logActivity, resolveActorName } from '../../lib/activity-logger'
 
 export class ReceiptService {
   private repo: ReceiptRepository
@@ -42,10 +43,13 @@ export class ReceiptService {
     const importType = await this.resolveActiveImportType(data.import_type)
     await this.validateRefDocument(data, importType.requires_ref_document)
     await this.validateShipment(data)
-    return this.db.transaction(async (trx) => {
+    const receipt = await this.db.transaction(async (trx) => {
       await this.validatePurchaseOrder(data, trx)
       return this.repo.create(data, userId, trx)
     })
+    const actorName = await resolveActorName(this.db, userId)
+    await logActivity({ db: this.db, objectType: 'receipt', objectId: receipt.id, objectCode: receipt.code, action: 'created', actorId: userId, actorName })
+    return receipt
   }
 
   // Quy trình chuẩn: hàng mua từ NCC (import_type='purchase') PHẢI đi qua Phiếu nhận
@@ -394,6 +398,9 @@ export class ReceiptService {
       }
       throw err
     })
+    const actorName = await resolveActorName(this.db, userId)
+    await logActivity({ db: this.db, objectType: 'receipt', objectId: id, objectCode: receipt.code, action: 'completed', actorId: userId, actorName })
+    return this.repo.findById(id)
   }
 
   // Huỷ receipt — chỉ chặn huỷ khi ĐÃ completed (vì lúc đó tồn kho đã thay đổi thật,
@@ -431,5 +438,8 @@ export class ReceiptService {
       }
       return cancelled
     })
+    const actorName = await resolveActorName(this.db, userId)
+    await logActivity({ db: this.db, objectType: 'receipt', objectId: id, objectCode: receipt.code, action: 'cancelled', actorId: userId, actorName, payload: body?.reason ? { reason: body?.reason } : null })
+    return this.repo.findById(id)
   }
 }

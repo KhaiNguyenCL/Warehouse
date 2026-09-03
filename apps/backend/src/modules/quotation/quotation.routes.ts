@@ -48,14 +48,14 @@ const quotationRoutes: FastifyPluginAsync = async (app) => {
   app.patch<{ Params: { id: string } }>(
     '/:id/confirm',
     { preHandler: requirePermission('quotation.confirm') },
-    async (request) => service.confirm(request.params.id),
+    async (request) => service.confirm(request.params.id, (request.user as any).sub),
   )
 
   // PATCH /quotations/:id/unconfirm — Confirmed → Draft để sửa, giải phóng reserved.
   app.patch<{ Params: { id: string } }>(
     '/:id/unconfirm',
     { preHandler: requirePermission('quotation.edit') },
-    async (request) => service.unconfirm(request.params.id),
+    async (request) => service.unconfirm(request.params.id, (request.user as any).sub),
   )
 
   // PATCH /quotations/:id/expire — Confirmed → Expired (trigger thủ công), giải phóng reserved.

@@ -8,6 +8,7 @@ import { useDeliveryOrderDetail } from '../hooks/useDeliveryOrderDetail'
 import { PageHeader } from '../components/ui/PageHeader'
 import { StatusBadge } from '../components/ui/StatusBadge'
 import CustomFieldsPanel from '../components/CustomFieldsPanel'
+import ActivityTimeline from '../components/ActivityTimeline'
 import { api } from '../lib/api'
 
 const EXPORT_TYPE_LABEL: Record<string, string> = {
@@ -217,6 +218,11 @@ export default function DeliveryOrderDetailPage() {
       </SectionCard>
 
       <CustomFieldsPanel objectType="delivery_order" objectId={id!} />
+
+      <div style={{ marginTop: 24, padding: '16px 20px', border: '1px solid var(--border)', borderRadius: 8 }}>
+        <div style={{ fontWeight: 600, marginBottom: 12 }}>Lịch sử hoạt động</div>
+        <ActivityTimeline objectType="delivery_order" objectId={id!} />
+      </div>
 
       {/* Modal chọn Serial Number khi Complete */}
       <Modal

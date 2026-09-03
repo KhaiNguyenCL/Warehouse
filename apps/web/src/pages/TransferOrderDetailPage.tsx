@@ -5,6 +5,7 @@ import { useTransferOrderDetail } from '../hooks/useTransferOrderDetail'
 import { PageHeader } from '../components/ui/PageHeader'
 import { StatusBadge } from '../components/ui/StatusBadge'
 import CustomFieldsPanel from '../components/CustomFieldsPanel'
+import ActivityTimeline from '../components/ActivityTimeline'
 import { useState } from 'react'
 
 const TRANSFER_TYPE_LABEL: Record<string, string> = {
@@ -129,6 +130,11 @@ export default function TransferOrderDetailPage() {
       </SectionCard>
 
       <CustomFieldsPanel objectType="transfer_order" objectId={id!} />
+
+      <div style={{ marginTop: 24, padding: '16px 20px', border: '1px solid var(--border)', borderRadius: 8 }}>
+        <div style={{ fontWeight: 600, marginBottom: 12 }}>Lịch sử hoạt động</div>
+        <ActivityTimeline objectType="transfer_order" objectId={id!} />
+      </div>
 
       {/* Modal nhập Serial Number khi Complete */}
       <Modal

@@ -21,6 +21,7 @@ function toRoman(n: number): string {
 import { PageHeader } from '../components/ui/PageHeader'
 import { StatusBadge } from '../components/ui/StatusBadge'
 import CustomFieldsPanel from '../components/CustomFieldsPanel'
+import ActivityTimeline from '../components/ActivityTimeline'
 import QuotationSectionItem from '../components/QuotationSectionItem'
 
 function makeLineCols(retail: boolean) {
@@ -467,6 +468,13 @@ export default function QuotationDetailPage() {
         )}
 
       </Form>
+
+      {!hook.isNew && id && (
+        <div style={{ marginTop: 24, padding: '16px 20px', border: '1px solid var(--border)', borderRadius: 8 }}>
+          <div style={{ fontWeight: 600, marginBottom: 12 }}>Lịch sử hoạt động</div>
+          <ActivityTimeline objectType="quotation" objectId={id} />
+        </div>
+      )}
     </div>
   )
 }

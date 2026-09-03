@@ -8,6 +8,7 @@ import {
 } from './purchaseorder.schema'
 import { CustomFieldRepository } from '../customfield/customfield.repository'
 import { validateCustomFieldValue } from '../customfield/customfield.service'
+import { logActivity, resolveActorName } from '../../lib/activity-logger'
 import { userHasPermission } from '../../lib/permission-check'
 
 const PG_FOREIGN_KEY_VIOLATION = '23503'
@@ -65,11 +66,15 @@ export class PurchaseOrderService {
   async create(data: CreatePurchaseOrderBody, userId: string) {
     const { lines, ...header } = data
     await this.validateLineCustomFieldValues(lines)
+    let po: any
     try {
-      return await this.db.transaction((trx) => this.repo.create(header, lines, userId, trx))
+      po = await this.db.transaction((trx) => this.repo.create(header, lines, userId, trx))
     } catch (err) {
       mapDbError(err)
     }
+    const actorName = await resolveActorName(this.db, userId)
+    await logActivity({ db: this.db, objectType: 'purchase_order', objectId: po.id, objectCode: po.code, action: 'created', actorId: userId, actorName })
+    return po
   }
 
   // Chỉ sửa được khi còn Draft — giống quotation.update(), muốn sửa PO đã Confirm phải
@@ -101,7 +106,7 @@ export class PurchaseOrderService {
   // ─── State machine ─────────────────────────────────────────────────────
 
   async confirm(id: string, userId: string) {
-    return this.db.transaction(async (trx) => {
+    const result = await this.db.transaction(async (trx) => {
       const current = await this.repo.lockForUpdate(id, trx)
       if (!current) throw { statusCode: 404, message: 'Purchase Order not found' }
       if (current.status !== 'draft') {
@@ -109,6 +114,9 @@ export class PurchaseOrderService {
       }
       return this.repo.updateStatus(id, 'draft', 'confirmed', { confirmed_by: userId }, trx)
     })
+    const actorName = await resolveActorName(this.db, userId)
+    await logActivity({ db: this.db, objectType: 'purchase_order', objectId: id, objectCode: result?.code, action: 'confirmed', actorId: userId, actorName })
+    return result
   }
 
   // Confirmed → Draft để sửa — chặn nếu đã có Receipt liên quan (đã nhận hoặc đang chờ
@@ -117,8 +125,8 @@ export class PurchaseOrderService {
   // còn đọc qua findById() trước khi mở transaction (Bug đã sửa: trước đây 1 request
   // unconfirm() và 1 request receipt.create() cùng PO có thể chạy xen kẽ, request
   // unconfirm đọc progress cũ rồi pass check ngay trước khi Receipt mới được insert).
-  async unconfirm(id: string) {
-    return this.db.transaction(async (trx) => {
+  async unconfirm(id: string, userId: string) {
+    const result = await this.db.transaction(async (trx) => {
       const current = await this.repo.lockForUpdate(id, trx)
       if (!current) throw { statusCode: 404, message: 'Purchase Order not found' }
       if (current.status !== 'confirmed') {
@@ -128,6 +136,9 @@ export class PurchaseOrderService {
       this.assertNoReceiptActivity({ lines }, 'Không thể chuyển về Draft')
       return this.repo.updateStatus(id, 'confirmed', 'draft', {}, trx)
     })
+    const actorName = await resolveActorName(this.db, userId)
+    await logActivity({ db: this.db, objectType: 'purchase_order', objectId: id, objectCode: result?.code, action: 'unconfirmed', actorId: userId, actorName })
+    return result
   }
 
   // Chỉ người tạo PO HOẶC người có quyền purchase_order.confirm mới được huỷ — giống
@@ -149,7 +160,7 @@ export class PurchaseOrderService {
       }
     }
 
-    return this.db.transaction(async (trx) => {
+    const result = await this.db.transaction(async (trx) => {
       const current = await this.repo.lockForUpdate(id, trx)
       if (!current) throw { statusCode: 404, message: 'Purchase Order not found' }
       if (current.status === 'cancelled') {
@@ -161,6 +172,9 @@ export class PurchaseOrderService {
       }
       return this.repo.updateStatus(id, current.status, 'cancelled', {}, trx)
     })
+    const actorName = await resolveActorName(this.db, userId)
+    await logActivity({ db: this.db, objectType: 'purchase_order', objectId: id, objectCode: po.code, action: 'cancelled', actorId: userId, actorName })
+    return result
   }
 
   // Soft-delete — chỉ cho phép khi PO còn Draft hoặc Cancelled, và không có receipt

@@ -4,6 +4,7 @@ import { usePurchaseOrderDetail } from '../hooks/usePurchaseOrderDetail'
 import { EntityFormModal } from '../components/EntityFormModal'
 import { StatusTag } from '../components/StatusTag'
 import CustomFieldsPanel from '../components/CustomFieldsPanel'
+import ActivityTimeline from '../components/ActivityTimeline'
 
 const STATUS_COLOR: Record<string, string> = { draft: 'default', confirmed: 'blue', cancelled: 'red' }
 
@@ -97,6 +98,11 @@ export default function PurchaseOrderDetailPage() {
       </EntityFormModal>
 
       <CustomFieldsPanel objectType="purchase_order" objectId={id!} />
+
+      <div style={{ marginTop: 24, padding: '16px 20px', border: '1px solid var(--border)', borderRadius: 8 }}>
+        <div style={{ fontWeight: 600, marginBottom: 12 }}>Lịch sử hoạt động</div>
+        <ActivityTimeline objectType="purchase_order" objectId={id!} />
+      </div>
     </div>
   )
 }

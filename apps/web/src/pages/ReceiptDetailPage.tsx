@@ -12,6 +12,7 @@ import { EntityFormModal } from '../components/EntityFormModal'
 import { StatusTag } from '../components/StatusTag'
 import { BatchQRPrint } from '../components/BatchQRPrint'
 import CustomFieldsPanel from '../components/CustomFieldsPanel'
+import ActivityTimeline from '../components/ActivityTimeline'
 
 const STATUS_COLOR: Record<string, string> = {
   draft: 'default',
@@ -210,6 +211,11 @@ export default function ReceiptDetailPage() {
       )}
 
       <CustomFieldsPanel objectType="receipt" objectId={id!} />
+
+      <div style={{ marginTop: 24, padding: '16px 20px', border: '1px solid var(--border)', borderRadius: 8 }}>
+        <div style={{ fontWeight: 600, marginBottom: 12 }}>Lịch sử hoạt động</div>
+        <ActivityTimeline objectType="receipt" objectId={id!} />
+      </div>
 
       {/* Modal hủy phiếu — yêu cầu lý do + đính kèm chứng từ */}
       <Modal

@@ -2,6 +2,7 @@ import { Knex } from 'knex'
 import { QuotationRepository, ComputedSection, ComputedSubSection, ComputedLineItem } from './quotation.repository'
 import { CreateQuotationBody, UpdateQuotationBody, ListQuotationQuery, QuotationSectionInput, QuotationLineItemInput } from './quotation.schema'
 import { userHasPermission } from '../../lib/permission-check'
+import { logActivity, resolveActorName } from '../../lib/activity-logger'
 
 const PG_FOREIGN_KEY_VIOLATION = '23503'
 
@@ -166,11 +167,15 @@ export class QuotationService {
       sections,
     }
 
+    let quotation: any
     try {
-      return await this.db.transaction((trx) => this.repo.create(computed, userId, trx))
+      quotation = await this.db.transaction((trx) => this.repo.create(computed, userId, trx))
     } catch (err) {
       mapDbError(err)
     }
+    const actorName = await resolveActorName(this.db, userId)
+    await logActivity({ db: this.db, objectType: 'quotation', objectId: quotation.id, objectCode: quotation.code, action: 'created', actorId: userId, actorName })
+    return quotation
   }
 
   // Chỉ sửa được khi còn Draft — muốn sửa báo giá đã Confirm phải /unconfirm trước
@@ -224,7 +229,7 @@ export class QuotationService {
 
   // ─── State machine ─────────────────────────────────────────────────────
 
-  async confirm(id: string) {
+  async confirm(id: string, userId?: string) {
     const quotation = await this.repo.findById(id)
     if (!quotation) throw { statusCode: 404, message: 'Quotation not found' }
     if (quotation.status !== 'draft') throw { statusCode: 400, message: 'Chỉ có thể xác nhận từ Draft' }
@@ -279,7 +284,7 @@ export class QuotationService {
     const expiredAt = quotation.expired_at
       ?? computeExpiredAt(quotation.quote_date, quotation.valid_days)
 
-    return this.db.transaction(async (trx) => {
+    await this.db.transaction(async (trx) => {
       const confirmed = await this.repo.updateStatus(id, 'draft', 'confirmed', { expired_at: expiredAt }, trx)
       if (!confirmed) {
         throw { statusCode: 400, message: 'Báo giá đã được xử lý bởi 1 yêu cầu khác — vui lòng tải lại' }
@@ -304,9 +309,13 @@ export class QuotationService {
           trx,
         )
       }
-
-      return confirmed
     })
+    if (userId) {
+      const uid: string = userId
+      const actorName = await resolveActorName(this.db, uid)
+      await logActivity({ db: this.db, objectType: 'quotation', objectId: id, objectCode: quotation.code, action: 'confirmed', actorId: uid, actorName })
+    }
+    return this.repo.findById(id)
   }
 
   // Chỉ người tạo báo giá HOẶC người có quyền quotation.confirm (Manager/Admin) mới được huỷ.
@@ -339,6 +348,9 @@ export class QuotationService {
       }
       return cancelled
     })
+    const actorName = await resolveActorName(this.db, userId)
+    await logActivity({ db: this.db, objectType: 'quotation', objectId: id, objectCode: quotation.code, action: 'cancelled', actorId: userId, actorName })
+    return this.repo.findById(id)
   }
 
   // Đánh dấu hết hạn — được gọi cả từ manual trigger (route) lẫn từ scheduler plugin
@@ -359,7 +371,7 @@ export class QuotationService {
   // Confirmed → Draft để sửa (CLAUDE.md mục 6: "sửa Confirmed → về Draft: reserved giải
   // phóng, không sửa SL đã xuất") — chặn hẳn nếu đã có DO liên quan (xuất rồi hoặc đang
   // chờ xử lý) để không phải xử lý việc sửa 1 phần dòng đã cam kết với DO khác.
-  async unconfirm(id: string) {
+  async unconfirm(id: string, userId?: string) {
     const quotation = await this.repo.findById(id)
     if (!quotation) throw { statusCode: 404, message: 'Quotation not found' }
     if (quotation.status !== 'confirmed') {
@@ -379,14 +391,19 @@ export class QuotationService {
       }
     }
 
-    return this.db.transaction(async (trx) => {
+    await this.db.transaction(async (trx) => {
       const current = await this.repo.lockForUpdate(id, trx)
       if (!current || current.status !== 'confirmed') {
         throw { statusCode: 400, message: 'Báo giá đã được xử lý bởi 1 yêu cầu khác — vui lòng tải lại' }
       }
-      const updated = await this.repo.updateStatus(id, 'confirmed', 'draft', {}, trx)
+      await this.repo.updateStatus(id, 'confirmed', 'draft', {}, trx)
       await this.releaseReserved(id, trx)
-      return updated
     })
+    if (userId) {
+      const uid: string = userId
+      const actorName = await resolveActorName(this.db, uid)
+      await logActivity({ db: this.db, objectType: 'quotation', objectId: id, objectCode: quotation.code, action: 'unconfirmed', actorId: uid, actorName })
+    }
+    return this.repo.findById(id)
   }
 }

@@ -2,6 +2,7 @@ import { Knex } from 'knex'
 import { DeliveryRepository } from './delivery.repository'
 import { CreateDeliveryBody, ListDeliveryQuery, CompleteDeliveryBody } from './delivery.schema'
 import { userHasPermission } from '../../lib/permission-check'
+import { logActivity, resolveActorName } from '../../lib/activity-logger'
 
 export class DeliveryService {
   private repo: DeliveryRepository
@@ -42,7 +43,10 @@ export class DeliveryService {
 
     await this.validateQuotationLines(data)
 
-    return this.db.transaction((trx) => this.repo.create(data, userId, trx))
+    const delivery = await this.db.transaction((trx) => this.repo.create(data, userId, trx))
+    const actorName = await resolveActorName(this.db, userId)
+    await logActivity({ db: this.db, objectType: 'delivery_order', objectId: delivery.id, objectCode: delivery.code, action: 'created', actorId: userId, actorName })
+    return delivery
   }
 
   // Đọc cấu hình từ bảng export_types (Settings module) thay vì enum + map hardcode — admin
@@ -391,6 +395,9 @@ export class DeliveryService {
 
       return completed
     })
+    const actorName = await resolveActorName(this.db, userId)
+    await logActivity({ db: this.db, objectType: 'delivery_order', objectId: id, objectCode: delivery.code, action: 'completed', actorId: userId, actorName })
+    return this.repo.findById(id)
   }
 
   // Giảm (hoặc xoá nếu về 0) đúng dòng reserved_items khớp variant + dòng báo giá — không
@@ -545,14 +552,16 @@ export class DeliveryService {
       }
     }
 
-    return this.db.transaction(async (trx) => {
+    await this.db.transaction(async (trx) => {
       const cancelled = await this.repo.updateStatus(
         id, ['draft'], 'cancelled', {}, trx,
       )
       if (!cancelled) {
         throw { statusCode: 400, message: 'Không thể huỷ phiếu đã hoàn thành hoặc đã huỷ' }
       }
-      return cancelled
     })
+    const actorName = await resolveActorName(this.db, userId)
+    await logActivity({ db: this.db, objectType: 'delivery_order', objectId: id, objectCode: delivery.code, action: 'cancelled', actorId: userId, actorName })
+    return this.repo.findById(id)
   }
 }

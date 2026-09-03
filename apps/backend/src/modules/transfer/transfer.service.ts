@@ -2,6 +2,7 @@ import { Knex } from 'knex'
 import { TransferRepository } from './transfer.repository'
 import { CreateTransferBody, ListTransferQuery, CompleteTransferBody } from './transfer.schema'
 import { userHasPermission } from '../../lib/permission-check'
+import { logActivity, resolveActorName } from '../../lib/activity-logger'
 
 // CLAUDE.md mục 10: với 4 transfer_type này, kho NGUỒN luôn là 1 kho ảo cố định —
 // client chỉ cần chọn kho đích (vật lý), không cần biết UUID kho ảo.
@@ -55,7 +56,7 @@ export class TransferService {
   }
 
   async create(data: CreateTransferBody, userId: string) {
-    return this.db.transaction(async (trx) => {
+    const transfer = await this.db.transaction(async (trx) => {
       const from_warehouse_id = await this.resolveFromWarehouseId(data, trx)
 
       // CHECK constraint trong DB cũng chặn việc này, nhưng validate ở app cho message
@@ -65,6 +66,9 @@ export class TransferService {
       }
       return this.repo.create({ ...data, from_warehouse_id }, userId, trx)
     })
+    const actorName = await resolveActorName(this.db, userId)
+    await logActivity({ db: this.db, objectType: 'transfer_order', objectId: transfer.id, objectCode: transfer.code, action: 'created', actorId: userId, actorName })
+    return transfer
   }
 
   // updateStatus() so khớp status trong WHERE — atomic, tránh race condition khi 2
@@ -250,6 +254,9 @@ export class TransferService {
 
       return completed
     })
+    const actorName = await resolveActorName(this.db, userId)
+    await logActivity({ db: this.db, objectType: 'transfer_order', objectId: id, objectCode: transfer.code, action: 'completed', actorId: userId, actorName })
+    return this.repo.findById(id)
   }
 
   // Chỉ người tạo phiếu HOẶC người có quyền transfer.approve (Manager/Admin) mới được huỷ.
@@ -267,14 +274,16 @@ export class TransferService {
       }
     }
 
-    return this.db.transaction(async (trx) => {
+    await this.db.transaction(async (trx) => {
       const cancelled = await this.repo.updateStatus(
         id, ['draft'], 'cancelled', {}, trx,
       )
       if (!cancelled) {
         throw { statusCode: 400, message: 'Không thể huỷ phiếu đã hoàn thành hoặc đã huỷ' }
       }
-      return cancelled
     })
+    const actorName = await resolveActorName(this.db, userId)
+    await logActivity({ db: this.db, objectType: 'transfer_order', objectId: id, objectCode: transfer.code, action: 'cancelled', actorId: userId, actorName })
+    return this.repo.findById(id)
   }
 }

@@ -53,7 +53,7 @@ const purchaseOrderRoutes: FastifyPluginAsync = async (app) => {
   app.patch<{ Params: { id: string } }>(
     '/:id/unconfirm',
     { preHandler: requirePermission('purchase_order.edit') },
-    async (request) => service.unconfirm(request.params.id),
+    async (request) => service.unconfirm(request.params.id, (request.user as any).sub),
   )
 
   // PATCH /purchase-orders/:id/cancel — authorization thật (chủ PO hoặc người có quyền
