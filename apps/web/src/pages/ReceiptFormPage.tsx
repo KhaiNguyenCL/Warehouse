@@ -73,9 +73,13 @@ export default function ReceiptFormPage() {
     }
     setCancelLoading(true)
     try {
+      // AntD Upload tự gọi lại onChange sau khi customRequest báo onSuccess, dùng fileList
+      // do nó tự tính lại (chỉ giữ `response`, không giữ field `url` mình tự gắn thêm trong
+      // customRequest) — field `url` gắn tay có thể bị ghi đè mất trước lúc submit. Đọc từ
+      // `f.response.url` (payload thật của /uploads/file) mới đáng tin cậy.
       const uploaded = cancelFiles
-        .filter((f) => f.url)
-        .map((f) => ({ url: f.url as string, originalName: f.name }))
+        .filter((f) => f.url || f.response?.url)
+        .map((f) => ({ url: (f.url ?? f.response?.url) as string, originalName: f.name }))
       await hook.cancelMutation.mutateAsync({ reason: cancelReason.trim(), attachments: uploaded })
       setCancelOpen(false)
       setCancelReason('')
