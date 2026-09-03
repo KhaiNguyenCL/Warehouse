@@ -180,8 +180,8 @@ export default function ReceiptFormPage() {
           </div>
 
           {/* Row 1 — 3 field ngắn, cùng chiều cao */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0 16px' }}>
-            <Form.Item name="import_type" label="Loại nhập" rules={isCreate ? [{ required: true }] : undefined}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: '0 16px' }}>
+            <Form.Item name="import_type" label="Loại nhập" style={{ gridColumn: 'span 4' }} rules={isCreate ? [{ required: true }] : undefined}>
               {isCreate ? (
                 <Select
                   options={hook.importTypes?.map((t: any) => ({ value: t.key, label: t.label }))}
@@ -192,7 +192,7 @@ export default function ReceiptFormPage() {
               )}
             </Form.Item>
 
-            <Form.Item name="warehouse_id" label="Kho nhập" rules={isCreate ? [{ required: true }] : undefined}>
+            <Form.Item name="warehouse_id" label="Kho nhập" style={{ gridColumn: 'span 5' }} rules={isCreate ? [{ required: true }] : undefined}>
               {isCreate ? (
                 <Select
                   options={hook.warehouses?.map((w: any) => ({ value: w.id, label: `${w.name} (${w.code})` }))}
@@ -203,7 +203,7 @@ export default function ReceiptFormPage() {
               )}
             </Form.Item>
 
-            <Form.Item name="received_date" label="Ngày nhập kho">
+            <Form.Item name="received_date" label="Ngày nhập kho" style={{ gridColumn: 'span 3' }}>
               {isView ? (
                 <BBox>{receipt?.received_date ? new Date(receipt.received_date).toLocaleDateString('vi-VN') : ph}</BBox>
               ) : (

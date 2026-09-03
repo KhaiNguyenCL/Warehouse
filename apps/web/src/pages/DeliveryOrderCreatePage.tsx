@@ -45,8 +45,8 @@ export default function DeliveryOrderCreatePage() {
       <Form form={hook.form} layout="vertical" onFinish={(v) => hook.createMutation.mutate(v)}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
           <SectionCard title="Thông tin chung">
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0 24px' }}>
-              <Form.Item name="export_type" label="Loại xuất" rules={[{ required: true, message: 'Chọn loại xuất' }]}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '0 24px' }}>
+              <Form.Item name="export_type" label="Loại xuất" style={{ gridColumn: 'span 2' }} rules={[{ required: true, message: 'Chọn loại xuất' }]}>
                 <Select
                   placeholder="Chọn loại xuất"
                   options={hook.exportTypes?.filter((t: any) => t.is_active).map((t: any) => ({ value: t.key, label: t.label }))}
@@ -58,17 +58,22 @@ export default function DeliveryOrderCreatePage() {
                 />
               </Form.Item>
 
-              <Form.Item name="warehouse_id" label="Kho xuất" rules={[{ required: true, message: 'Chọn kho xuất' }]}>
+              <Form.Item name="warehouse_id" label="Kho xuất" style={{ gridColumn: 'span 2' }} rules={[{ required: true, message: 'Chọn kho xuất' }]}>
                 <Select
                   placeholder="Chọn kho"
                   options={hook.warehouses?.map((w: any) => ({ value: w.id, label: `${w.name} (${w.code})` }))}
                 />
               </Form.Item>
 
+              <Form.Item name="reason" label="Lý do" style={{ gridColumn: 'span 2' }}>
+                <Input placeholder="Lý do xuất kho" />
+              </Form.Item>
+
               {hook.requiresCompanyType && hook.requiresCompanyType !== 'none' && (
                 <Form.Item
                   name="company_id"
                   label={hook.requiresCompanyType === 'customer' ? 'Khách hàng' : 'NCC'}
+                  style={{ gridColumn: 'span 3' }}
                   rules={[{ required: true, message: 'Chọn đối tác' }]}
                 >
                   <Select
@@ -82,7 +87,7 @@ export default function DeliveryOrderCreatePage() {
               )}
 
               {hook.requiresCompanyType && hook.requiresCompanyType !== 'none' && (
-                <Form.Item name="contact_id" label="Người liên hệ (tuỳ chọn)">
+                <Form.Item name="contact_id" label="Người liên hệ (tuỳ chọn)" style={{ gridColumn: 'span 3' }}>
                   <Select
                     allowClear
                     disabled={!hook.companyId}
@@ -93,7 +98,7 @@ export default function DeliveryOrderCreatePage() {
               )}
 
               {hook.requiresQuotation && (
-                <Form.Item label="Báo giá" required style={{ gridColumn: 'span 2' }}>
+                <Form.Item label="Báo giá" required style={{ gridColumn: 'span 4' }}>
                   <Select
                     value={hook.quotationId}
                     placeholder="Chọn báo giá đã Confirmed"
@@ -110,17 +115,13 @@ export default function DeliveryOrderCreatePage() {
               <Form.Item name="quotation_id" hidden><Input /></Form.Item>
 
               {hook.isAdjustment && (
-                <Form.Item name="ref_document_id" label="Stocktake Result ID" rules={[{ required: true }]}
+                <Form.Item name="ref_document_id" label="Stocktake Result ID" style={{ gridColumn: 'span 6' }} rules={[{ required: true }]}
                   extra="Dán UUID của stocktake_results tương ứng">
                   <Input />
                 </Form.Item>
               )}
 
-              <Form.Item name="reason" label="Lý do">
-                <Input placeholder="Lý do xuất kho" />
-              </Form.Item>
-
-              <Form.Item name="note" label="Ghi chú" style={{ gridColumn: 'span 2' }}>
+              <Form.Item name="note" label="Ghi chú" style={{ gridColumn: 'span 6' }}>
                 <Input.TextArea rows={2} />
               </Form.Item>
             </div>

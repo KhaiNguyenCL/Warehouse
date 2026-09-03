@@ -138,8 +138,8 @@ export default function ShipmentFormPage() {
             Thông tin phiếu
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0 16px' }}>
-            <Form.Item name="warehouse_id" label="Kho nhận" rules={isCreate || isEdit ? [{ required: true }] : undefined}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: '0 16px' }}>
+            <Form.Item name="warehouse_id" label="Kho nhận" style={{ gridColumn: 'span 5' }} rules={isCreate || isEdit ? [{ required: true }] : undefined}>
               {isView ? (
                 <BBox>{shipment?.warehouse_name ?? ph}</BBox>
               ) : (
@@ -150,7 +150,7 @@ export default function ShipmentFormPage() {
               )}
             </Form.Item>
 
-            <Form.Item name="supplier_id" label="Nhà cung cấp">
+            <Form.Item name="supplier_id" label="Nhà cung cấp" style={{ gridColumn: 'span 5' }}>
               {isView ? (
                 <BBox>{shipment?.supplier_name ?? ph}</BBox>
               ) : (
@@ -165,11 +165,11 @@ export default function ShipmentFormPage() {
               )}
             </Form.Item>
 
-            <Form.Item name="expected_date" label="Ngày dự kiến">
+            <Form.Item name="expected_date" label="Ngày dự kiến" style={{ gridColumn: 'span 2' }}>
               {isView ? (
                 <BBox>{shipment?.expected_date ? new Date(shipment.expected_date).toLocaleDateString('vi-VN') : ph}</BBox>
               ) : (
-                <DatePicker format="DD/MM/YYYY" style={{ width: '100%' }} placeholder="Ngày hàng dự kiến về" />
+                <DatePicker format="DD/MM/YYYY" style={{ width: '100%' }} placeholder="Ngày dự kiến" />
               )}
             </Form.Item>
           </div>

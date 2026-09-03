@@ -48,21 +48,20 @@ export function ImageUpload({ value, onChange, disabled }: Props) {
           <span style={{ fontSize: 'var(--font-xs)' }}>Đang tải...</span>
         </div>
       ) : imgSrc ? (
-        <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+        <div className="group" style={{ position: 'relative', width: '100%', height: '100%' }}>
           <img
             src={imgSrc}
             alt="product"
             style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: 6 }}
           />
-          <div style={{
-            position: 'absolute', inset: 0, borderRadius: 6,
-            background: 'rgba(0,0,0,0)', display: 'flex',
-            alignItems: 'center', justifyContent: 'center',
-            transition: 'background 0.15s',
-            fontSize: 'var(--font-xs)', color: '#fff', fontWeight: 600,
-          }}
-            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(0,0,0,0.45)')}
-            onMouseLeave={e => (e.currentTarget.style.background = 'rgba(0,0,0,0)')}
+          <div
+            className="opacity-0 transition-opacity duration-150 group-hover:opacity-100"
+            style={{
+              position: 'absolute', inset: 0, borderRadius: 6,
+              background: 'rgba(0,0,0,0.45)', display: 'flex',
+              alignItems: 'center', justifyContent: 'center',
+              fontSize: 'var(--font-xs)', color: '#fff', fontWeight: 600,
+            }}
           >
             Đổi ảnh
           </div>

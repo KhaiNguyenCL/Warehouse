@@ -33,8 +33,8 @@ const valueStyle: React.CSSProperties = {
   padding: '0 11px', border: '1px solid var(--border)', borderRadius: 6, background: 'var(--bg-subtle)',
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return <div><div style={labelStyle}>{label}</div><div style={valueStyle}>{children}</div></div>
+function Field({ label, span = 4, children }: { label: string; span?: number; children: React.ReactNode }) {
+  return <div style={{ gridColumn: `span ${span}` }}><div style={labelStyle}>{label}</div><div style={valueStyle}>{children}</div></div>
 }
 function Val({ v }: { v?: React.ReactNode }) {
   return v != null && v !== '' ? <>{v}</> : <span style={{ color: 'var(--text-3)' }}>—</span>
@@ -164,16 +164,16 @@ export default function DeliveryOrderDetailPage() {
       />
 
       <SectionCard title="Thông tin chung">
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px 28px' }}>
-          <Field label="Loại xuất"><Val v={EXPORT_TYPE_LABEL[d.export_type] ?? d.export_type} /></Field>
-          <Field label="Kho xuất"><Val v={d.warehouse_name} /></Field>
-          <Field label="Khách hàng / NCC"><Val v={d.company_name} /></Field>
-          <Field label="Người liên hệ"><Val v={d.contact_name} /></Field>
-          <Field label="Lý do"><Val v={d.reason} /></Field>
-          <Field label="Ngày tạo">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: '16px 28px' }}>
+          <Field label="Loại xuất" span={3}><Val v={EXPORT_TYPE_LABEL[d.export_type] ?? d.export_type} /></Field>
+          <Field label="Kho xuất" span={3}><Val v={d.warehouse_name} /></Field>
+          <Field label="Lý do" span={3}><Val v={d.reason} /></Field>
+          <Field label="Ngày tạo" span={3}>
             <Val v={d.created_at ? new Date(d.created_at).toLocaleDateString('vi-VN') : undefined} />
           </Field>
-          <Field label="Ghi chú">
+          <Field label="Khách hàng / NCC" span={6}><Val v={d.company_name} /></Field>
+          <Field label="Người liên hệ" span={6}><Val v={d.contact_name} /></Field>
+          <Field label="Ghi chú" span={12}>
             {editingNote ? (
               <Form form={noteForm} style={{ width: '100%' }}>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', width: '100%' }}>

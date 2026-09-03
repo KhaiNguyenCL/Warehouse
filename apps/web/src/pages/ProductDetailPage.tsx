@@ -108,9 +108,9 @@ const labelStyle: React.CSSProperties = {
   marginBottom: 4,
 }
 
-function Field({ label, full, children }: { label: string; full?: boolean; children: React.ReactNode }) {
+function Field({ label, span = 2, children }: { label: string; span?: number; children: React.ReactNode }) {
   return (
-    <div style={full ? { gridColumn: '1 / -1' } : {}}>
+    <div style={{ gridColumn: `span ${span}` }}>
       <div style={labelStyle}>{label}</div>
       {children}
     </div>
@@ -337,7 +337,7 @@ export default function ProductDetailPage() {
         {/* Card body */}
         <div className="px-5 py-5">
           <AntForm form={editForm} layout="vertical">
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '22px 28px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '22px 28px' }}>
               <Field label="Danh mục *">
                 <AntForm.Item name="category_id" noStyle rules={[{ required: true, message: 'Bắt buộc' }]}>
                   <TreeSelect treeData={categoryTree} showSearch treeNodeFilterProp="title" treeDefaultExpandAll style={{ width: '100%' }} allowClear disabled={!isEditing} />
@@ -355,12 +355,12 @@ export default function ProductDetailPage() {
               </Field>
               <Field label="Mã dòng sản phẩm">
                 <AntForm.Item name="model_number" noStyle>
-                  <AntInput placeholder="VD: SG110" style={{ width: 200 }} disabled={!isEditing} />
+                  <AntInput placeholder="VD: SG110" style={{ width: '100%' }} disabled={!isEditing} />
                 </AntForm.Item>
               </Field>
               <Field label="Mã sản phẩm *">
                 <AntForm.Item name="code" noStyle rules={[{ required: true, message: 'Bắt buộc' }]}>
-                  <AntInput style={{ width: 200 }} disabled={!isEditing} />
+                  <AntInput style={{ width: '100%' }} disabled={!isEditing} />
                 </AntForm.Item>
               </Field>
               <Field label="Trạng thái">
@@ -370,17 +370,17 @@ export default function ProductDetailPage() {
                   </AntForm.Item>
                 </div>
               </Field>
-              <Field label="Tên *" full>
+              <Field label="Tên *" span={3}>
                 <AntForm.Item name="name" noStyle rules={[{ required: true, message: 'Bắt buộc' }]}>
                   <AntInput style={{ width: '100%' }} disabled={!isEditing} />
                 </AntForm.Item>
               </Field>
-              <Field label="Tên (English)" full>
+              <Field label="Tên (English)" span={3}>
                 <AntForm.Item name="name_en" noStyle>
                   <AntInput style={{ width: '100%' }} disabled={!isEditing} />
                 </AntForm.Item>
               </Field>
-              <Field label="Mô tả" full>
+              <Field label="Mô tả" span={6}>
                 <AntForm.Item name="description" noStyle>
                   <AntInput.TextArea rows={3} style={{ width: '100%' }} disabled={!isEditing} />
                 </AntForm.Item>

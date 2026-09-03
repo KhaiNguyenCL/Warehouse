@@ -82,14 +82,14 @@ export default function TransferOrderDetailPage() {
       />
 
       <SectionCard title="Thông tin chung">
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px 28px' }}>
-          <Field label="Loại chuyển"><Val v={TRANSFER_TYPE_LABEL[d.transfer_type] ?? d.transfer_type} /></Field>
-          <Field label="Kho nguồn"><Val v={d.from_warehouse_name} /></Field>
-          <Field label="Kho đích"><Val v={d.to_warehouse_name} /></Field>
-          <Field label="Ngày tạo">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: '16px 28px' }}>
+          <Field label="Loại chuyển" style={{ gridColumn: 'span 3' }}><Val v={TRANSFER_TYPE_LABEL[d.transfer_type] ?? d.transfer_type} /></Field>
+          <Field label="Kho nguồn" style={{ gridColumn: 'span 3' }}><Val v={d.from_warehouse_name} /></Field>
+          <Field label="Kho đích" style={{ gridColumn: 'span 3' }}><Val v={d.to_warehouse_name} /></Field>
+          <Field label="Ngày tạo" style={{ gridColumn: 'span 3' }}>
             <Val v={d.created_at ? new Date(d.created_at).toLocaleDateString('vi-VN') : undefined} />
           </Field>
-          <Field label="Ghi chú" style={{ gridColumn: 'span 2' } as any}>
+          <Field label="Ghi chú" style={{ gridColumn: 'span 12' }}>
             {editingNote ? (
               <Form form={noteForm} style={{ width: '100%' }}>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', width: '100%' }}>
