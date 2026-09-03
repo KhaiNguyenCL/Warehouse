@@ -34,6 +34,7 @@ import RolesPage from './pages/RolesPage'
 import GroupsPage from './pages/GroupsPage'
 import UsersPage from './pages/UsersPage'
 import ReportsPage from './pages/ReportsPage'
+import ActionsPage from './pages/ActionsPage'
 import TemplatesPage from './pages/TemplatesPage'
 import SettingsBitrixPage from './pages/SettingsBitrixPage'
 
@@ -51,7 +52,8 @@ const routes: RouteObject[] = [
       {
         element: <AppLayout />,
         children: [
-          { path: '/', element: <Navigate to="/reports" replace /> },
+          { path: '/', element: <Navigate to="/actions" replace /> },
+          { path: '/actions', element: <ActionsPage /> },
           { path: '/companies', element: <CompaniesPage /> },
           { path: '/companies/:id', element: <CompanyDetailPage /> },
           { path: '/categories', element: <CategoriesPage /> },

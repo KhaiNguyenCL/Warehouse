@@ -22,12 +22,6 @@ export function useReports() {
     queryFn: async () => (await api.get('/warehouses')).data,
   })
 
-  const { data: dashboard, isLoading: dashboardLoading } = useQuery({
-    queryKey: ['reports', 'dashboard'],
-    queryFn: async () => (await api.get('/reports/dashboard')).data,
-    refetchInterval: 60_000,
-  })
-
   const { data: pipeline, isLoading: pipelineLoading } = useQuery({
     queryKey: ['reports', 'pipeline'],
     queryFn: async () => (await api.get('/reports/pipeline')).data,
@@ -47,11 +41,6 @@ export function useReports() {
   const { data: stockFlow, isLoading: stockFlowLoading } = useQuery({
     queryKey: ['reports', 'stock-flow', flowFrom, flowTo, flowGroupBy],
     queryFn: async () => (await api.get('/reports/stock-flow', { params: { from: flowFrom, to: flowTo, group_by: flowGroupBy } })).data,
-  })
-
-  const { data: lowStockItems, isLoading: lowStockLoading } = useQuery({
-    queryKey: ['reports', 'low-stock-items'],
-    queryFn: async () => (await api.get('/reports/low-stock-items', { params: { limit: 20 } })).data,
   })
 
   const { data: revSummary, isLoading: revSummaryLoading } = useQuery({
@@ -77,12 +66,10 @@ export function useReports() {
     topLimit, setTopLimit,
     flowFrom, flowTo, setFlowFrom, setFlowTo,
     revFrom, revTo, setRevFrom, setRevTo,
-    dashboard, dashboardLoading,
     pipeline, pipelineLoading,
     invSummary, invSummaryLoading,
     invByCategory, invByCategoryLoading,
     stockFlow, stockFlowLoading,
-    lowStockItems, lowStockLoading,
     revSummary, revSummaryLoading,
     revSeries, revSeriesLoading,
     topProducts, topProductsLoading,

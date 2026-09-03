@@ -3,7 +3,7 @@ import {
   Users, Tags, ShoppingBag, Boxes, Warehouse, ClipboardList,
   PackageCheck, PackageSearch, FileText, PackageOpen, ArrowLeftRight, Database,
   ClipboardCheck, BarChart3, Shield, UserCog, UsersRound, Settings, Layers,
-  GitBranch, FormInput, LogOut,
+  GitBranch, FormInput, LogOut, Bell,
 } from 'lucide-react'
 import {
   Sidebar, SidebarContent, SidebarGroup,
@@ -19,6 +19,12 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { useAuthStore } from '../store/auth'
 
 const NAV = [
+  {
+    label: 'Tổng quan',
+    items: [
+      { to: '/actions', icon: Bell, label: 'Hành động' },
+    ],
+  },
   {
     label: 'Danh mục',
     items: [
