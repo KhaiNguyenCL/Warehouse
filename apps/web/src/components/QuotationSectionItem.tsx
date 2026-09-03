@@ -3,7 +3,7 @@ import { Form, Input, AutoComplete, Button, Select, Tooltip } from 'antd'
 import { DeleteOutlined, AppstoreAddOutlined } from '@ant-design/icons'
 import { useQuery } from '@tanstack/react-query'
 import type { FormInstance } from 'antd'
-import QuotationLineItem, { QuotationLineHeader } from './QuotationLineItem'
+import QuotationLineItem from './QuotationLineItem'
 import { api } from '../lib/api'
 import type { VariantData } from './VariantSelect'
 import { useSectionNamePresets } from '../hooks/useSectionNamePresets'
@@ -128,7 +128,6 @@ function SubSectionBlock({ form, sectionName, name, subIndex, allVariants, remov
         <Form.List name={[name, 'line_items']}>
           {(fields, { add, remove: removeLine }) => (
             <>
-              <QuotationLineHeader />
               {fields.map(({ key, name: lineName }) => (
                 <QuotationLineItem
                   key={key}
@@ -251,7 +250,6 @@ export default function QuotationSectionItem({ form, name, sectionIndex, remove 
                   <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-2)', marginBottom: 4 }}>
                     Dòng tự do (tất cả SKU)
                   </div>
-                  <QuotationLineHeader />
                   {fields.map(({ key, name: lineName }) => (
                     <QuotationLineItem
                       key={key}
