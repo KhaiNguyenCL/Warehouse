@@ -383,10 +383,10 @@ export default function InventoryPage() {
                 <tr className="border-b border-border bg-muted/60">
                   {([
                     ['#', 'center'],
-                    ['Mã hàng', 'left', 'min-w-[140px]'],
-                    ['Tên SKU', 'left'],
-                    ['Model', 'center'],
-                    ['P/N', 'center'],
+                    ['Mã hàng', 'left', 'w-[100px]'],
+                    ['Tên SKU', 'left', 'min-w-[280px]'],
+                    ['Model', 'center', 'min-w-[160px]'],
+                    ['P/N', 'center', 'min-w-[160px]'],
                     ['Tồn kho', 'center'],
                     ['Giữ chỗ', 'center'],
                     ['Khả dụng', 'center'],
@@ -425,7 +425,7 @@ export default function InventoryPage() {
                       }}
                     >
                       <td className="px-3 py-2 text-center text-xs text-muted-foreground">{from + i}</td>
-                      <td className="px-3 py-2 text-left">
+                      <td className="px-3 py-2 text-left truncate max-w-0" title={row.item_code ?? ''}>
                         <CodeText>{row.item_code}</CodeText>
                       </td>
                       <td className="px-3 py-2 font-medium text-foreground truncate max-w-0" title={row.variant_name}>{row.variant_name}</td>
