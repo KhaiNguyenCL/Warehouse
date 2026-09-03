@@ -159,8 +159,15 @@
     font-size: 13px;
   }
 
+  /* Tăng kích thước toàn trang ~4.5% qua root font-size (rem-based) thay vì CSS `zoom` —
+     `zoom` là post-layout transform, khiến Chromium tính sai scrollHeight của container
+     overflow-auto lồng flex sâu (vd sidebar nhiều mục) ở giá trị lẻ như 1.045, cắt mất
+     item cuối dù đã cuộn hết cỡ. font-size là layout thật nên không bị lỗi này — đổi lại
+     chỉ phần dùng Tailwind rem (CompaniesPage, ProductsPage, Sidebar, Reports...) to theo;
+     các trang AntD dùng nhiều px cứng trong inline style (Receipt, Shipment, PO,
+     Quotation...) sẽ không to theo. */
   html {
-    zoom: 1.045;
+    font-size: 104.5%;
   }
 
   html, body, #root {
