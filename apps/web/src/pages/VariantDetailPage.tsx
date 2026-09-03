@@ -173,11 +173,9 @@ export default function VariantDetailPage() {
 
         <div style={{ width: 200, flexShrink: 0 }}>
           <SectionCard title="Hình ảnh">
-            <div className="product-image-upload" style={{ aspectRatio: '1 / 1', width: '100%' }}>
-              <Form.Item name="image_url" noStyle>
-                <ImageUpload disabled={!isEditing} />
-              </Form.Item>
-            </div>
+            <Form.Item name="image_url" noStyle>
+              <ImageUpload disabled={!isEditing} />
+            </Form.Item>
           </SectionCard>
         </div>
 

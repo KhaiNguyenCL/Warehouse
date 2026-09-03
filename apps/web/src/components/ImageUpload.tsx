@@ -36,9 +36,9 @@ export function ImageUpload({ value, onChange, disabled }: Props) {
   const imgSrc = value ?? null
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, height: '100%' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
       <div style={{
-        flex: 1, minHeight: 0, borderRadius: 6, overflow: 'hidden',
+        aspectRatio: '1 / 1', width: '100%', borderRadius: 6, overflow: 'hidden',
         border: '1px solid var(--border, #d9d9d9)', background: 'var(--bg-subtle)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}>

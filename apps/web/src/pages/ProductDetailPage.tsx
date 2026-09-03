@@ -511,9 +511,7 @@ export default function ProductDetailPage() {
                   <FormItem>
                     <FormLabel className="text-xs">Hình ảnh</FormLabel>
                     <FormControl>
-                      <div className="product-image-upload aspect-square w-full">
-                        <ImageUpload value={field.value || undefined} onChange={(url) => field.onChange(url ?? '')} />
-                      </div>
+                      <ImageUpload value={field.value || undefined} onChange={(url) => field.onChange(url ?? '')} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
