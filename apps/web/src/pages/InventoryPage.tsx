@@ -383,7 +383,7 @@ export default function InventoryPage() {
                 <tr className="border-b border-border bg-muted/60">
                   {([
                     ['#', 'center'],
-                    ['Mã hàng', 'left', 'w-[100px]'],
+                    ['Mã hàng', 'left', 'w-[130px]'],
                     ['Tên SKU', 'left', 'min-w-[280px]'],
                     ['Model', 'center', 'min-w-[160px]'],
                     ['P/N', 'center', 'min-w-[160px]'],
