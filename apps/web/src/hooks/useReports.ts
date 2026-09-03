@@ -28,6 +28,12 @@ export function useReports() {
     refetchInterval: 60_000,
   })
 
+  const { data: kpiTrend, isLoading: kpiTrendLoading } = useQuery({
+    queryKey: ['reports', 'kpi-trend'],
+    queryFn: async () => (await api.get('/reports/kpi-trend', { params: { days: 14 } })).data,
+    refetchInterval: 60_000,
+  })
+
   const { data: invSummary, isLoading: invSummaryLoading } = useQuery({
     queryKey: ['reports', 'inventory', 'summary', warehouseId],
     queryFn: async () => (await api.get('/reports/inventory/summary', { params: { warehouse_id: warehouseId } })).data,
@@ -36,6 +42,16 @@ export function useReports() {
   const { data: invByCategory, isLoading: invByCategoryLoading } = useQuery({
     queryKey: ['reports', 'inventory', 'by-category', warehouseId],
     queryFn: async () => (await api.get('/reports/inventory/by-category', { params: { warehouse_id: warehouseId } })).data,
+  })
+
+  const { data: invByWarehouse, isLoading: invByWarehouseLoading } = useQuery({
+    queryKey: ['reports', 'inventory', 'by-warehouse'],
+    queryFn: async () => (await api.get('/reports/inventory/by-warehouse')).data,
+  })
+
+  const { data: slowMovingStock, isLoading: slowMovingStockLoading } = useQuery({
+    queryKey: ['reports', 'inventory', 'slow-moving'],
+    queryFn: async () => (await api.get('/reports/inventory/slow-moving', { params: { days: 60, limit: 8 } })).data,
   })
 
   const { data: stockFlow, isLoading: stockFlowLoading } = useQuery({
@@ -67,8 +83,11 @@ export function useReports() {
     flowFrom, flowTo, setFlowFrom, setFlowTo,
     revFrom, revTo, setRevFrom, setRevTo,
     pipeline, pipelineLoading,
+    kpiTrend, kpiTrendLoading,
     invSummary, invSummaryLoading,
     invByCategory, invByCategoryLoading,
+    invByWarehouse, invByWarehouseLoading,
+    slowMovingStock, slowMovingStockLoading,
     stockFlow, stockFlowLoading,
     revSummary, revSummaryLoading,
     revSeries, revSeriesLoading,

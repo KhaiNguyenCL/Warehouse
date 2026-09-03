@@ -43,4 +43,16 @@ export class ReportService {
   lowStockItems(limit = 20) {
     return this.repo.lowStockItems(limit)
   }
+
+  inventoryByWarehouse() {
+    return this.repo.inventoryByWarehouse()
+  }
+
+  slowMovingStock(days = 60, limit = 10) {
+    return this.repo.slowMovingStock(days, limit)
+  }
+
+  kpiTrend(days = 14) {
+    return this.repo.kpiTrend(days)
+  }
 }

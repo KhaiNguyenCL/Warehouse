@@ -74,3 +74,31 @@ export interface StockFlowQuery {
 export interface LowStockItemsQuery {
   limit?: number
 }
+
+export const slowMovingStockSchema = {
+  querystring: {
+    type: 'object',
+    properties: {
+      days:  { type: 'integer', minimum: 1, maximum: 365, default: 60 },
+      limit: { type: 'integer', minimum: 1, maximum: 50, default: 10 },
+    },
+  },
+}
+
+export const kpiTrendSchema = {
+  querystring: {
+    type: 'object',
+    properties: {
+      days: { type: 'integer', minimum: 2, maximum: 90, default: 14 },
+    },
+  },
+}
+
+export interface SlowMovingStockQuery {
+  days?: number
+  limit?: number
+}
+
+export interface KpiTrendQuery {
+  days?: number
+}

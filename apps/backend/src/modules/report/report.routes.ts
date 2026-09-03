@@ -6,11 +6,15 @@ import {
   topProductsSchema,
   stockFlowSchema,
   lowStockItemsSchema,
+  slowMovingStockSchema,
+  kpiTrendSchema,
   InventoryReportQuery,
   RevenueReportQuery,
   TopProductsQuery,
   StockFlowQuery,
   LowStockItemsQuery,
+  SlowMovingStockQuery,
+  KpiTrendQuery,
 } from './report.schema'
 import { requirePermission } from '../../middleware/permission'
 
@@ -61,6 +65,20 @@ const reportRoutes: FastifyPluginAsync = async (app) => {
     '/low-stock-items',
     { schema: lowStockItemsSchema, preHandler: requirePermission('report.inventory') },
     (request) => service.lowStockItems(request.query.limit),
+  )
+
+  app.get('/inventory/by-warehouse', { preHandler: requirePermission('report.inventory') }, () => service.inventoryByWarehouse())
+
+  app.get<{ Querystring: SlowMovingStockQuery }>(
+    '/inventory/slow-moving',
+    { schema: slowMovingStockSchema, preHandler: requirePermission('report.inventory') },
+    (request) => service.slowMovingStock(request.query.days, request.query.limit),
+  )
+
+  app.get<{ Querystring: KpiTrendQuery }>(
+    '/kpi-trend',
+    { schema: kpiTrendSchema, preHandler: requirePermission('report.view') },
+    (request) => service.kpiTrend(request.query.days),
   )
 }
 

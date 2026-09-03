@@ -235,6 +235,152 @@ export class ReportRepository {
     })
   }
 
+  // Tồn kho theo từng kho — LEFT JOIN từ warehouses (không phải từ inventory) để kho chưa có
+  // hàng nào (vd kho ảo chờ nhập SN) vẫn xuất hiện trong danh sách với giá trị 0, không bị ẩn.
+  inventoryByWarehouse() {
+    return this.db('warehouses as w')
+      .leftJoin('inventory as i', 'i.warehouse_id', 'w.id')
+      .where('w.is_active', true)
+      .groupBy('w.id', 'w.name')
+      .select(
+        'w.id as warehouse_id',
+        'w.name as warehouse_name',
+        this.db.raw('COUNT(DISTINCT i.variant_id)::int as total_skus'),
+        this.db.raw('COALESCE(SUM(i.qty_on_hand), 0)::int as total_qty'),
+        this.db.raw('COALESCE(SUM(i.qty_reserved), 0)::int as total_qty_reserved'),
+        this.db.raw('COALESCE(SUM(i.qty_on_hand * i.avg_cost), 0)::numeric as total_value'),
+      )
+      .orderBy('total_value', 'desc')
+  }
+
+  // SKU còn tồn (qty_on_hand > 0) nhưng không phát sinh stock_movement nào trong `days` ngày
+  // gần nhất (hoặc CHƯA TỪNG phát sinh — MAX(sm.created_at) IS NULL) — ứng viên "chậm luân
+  // chuyển", gợi ý khuyến mãi/điều chuyển kho. days_since_movement trả 999999 khi chưa từng
+  // có movement (không suy đoán ngày ảo).
+  slowMovingStock(days = 60, limit = 10) {
+    return this.db('inventory as i')
+      .join('variants as v', 'v.id', 'i.variant_id')
+      .leftJoin('stock_movements as sm', function () {
+        this.on('sm.variant_id', 'i.variant_id').andOn('sm.warehouse_id', 'i.warehouse_id')
+      })
+      .where('i.qty_on_hand', '>', 0)
+      .groupBy('i.id', 'v.item_code', 'v.name', 'i.qty_on_hand', 'i.avg_cost')
+      .havingRaw('MAX(sm.created_at) IS NULL OR MAX(sm.created_at) < now() - make_interval(days => ?)', [days])
+      .select(
+        'i.variant_id',
+        'v.item_code',
+        'v.name as variant_name',
+        'i.qty_on_hand',
+        this.db.raw('(i.qty_on_hand * i.avg_cost)::numeric as value'),
+        this.db.raw('MAX(sm.created_at) as last_movement_at'),
+        this.db.raw("COALESCE(EXTRACT(DAY FROM now() - MAX(sm.created_at))::int, 999999) as days_since_movement"),
+      )
+      .orderBy('days_since_movement', 'desc')
+      .limit(limit)
+  }
+
+  // Chụp 1 "ảnh" giá trị tồn kho + pipeline TẠI THỜI ĐIỂM GỌI — dùng bởi cron job
+  // (plugins/scheduler.ts) để dựng lịch sử cho sparkline/delta ở KPI band. Upsert theo
+  // snapshot_date (unique) — gọi nhiều lần trong cùng 1 ngày (server restart, catch-up lúc
+  // onReady) sẽ ghi đè, không tạo trùng, và luôn phản ánh số MỚI NHẤT trong ngày.
+  async captureSnapshot() {
+    const [inv, pipeline] = await Promise.all([this.inventorySummary(), this.salesPipeline()])
+    const today = new Date().toISOString().slice(0, 10)
+    const [row] = await this.db('report_snapshots')
+      .insert({
+        snapshot_date:             today,
+        total_inventory_value:     Number((inv as any)?.total_value ?? 0),
+        pipeline_total_value:      pipeline.total_value,
+        pipeline_backlog_value:    pipeline.backlog_value,
+        pipeline_delivered_value:  pipeline.delivered_value,
+      })
+      .onConflict('snapshot_date')
+      .merge()
+      .returning('*')
+    return row
+  }
+
+  // Lịch sử `days` ngày gần nhất cho dải KPI ở đầu trang Báo cáo — ghép report_snapshots
+  // (tồn kho/pipeline) với revenueTimeSeries (doanh thu, đã có sẵn thời gian thực, không cần
+  // snapshot riêng). Nếu chưa đủ 2 điểm (tính năng mới bật, chưa qua đêm nào) → deltas/turnover
+  // trả null thay vì suy đoán số ảo — frontend tự ẩn phần % thay đổi khi gặp null.
+  async kpiTrend(days = 14) {
+    const to = new Date()
+    const from = new Date(to)
+    from.setDate(from.getDate() - (days - 1))
+    const fromStr = from.toISOString().slice(0, 10)
+    const toStr = to.toISOString().slice(0, 10)
+
+    // Lấy ngày dưới dạng chuỗi 'YYYY-MM-DD' NGAY TRONG SQL (to_char) thay vì để node-pg parse
+    // thành JS Date rồi tự format — pg parse cột `date` thành Date ở LOCAL MIDNIGHT, còn
+    // `completed_at` là timestamptz thật; gọi .toISOString() trên 2 loại đó lệch múi giờ khác
+    // nhau, snapshot_date và ngày doanh thu có thể lệch nhau 1 ngày (server ở giờ VN, UTC+7)
+    // và không khớp khi ghép — phải quy cả 2 về đúng 1 mốc "ngày theo UTC" ngay trong SQL.
+    const [snapshots, revenueRows] = await Promise.all([
+      this.db('report_snapshots')
+        .where('snapshot_date', '>=', fromStr)
+        .where('snapshot_date', '<=', toStr)
+        .orderBy('snapshot_date', 'asc')
+        .select('*', this.db.raw("to_char(snapshot_date, 'YYYY-MM-DD') as date_key")),
+      this.revenueBase(fromStr, toStr)
+        .select(this.db.raw("to_char(d.completed_at AT TIME ZONE 'UTC', 'YYYY-MM-DD') as date_key"))
+        .sum({ revenue: this.db.raw('dl.quantity * qli.unit_price') })
+        .groupBy('date_key'),
+    ])
+
+    const revenueByDate = new Map<string, number>()
+    for (const r of revenueRows as any[]) {
+      revenueByDate.set(r.date_key, Number(r.revenue ?? 0))
+    }
+
+    const points = (snapshots as any[]).map((s) => {
+      const date = s.date_key as string
+      const totalValue = Number(s.pipeline_total_value)
+      const deliveredValue = Number(s.pipeline_delivered_value)
+      return {
+        date,
+        inventory_value:  Number(s.total_inventory_value),
+        backlog_value:     Number(s.pipeline_backlog_value),
+        delivered_value:   deliveredValue,
+        fulfillment_rate:  totalValue > 0 ? Math.round((deliveredValue / totalValue) * 100) : 0,
+        revenue:           revenueByDate.get(date) ?? 0,
+      }
+    })
+
+    const hasHistory = points.length >= 2
+    const first = points[0]
+    const last = points[points.length - 1]
+
+    // % thay đổi — null nếu điểm đầu = 0 (chia 0 vô nghĩa) thay vì trả Infinity/số ảo.
+    function pctDelta(a: number, b: number): number | null {
+      if (!hasHistory) return null
+      if (a === 0) return b === 0 ? 0 : null
+      return Math.round(((b - a) / a) * 1000) / 10
+    }
+    function ptDelta(a: number, b: number): number | null {
+      return hasHistory ? Math.round(b - a) : null
+    }
+
+    const revenueSum = points.reduce((sum, p) => sum + p.revenue, 0)
+    const avgInventoryValue = points.length > 0
+      ? points.reduce((sum, p) => sum + p.inventory_value, 0) / points.length
+      : 0
+    const turnover = hasHistory && avgInventoryValue > 0
+      ? Math.round((revenueSum / avgInventoryValue) * 100) / 100
+      : null
+
+    return {
+      points,
+      deltas: {
+        revenue_pct:          hasHistory ? pctDelta(first.revenue, last.revenue) : null,
+        inventory_value_pct:  hasHistory ? pctDelta(first.inventory_value, last.inventory_value) : null,
+        backlog_value_pct:    hasHistory ? pctDelta(first.backlog_value, last.backlog_value) : null,
+        fulfillment_rate_pt:  ptDelta(first?.fulfillment_rate ?? 0, last?.fulfillment_rate ?? 0),
+      },
+      turnover,
+    }
+  }
+
   // Top SKU sắp hết hàng (dưới reorder_point hoặc qty_available = 0)
   lowStockItems(limit = 20) {
     return this.db('inventory as i')
