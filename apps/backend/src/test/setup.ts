@@ -83,9 +83,10 @@ beforeEach(async () => {
   await db('field_values').delete().catch(() => {})
   await db('custom_fields').delete().catch(() => {})
 
-  // Xóa non-system roles (is_system=false), sau đó xóa users phụ thuộc
-  // Xóa users không phải admin trước (có thể có role_id trỏ vào custom role)
+  // Xóa users không phải admin (memberships cascade), sau đó xóa groups và custom roles
   await db('users').whereNot('email', ADMIN_EMAIL).delete()
+  // Xóa tất cả groups (admin user sẽ được reseed vào group sau nếu cần)
+  await db('user_groups').delete()
   // Xóa custom roles
   await db('roles').where('is_system', false).delete()
 })

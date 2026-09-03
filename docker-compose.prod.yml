@@ -1,0 +1,60 @@
+services:
+
+  db:
+    image: postgres:16-alpine
+    container_name: wms-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB:       ${DB_NAME:-wms_db}
+      POSTGRES_USER:     ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - wms_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-wms_db}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - internal
+
+  backend:
+    build:
+      context: .                        # root monorepo — cần truy cập packages/
+      dockerfile: apps/backend/Dockerfile
+    container_name: wms-backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV:    production
+      PORT:        3002
+      DATABASE_URL: postgres://${DB_USER:-postgres}:${DB_PASSWORD}@db:5432/${DB_NAME:-wms_db}
+      JWT_SECRET:  ${JWT_SECRET}
+      BITRIX_WEBHOOK_URL: ${BITRIX_WEBHOOK_URL:-}
+    volumes:
+      - wms_uploads:/app/apps/backend/uploads   # uploads sống ngoài container
+    depends_on:
+      db:
+        condition: service_healthy              # chờ DB sẵn sàng trước khi migrate
+    networks:
+      - internal
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: wms-web
+    restart: unless-stopped
+    ports:
+      - '${WEB_PORT:-80}:80'                    # đổi WEB_PORT=443 nếu dùng SSL termination ngoài
+    depends_on:
+      - backend
+    networks:
+      - internal
+
+volumes:
+  wms_pg_data:
+  wms_uploads:
+
+networks:
+  internal:
+    driver: bridge

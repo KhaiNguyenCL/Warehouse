@@ -8,6 +8,7 @@ import {
 } from './purchaseorder.schema'
 import { CustomFieldRepository } from '../customfield/customfield.repository'
 import { validateCustomFieldValue } from '../customfield/customfield.service'
+import { userHasPermission } from '../../lib/permission-check'
 
 const PG_FOREIGN_KEY_VIOLATION = '23503'
 
@@ -134,7 +135,7 @@ export class PurchaseOrderService {
   // created_by — field này không đổi sau khi tạo nên đọc ngoài transaction là an toàn,
   // không cần lock. assertNoReceiptActivity() thì phải chạy lại SAU lock (cùng lý do
   // như unconfirm() ở trên).
-  async cancel(id: string, userId: string, roleId: string) {
+  async cancel(id: string, userId: string) {
     const po = await this.repo.findById(id)
     if (!po) throw { statusCode: 404, message: 'Purchase Order not found' }
     if (po.status === 'cancelled') {
@@ -142,11 +143,7 @@ export class PurchaseOrderService {
     }
 
     if (po.created_by !== userId) {
-      const canConfirm = await this.db('role_permissions as rp')
-        .join('permissions as p', 'p.id', 'rp.permission_id')
-        .where('rp.role_id', roleId)
-        .where('p.key', 'purchase_order.confirm')
-        .first()
+      const canConfirm = await userHasPermission(this.db, userId, 'purchase_order.confirm')
       if (!canConfirm) {
         throw { statusCode: 403, message: 'Chỉ người tạo PO hoặc người có quyền xác nhận mới được huỷ' }
       }
@@ -166,12 +163,21 @@ export class PurchaseOrderService {
     })
   }
 
-  // Soft-delete — chỉ cho phép khi không có receipt nào liên kết (received_qty = pending_qty = 0).
+  // Soft-delete — chỉ cho phép khi PO còn Draft hoặc Cancelled, và không có receipt
+  // nào chưa cancelled đang tham chiếu (received_qty = pending_qty = 0). Receipt đã
+  // cancelled không tính — không ảnh hưởng tồn kho nên không cản xoá PO.
   async delete(id: string) {
     const po = await this.repo.findById(id)
     if (!po) throw { statusCode: 404, message: 'Purchase Order not found' }
 
-    const hasLinkedReceipts = await this.db('receipts').where({ po_id: id }).first()
+    if (!['draft', 'cancelled'].includes(po.status)) {
+      throw { statusCode: 400, message: 'Chỉ có thể xoá PO ở trạng thái Draft hoặc Cancelled' }
+    }
+
+    const hasLinkedReceipts = await this.db('receipts')
+      .where({ po_id: id })
+      .whereNot({ status: 'cancelled' })
+      .first()
     if (hasLinkedReceipts) {
       throw { statusCode: 400, message: 'Không thể xoá PO đang có phiếu nhập kho liên kết' }
     }

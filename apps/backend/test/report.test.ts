@@ -61,11 +61,11 @@ describe('Report', () => {
       await createUserWithRole('Sale', 'sale-noinv@test.local', 'Test@123')
       // Sale role CÓ report.inventory theo seed — dùng role không có quyền gì liên quan report:
       // tạo trực tiếp 1 role rỗng để chắc chắn không có report.inventory.
+      // User không thuộc group nào → không có permission nào → 403
       const app = await getApp()
-      const [emptyRole] = await app.db('roles').insert({ name: 'No Report Role' }).returning('*')
       const bcrypt = await import('bcrypt')
       const password_hash = await bcrypt.hash('Test@123', 10)
-      await app.db('users').insert({ full_name: 'No Report', email: 'noreport@test.local', password_hash, role_id: emptyRole.id })
+      await app.db('users').insert({ full_name: 'No Report', email: 'noreport@test.local', password_hash })
       const noReportToken = await loginAs('noreport@test.local', 'Test@123')
 
       const res = await authedInject({ method: 'GET', url: '/api/v1/reports/inventory/summary' }, noReportToken)

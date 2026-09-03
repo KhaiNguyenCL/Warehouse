@@ -63,7 +63,7 @@ const deliveryRoutes: FastifyPluginAsync = async (app) => {
     '/:id/cancel',
     { preHandler: authenticate },
     async (request, reply) => {
-      return await service.cancel(request.params.id, request.user.sub, request.user.roleId)
+      return await service.cancel(request.params.id, request.user.sub)
     },
   )
 }

@@ -1,9 +1,12 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Plus, Pencil, Trash2, Shield, X } from 'lucide-react'
 
+import { useQuery } from '@tanstack/react-query'
+import { api } from '@/lib/api'
+import { useApiMutation } from '@/hooks/useApiMutation'
 import { useRoles } from '@/hooks/useRoles'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -35,27 +38,48 @@ export default function RolesPage() {
   const [dialogOpen, setDialogOpen]     = useState(false)
   const [editing, setEditing]           = useState<any | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null)
+  const [permSelected, setPermSelected] = useState<Set<string>>(new Set())
 
   const form = useForm<RoleForm>({
     resolver: zodResolver(schema),
     defaultValues: { name: '', description: '' },
   })
 
+  // Load current permissions khi mở edit
+  const { data: editingRole } = useQuery({
+    queryKey: ['settings', 'roles', editing?.id],
+    queryFn: async () => (await api.get(`/settings/roles/${editing!.id}`)).data,
+    enabled: !!editing?.id,
+  })
+  useEffect(() => {
+    if (editingRole) setPermSelected(new Set(editingRole.permissions.map((p: any) => p.key)))
+  }, [editingRole])
+
+  const savePermMutation = useApiMutation(
+    (roleId: string) => api.put(`/settings/roles/${roleId}/permissions`, { permission_keys: [...permSelected] }),
+    { successMessage: 'Cập nhật quyền thành công', invalidateKey: ['settings', 'roles'] },
+  )
+
   function openCreate() {
     setEditing(null)
+    setPermSelected(new Set())
     form.reset({ name: '', description: '' })
     setDialogOpen(true)
   }
 
   function openEdit(record: any) {
     setEditing(record)
+    setPermSelected(new Set())
     form.reset({ name: record.name ?? '', description: record.description ?? '' })
     setDialogOpen(true)
   }
 
   function onSubmit(values: RoleForm) {
     if (editing) {
-      updateMutation.mutate({ id: editing.id, ...values }, { onSuccess: () => setDialogOpen(false) })
+      updateMutation.mutate(
+        { id: editing.id, ...values },
+        { onSuccess: () => { savePermMutation.mutate(editing.id); setDialogOpen(false) } },
+      )
     } else {
       createMutation.mutate(values, { onSuccess: () => setDialogOpen(false) })
     }
@@ -212,7 +236,13 @@ export default function RolesPage() {
                 )} />
 
                 {/* Permissions panel — only when editing */}
-                {editing && <RolePermissionsPanel roleId={editing.id} />}
+                {editing && (
+                  <RolePermissionsPanel
+                    roleId={editing.id}
+                    selected={permSelected}
+                    onChange={setPermSelected}
+                  />
+                )}
 
               </div>
             </div>
@@ -222,7 +252,7 @@ export default function RolesPage() {
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
                 Huỷ
               </Button>
-              <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending}>
+              <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending || savePermMutation.isPending}>
                 {editing ? 'Lưu thay đổi' : 'Tạo mới'}
               </Button>
             </div>

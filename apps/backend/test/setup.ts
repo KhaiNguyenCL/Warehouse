@@ -35,6 +35,7 @@ const TABLES_TO_CLEAN = [
   'products',
   'categories',
   'brands',  // FK <- products.brand_id — xoá sau products
+  'user_group_members', // cascade từ users, nhưng xoá tường minh trước để an toàn
   'users',
 ]
 
@@ -47,10 +48,11 @@ beforeEach(async () => {
   // là seed data cố định từ migration, nhiều test khác đang dựa vào chúng tồn tại sẵn.
   await app.db('warehouses').where({ type: 'physical' }).del()
 
+  // Xoá tất cả user_groups (test tạo ra) — phải xoá TRƯỚC custom roles vì role_id RESTRICT
+  await app.db('user_groups').del()
+
   // Settings module test có thể tạo role/import_type/export_type tuỳ chỉnh — chỉ xoá
-  // phần KHÔNG phải seed cố định (is_system=false), giữ nguyên 5 role mặc định + các
-  // type hệ thống mà rất nhiều test khác đang dựa vào tồn tại sẵn. Chạy SAU khi đã xoá
-  // hết 'users' ở trên nên không vướng FK users.role_id.
+  // phần KHÔNG phải seed cố định (is_system=false).
   const customRoleIds = await app.db('roles').where({ is_system: false }).pluck('id')
   if (customRoleIds.length > 0) {
     await app.db('role_permissions').whereIn('role_id', customRoleIds).del()

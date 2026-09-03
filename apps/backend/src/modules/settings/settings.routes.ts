@@ -4,6 +4,9 @@ import {
   createRoleSchema,
   updateRoleSchema,
   replaceRolePermissionsSchema,
+  createGroupSchema,
+  updateGroupSchema,
+  addGroupMemberSchema,
   createUserSchema,
   updateUserSchema,
   listUserSchema,
@@ -14,6 +17,9 @@ import {
   CreateRoleBody,
   UpdateRoleBody,
   ReplaceRolePermissionsBody,
+  CreateGroupBody,
+  UpdateGroupBody,
+  AddGroupMemberBody,
   CreateUserBody,
   UpdateUserBody,
   ListUserQuery,
@@ -51,7 +57,6 @@ const settingsRoutes: FastifyPluginAsync = async (app) => {
     (request) => service.updateRole(request.params.id, request.body),
   )
 
-  // PUT — replace toàn bộ permission set của role, không cộng dồn từng cái.
   app.put<{ Params: { id: string }; Body: ReplaceRolePermissionsBody }>(
     '/roles/:id/permissions',
     { schema: replaceRolePermissionsSchema, preHandler: requirePermission('settings.roles') },
@@ -67,6 +72,46 @@ const settingsRoutes: FastifyPluginAsync = async (app) => {
     },
   )
 
+  // ─── Groups (settings.roles) ───────────────────────────────────────────────
+
+  app.get('/groups', { preHandler: authenticate }, () => service.listGroups())
+  app.get<{ Params: { id: string } }>('/groups/:id', { preHandler: authenticate }, (req) =>
+    service.getGroupById(req.params.id),
+  )
+
+  app.post<{ Body: CreateGroupBody }>(
+    '/groups',
+    { schema: createGroupSchema, preHandler: requirePermission('settings.roles') },
+    async (request, reply) => reply.code(201).send(await service.createGroup(request.body)),
+  )
+
+  app.patch<{ Params: { id: string }; Body: UpdateGroupBody }>(
+    '/groups/:id',
+    { schema: updateGroupSchema, preHandler: requirePermission('settings.roles') },
+    (request) => service.updateGroup(request.params.id, request.body),
+  )
+
+  app.delete<{ Params: { id: string } }>(
+    '/groups/:id',
+    { preHandler: requirePermission('settings.roles') },
+    async (request, reply) => {
+      await service.deleteGroup(request.params.id)
+      return reply.code(204).send()
+    },
+  )
+
+  app.post<{ Params: { id: string }; Body: AddGroupMemberBody }>(
+    '/groups/:id/members',
+    { schema: addGroupMemberSchema, preHandler: requirePermission('settings.roles') },
+    (request) => service.addGroupMember(request.params.id, request.body.user_id),
+  )
+
+  app.delete<{ Params: { id: string; userId: string } }>(
+    '/groups/:id/members/:userId',
+    { preHandler: requirePermission('settings.roles') },
+    (request) => service.removeGroupMember(request.params.id, request.params.userId),
+  )
+
   // ─── Users (settings.users) ────────────────────────────────────────────────
 
   app.get<{ Querystring: ListUserQuery }>(
@@ -76,6 +121,9 @@ const settingsRoutes: FastifyPluginAsync = async (app) => {
   )
   app.get<{ Params: { id: string } }>('/users/:id', { preHandler: authenticate }, (request) =>
     service.getUserById(request.params.id),
+  )
+  app.get<{ Params: { id: string } }>('/users/:id/groups', { preHandler: authenticate }, (request) =>
+    service.getUserGroups(request.params.id),
   )
 
   app.post<{ Body: CreateUserBody }>(
@@ -94,8 +142,6 @@ const settingsRoutes: FastifyPluginAsync = async (app) => {
   )
 
   // ─── Import / Export Types ─────────────────────────────────────────────────
-  // Không có permission key riêng trong CLAUDE.md mục 15 — chỉ cần đăng nhập, giống
-  // company/template/bitrix module.
 
   app.get('/import-types', { preHandler: authenticate }, () => service.listImportTypes())
   app.post<{ Body: CreateImportTypeBody }>(

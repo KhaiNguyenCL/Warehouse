@@ -45,7 +45,7 @@ export default function PurchaseOrderDetailPage() {
           </Popconfirm>
         )}
         {hook.data.status === 'confirmed' && (
-          <Button onClick={() => hook.navigate(`/receipts?po_id=${hook.data.id}`)}>Tạo Receipt từ PO này</Button>
+          <Button onClick={() => hook.navigate(`/receipts/new?po_id=${hook.data.id}`)}>Tạo Receipt từ PO này</Button>
         )}
       </Space>
 

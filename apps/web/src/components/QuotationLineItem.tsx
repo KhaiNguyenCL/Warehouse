@@ -107,6 +107,7 @@ export default function QuotationLineItem({ form, parentPath, name, productId, r
       { name: [...parentPath, name, 'is_reserved'], value: !isSvc },
       { name: [...parentPath, name, 'unit'],        value: variant.unit ?? undefined },
       ...(warrantyStr != null ? [{ name: [...parentPath, name, 'warranty'], value: warrantyStr }] : []),
+      ...(variant.description ? [{ name: [...parentPath, name, 'description'], value: variant.description }] : []),
     ])
 
     if (!isBundle && !isSvc) {

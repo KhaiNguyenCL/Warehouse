@@ -35,18 +35,52 @@ export const replaceRolePermissionsSchema = {
   },
 }
 
+// ─── Groups ───────────────────────────────────────────────────────────────
+
+export const createGroupSchema = {
+  body: {
+    type: 'object',
+    required: ['name', 'role_id'],
+    properties: {
+      name:        { type: 'string', minLength: 1 },
+      description: { type: 'string' },
+      role_id:     { type: 'string', format: 'uuid' },
+    },
+  },
+}
+
+export const updateGroupSchema = {
+  body: {
+    type: 'object',
+    properties: {
+      name:        { type: 'string', minLength: 1 },
+      description: { type: 'string' },
+      role_id:     { type: 'string', format: 'uuid' },
+    },
+  },
+}
+
+export const addGroupMemberSchema = {
+  body: {
+    type: 'object',
+    required: ['user_id'],
+    properties: {
+      user_id: { type: 'string', format: 'uuid' },
+    },
+  },
+}
+
 // ─── Users ─────────────────────────────────────────────────────────────────
 
 export const createUserSchema = {
   body: {
     type: 'object',
-    required: ['full_name', 'email', 'password', 'role_id'],
+    required: ['full_name', 'email', 'password'],
     properties: {
       full_name: { type: 'string', minLength: 1 },
       email:     { type: 'string', minLength: 1 },
       phone:     { type: 'string' },
       password:  { type: 'string', minLength: 6 },
-      role_id:   { type: 'string', format: 'uuid' },
     },
   },
 }
@@ -57,7 +91,6 @@ export const updateUserSchema = {
     properties: {
       full_name: { type: 'string', minLength: 1 },
       phone:     { type: 'string' },
-      role_id:   { type: 'string', format: 'uuid' },
       is_active: { type: 'boolean' },
       password:  { type: 'string', minLength: 6 },
     },
@@ -68,7 +101,7 @@ export const listUserSchema = {
   querystring: {
     type: 'object',
     properties: {
-      role_id:   { type: 'string', format: 'uuid' },
+      group_id:  { type: 'string', format: 'uuid' },
       is_active: { type: 'boolean' },
       page:      { type: 'integer', minimum: 1, default: 1 },
       limit:     { type: 'integer', minimum: 1, maximum: 100, default: 20 },
@@ -152,24 +185,38 @@ export interface ReplaceRolePermissionsBody {
   permission_keys: string[]
 }
 
+export interface CreateGroupBody {
+  name: string
+  description?: string
+  role_id: string
+}
+
+export interface UpdateGroupBody {
+  name?: string
+  description?: string
+  role_id?: string
+}
+
+export interface AddGroupMemberBody {
+  user_id: string
+}
+
 export interface CreateUserBody {
   full_name: string
   email: string
   phone?: string
   password: string
-  role_id: string
 }
 
 export interface UpdateUserBody {
   full_name?: string
   phone?: string
-  role_id?: string
   is_active?: boolean
   password?: string
 }
 
 export interface ListUserQuery {
-  role_id?: string
+  group_id?: string
   is_active?: boolean
   page?: number
   limit?: number

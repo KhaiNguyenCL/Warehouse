@@ -75,6 +75,7 @@ const skuSchema = z.object({
   vat_percent:     numOpt,
   model:           z.string().optional(),
   part_number:     z.string().optional(),
+  description:     z.string().optional(),
   warranty_months: intOpt,
   reorder_point:   intOpt,
   weight_kg:       numOpt,
@@ -135,7 +136,7 @@ export default function ProductDetailPage() {
     defaultValues: {
       item_code: '', name: '', unit: '',
       cost_price: '', sale_price: '', vat_percent: '',
-      model: '', part_number: '',
+      model: '', part_number: '', description: '',
       warranty_months: '', reorder_point: '', weight_kg: '',
       is_active: true, image_url: '',
     },
@@ -175,9 +176,10 @@ export default function ProductDetailPage() {
   const skuMutation = useApiMutation(
     async (values: SkuForm) => {
       const body: any = { item_code: values.item_code, name: values.name }
-      if (values.unit)                body.unit         = values.unit
-      if (values.model?.trim())       body.model        = values.model.trim()
-      if (values.part_number?.trim()) body.part_number  = values.part_number.trim()
+      if (values.unit)                  body.unit         = values.unit
+      if (values.model?.trim())         body.model        = values.model.trim()
+      if (values.part_number?.trim())   body.part_number  = values.part_number.trim()
+      if (values.description?.trim())   body.description  = values.description.trim()
       if (values.cost_price      !== '' && values.cost_price      != null) body.cost_price      = Number(values.cost_price)
       if (values.sale_price      !== '' && values.sale_price      != null) body.sale_price      = Number(values.sale_price)
       if (values.vat_percent     !== '' && values.vat_percent     != null) body.vat_percent     = Number(values.vat_percent)
@@ -242,7 +244,7 @@ export default function ProductDetailPage() {
     skuForm.reset({
       item_code: product?.code ? `${product.code}-` : '',
       name: '', unit: '', cost_price: '', sale_price: '', vat_percent: '',
-      model: '', part_number: '', warranty_months: '', reorder_point: '', weight_kg: '',
+      model: '', part_number: '', description: '', warranty_months: '', reorder_point: '', weight_kg: '',
       is_active: true, image_url: '',
     })
     setSkuOpen(true)
@@ -637,6 +639,13 @@ export default function ProductDetailPage() {
                         </FormItem>
                       )} />
                     </div>
+                    <FormField control={skuForm.control} name="description" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-xs">Mô tả (hiển thị trên báo giá)</FormLabel>
+                        <FormControl><Input placeholder="Mô tả ngắn theo khách hàng" {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
                     <div className="w-1/2 pr-1.5">
                       <FormField control={skuForm.control} name="weight_kg" render={({ field }) => (
                         <FormItem>

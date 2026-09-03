@@ -18,7 +18,8 @@ describe('Auth', () => {
     const body = JSON.parse(res.payload)
     expect(body.token).toBeTypeOf('string')
     expect(body.user.email).toBe('admin@test.local')
-    expect(body.user.role).toBe('Admin')
+    expect(Array.isArray(body.user.groups)).toBe(true)
+    expect(body.user.groups.some((g: any) => g.role_name === 'Admin')).toBe(true)
   })
 
   it('sai password trả về 401', async () => {

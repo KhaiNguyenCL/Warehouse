@@ -92,6 +92,7 @@ export default function VariantDetailPage() {
       name:            hook.variant.name,
       model:           hook.variant.model,
       part_number:     hook.variant.part_number,
+      description:     hook.variant.description ?? undefined,
       unit:            hook.variant.unit,
       cost_price:      hook.variant.cost_price ?? undefined,
       sale_price:      hook.variant.sale_price ?? undefined,
@@ -208,6 +209,12 @@ export default function VariantDetailPage() {
             <Field label="Part Number">
               <Form.Item name="part_number" noStyle>
                 <Input style={{ width: '100%' }} placeholder="VD: C9200L-48P-4X-E" disabled={!isEditing} />
+              </Form.Item>
+            </Field>
+
+            <Field label="Mô tả (hiển thị trên báo giá)">
+              <Form.Item name="description" noStyle>
+                <Input style={{ width: '100%' }} placeholder="Mô tả ngắn theo khách hàng" disabled={!isEditing} />
               </Form.Item>
             </Field>
 

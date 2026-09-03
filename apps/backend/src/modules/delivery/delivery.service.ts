@@ -1,6 +1,7 @@
 import { Knex } from 'knex'
 import { DeliveryRepository } from './delivery.repository'
 import { CreateDeliveryBody, ListDeliveryQuery, CompleteDeliveryBody } from './delivery.schema'
+import { userHasPermission } from '../../lib/permission-check'
 
 export class DeliveryService {
   private repo: DeliveryRepository
@@ -530,7 +531,7 @@ export class DeliveryService {
   // Chỉ người tạo phiếu HOẶC người có quyền delivery.approve (Manager/Admin) mới được huỷ —
   // route chỉ check authenticate (đăng nhập), authorization thật nằm ở đây vì cần biết
   // created_by của chính document, preHandler không có thông tin đó.
-  async cancel(id: string, userId: string, roleId: string) {
+  async cancel(id: string, userId: string) {
     const delivery = await this.repo.findById(id)
     if (!delivery) throw { statusCode: 404, message: 'Delivery order not found' }
     if (['completed', 'cancelled'].includes(delivery.status)) {
@@ -538,11 +539,7 @@ export class DeliveryService {
     }
 
     if (delivery.created_by !== userId) {
-      const canApprove = await this.db('role_permissions as rp')
-        .join('permissions as p', 'p.id', 'rp.permission_id')
-        .where('rp.role_id', roleId)
-        .where('p.key', 'delivery.approve')
-        .first()
+      const canApprove = await userHasPermission(this.db, userId, 'delivery.approve')
       if (!canApprove) {
         throw { statusCode: 403, message: 'Chỉ người tạo phiếu hoặc người có quyền duyệt mới được huỷ' }
       }

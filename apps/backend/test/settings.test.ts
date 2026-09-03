@@ -91,13 +91,14 @@ describe('Settings', () => {
       expect(res.statusCode).toBe(400)
     })
 
-    it('không thể xoá role tuỳ chỉnh còn user đang dùng', async () => {
-      const createRes = await authedInject({ method: 'POST', url: '/api/v1/settings/roles', payload: { name: 'Role có user' } })
+    it('không thể xoá role tuỳ chỉnh còn group đang dùng', async () => {
+      const createRes = await authedInject({ method: 'POST', url: '/api/v1/settings/roles', payload: { name: 'Role có group' } })
       const role = JSON.parse(createRes.payload)
+      // Tạo group dùng role này
       await authedInject({
         method: 'POST',
-        url: '/api/v1/settings/users',
-        payload: { full_name: 'Nhân viên test', email: 'staff@test.local', password: 'Test@123', role_id: role.id },
+        url: '/api/v1/settings/groups',
+        payload: { name: 'Group test', role_id: role.id },
       })
 
       const res = await authedInject({ method: 'DELETE', url: `/api/v1/settings/roles/${role.id}` })
@@ -131,17 +132,16 @@ describe('Settings', () => {
   describe('Users', () => {
     it('tạo user mới thành công, password được hash (không trả password_hash ra ngoài)', async () => {
       const app = await getApp()
-      const role = await app.db('roles').where({ name: 'Sale' }).first()
 
       const res = await authedInject({
         method: 'POST',
         url: '/api/v1/settings/users',
-        payload: { full_name: 'Nguyễn Văn A', email: 'nva@test.local', password: 'Test@123', role_id: role.id },
+        payload: { full_name: 'Nguyễn Văn A', email: 'nva@test.local', password: 'Test@123' },
       })
       expect(res.statusCode).toBe(201)
       const user = JSON.parse(res.payload)
       expect(user.password_hash).toBeUndefined()
-      expect(user.role_name).toBe('Sale')
+      expect(Array.isArray(user.groups)).toBe(true)
 
       const loginRes = await app.inject({
         method: 'POST',
@@ -152,37 +152,25 @@ describe('Settings', () => {
     })
 
     it('tạo user với email đã tồn tại → 409', async () => {
-      const app = await getApp()
-      const role = await app.db('roles').where({ name: 'Sale' }).first()
       await authedInject({
         method: 'POST',
         url: '/api/v1/settings/users',
-        payload: { full_name: 'A', email: 'dup@test.local', password: 'Test@123', role_id: role.id },
+        payload: { full_name: 'A', email: 'dup@test.local', password: 'Test@123' },
       })
       const res = await authedInject({
         method: 'POST',
         url: '/api/v1/settings/users',
-        payload: { full_name: 'B', email: 'dup@test.local', password: 'Test@123', role_id: role.id },
+        payload: { full_name: 'B', email: 'dup@test.local', password: 'Test@123' },
       })
       expect(res.statusCode).toBe(409)
     })
 
-    it('tạo user với role_id không tồn tại → 400', async () => {
-      const res = await authedInject({
-        method: 'POST',
-        url: '/api/v1/settings/users',
-        payload: { full_name: 'A', email: 'a@test.local', password: 'Test@123', role_id: '00000000-0000-0000-0000-000000000000' },
-      })
-      expect(res.statusCode).toBe(400)
-    })
-
     it('PATCH is_active=false khoá tài khoản — user không login được nữa', async () => {
       const app = await getApp()
-      const role = await app.db('roles').where({ name: 'Sale' }).first()
       const createRes = await authedInject({
         method: 'POST',
         url: '/api/v1/settings/users',
-        payload: { full_name: 'Bị khoá', email: 'locked@test.local', password: 'Test@123', role_id: role.id },
+        payload: { full_name: 'Bị khoá', email: 'locked@test.local', password: 'Test@123' },
       })
       const user = JSON.parse(createRes.payload)
 
@@ -203,11 +191,10 @@ describe('Settings', () => {
 
     it('PATCH password — user login được bằng password mới, không còn login được bằng password cũ', async () => {
       const app = await getApp()
-      const role = await app.db('roles').where({ name: 'Sale' }).first()
       const createRes = await authedInject({
         method: 'POST',
         url: '/api/v1/settings/users',
-        payload: { full_name: 'Reset PW', email: 'resetpw@test.local', password: 'OldPass@123', role_id: role.id },
+        payload: { full_name: 'Reset PW', email: 'resetpw@test.local', password: 'OldPass@123' },
       })
       const user = JSON.parse(createRes.payload)
 
@@ -219,19 +206,28 @@ describe('Settings', () => {
       expect(newLogin.statusCode).toBe(200)
     })
 
-    it('GET /settings/users filter theo role_id', async () => {
+    it('GET /settings/users filter theo group_id', async () => {
       const app = await getApp()
       const saleRole = await app.db('roles').where({ name: 'Sale' }).first()
-      await authedInject({
+      // Tạo group với role Sale
+      const groupRes = await authedInject({
+        method: 'POST',
+        url: '/api/v1/settings/groups',
+        payload: { name: 'Nhóm Sale test', role_id: saleRole.id },
+      })
+      const group = JSON.parse(groupRes.payload)
+      // Tạo user và thêm vào group
+      const userRes = await authedInject({
         method: 'POST',
         url: '/api/v1/settings/users',
-        payload: { full_name: 'Sale User', email: 'saleuser@test.local', password: 'Test@123', role_id: saleRole.id },
+        payload: { full_name: 'Sale User', email: 'saleuser@test.local', password: 'Test@123' },
       })
+      const user = JSON.parse(userRes.payload)
+      await authedInject({ method: 'POST', url: `/api/v1/settings/groups/${group.id}/members`, payload: { user_id: user.id } })
 
-      const res = await authedInject({ method: 'GET', url: `/api/v1/settings/users?role_id=${saleRole.id}` })
+      const res = await authedInject({ method: 'GET', url: `/api/v1/settings/users?group_id=${group.id}` })
       expect(res.statusCode).toBe(200)
       const body = JSON.parse(res.payload)
-      expect(body.data.every((u: any) => u.role_id === saleRole.id)).toBe(true)
       expect(body.data.some((u: any) => u.email === 'saleuser@test.local')).toBe(true)
     })
   })

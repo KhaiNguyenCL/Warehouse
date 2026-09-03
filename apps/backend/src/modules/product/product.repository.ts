@@ -245,7 +245,7 @@ export class ProductRepository {
 
   async createVariant(productId: string, data: CreateVariantBody) {
     const result = await this.db.raw("SELECT nextval('variant_sku_seq') AS nextval")
-    const sku = String(result.rows[0].nextval).padStart(6, '0')
+    const sku = String(result.rows[0].nextval)
     return this.db('variants')
       .insert({ ...data, product_id: productId, sku })
       .returning('*')
@@ -257,7 +257,7 @@ export class ProductRepository {
       .join('products as p', 'p.id', 'v.product_id')
       .where('p.is_active', true)
       .select(
-        'v.id', 'v.sku', 'v.item_code', 'v.name', 'v.unit',
+        'v.id', 'v.sku', 'v.item_code', 'v.name', 'v.unit', 'v.description',
         'v.cost_price', 'v.sale_price', 'v.vat_percent', 'v.warranty_months',
         'p.id as product_id', 'p.name as product_name', 'p.product_type',
       )

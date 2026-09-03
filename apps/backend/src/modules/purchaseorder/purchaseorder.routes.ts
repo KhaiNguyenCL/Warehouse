@@ -61,7 +61,7 @@ const purchaseOrderRoutes: FastifyPluginAsync = async (app) => {
   app.patch<{ Params: { id: string } }>(
     '/:id/cancel',
     { preHandler: authenticate },
-    async (request) => service.cancel(request.params.id, request.user.sub, request.user.roleId),
+    async (request) => service.cancel(request.params.id, request.user.sub),
   )
 
   // DELETE /purchase-orders/:id — soft delete, chỉ được khi không có receipt liên kết.

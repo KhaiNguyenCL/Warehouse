@@ -345,7 +345,12 @@ export class BitrixService {
   // Người đại diện lưu dưới dạng field trên company Bitrix (không phải Contact object riêng)
   // → không có bitrix_contact_id, dedup bằng cách tìm primary contact hiện tại của company.
   private async upsertRepresentative(companyId: string, fullName: string, position?: string) {
-    const primary = await this.app.db('contacts').where({ company_id: companyId, is_primary: true }).first()
+    const primary = await this.app.db('contacts as c')
+      .join('contact_companies as cc', 'cc.contact_id', 'c.id')
+      .where('cc.company_id', companyId)
+      .where('cc.is_primary', true)
+      .select('c.*')
+      .first()
     await this.app.db.transaction(async (trx) => {
       if (primary) {
         await this.companyRepo.updateContact(primary.id, compact({ full_name: fullName, position }), trx)

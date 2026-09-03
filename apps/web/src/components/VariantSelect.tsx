@@ -9,6 +9,7 @@ export interface VariantData {
   item_code: string | null
   name: string | null
   unit: string | null
+  description: string | null
   cost_price: number | null
   sale_price: number | null
   warranty_months: number | null

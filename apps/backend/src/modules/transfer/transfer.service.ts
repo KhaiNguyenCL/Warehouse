@@ -1,6 +1,7 @@
 import { Knex } from 'knex'
 import { TransferRepository } from './transfer.repository'
 import { CreateTransferBody, ListTransferQuery, CompleteTransferBody } from './transfer.schema'
+import { userHasPermission } from '../../lib/permission-check'
 
 // CLAUDE.md mục 10: với 4 transfer_type này, kho NGUỒN luôn là 1 kho ảo cố định —
 // client chỉ cần chọn kho đích (vật lý), không cần biết UUID kho ảo.
@@ -252,7 +253,7 @@ export class TransferService {
   }
 
   // Chỉ người tạo phiếu HOẶC người có quyền transfer.approve (Manager/Admin) mới được huỷ.
-  async cancel(id: string, userId: string, roleId: string) {
+  async cancel(id: string, userId: string) {
     const transfer = await this.repo.findById(id)
     if (!transfer) throw { statusCode: 404, message: 'Transfer order not found' }
     if (['completed', 'cancelled'].includes(transfer.status)) {
@@ -260,11 +261,7 @@ export class TransferService {
     }
 
     if (transfer.created_by !== userId) {
-      const canApprove = await this.db('role_permissions as rp')
-        .join('permissions as p', 'p.id', 'rp.permission_id')
-        .where('rp.role_id', roleId)
-        .where('p.key', 'transfer.approve')
-        .first()
+      const canApprove = await userHasPermission(this.db, userId, 'transfer.approve')
       if (!canApprove) {
         throw { statusCode: 403, message: 'Chỉ người tạo phiếu hoặc người có quyền duyệt mới được huỷ' }
       }

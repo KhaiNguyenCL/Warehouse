@@ -1,6 +1,7 @@
 import { Knex } from 'knex'
 import { QuotationRepository, ComputedSection, ComputedSubSection, ComputedLineItem } from './quotation.repository'
 import { CreateQuotationBody, UpdateQuotationBody, ListQuotationQuery, QuotationSectionInput, QuotationLineItemInput } from './quotation.schema'
+import { userHasPermission } from '../../lib/permission-check'
 
 const PG_FOREIGN_KEY_VIOLATION = '23503'
 
@@ -264,13 +265,14 @@ export class QuotationService {
       const inventories = await this.repo.findInventoryByVariants(variantIds, quotation.warehouse_id)
       const invByVariant = new Map(inventories.map((i: any) => [i.variant_id, i]))
 
-      // Không block confirm khi thiếu tồn kho — báo giá có thể tạo trước khi hàng về.
-      // Chỉ lọc ra những dòng thực sự có thể reserve (available >= qty); các dòng khác bỏ qua.
-      needed = needed.filter((n) => {
-        const inv: any = invByVariant.get(n.variant_id)
+      // Validate đủ tồn kho trước khi confirm — nếu thiếu bất kỳ dòng nào, trả 400.
+      for (const [variantId, qty] of neededByVariant) {
+        const inv: any = invByVariant.get(variantId)
         const available = inv ? Number(inv.qty_on_hand) - Number(inv.qty_reserved) : 0
-        return available >= n.quantity
-      })
+        if (available < qty) {
+          throw { statusCode: 400, message: `Không đủ tồn kho để giữ chỗ — SKU cần ${qty}, còn khả dụng ${available}` }
+        }
+      }
     }
 
     // Dùng expired_at đã tính từ quote_date+valid_days lúc create/update; fallback tính lại nếu null
@@ -308,7 +310,7 @@ export class QuotationService {
   }
 
   // Chỉ người tạo báo giá HOẶC người có quyền quotation.confirm (Manager/Admin) mới được huỷ.
-  async cancel(id: string, userId: string, roleId: string) {
+  async cancel(id: string, userId: string) {
     const quotation = await this.repo.findById(id)
     if (!quotation) throw { statusCode: 404, message: 'Quotation not found' }
     if (['cancelled', 'expired'].includes(quotation.status)) {
@@ -316,11 +318,7 @@ export class QuotationService {
     }
 
     if (quotation.created_by !== userId) {
-      const canConfirm = await this.db('role_permissions as rp')
-        .join('permissions as p', 'p.id', 'rp.permission_id')
-        .where('rp.role_id', roleId)
-        .where('p.key', 'quotation.confirm')
-        .first()
+      const canConfirm = await userHasPermission(this.db, userId, 'quotation.confirm')
       if (!canConfirm) {
         throw { statusCode: 403, message: 'Chỉ người tạo báo giá hoặc người có quyền xác nhận mới được huỷ' }
       }
@@ -343,8 +341,8 @@ export class QuotationService {
     })
   }
 
-  // Đánh dấu hết hạn (manual trigger) — tự động hoá qua cron job theo expired_at là
-  // việc của infra/scheduler, chưa nằm trong phạm vi module này.
+  // Đánh dấu hết hạn — được gọi cả từ manual trigger (route) lẫn từ scheduler plugin
+  // (plugins/scheduler.ts) chạy tự động mỗi 15 phút.
   async expire(id: string) {
     return this.db.transaction(async (trx) => {
       const current = await this.repo.lockForUpdate(id, trx)

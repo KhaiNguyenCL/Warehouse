@@ -33,15 +33,30 @@ export async function createUserWithRole(roleName: string, email: string, passwo
   if (!role) throw new Error(`Role "${roleName}" không tồn tại trong DB — kiểm tra seed data`)
 
   const password_hash = await bcrypt.hash(password, 10)
+  let user: any
   const existing = await app.db('users').where({ email }).first()
   if (existing) {
-    const [user] = await app.db('users').where({ email }).update({ password_hash, role_id: role.id }).returning('*')
-    return user
+    const [u] = await app.db('users').where({ email }).update({ password_hash }).returning('*')
+    user = u
+  } else {
+    const [u] = await app.db('users')
+      .insert({ full_name: `Test ${roleName}`, email, password_hash })
+      .returning('*')
+    user = u
   }
-  const [user] = await app
-    .db('users')
-    .insert({ full_name: `Test ${roleName}`, email, password_hash, role_id: role.id })
-    .returning('*')
+
+  // Đảm bảo có group với role này và user thuộc group đó
+  let group = await app.db('user_groups').where({ role_id: role.id }).first()
+  if (!group) {
+    const [g] = await app.db('user_groups')
+      .insert({ name: `${roleName} Group`, role_id: role.id, created_at: app.db.fn.now(), updated_at: app.db.fn.now() })
+      .returning('*')
+    group = g
+  }
+  await app.db('user_group_members')
+    .insert({ user_id: user.id, group_id: group.id })
+    .onConflict(['user_id', 'group_id']).ignore()
+
   return user
 }
 

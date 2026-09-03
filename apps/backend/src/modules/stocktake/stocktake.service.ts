@@ -1,6 +1,7 @@
 import { Knex } from 'knex'
 import { StocktakeRepository } from './stocktake.repository'
 import { CreateStocktakeBody, ListStocktakeQuery, CompleteStocktakeBody } from './stocktake.schema'
+import { userHasPermission } from '../../lib/permission-check'
 
 export class StocktakeService {
   private repo: StocktakeRepository
@@ -134,7 +135,7 @@ export class StocktakeService {
 
   // Chỉ người tạo kiểm kê HOẶC người có quyền stocktake.complete mới được huỷ — cùng
   // pattern với receipt/delivery/transfer/quotation (creator hoặc người có quyền cấp cao hơn).
-  async cancel(id: string, userId: string, roleId: string) {
+  async cancel(id: string, userId: string) {
     const stocktake = await this.repo.findById(id)
     if (!stocktake) throw { statusCode: 404, message: 'Stocktake not found' }
     if (stocktake.status !== 'in_progress') {
@@ -142,11 +143,7 @@ export class StocktakeService {
     }
 
     if (stocktake.created_by !== userId) {
-      const canComplete = await this.db('role_permissions as rp')
-        .join('permissions as p', 'p.id', 'rp.permission_id')
-        .where('rp.role_id', roleId)
-        .where('p.key', 'stocktake.complete')
-        .first()
+      const canComplete = await userHasPermission(this.db, userId, 'stocktake.complete')
       if (!canComplete) {
         throw { statusCode: 403, message: 'Chỉ người tạo kiểm kê hoặc người có quyền hoàn thành mới được huỷ' }
       }

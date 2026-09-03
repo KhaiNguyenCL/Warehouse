@@ -26,8 +26,8 @@ export class SettingsRepository {
     return { ...role, permissions }
   }
 
-  countUsersByRole(roleId: string) {
-    return this.db('users').where({ role_id: roleId }).count('id as count').first()
+  countGroupsByRole(roleId: string) {
+    return this.db('user_groups').where({ role_id: roleId }).count('id as count').first()
   }
 
   insertRole(data: { name: string; description?: string }) {
@@ -56,35 +56,114 @@ export class SettingsRepository {
     await trx('role_permissions').insert(permissionIds.map((permission_id) => ({ role_id: roleId, permission_id })))
   }
 
+  // ─── Groups ─────────────────────────────────────────────────────────────────
+
+  findGroups() {
+    return this.db('user_groups as ug')
+      .join('roles as r', 'r.id', 'ug.role_id')
+      .select('ug.*', 'r.name as role_name')
+      .orderBy('ug.name')
+  }
+
+  async findGroupById(id: string) {
+    const group = await this.db('user_groups as ug')
+      .join('roles as r', 'r.id', 'ug.role_id')
+      .where('ug.id', id)
+      .select('ug.*', 'r.name as role_name')
+      .first()
+    if (!group) return null
+    const members = await this.db('user_group_members as ugm')
+      .join('users as u', 'u.id', 'ugm.user_id')
+      .where('ugm.group_id', id)
+      .select('u.id', 'u.full_name', 'u.email', 'u.is_active')
+    return { ...group, members }
+  }
+
+  insertGroup(data: { name: string; description?: string; role_id: string }) {
+    return this.db('user_groups').insert({
+      ...data,
+      created_at: this.db.fn.now(),
+      updated_at: this.db.fn.now(),
+    }).returning('*')
+  }
+
+  updateGroup(id: string, data: Record<string, unknown>) {
+    return this.db('user_groups').where({ id }).update({ ...data, updated_at: this.db.fn.now() }).returning('*')
+  }
+
+  deleteGroup(id: string) {
+    return this.db('user_groups').where({ id }).del()
+  }
+
+  addGroupMember(groupId: string, userId: string) {
+    return this.db('user_group_members').insert({ group_id: groupId, user_id: userId })
+  }
+
+  removeGroupMember(groupId: string, userId: string) {
+    return this.db('user_group_members').where({ group_id: groupId, user_id: userId }).del()
+  }
+
+  getUserGroups(userId: string) {
+    return this.db('user_group_members as ugm')
+      .join('user_groups as ug', 'ug.id', 'ugm.group_id')
+      .join('roles as r', 'r.id', 'ug.role_id')
+      .where('ugm.user_id', userId)
+      .select('ug.id', 'ug.name', 'r.name as role_name')
+  }
+
   // ─── Users ─────────────────────────────────────────────────────────────────
 
   async findUsers(query: ListUserQuery) {
-    const { role_id, is_active, page = 1, limit = 20 } = query
+    const { group_id, is_active, page = 1, limit = 20 } = query
     const offset = (page - 1) * limit
 
-    const base = this.db('users as u').join('roles as r', 'r.id', 'u.role_id')
-    if (role_id) base.where('u.role_id', role_id)
-    if (is_active !== undefined) base.where('u.is_active', is_active)
+    let base = this.db('users as u')
+    if (group_id) {
+      base = base.join('user_group_members as ugm', 'ugm.user_id', 'u.id').where('ugm.group_id', group_id)
+    }
+    if (is_active !== undefined) base = base.where('u.is_active', is_active)
 
-    const [data, countResult] = await Promise.all([
-      base
-        .clone()
-        .select('u.id', 'u.full_name', 'u.email', 'u.phone', 'u.is_active', 'u.created_at', 'r.name as role_name', 'u.role_id')
+    const [users, countResult] = await Promise.all([
+      base.clone()
+        .select('u.id', 'u.full_name', 'u.email', 'u.phone', 'u.is_active', 'u.created_at')
+        .distinct('u.id', 'u.full_name', 'u.email', 'u.phone', 'u.is_active', 'u.created_at')
         .orderBy('u.full_name')
         .limit(limit)
         .offset(offset),
-      base.clone().clearSelect().count('u.id as count').first(),
+      base.clone().countDistinct('u.id as count').first(),
     ])
 
-    return { data, total: Number(countResult?.count ?? 0), page, limit }
+    const ids = users.map((u: any) => u.id)
+    const memberships = ids.length
+      ? await this.db('user_group_members as ugm')
+          .join('user_groups as ug', 'ug.id', 'ugm.group_id')
+          .join('roles as r', 'r.id', 'ug.role_id')
+          .whereIn('ugm.user_id', ids)
+          .select('ugm.user_id', 'ug.id', 'ug.name', 'r.name as role_name')
+      : []
+
+    const groupsByUser = new Map<string, any[]>()
+    for (const m of memberships) {
+      if (!groupsByUser.has(m.user_id)) groupsByUser.set(m.user_id, [])
+      groupsByUser.get(m.user_id)!.push({ id: m.id, name: m.name, role_name: m.role_name })
+    }
+
+    return {
+      data: users.map((u: any) => ({ ...u, groups: groupsByUser.get(u.id) ?? [] })),
+      total: Number(countResult?.count ?? 0),
+      page,
+      limit,
+    }
   }
 
-  findUserById(id: string) {
-    return this.db('users as u')
-      .join('roles as r', 'r.id', 'u.role_id')
+  async findUserById(id: string) {
+    const user = await this.db('users as u')
       .where('u.id', id)
-      .select('u.id', 'u.full_name', 'u.email', 'u.phone', 'u.is_active', 'u.created_at', 'r.name as role_name', 'u.role_id')
+      .select('u.id', 'u.full_name', 'u.email', 'u.phone', 'u.is_active', 'u.created_at')
       .first()
+    if (!user) return null
+    const groups = await this.getUserGroups(id)
+    return { ...user, groups }
   }
 
   findUserByEmail(email: string) {
@@ -95,7 +174,7 @@ export class SettingsRepository {
     return this.db('roles').where({ id }).first()
   }
 
-  insertUser(data: { full_name: string; email: string; phone?: string; password_hash: string; role_id: string }) {
+  insertUser(data: { full_name: string; email: string; phone?: string; password_hash: string }) {
     return this.db('users').insert(data).returning('*')
   }
 

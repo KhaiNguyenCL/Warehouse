@@ -1,0 +1,38 @@
+# Dependencies — được install lại trong container
+**/node_modules
+
+# Build output — được compile lại trong container
+**/dist
+
+# Test artifacts
+**/*.test.ts
+**/*.spec.ts
+**/coverage
+apps/backend/test
+apps/backend/src/test
+
+# Môi trường dev — production dùng .env.prod
+.env
+.env.*
+!.env.prod
+
+# Git + editor
+.git
+.gitignore
+**/.gitignore
+.vscode
+.idea
+**/.DS_Store
+
+# Mobile (không deploy lên server)
+apps/mobile
+
+# Docs
+docs
+*.md
+!README.md
+
+# Playwright
+.playwright-mcp
+**/*.png
+**/*.jpg

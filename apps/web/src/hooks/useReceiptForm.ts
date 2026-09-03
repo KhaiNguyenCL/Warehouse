@@ -25,6 +25,9 @@ export function useReceiptForm(options?: { onUpdateSuccess?: () => void }) {
   // "purchase" (xem Row 2 ở ReceiptFormPage.tsx).
   const [shipmentId, setShipmentId] = useState<string | undefined>(shipmentIdFromQuery)
 
+  // create-mode: DO selector state — dùng khi Loại nhập = "return_in"
+  const [returnDoId, setReturnDoId] = useState<string | undefined>()
+
   // complete mode: inline SN entry section
   const [completeMode, setCompleteMode] = useState(false)
   const [serialsRows, setSerialsRows] = useState<Record<string, SnRow[]>>({})
@@ -68,6 +71,19 @@ export function useReceiptForm(options?: { onUpdateSuccess?: () => void }) {
     queryKey: ['shipments', 'received-list'],
     queryFn: async () => (await api.get('/shipments', { params: { status: 'received', limit: 100 } })).data,
     enabled: !id,
+  })
+
+  // Danh sách Phiếu xuất kho đã Completed — dùng khi Loại nhập = "return_in"
+  const { data: completedDOs } = useQuery({
+    queryKey: ['delivery-orders', 'completed-list'],
+    queryFn: async () => (await api.get('/deliveries', { params: { status: 'completed', limit: 100 } })).data,
+    enabled: !id,
+  })
+
+  const { data: returnDoDetail } = useQuery({
+    queryKey: ['delivery-orders', returnDoId],
+    queryFn: async () => (await api.get(`/deliveries/${returnDoId}`)).data,
+    enabled: !!returnDoId && !id,
   })
 
   const { data: serials, isLoading: serialsLoading } = useQuery({
@@ -149,6 +165,34 @@ export function useReceiptForm(options?: { onUpdateSuccess?: () => void }) {
       form.setFieldsValue({ po_id: undefined, company_id: undefined })
     }
   }, [poId])
+
+  // When return DO selected → auto-fill ref_document + company (khách hàng) + lines
+  useEffect(() => {
+    if (!returnDoDetail || id) return
+    form.setFieldsValue({
+      ref_document_type: 'delivery_order',
+      ref_document_id:   returnDoDetail.id,
+      company_id:        returnDoDetail.company_id,
+      lines: (returnDoDetail.lines ?? []).map((l: any) => ({
+        variant_id:    l.variant_id,
+        variant_label: `${l.item_code ?? l.variant_sku} — ${l.variant_name}`,
+        quantity:      l.quantity,
+        cost_price:    undefined,
+      })),
+    })
+  }, [returnDoDetail])
+
+  // When returnDoId cleared → reset ref_document fields
+  useEffect(() => {
+    if (!returnDoId) {
+      form.setFieldsValue({
+        ref_document_type: undefined,
+        ref_document_id:   undefined,
+        company_id:        undefined,
+        lines:             [{}],
+      })
+    }
+  }, [returnDoId])
 
   // When shipmentId cleared (user bỏ chọn Phiếu nhận hàng, hoặc đổi Loại nhập khỏi
   // "purchase") → reset toàn bộ field liên quan, kể cả dòng hàng, về trạng thái trống.
@@ -268,6 +312,11 @@ export function useReceiptForm(options?: { onUpdateSuccess?: () => void }) {
     shipmentDetail,
     receivedShipments,
     poDetail,
+    // return_in DO selector
+    returnDoId,
+    setReturnDoId,
+    completedDOs,
+    returnDoDetail,
     // queries
     warehouses,
     importTypes,

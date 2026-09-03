@@ -1,44 +1,25 @@
 // Checkbox ma trận permission cho 1 Role — group theo permissions.group.
-// Render bên trong DialogContent khi sửa Role (ngoài <Form> chính, state riêng).
-import { useEffect, useState } from 'react'
+// Controlled: selected + onChange đến từ parent (RolesPage), không có state riêng.
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import { useApiMutation } from '@/hooks/useApiMutation'
-import { Button } from '@/components/ui/button'
 
 interface Props {
   roleId: string
+  selected: Set<string>
+  onChange: (next: Set<string>) => void
 }
 
-export default function RolePermissionsPanel({ roleId }: Props) {
-  const [selected, setSelected] = useState<Set<string>>(new Set())
-
-  const { data: role, isLoading } = useQuery({
-    queryKey: ['settings', 'roles', roleId],
-    queryFn: async () => (await api.get(`/settings/roles/${roleId}`)).data,
-  })
-
-  const { data: allPermissions } = useQuery({
+export default function RolePermissionsPanel({ roleId, selected, onChange }: Props) {
+  const { data: allPermissions, isLoading } = useQuery({
     queryKey: ['settings', 'permissions'],
     queryFn: async () => (await api.get('/settings/permissions')).data,
   })
 
-  useEffect(() => {
-    if (role) setSelected(new Set(role.permissions.map((p: any) => p.key)))
-  }, [role])
-
-  const saveMutation = useApiMutation(
-    () => api.put(`/settings/roles/${roleId}/permissions`, { permission_keys: [...selected] }),
-    { successMessage: 'Cập nhật quyền thành công', invalidateKey: ['settings', 'roles', roleId] },
-  )
-
   function toggle(key: string, checked: boolean) {
-    setSelected((prev) => {
-      const next = new Set(prev)
-      if (checked) next.add(key)
-      else next.delete(key)
-      return next
-    })
+    const next = new Set(selected)
+    if (checked) next.add(key)
+    else next.delete(key)
+    onChange(next)
   }
 
   const grouped: Record<string, any[]> = {}
@@ -80,16 +61,6 @@ export default function RolePermissionsPanel({ roleId }: Props) {
             {idx < groups.length - 1 && <div className="my-1 border-t border-border" />}
           </div>
         ))}
-      </div>
-
-      <div className="mt-4">
-        <Button
-          size="sm"
-          disabled={saveMutation.isPending}
-          onClick={() => saveMutation.mutate()}
-        >
-          {saveMutation.isPending ? 'Đang lưu…' : 'Lưu quyền'}
-        </Button>
       </div>
     </div>
   )

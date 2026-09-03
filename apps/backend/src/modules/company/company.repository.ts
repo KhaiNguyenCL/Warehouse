@@ -135,19 +135,56 @@ export class CompanyRepository {
     }
     if (company_id) base.where('cc.company_id', company_id)
 
+    // Khi không filter theo company_id, 1 contact liên kết nhiều công ty sẽ xuất hiện
+    // nhiều lần (do JOIN contact_companies). Dùng DISTINCT ON để dedup — ưu tiên row
+    // is_primary = true (nếu có) để lấy company_name đại diện đúng nhất.
     const [rows, countResult] = await Promise.all([
-      base.clone()
-        .select('c.*', 'cc.is_primary', 'cc.company_id', 'co.name as company_name', 'co.code as company_code')
-        .orderBy([{ column: 'cc.is_primary', order: 'desc' }, { column: 'c.full_name', order: 'asc' }])
-        .limit(limit).offset(offset),
-      base.clone().clearSelect().count('c.id as count').first(),
+      company_id
+        ? base.clone()
+            .select('c.*', 'cc.is_primary', 'cc.company_id', 'co.name as company_name', 'co.code as company_code')
+            .orderBy([{ column: 'cc.is_primary', order: 'desc' }, { column: 'c.full_name', order: 'asc' }])
+            .limit(limit).offset(offset)
+        : this.db.with('ranked', (qb) =>
+            qb.from('contacts as c')
+              .join('contact_companies as cc', 'cc.contact_id', 'c.id')
+              .join('companies as co', 'co.id', 'cc.company_id')
+              .select(
+                'c.id', 'c.full_name', 'c.phone', 'c.email', 'c.position', 'c.bitrix_contact_id', 'c.note',
+                'cc.is_primary',
+                'cc.company_id',
+                'co.name as company_name',
+                'co.code as company_code',
+                this.db.raw('ROW_NUMBER() OVER (PARTITION BY c.id ORDER BY cc.is_primary DESC, co.name ASC) as rn'),
+              )
+              .modify((q) => {
+                if (search) {
+                  q.where((qb2) => {
+                    qb2.whereILike('c.full_name', `%${search}%`)
+                      .orWhereILike('c.phone', `%${search}%`)
+                      .orWhereILike('c.email', `%${search}%`)
+                      .orWhereILike('co.name', `%${search}%`)
+                  })
+                }
+              }),
+          )
+          .from('ranked')
+          .where('rn', 1)
+          .select('id', 'full_name', 'phone', 'email', 'position', 'bitrix_contact_id', 'note', 'is_primary', 'company_id', 'company_name', 'company_code')
+          .orderBy([{ column: 'full_name', order: 'asc' }])
+          .limit(limit).offset(offset),
+      base.clone().clearSelect().countDistinct('c.id as count').first(),
     ])
 
     return { data: rows, total: Number(countResult?.count ?? 0), page, limit }
   }
 
   findContactById(id: string) {
-    return this.db('contacts').where({ id }).first()
+    return this.db('contacts as c')
+      .leftJoin('contact_companies as cc', 'cc.contact_id', 'c.id')
+      .where('c.id', id)
+      .select('c.*', 'cc.company_id', 'cc.is_primary')
+      .orderBy('cc.is_primary', 'desc')
+      .first()
   }
 
   findContactByBitrixId(bitrixContactId: string) {

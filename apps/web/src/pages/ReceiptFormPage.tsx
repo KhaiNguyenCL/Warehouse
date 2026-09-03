@@ -251,11 +251,40 @@ export default function ReceiptFormPage() {
               )}
             </div>
           )}
+          {/* Row 2b — chọn Phiếu xuất kho (khi Loại nhập = "return_in") */}
+          {isCreate && importTypeValue === 'return_in' && (
+            <div style={{ display: 'grid', gridTemplateColumns: hook.returnDoDetail ? '1fr 1fr' : '1fr', gap: '0 16px', maxWidth: '80%' }}>
+              <Form.Item label="Phiếu xuất kho (khách hàng trả lại)" required style={{ marginBottom: 12 }}>
+                <Select
+                  value={hook.returnDoId}
+                  placeholder="Chọn Phiếu xuất kho đã hoàn thành"
+                  options={hook.completedDOs?.data?.map((d: any) => ({
+                    value: d.id,
+                    label: [d.code, d.company_name].filter(Boolean).join(' — '),
+                  }))}
+                  onChange={(v) => hook.setReturnDoId(v)}
+                  allowClear
+                />
+              </Form.Item>
+              {hook.returnDoDetail && (
+                <Form.Item label="Khách hàng" style={{ marginBottom: 12 }}>
+                  <BBox>
+                    {hook.returnDoDetail?.company_name
+                      ? <span>{hook.returnDoDetail.company_name}</span>
+                      : ph}
+                  </BBox>
+                </Form.Item>
+              )}
+            </div>
+          )}
+
           {isCreate && (
             <>
               <Form.Item name="po_id" hidden><Input /></Form.Item>
               <Form.Item name="company_id" hidden><Input /></Form.Item>
               <Form.Item name="shipment_id" hidden><Input /></Form.Item>
+              <Form.Item name="ref_document_type" hidden><Input /></Form.Item>
+              <Form.Item name="ref_document_id" hidden><Input /></Form.Item>
             </>
           )}
           {!isCreate && receipt?.po_code && (

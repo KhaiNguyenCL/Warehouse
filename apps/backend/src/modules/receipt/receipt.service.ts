@@ -3,6 +3,7 @@
 import { Knex } from 'knex'
 import { ReceiptRepository } from './receipt.repository'
 import { CreateReceiptBody, ListReceiptQuery, CompleteReceiptBody, SerialInput } from './receipt.schema'
+import { userHasPermission } from '../../lib/permission-check'
 
 export class ReceiptService {
   private repo: ReceiptRepository
@@ -136,9 +137,9 @@ export class ReceiptService {
     return row
   }
 
-  // CLAUDE.md mục 8: requires_ref_document của import_type quyết định loại document gốc bắt
-  // buộc — "adjustment" → stocktake_result, "return_in" → quotation. Đọc trực tiếp từ
-  // import_types nên return_in tự động được validate giống adjustment, không cần hardcode riêng.
+  // requires_ref_document của import_type quyết định loại document gốc bắt buộc:
+  // "adjustment" → stocktake_result, "return_in" → delivery_order. Đọc từ import_types
+  // nên type mới thêm qua Settings dùng được ngay, không cần hardcode riêng.
   private async validateRefDocument(data: CreateReceiptBody, requiresRefDocument: string) {
     if (requiresRefDocument === 'none') return
     if (data.ref_document_type !== requiresRefDocument || !data.ref_document_id) {
@@ -147,12 +148,23 @@ export class ReceiptService {
         message: `import_type "${data.import_type}" bắt buộc ref_document_type="${requiresRefDocument}" và ref_document_id hợp lệ`,
       }
     }
-    const table = requiresRefDocument === 'quotation' ? 'quotations' : 'stocktake_results'
+    const tableMap: Record<string, string> = {
+      quotation:       'quotations',
+      stocktake_result: 'stocktake_results',
+      delivery_order:  'delivery_orders',
+    }
+    const labelMap: Record<string, string> = {
+      quotation:       'Quotation',
+      stocktake_result: 'Stocktake Result',
+      delivery_order:  'Phiếu xuất kho',
+    }
+    const table = tableMap[requiresRefDocument]
+    if (!table) throw { statusCode: 400, message: `ref_document_type "${requiresRefDocument}" không được hỗ trợ` }
     const exists = await this.db(table).where({ id: data.ref_document_id }).first()
     if (!exists) {
       throw {
         statusCode: 400,
-        message: `${requiresRefDocument === 'quotation' ? 'Quotation' : 'Stocktake Result'} tham chiếu không tồn tại`,
+        message: `${labelMap[requiresRefDocument] ?? requiresRefDocument} tham chiếu không tồn tại`,
       }
     }
   }
@@ -390,7 +402,6 @@ export class ReceiptService {
   async cancel(
     id: string,
     userId: string,
-    roleId: string,
     body?: { reason?: string; attachments?: Array<{ url: string; originalName: string }> },
   ) {
     const receipt = await this.repo.findById(id)
@@ -400,11 +411,7 @@ export class ReceiptService {
     }
 
     if (receipt.created_by !== userId) {
-      const canApprove = await this.db('role_permissions as rp')
-        .join('permissions as p', 'p.id', 'rp.permission_id')
-        .where('rp.role_id', roleId)
-        .where('p.key', 'receipt.approve')
-        .first()
+      const canApprove = await userHasPermission(this.db, userId, 'receipt.approve')
       if (!canApprove) {
         throw { statusCode: 403, message: 'Chỉ người tạo phiếu hoặc người có quyền duyệt mới được huỷ' }
       }

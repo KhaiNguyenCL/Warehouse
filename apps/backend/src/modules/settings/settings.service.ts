@@ -4,6 +4,8 @@ import { SettingsRepository } from './settings.repository'
 import {
   CreateRoleBody,
   UpdateRoleBody,
+  CreateGroupBody,
+  UpdateGroupBody,
   CreateUserBody,
   UpdateUserBody,
   ListUserQuery,
@@ -49,9 +51,6 @@ export class SettingsService {
     return this.getRoleById(role.id)
   }
 
-  // Role hệ thống (CLAUDE.md mục 15: "không xoá được, có thể sửa quyền") — giữ nguyên
-  // name để các nơi khác (vd test helper, tài liệu) không bị lệch khi tra theo tên,
-  // chỉ cho sửa description; quyền (permissions) vẫn sửa được qua replaceRolePermissions().
   async updateRole(id: string, data: UpdateRoleBody) {
     const role = await this.repo.findRoleById(id)
     if (!role) throw { statusCode: 404, message: 'Role not found' }
@@ -83,22 +82,85 @@ export class SettingsService {
     return this.getRoleById(id)
   }
 
-  // Chỉ xoá role tự tạo (is_system=false) và không còn user nào đang dùng — tránh để
-  // user "mồ côi" role (users.role_id NOT NULL, không có ON DELETE SET NULL).
   async deleteRole(id: string) {
     const role = await this.repo.findRoleById(id)
     if (!role) throw { statusCode: 404, message: 'Role not found' }
     if (role.is_system) throw { statusCode: 400, message: 'Không thể xoá role hệ thống' }
 
-    const { count } = (await this.repo.countUsersByRole(id)) ?? { count: 0 }
+    const { count } = (await this.repo.countGroupsByRole(id)) ?? { count: 0 }
     if (Number(count) > 0) {
-      throw { statusCode: 400, message: `Còn ${count} user đang dùng role này, không thể xoá` }
+      throw { statusCode: 400, message: `Còn ${count} group đang dùng role này, không thể xoá` }
     }
     await this.repo.deleteRole(id)
   }
 
   listPermissions() {
     return this.repo.findPermissions()
+  }
+
+  // ─── Groups ────────────────────────────────────────────────────────────────
+
+  listGroups() {
+    return this.repo.findGroups()
+  }
+
+  async getGroupById(id: string) {
+    const group = await this.repo.findGroupById(id)
+    if (!group) throw { statusCode: 404, message: 'Group not found' }
+    return group
+  }
+
+  async createGroup(data: CreateGroupBody) {
+    const role = await this.repo.findRoleByIdRaw(data.role_id)
+    if (!role) throw { statusCode: 400, message: 'role_id không tồn tại' }
+    try {
+      const [group] = await this.repo.insertGroup(data)
+      return this.getGroupById(group.id)
+    } catch (err) {
+      mapDbError('Tên group đã được sử dụng')(err)
+    }
+  }
+
+  async updateGroup(id: string, data: UpdateGroupBody) {
+    const group = await this.repo.findGroupById(id)
+    if (!group) throw { statusCode: 404, message: 'Group not found' }
+    if (data.role_id) {
+      const role = await this.repo.findRoleByIdRaw(data.role_id)
+      if (!role) throw { statusCode: 400, message: 'role_id không tồn tại' }
+    }
+    await this.repo.updateGroup(id, data as Record<string, unknown>)
+    return this.getGroupById(id)
+  }
+
+  async deleteGroup(id: string) {
+    const group = await this.repo.findGroupById(id)
+    if (!group) throw { statusCode: 404, message: 'Group not found' }
+    await this.repo.deleteGroup(id)
+  }
+
+  async addGroupMember(groupId: string, userId: string) {
+    const group = await this.repo.findGroupById(groupId)
+    if (!group) throw { statusCode: 404, message: 'Group not found' }
+    const user = await this.repo.findUserById(userId)
+    if (!user) throw { statusCode: 404, message: 'User not found' }
+    try {
+      await this.repo.addGroupMember(groupId, userId)
+    } catch (err: any) {
+      if (err.code === '23505') throw { statusCode: 409, message: 'User đã thuộc group này' }
+      throw err
+    }
+    return this.getGroupById(groupId)
+  }
+
+  async removeGroupMember(groupId: string, userId: string) {
+    const group = await this.repo.findGroupById(groupId)
+    if (!group) throw { statusCode: 404, message: 'Group not found' }
+    await this.repo.removeGroupMember(groupId, userId)
+    return this.getGroupById(groupId)
+  }
+
+  getUserGroups(userId: string) {
+    return this.repo.getUserGroups(userId)
   }
 
   // ─── Users ─────────────────────────────────────────────────────────────────
@@ -114,9 +176,6 @@ export class SettingsService {
   }
 
   async createUser(data: CreateUserBody) {
-    const role = await this.repo.findRoleByIdRaw(data.role_id)
-    if (!role) throw { statusCode: 400, message: 'role_id không tồn tại' }
-
     const password_hash = await bcrypt.hash(data.password, 10)
     try {
       const [user] = await this.repo.insertUser({
@@ -124,7 +183,6 @@ export class SettingsService {
         email: data.email,
         phone: data.phone,
         password_hash,
-        role_id: data.role_id,
       })
       return this.getUserById(user.id)
     } catch (err) {
@@ -132,9 +190,6 @@ export class SettingsService {
     }
   }
 
-  // Không có hàm xoá user (hard delete) — users.id được NHIỀU bảng khác tham chiếu
-  // làm created_by (receipts, quotations,...) KHÔNG có ON DELETE CASCADE/SET NULL, xoá
-  // sẽ vi phạm FK. Khoá tài khoản qua is_active=false (route PATCH) thay vì xoá.
   async updateUser(id: string, data: UpdateUserBody) {
     const user = await this.repo.findUserById(id)
     if (!user) throw { statusCode: 404, message: 'User not found' }
@@ -143,11 +198,6 @@ export class SettingsService {
     if (data.full_name !== undefined) payload.full_name = data.full_name
     if (data.phone !== undefined) payload.phone = data.phone
     if (data.is_active !== undefined) payload.is_active = data.is_active
-    if (data.role_id !== undefined) {
-      const role = await this.repo.findRoleByIdRaw(data.role_id)
-      if (!role) throw { statusCode: 400, message: 'role_id không tồn tại' }
-      payload.role_id = data.role_id
-    }
     if (data.password) payload.password_hash = await bcrypt.hash(data.password, 10)
 
     const [updated] = await this.repo.updateUser(id, payload)
@@ -155,10 +205,6 @@ export class SettingsService {
   }
 
   // ─── Import / Export Types ─────────────────────────────────────────────────
-  // LƯU Ý: receipt.schema.ts/delivery.schema.ts hiện validate import_type/export_type
-  // bằng enum TS hardcode (IMPORT_TYPES/EXPORT_TYPES), KHÔNG đọc từ 2 bảng này — thêm
-  // type mới ở đây chưa tự động cho phép dùng ngay trong Receipt/Delivery (cần nối lại
-  // riêng, ngoài phạm vi module settings).
 
   listImportTypes() {
     return this.repo.findImportTypes()

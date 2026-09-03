@@ -1,34 +1,41 @@
-// Routes = lớp NGOÀI CÙNG, duy nhất "nói chuyện" với HTTP — nhận request, trả response.
-// Không chứa business logic (đó là việc của service), không tự query DB (đó là việc của repository).
 import { FastifyPluginAsync } from 'fastify'
 import { AuthService } from './auth.service'
 import { loginSchema, LoginBody } from './auth.schema'
 import { authenticate } from '../../middleware/auth'
 
-// FastifyPluginAsync = "khuôn" chuẩn của Fastify cho 1 module — khi app.ts gọi
-// app.register(authRoutes, { prefix: '/api/v1/auth' }), Fastify tự gọi hàm này 1 lần,
-// truyền vào `app` (đã có prefix). Mọi route khai báo bên trong tự động có prefix đó.
 const authRoutes: FastifyPluginAsync = async (app) => {
   const service = new AuthService(app)
 
-  // POST /api/v1/auth/login — không cần preHandler vì đây là route public (chưa đăng nhập)
-  // <{ Body: LoginBody }> = generic TypeScript, giúp request.body được gợi ý đúng kiểu trong IDE
-  // Lỗi do service throw ({ statusCode, message }) tự rơi vào setErrorHandler ở app.ts.
   app.post<{ Body: LoginBody }>('/login', { schema: loginSchema }, async (request, reply) => {
     const result = await service.login(request.body.email, request.body.password)
     return reply.send(result)
   })
 
-  // GET /api/v1/auth/me — route PHẢI đăng nhập, nên có preHandler: authenticate.
-  // authenticate verify JWT trước, nếu hợp lệ mới cho chạy tới hàm handler bên dưới.
   app.get('/me', { preHandler: authenticate }, async (request, reply) => {
-    const { sub } = request.user   // request.user được gán bởi authenticate (xem middleware/auth.ts)
+    const { sub } = request.user
     const user = await app.db('users')
-      .join('roles', 'roles.id', 'users.role_id')
       .where('users.id', sub)
-      .select('users.id', 'users.email', 'users.full_name', 'roles.name as role')
+      .select('users.id', 'users.email', 'users.full_name')
       .first()
-    return reply.send(user)
+    if (!user) return reply.code(404).send({ error: 'Not found' })
+
+    const [groups, permRows] = await Promise.all([
+      app.db('user_group_members as ugm')
+        .join('user_groups as ug', 'ug.id', 'ugm.group_id')
+        .join('roles as r', 'r.id', 'ug.role_id')
+        .where('ugm.user_id', sub)
+        .select('ug.id', 'ug.name', 'r.name as role_name'),
+      // Lấy tất cả permission keys của user (union qua tất cả role trong các group)
+      app.db('user_group_members as ugm')
+        .join('user_groups as ug', 'ug.id', 'ugm.group_id')
+        .join('role_permissions as rp', 'rp.role_id', 'ug.role_id')
+        .join('permissions as p', 'p.id', 'rp.permission_id')
+        .where('ugm.user_id', sub)
+        .distinct('p.key')
+        .pluck('p.key'),
+    ])
+
+    return reply.send({ ...user, groups, permissions: permRows })
   })
 }
 

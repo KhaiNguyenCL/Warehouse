@@ -100,21 +100,26 @@ const receiptRoutes: FastifyPluginAsync = async (app) => {
       preHandler: authenticate,
       schema: {
         body: {
-          type: 'object',
-          properties: {
-            reason:      { type: 'string' },
-            attachments: {
-              type: 'array',
-              items: {
-                type: 'object',
-                required: ['url', 'originalName'],
-                properties: {
-                  url:          { type: 'string' },
-                  originalName: { type: 'string' },
+          anyOf: [
+            {
+              type: 'object',
+              properties: {
+                reason:      { type: 'string' },
+                attachments: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    required: ['url', 'originalName'],
+                    properties: {
+                      url:          { type: 'string' },
+                      originalName: { type: 'string' },
+                    },
+                  },
                 },
               },
             },
-          },
+            { type: 'null' },
+          ],
         },
       },
     },
@@ -122,7 +127,6 @@ const receiptRoutes: FastifyPluginAsync = async (app) => {
       return await service.cancel(
         request.params.id,
         request.user.sub,
-        request.user.roleId,
         request.body,
       )
     },
