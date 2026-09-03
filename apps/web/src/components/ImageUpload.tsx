@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { Upload, message } from 'antd'
-import { PlusOutlined, LoadingOutlined } from '@ant-design/icons'
+import { Upload, Button, Image, message } from 'antd'
+import { UploadOutlined, PictureOutlined, LoadingOutlined } from '@ant-design/icons'
 import { api } from '../lib/api'
 
 interface Props {
@@ -10,7 +10,8 @@ interface Props {
 }
 
 // ImageUpload — dùng trong Form.Item, trả về URL ảnh sau khi upload thành công.
-// Hiển thị preview ảnh khi đã có URL; click vào để đổi ảnh khác.
+// Click vào ảnh để phóng to xem (antd Image preview) — KHÔNG đổi ảnh khi click nữa.
+// Đổi/tải ảnh qua nút "Upload ảnh" riêng bên dưới (chỉ hiện khi không disabled).
 export function ImageUpload({ value, onChange, disabled }: Props) {
   const [loading, setLoading] = useState(false)
 
@@ -35,43 +36,44 @@ export function ImageUpload({ value, onChange, disabled }: Props) {
   const imgSrc = value ?? null
 
   return (
-    <Upload
-      listType="picture-card"
-      showUploadList={false}
-      accept="image/jpeg,image/png,image/webp,image/gif"
-      beforeUpload={handleUpload}
-      disabled={disabled}
-    >
-      {loading ? (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, color: 'var(--text-3)' }}>
-          <LoadingOutlined style={{ fontSize: 20 }} />
-          <span style={{ fontSize: 'var(--font-xs)' }}>Đang tải...</span>
-        </div>
-      ) : imgSrc ? (
-        <div className="group" style={{ position: 'relative', width: '100%', height: '100%' }}>
-          <img
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, height: '100%' }}>
+      <div style={{
+        flex: 1, minHeight: 0, borderRadius: 6, overflow: 'hidden',
+        border: '1px solid var(--border, #d9d9d9)', background: 'var(--bg-subtle)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>
+        {loading ? (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, color: 'var(--text-3)' }}>
+            <LoadingOutlined style={{ fontSize: 20 }} />
+            <span style={{ fontSize: 'var(--font-xs)' }}>Đang tải...</span>
+          </div>
+        ) : imgSrc ? (
+          <Image
             src={imgSrc}
             alt="product"
-            style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: 6 }}
+            style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+            wrapperStyle={{ width: '100%', height: '100%' }}
           />
-          <div
-            className="opacity-0 transition-opacity duration-150 group-hover:opacity-100"
-            style={{
-              position: 'absolute', inset: 0, borderRadius: 6,
-              background: 'rgba(0,0,0,0.45)', display: 'flex',
-              alignItems: 'center', justifyContent: 'center',
-              fontSize: 'var(--font-xs)', color: '#fff', fontWeight: 600,
-            }}
-          >
-            Đổi ảnh
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, color: 'var(--text-3)' }}>
+            <PictureOutlined style={{ fontSize: 20 }} />
+            <span style={{ fontSize: 'var(--font-xs)' }}>Chưa có ảnh</span>
           </div>
-        </div>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, color: 'var(--text-3)' }}>
-          <PlusOutlined style={{ fontSize: 20 }} />
-          <span style={{ fontSize: 'var(--font-xs)' }}>Tải ảnh lên</span>
-        </div>
+        )}
+      </div>
+
+      {!disabled && (
+        <Upload
+          showUploadList={false}
+          accept="image/jpeg,image/png,image/webp,image/gif"
+          beforeUpload={handleUpload}
+          disabled={loading}
+        >
+          <Button icon={<UploadOutlined />} size="small" block loading={loading}>
+            {imgSrc ? 'Đổi ảnh' : 'Upload ảnh'}
+          </Button>
+        </Upload>
       )}
-    </Upload>
+    </div>
   )
 }
