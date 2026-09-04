@@ -231,7 +231,7 @@ export default function ReceiptFormPage() {
               đọc ra từ đó (nếu Shipment có gắn PO). Có thể tới từ query (bấm "Tạo phiếu
               nhập kho" trên trang Shipment, lúc đó khoá lại) hoặc tự chọn tay ở đây. */}
           {isCreate && importTypeValue === 'purchase' && (
-            <div style={{ display: 'grid', gridTemplateColumns: hook.poDetail ? '1fr 1fr' : '1fr', gap: '0 16px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: hook.poDetail ? '1fr 1.6fr' : '1fr', gap: '0 16px' }}>
               <Form.Item label="Phiếu nhận hàng" required style={{ marginBottom: 12 }}>
                 <Select
                   disabled={!!hook.shipmentIdFromQuery}
