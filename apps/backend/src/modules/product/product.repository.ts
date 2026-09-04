@@ -99,11 +99,11 @@ export class ProductRepository {
   }
 
   countProductsByBrand(brandId: string) {
-    return this.db('products').where({ brand_id: brandId }).count('id as count').first()
+    return this.db('products').where({ brand_id: brandId, is_active: true }).count('id as count').first()
   }
 
   countProductsByCategory(categoryId: string) {
-    return this.db('products').where({ category_id: categoryId }).count('id as count').first()
+    return this.db('products').where({ category_id: categoryId, is_active: true }).count('id as count').first()
   }
 
   // ─── Products ──────────────────────────────────────────────────────────
