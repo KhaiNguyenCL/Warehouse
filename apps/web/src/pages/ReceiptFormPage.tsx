@@ -511,6 +511,8 @@ export default function ReceiptFormPage() {
 // ── Sub-components ────────────────────────────────────────────────────────────
 
 function CreateLinesTable({ hook }: { hook: ReturnType<typeof useReceiptForm> }) {
+  // Khi tạo từ PO hoặc từ Shipment → variant đã xác định, hiện ReadOnlyText
+  const isVariantLocked = !!(hook.poId || hook.shipmentId)
   return (
     <Form.List name="lines">
       {(fields, { add, remove }) => (
@@ -526,7 +528,7 @@ function CreateLinesTable({ hook }: { hook: ReturnType<typeof useReceiptForm> })
                   title: 'SKU / Tên sản phẩm',
                   width: 280,
                   render: (_: any, f: any) =>
-                    hook.poId ? (
+                    isVariantLocked ? (
                       <Form.Item name={[f.name, 'variant_label']} noStyle>
                         <ReadOnlyText />
                       </Form.Item>
@@ -582,7 +584,7 @@ function CreateLinesTable({ hook }: { hook: ReturnType<typeof useReceiptForm> })
                   width: 60,
                   render: (_: any, f: any) => (
                     <>
-                      {hook.poId && (
+                      {isVariantLocked && (
                         <Form.Item name={[f.name, 'variant_id']} hidden><Input /></Form.Item>
                       )}
                       <Form.Item name={[f.name, 'po_line_id']} hidden><Input /></Form.Item>
@@ -593,7 +595,7 @@ function CreateLinesTable({ hook }: { hook: ReturnType<typeof useReceiptForm> })
               ]}
             />
           </div>
-          {!hook.poId && (
+          {!isVariantLocked && (
             <Button style={{ marginTop: 8 }} onClick={() => add({ quantity: 1 })}>
               + Thêm dòng
             </Button>

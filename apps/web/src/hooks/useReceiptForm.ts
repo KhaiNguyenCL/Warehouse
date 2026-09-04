@@ -111,7 +111,7 @@ export function useReceiptForm(options?: { onUpdateSuccess?: () => void }) {
     })
   }, [receipt])
 
-  // When PO detail loads → auto-fill lines in create mode
+  // When PO detail loads → auto-fill lines in create mode (pure PO flow, no Shipment)
   // Guard: skip if viewing existing receipt (id is set) — component stays mounted when
   // navigating from /receipts/new?po_id=X to /receipts/:id, so poId state is stale.
   // Also skip when creating from a Shipment (shipmentId) — that flow fills lines
@@ -134,6 +134,28 @@ export function useReceiptForm(options?: { onUpdateSuccess?: () => void }) {
         })),
     })
   }, [poDetail])
+
+  // When BOTH shipment and PO detail are loaded → merge warranty/cost from PO into lines.
+  // The shipment effect (below) fills lines from shipment qty/condition but has no warranty
+  // data; the PO lines carry warranty_months and unit_price, matched by po_line_id.
+  useEffect(() => {
+    if (!poDetail || !shipmentDetail || id) return
+    const poLineMap = new Map<string, any>(poDetail.lines.map((l: any) => [l.id, l]))
+    const currentLines: any[] = form.getFieldValue('lines') ?? []
+    if (!currentLines.length) return
+    const updated = currentLines.map((line: any) => {
+      if (!line.po_line_id) return line
+      const poLine = poLineMap.get(line.po_line_id)
+      if (!poLine) return line
+      return {
+        ...line,
+        cost_price: poLine.unit_price,
+        manufacturer_warranty_months: poLine.manufacturer_warranty_months ?? undefined,
+        customer_warranty_months: poLine.customer_warranty_months ?? undefined,
+      }
+    })
+    form.setFieldsValue({ lines: updated })
+  }, [poDetail, shipmentDetail])
 
   // Chọn 1 Phiếu nhận hàng (?shipment_id=X hoặc tự chọn tay ở Row 2) → auto-fill PO, NCC,
   // ghi chú và các dòng hàng theo đúng số lượng/tình trạng đã xác nhận thực nhận (không
