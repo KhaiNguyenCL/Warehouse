@@ -15,13 +15,17 @@ import { moneyProps } from '../lib/utils'
 
 // ── Shared display helpers ────────────────────────────────────────────────────
 
-function BBox({ children }: { children: React.ReactNode }) {
+function BBox({ children, title }: { children: React.ReactNode; title?: string }) {
   return (
-    <div style={{
-      height: 32, display: 'flex', alignItems: 'center', padding: '0 11px',
-      border: '1px solid var(--border, #d9d9d9)', borderRadius: 6,
-      background: 'var(--bg-subtle)', fontSize: 14, userSelect: 'text',
-    }}>
+    <div
+      title={title}
+      style={{
+        height: 32, display: 'flex', alignItems: 'center', padding: '0 11px',
+        border: '1px solid var(--border, #d9d9d9)', borderRadius: 6,
+        background: 'var(--bg-subtle)', fontSize: 14, userSelect: 'text',
+        overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis',
+      }}
+    >
       {children}
     </div>
   )
@@ -227,7 +231,7 @@ export default function ReceiptFormPage() {
               đọc ra từ đó (nếu Shipment có gắn PO). Có thể tới từ query (bấm "Tạo phiếu
               nhập kho" trên trang Shipment, lúc đó khoá lại) hoặc tự chọn tay ở đây. */}
           {isCreate && importTypeValue === 'purchase' && (
-            <div style={{ display: 'grid', gridTemplateColumns: hook.poDetail ? '2fr 1fr' : '1fr', gap: '0 16px', maxWidth: '66%' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: hook.poDetail ? '1fr 1fr' : '1fr', gap: '0 16px' }}>
               <Form.Item label="Phiếu nhận hàng" required style={{ marginBottom: 12 }}>
                 <Select
                   disabled={!!hook.shipmentIdFromQuery}
@@ -242,7 +246,7 @@ export default function ReceiptFormPage() {
               </Form.Item>
               {hook.poDetail && (
                 <Form.Item label="NCC" style={{ marginBottom: 12 }}>
-                  <BBox>
+                  <BBox title={hook.poDetail?.company_name ?? ''}>
                     {hook.poDetail?.company_name
                       ? <span>{hook.poDetail.company_name}</span>
                       : <span style={{ color: 'var(--text-3, #bbb)' }}>—</span>}
@@ -268,7 +272,7 @@ export default function ReceiptFormPage() {
               </Form.Item>
               {hook.returnDoDetail && (
                 <Form.Item label="Khách hàng" style={{ marginBottom: 12 }}>
-                  <BBox>
+                  <BBox title={hook.returnDoDetail?.company_name ?? ''}>
                     {hook.returnDoDetail?.company_name
                       ? <span>{hook.returnDoDetail.company_name}</span>
                       : ph}
