@@ -158,8 +158,8 @@ export default function UsersPage() {
           <thead>
             <tr className="border-b border-border bg-muted/60">
               <th className="w-12 px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">#</th>
-              <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Họ tên</th>
-              <th className="w-56 px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Email</th>
+              <th className="w-56 px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Họ tên</th>
+              <th className="min-w-[220px] px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Email</th>
               <th className="w-32 px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">SĐT</th>
               <th className="w-48 px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Nhóm</th>
               <th className="w-40 px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground">Trạng thái</th>
@@ -186,8 +186,8 @@ export default function UsersPage() {
                   className="group/row cursor-pointer transition-colors hover:bg-muted/30"
                 >
                   <td className="px-4 py-2 text-muted-foreground">{i + 1}</td>
-                  <td className="px-4 py-2 font-medium text-foreground">{r.full_name}</td>
-                  <td className="px-4 py-2 text-foreground">{r.email}</td>
+                  <td className="w-56 truncate px-4 py-2 font-medium text-foreground" title={r.full_name}>{r.full_name}</td>
+                  <td className="max-w-0 truncate px-4 py-2 text-foreground" title={r.email}>{r.email}</td>
                   <td className="px-4 py-2 text-foreground">{r.phone ?? <span className="text-muted-foreground">—</span>}</td>
                   <td className="px-4 py-2 text-foreground">
                     {(r.groups ?? []).length > 0

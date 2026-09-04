@@ -420,12 +420,12 @@ export default function ProductDetailPage() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border bg-muted/60">
-                  <th className="w-40 px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Mã hàng</th>
-                  <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Tên SKU</th>
-                  {skuCols.isVisible('model')       && <th className="w-32 px-3 py-2.5 text-left   text-xs font-semibold text-muted-foreground">Model</th>}
-                  {skuCols.isVisible('part_number') && <th className="w-40 px-3 py-2.5 text-left   text-xs font-semibold text-muted-foreground">Part Number</th>}
+                  <th className="w-32 px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Mã hàng</th>
+                  <th className="min-w-[220px] px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Tên SKU</th>
+                  {skuCols.isVisible('model')       && <th className="w-20 px-3 py-2.5 text-left   text-xs font-semibold text-muted-foreground">Model</th>}
+                  {skuCols.isVisible('part_number') && <th className="w-36 px-3 py-2.5 text-left   text-xs font-semibold text-muted-foreground">Part Number</th>}
                   {skuCols.isVisible('unit')        && <th className="w-16 px-3 py-2.5 text-center text-xs font-semibold text-muted-foreground">ĐV</th>}
-                  {skuCols.isVisible('cost_price')  && <th className="w-28 px-3 py-2.5 text-right  text-xs font-semibold text-muted-foreground">Giá vốn</th>}
+                  {skuCols.isVisible('cost_price')  && <th className="w-24 px-3 py-2.5 text-right  text-xs font-semibold text-muted-foreground">Giá vốn</th>}
                   {skuCols.isVisible('sale_price')  && <th className="w-28 px-3 py-2.5 text-right  text-xs font-semibold text-muted-foreground">Giá bán</th>}
                   {skuCols.isVisible('vat_percent') && <th className="w-16 px-3 py-2.5 text-right  text-xs font-semibold text-muted-foreground">VAT%</th>}
                   {skuCols.isVisible('weight_kg')   && <th className="w-20 px-3 py-2.5 text-right  text-xs font-semibold text-muted-foreground">KL (kg)</th>}
@@ -442,12 +442,12 @@ export default function ProductDetailPage() {
                   const qtyAvail  = v.qty_available ?? 0
                   return (
                     <tr key={v.id} onClick={() => navigate(`/products/${id}/variants/${v.id}`)} className="group/row cursor-pointer transition-colors hover:bg-muted/30">
-                      <td className="w-40 px-4 py-2.5">
+                      <td className="w-32 truncate px-4 py-2.5" title={v.item_code || v.sku || ''}>
                         <CodeText>{v.item_code || v.sku || '—'}</CodeText>
                       </td>
                       <td className="max-w-0 px-4 py-2.5"><span className="block truncate text-sm text-foreground" title={v.name}>{v.name ?? '—'}</span></td>
-                      {skuCols.isVisible('model')       && <td className="w-32 px-3 py-2.5 font-mono text-sm text-foreground">{v.model ?? '—'}</td>}
-                      {skuCols.isVisible('part_number') && <td className="w-40 px-3 py-2.5 font-mono text-sm text-foreground">{v.part_number ?? '—'}</td>}
+                      {skuCols.isVisible('model')       && <td className="w-20 truncate px-3 py-2.5 font-mono text-sm text-foreground" title={v.model ?? ''}>{v.model ?? '—'}</td>}
+                      {skuCols.isVisible('part_number') && <td className="w-36 truncate px-3 py-2.5 font-mono text-sm text-foreground" title={v.part_number ?? ''}>{v.part_number ?? '—'}</td>}
                       {skuCols.isVisible('unit')        && <td className="px-3 py-2.5 text-center text-sm text-foreground">{v.unit ?? '—'}</td>}
                       {skuCols.isVisible('cost_price')  && <td className="px-3 py-2.5 text-right text-sm tabular-nums text-muted-foreground">{fmtMoney(v.cost_price)}</td>}
                       {skuCols.isVisible('sale_price')  && <td className="px-3 py-2.5 text-right text-sm tabular-nums text-muted-foreground">{fmtMoney(v.sale_price)}</td>}
