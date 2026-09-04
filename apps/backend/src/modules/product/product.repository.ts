@@ -60,7 +60,10 @@ export class ProductRepository {
     return row
   }
 
-  deleteCategory(id: string) {
+  async deleteCategory(id: string) {
+    // Sản phẩm đã xóa mềm (is_active=false) vẫn giữ category_id → vi phạm FK.
+    // Null out trước khi hard-delete category.
+    await this.db('products').where({ category_id: id, is_active: false }).update({ category_id: null })
     return this.db('categories').where({ id }).delete()
   }
 
@@ -94,7 +97,9 @@ export class ProductRepository {
     return row
   }
 
-  deleteBrand(id: string) {
+  async deleteBrand(id: string) {
+    // Tương tự deleteCategory — null out brand_id trên soft-deleted products trước.
+    await this.db('products').where({ brand_id: id, is_active: false }).update({ brand_id: null })
     return this.db('brands').where({ id }).delete()
   }
 
