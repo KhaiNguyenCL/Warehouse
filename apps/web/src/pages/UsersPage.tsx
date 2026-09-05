@@ -14,7 +14,6 @@ import {
 } from '@/components/ui/form'
 import { Switch } from '@/components/ui/switch'
 import { cn } from '@/lib/utils'
-import { ActiveBadge } from '@/components/ui/ActiveBadge'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
 
 // ── Schema ──────────────────────────────────────────────────────────────────
@@ -195,8 +194,11 @@ export default function UsersPage() {
                       : <span className="text-muted-foreground">—</span>}
                   </td>
                   <td className="px-4 py-2">
-                    <div className="flex justify-center">
-                      <ActiveBadge active={r.is_active} />
+                    <div className="flex justify-center" onClick={(e) => e.stopPropagation()}>
+                      <Switch
+                        checked={r.is_active}
+                        onCheckedChange={(checked) => updateMutation.mutate({ id: r.id, is_active: checked })}
+                      />
                     </div>
                   </td>
                 </tr>

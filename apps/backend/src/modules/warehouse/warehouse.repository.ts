@@ -5,11 +5,12 @@ export class WarehouseRepository {
   constructor(private db: Knex) {}
 
   findAll(query: ListWarehouseQuery) {
-    const { type, is_active, search } = query
+    const { type, is_active, include_inactive, search } = query
     const base = this.db('warehouses').select('*')
 
     if (type) base.where('type', type)
-    base.where('is_active', is_active ?? true)
+    if (is_active !== undefined) base.where('is_active', is_active)
+    else if (!include_inactive) base.where('is_active', true)
     if (search) {
       base.where((qb) => {
         qb.whereILike('name', `%${search}%`).orWhereILike('code', `%${search}%`)

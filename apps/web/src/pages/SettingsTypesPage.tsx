@@ -21,7 +21,6 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { cn } from '@/lib/utils'
-import { ActiveBadge } from '@/components/ui/ActiveBadge'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -95,6 +94,10 @@ function ImportTypesSection() {
     (v: any) => api.patch(`/settings/import-types/${editing?.id}`, v),
     { successMessage: 'Cập nhật thành công', invalidateKey: ['import-types'], onSuccess: () => setSheetOpen(false) },
   )
+  const toggleActiveMutation = useApiMutation(
+    ({ id, is_active }: { id: string; is_active: boolean }) => api.patch(`/settings/import-types/${id}`, { is_active }),
+    { successMessage: 'Cập nhật thành công', invalidateKey: ['import-types'] },
+  )
   const deleteMutation = useApiMutation(
     (id: string) => api.delete(`/settings/import-types/${id}`),
     { successMessage: 'Đã xoá', invalidateKey: ['import-types'] },
@@ -156,7 +159,14 @@ function ImportTypesSection() {
                 <td className="px-4 py-2.5 font-medium text-foreground">{r.label}</td>
                 <td className="px-4 py-2.5 text-foreground">{REQUIRES_COMPANY_OPTS.find(o => o.value === r.requires_company)?.label ?? r.requires_company}</td>
                 <td className="px-4 py-2.5 text-foreground">{REQUIRES_REF_OPTS.find(o => o.value === r.requires_ref_document)?.label ?? r.requires_ref_document}</td>
-                <td className="px-4 py-2.5"><div className="flex justify-center"><ActiveBadge active={r.is_active} /></div></td>
+                <td className="px-4 py-2.5">
+                  <div className="flex justify-center" onClick={(e) => e.stopPropagation()}>
+                    <Switch
+                      checked={r.is_active}
+                      onCheckedChange={(checked) => toggleActiveMutation.mutate({ id: r.id, is_active: checked })}
+                    />
+                  </div>
+                </td>
                 <td className="px-4 py-2.5">
                   <div className="flex justify-center">
                     {r.is_system ? (
@@ -321,6 +331,10 @@ function ExportTypesSection() {
     (v: any) => api.patch(`/settings/export-types/${editing?.id}`, v),
     { successMessage: 'Cập nhật thành công', invalidateKey: ['export-types'], onSuccess: () => setSheetOpen(false) },
   )
+  const toggleActiveMutation = useApiMutation(
+    ({ id, is_active }: { id: string; is_active: boolean }) => api.patch(`/settings/export-types/${id}`, { is_active }),
+    { successMessage: 'Cập nhật thành công', invalidateKey: ['export-types'] },
+  )
   const deleteMutation = useApiMutation(
     (id: string) => api.delete(`/settings/export-types/${id}`),
     { successMessage: 'Đã xoá', invalidateKey: ['export-types'] },
@@ -382,7 +396,14 @@ function ExportTypesSection() {
                 <td className="px-4 py-2.5 font-medium text-foreground">{r.label}</td>
                 <td className="px-4 py-2.5 text-foreground">{REQUIRES_COMPANY_OPTS.find(o => o.value === r.requires_company)?.label ?? r.requires_company}</td>
                 <td className="px-4 py-2.5"><div className="flex justify-center"><YesNoBadge value={r.requires_quotation} /></div></td>
-                <td className="px-4 py-2.5"><div className="flex justify-center"><ActiveBadge active={r.is_active} /></div></td>
+                <td className="px-4 py-2.5">
+                  <div className="flex justify-center" onClick={(e) => e.stopPropagation()}>
+                    <Switch
+                      checked={r.is_active}
+                      onCheckedChange={(checked) => toggleActiveMutation.mutate({ id: r.id, is_active: checked })}
+                    />
+                  </div>
+                </td>
                 <td className="px-4 py-2.5">
                   <div className="flex justify-center">
                     {r.is_system ? (

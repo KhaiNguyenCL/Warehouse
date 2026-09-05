@@ -317,10 +317,13 @@ export default function CategoriesPage() {
                     )}
                   </td>
 
-                  {/* Status badge */}
+                  {/* Status switch */}
                   <td className="px-4 py-2">
-                    <div className="flex justify-center">
-                      <ActiveBadge active={item.is_active} />
+                    <div className="flex justify-center" onClick={(e) => e.stopPropagation()}>
+                      <Switch
+                        checked={item.is_active}
+                        onCheckedChange={(checked) => updateMutation.mutate({ id: item.id, is_active: checked })}
+                      />
                     </div>
                   </td>
 

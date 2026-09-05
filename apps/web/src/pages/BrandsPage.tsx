@@ -101,9 +101,12 @@ export default function BrandsPage() {
       accessorKey: 'is_active',
       header: () => <div className="flex justify-center">Trạng thái</div>,
       size: 140,
-      cell: ({ getValue }) => (
-        <div className="flex justify-center">
-          <ActiveBadge active={getValue<boolean>()} />
+      cell: ({ row, getValue }) => (
+        <div className="flex justify-center" onClick={(e) => e.stopPropagation()}>
+          <Switch
+            checked={getValue<boolean>()}
+            onCheckedChange={(checked) => updateMutation.mutate({ id: row.original.id, is_active: checked })}
+          />
         </div>
       ),
     },

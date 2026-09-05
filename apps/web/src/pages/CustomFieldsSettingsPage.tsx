@@ -24,7 +24,6 @@ import {
 } from '@/components/ui/alert-dialog'
 import { cn } from '@/lib/utils'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
-import { ActiveBadge } from '@/components/ui/ActiveBadge'
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -111,6 +110,11 @@ function VariantAttributesTab() {
     qc.invalidateQueries({ queryKey: ['variant-attribute-defs'] })
   }
 
+  async function toggleActive(id: string, is_active: boolean) {
+    await api.patch(`/settings/variant-attribute-defs/${id}`, { is_active })
+    qc.invalidateQueries({ queryKey: ['variant-attribute-defs'] })
+  }
+
   function openCreate() {
     setEditing(null)
     setOptions([])
@@ -174,7 +178,11 @@ function VariantAttributesTab() {
                 <td className="px-4 py-2.5 font-medium text-foreground">{r.name}</td>
                 <td className="px-4 py-2.5 text-foreground">{ATTR_TYPE_LABELS[r.field_type] ?? r.field_type}</td>
                 <td className="px-4 py-2.5 text-foreground">{r.unit ?? <span className="text-muted-foreground">—</span>}</td>
-                <td className="px-4 py-2.5"><div className="flex justify-center"><ActiveBadge active={r.is_active} /></div></td>
+                <td className="px-4 py-2.5">
+                  <div className="flex justify-center" onClick={(e) => e.stopPropagation()}>
+                    <Switch checked={r.is_active} onCheckedChange={(checked) => toggleActive(r.id, checked)} />
+                  </div>
+                </td>
                 <td className="px-4 py-2.5">
                   <div className="flex items-center justify-end gap-1 opacity-0 transition-opacity group-hover/row:opacity-100">
                     <button onClick={(e) => { e.stopPropagation(); openEdit(r) }} className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors">
@@ -386,6 +394,10 @@ function CustomFieldsTab() {
     (v: any) => api.patch(`/custom-fields/${editing?.id}`, v),
     { successMessage: 'Cập nhật thành công', invalidateKey: ['custom-fields', objectType], onSuccess: () => setSheetOpen(false) },
   )
+  const toggleActiveMutation = useApiMutation(
+    ({ id, is_active }: { id: string; is_active: boolean }) => api.patch(`/custom-fields/${id}`, { is_active }),
+    { successMessage: 'Cập nhật thành công', invalidateKey: ['custom-fields', objectType] },
+  )
   const deleteMutation = useApiMutation(
     (id: string) => api.delete(`/custom-fields/${id}`),
     { successMessage: 'Đã xoá', invalidateKey: ['custom-fields', objectType] },
@@ -460,7 +472,14 @@ function CustomFieldsTab() {
                 <td className="px-4 py-2.5 font-medium text-foreground">{r.field_label}</td>
                 <td className="px-4 py-2.5 text-foreground">{FIELD_TYPE_LABELS[r.field_type] ?? r.field_type}</td>
                 <td className="px-4 py-2.5 text-center text-foreground">{r.sort_order}</td>
-                <td className="px-4 py-2.5"><div className="flex justify-center"><ActiveBadge active={r.is_active} /></div></td>
+                <td className="px-4 py-2.5">
+                  <div className="flex justify-center" onClick={(e) => e.stopPropagation()}>
+                    <Switch
+                      checked={r.is_active}
+                      onCheckedChange={(checked) => toggleActiveMutation.mutate({ id: r.id, is_active: checked })}
+                    />
+                  </div>
+                </td>
                 <td className="px-4 py-2.5">
                   <div className="flex items-center justify-end gap-1 opacity-0 transition-opacity group-hover/row:opacity-100">
                     <button onClick={(e) => { e.stopPropagation(); openEditField(r) }} className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors">

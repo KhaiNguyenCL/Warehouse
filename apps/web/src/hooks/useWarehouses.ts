@@ -4,8 +4,8 @@ import { useApiMutation } from './useApiMutation'
 
 export function useWarehouses() {
   const { data, isLoading } = useQuery({
-    queryKey: ['warehouses'],
-    queryFn: async () => (await api.get('/warehouses')).data,
+    queryKey: ['warehouses', 'all'],
+    queryFn: async () => (await api.get('/warehouses', { params: { include_inactive: true } })).data,
   })
 
   const { data: users } = useQuery({

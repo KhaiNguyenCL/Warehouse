@@ -35,9 +35,10 @@ export const listWarehouseSchema = {
   querystring: {
     type: 'object',
     properties: {
-      type:      { type: 'string', enum: WAREHOUSE_TYPES },
-      is_active: { type: 'boolean' },
-      search:    { type: 'string' },
+      type:             { type: 'string', enum: WAREHOUSE_TYPES },
+      is_active:        { type: 'boolean' },
+      include_inactive: { type: 'boolean' },
+      search:           { type: 'string' },
     },
   },
 }
@@ -48,6 +49,7 @@ export interface CreateWarehouseBody {
   code: string
   name: string
   type: WarehouseType
+  is_default?: boolean
   address?: string
   description?: string
   manager_id?: string
@@ -61,5 +63,9 @@ export interface UpdateWarehouseBody extends Partial<CreateWarehouseBody> {
 export interface ListWarehouseQuery {
   type?: WarehouseType
   is_active?: boolean
+  // Trang quản trị (WarehousesPage) cần thấy cả kho đã ngừng hoạt động để bật lại —
+  // các nơi khác (dropdown chọn kho khi tạo phiếu) không truyền cờ này nên vẫn giữ
+  // hành vi mặc định chỉ trả về kho active.
+  include_inactive?: boolean
   search?: string
 }
