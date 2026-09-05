@@ -10,6 +10,7 @@ import { useVariantDetail } from '../hooks/useVariantDetail'
 import { PageHeader } from '../components/ui/PageHeader'
 import VariantSuppliersPanel from '../components/VariantSuppliersPanel'
 import CustomerPricesPanel from '../components/CustomerPricesPanel'
+import CustomerDescriptionsPanel from '../components/CustomerDescriptionsPanel'
 import BundleItemsPanel from '../components/BundleItemsPanel'
 import CustomFieldsPanel from '../components/CustomFieldsPanel'
 import { moneyProps } from '../lib/utils'
@@ -92,13 +93,14 @@ export default function VariantDetailPage() {
       name:            hook.variant.name,
       model:           hook.variant.model,
       part_number:     hook.variant.part_number,
-      description:     hook.variant.description ?? undefined,
+      description:      hook.variant.description ?? undefined,
+      description_long: hook.variant.description_long ?? undefined,
       unit:            hook.variant.unit,
       cost_price:      hook.variant.cost_price ?? undefined,
       sale_price:      hook.variant.sale_price ?? undefined,
       currency:        hook.variant.currency ?? 'VND',
       weight_kg:       hook.variant.weight_kg ?? undefined,
-      warranty_months: hook.variant.warranty_months ?? undefined,
+      manufacturer_warranty_months: hook.variant.manufacturer_warranty_months ?? undefined,
       reorder_point:   hook.variant.reorder_point ?? undefined,
       is_active:       hook.variant.is_active ?? true,
       image_url:       hook.variant.image_url ?? undefined,
@@ -106,6 +108,7 @@ export default function VariantDetailPage() {
   }
 
   useEffect(() => {
+    if (isEditing) return   // background refetch không được reset form khi đang sửa
     syncFormFromVariant()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hook.variant, form])
@@ -212,9 +215,15 @@ export default function VariantDetailPage() {
               </Form.Item>
             </Field>
 
-            <Field label="Mô tả (hiển thị trên báo giá)">
+            <Field label="Mô tả ngắn (mặc định trên báo giá)">
               <Form.Item name="description" noStyle>
-                <Input style={{ width: '100%' }} placeholder="Mô tả ngắn theo khách hàng" disabled={!isEditing} />
+                <Input style={{ width: '100%' }} placeholder="Mô tả ngắn — dùng khi chưa có mô tả riêng theo khách" disabled={!isEditing} />
+              </Form.Item>
+            </Field>
+
+            <Field label="Mô tả dài (thông số kỹ thuật)">
+              <Form.Item name="description_long" noStyle>
+                <Input.TextArea autoSize={{ minRows: 2, maxRows: 6 }} style={{ width: '100%' }} placeholder="Thông số kỹ thuật đầy đủ" disabled={!isEditing} />
               </Form.Item>
             </Field>
 
@@ -248,8 +257,8 @@ export default function VariantDetailPage() {
               </Form.Item>
             </Field>
 
-            <Field label="Bảo hành gợi ý">
-              <Form.Item name="warranty_months" noStyle>
+            <Field label="BH hãng gợi ý">
+              <Form.Item name="manufacturer_warranty_months" noStyle>
                 <InputNumber controls={false} style={{ width: '100%' }} min={0} addonAfter="tháng" disabled={!isEditing} />
               </Form.Item>
             </Field>
@@ -330,6 +339,10 @@ export default function VariantDetailPage() {
 
       <SectionCard title="Giá theo khách hàng">
         <CustomerPricesPanel productId={productId!} variantId={variantId!} />
+      </SectionCard>
+
+      <SectionCard title="Mô tả theo khách hàng">
+        <CustomerDescriptionsPanel productId={productId!} variantId={variantId!} />
       </SectionCard>
     </div>
   )

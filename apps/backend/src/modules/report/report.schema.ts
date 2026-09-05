@@ -75,6 +75,21 @@ export interface LowStockItemsQuery {
   limit?: number
 }
 
+export const overdueDocumentsSchema = {
+  querystring: {
+    type: 'object',
+    properties: {
+      days:  { type: 'integer', minimum: 1, maximum: 30, default: 2 },
+      limit: { type: 'integer', minimum: 1, maximum: 100, default: 20 },
+    },
+  },
+}
+
+export interface OverdueDocumentsQuery {
+  days?: number
+  limit?: number
+}
+
 export const slowMovingStockSchema = {
   querystring: {
     type: 'object',

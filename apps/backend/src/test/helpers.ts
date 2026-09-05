@@ -1,3 +1,4 @@
+import { expect } from 'vitest'
 import { buildApp } from '../app'
 import type { FastifyInstance } from 'fastify'
 

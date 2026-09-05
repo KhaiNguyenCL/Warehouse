@@ -12,7 +12,7 @@ export interface VariantData {
   description: string | null
   cost_price: number | null
   sale_price: number | null
-  warranty_months: number | null
+  manufacturer_warranty_months: number | null
   vat_percent: number | null
   product_id: string
   product_name: string

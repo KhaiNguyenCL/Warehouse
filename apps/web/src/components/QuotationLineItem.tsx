@@ -73,6 +73,7 @@ export default function QuotationLineItem({ form, parentPath, name, productId, r
   const qty   = Number(Form.useWatch([...parentPath, name, 'quantity'],   form) ?? 0)
   const price = Number(Form.useWatch([...parentPath, name, 'unit_price'], form) ?? 0)
   const vat   = Number(Form.useWatch([...parentPath, name, 'vat_percent'], form) ?? 0)
+  const unit  = Form.useWatch([...parentPath, name, 'unit'], form)
 
   const lineTotal = qty * price
   const vatAmount = lineTotal * (vat / 100)
@@ -95,8 +96,8 @@ export default function QuotationLineItem({ form, parentPath, name, productId, r
     setIsService(isSvc)
     setLotHint(null)
 
-    const warrantyStr = variant.warranty_months != null
-      ? variant.warranty_months === 0 ? 'Không bảo hành' : `${variant.warranty_months} tháng`
+    const warrantyStr = variant.manufacturer_warranty_months != null
+      ? variant.manufacturer_warranty_months === 0 ? 'Không bảo hành' : `${variant.manufacturer_warranty_months} tháng`
       : undefined
 
     form.setFields([
@@ -107,7 +108,7 @@ export default function QuotationLineItem({ form, parentPath, name, productId, r
       { name: [...parentPath, name, 'is_reserved'], value: !isSvc },
       { name: [...parentPath, name, 'unit'],        value: variant.unit ?? undefined },
       ...(warrantyStr != null ? [{ name: [...parentPath, name, 'warranty'], value: warrantyStr }] : []),
-      ...(variant.description ? [{ name: [...parentPath, name, 'description'], value: variant.description }] : []),
+        ...(variant.description ? [{ name: [...parentPath, name, 'description'], value: variant.description }] : []),
     ])
 
     if (!isBundle && !isSvc) {
@@ -115,6 +116,21 @@ export default function QuotationLineItem({ form, parentPath, name, productId, r
         .then((res) => {
           const lots: LotHint[] = res.data?.data ?? res.data ?? []
           setLotHint(buildLotHint(lots))
+        })
+        .catch(() => {})
+    }
+
+    // Nếu có company_id ở form → lookup mô tả riêng theo khách và ghi đè description.
+    const companyId: string | undefined = form.getFieldValue('company_id')
+    if (companyId && variant.product_id) {
+      api.get(`/products/${variant.product_id}/variants/${variant.id}/customer-descriptions`, {
+        params: { company_id: companyId },
+      })
+        .then((res) => {
+          const desc: string | undefined = res.data?.[0]?.description
+          if (desc) {
+            form.setFields([{ name: [...parentPath, name, 'description'], value: desc }])
+          }
         })
         .catch(() => {})
     }
@@ -173,10 +189,16 @@ export default function QuotationLineItem({ form, parentPath, name, productId, r
 
       {/* Dòng 2: các field ngắn (số lượng, giá, thuế...) */}
       <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', marginTop: 6 }}>
+        {/* ĐVT lấy cố định từ variant/bundle đã chọn (onSelectVariant) — không cho sửa tay
+            vì mỗi SKU chỉ có 1 đơn vị tính chuẩn, khác với code/sku vốn cho phép tự nhập. */}
         <Field label="ĐVT" basis={70}>
-          <Form.Item name={path('unit')} noStyle>
-            <Input placeholder="Cái" style={{ width: '100%', textAlign: 'center' }} />
-          </Form.Item>
+          <Form.Item name={path('unit')} hidden><Input /></Form.Item>
+          <div style={{
+            height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 13, color: 'var(--text-1)',
+          }}>
+            {unit || '—'}
+          </div>
         </Field>
 
         <Field label="SL" basis={80}>

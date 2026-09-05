@@ -42,7 +42,6 @@ const FIELD_VI: Record<string, string> = {
   sale_price:                    'Giá bán',
   quantity:                      'Số lượng',
   qty_actual:                    'Số lượng thực tế',
-  warranty_months:               'Bảo hành (tháng)',
   manufacturer_warranty_months:  'BH hãng (tháng)',
   customer_warranty_months:      'BH công ty (tháng)',
   weight_kg:                     'Cân nặng (kg)',

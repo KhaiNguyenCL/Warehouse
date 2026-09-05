@@ -64,7 +64,7 @@ const SKU_COLUMNS: ColumnDef[] = [
   { key: 'cost_price',      label: 'Giá vốn',       default: false },
   { key: 'sale_price',      label: 'Giá bán',       default: false },
   { key: 'vat_percent',     label: 'VAT',           default: false },
-  { key: 'warranty_months', label: 'BH (tháng)',    default: false },
+  { key: 'manufacturer_warranty_months', label: 'BH hãng (tháng)', default: false },
   { key: 'reorder_point',   label: 'Điểm đặt hàng', default: false },
   { key: 'weight_kg',       label: 'Trọng lượng',   default: false },
   { key: 'qty_on_hand',     label: 'Tồn kho',       fixed: true },
@@ -386,7 +386,7 @@ export default function ProductsPage() {
                   {skuCols.isVisible('cost_price') && <col className="w-28" />}
                   {skuCols.isVisible('sale_price') && <col className="w-28" />}
                   {skuCols.isVisible('vat_percent') && <col className="w-16" />}
-                  {skuCols.isVisible('warranty_months') && <col className="w-24" />}
+                  {skuCols.isVisible('manufacturer_warranty_months') && <col className="w-24" />}
                   {skuCols.isVisible('reorder_point') && <col className="w-24" />}
                   {skuCols.isVisible('weight_kg') && <col className="w-20" />}
                   <col className="w-20" />
@@ -401,7 +401,7 @@ export default function ProductsPage() {
                     {skuCols.isVisible('cost_price') && <th className="px-3 py-2.5 text-right text-xs font-semibold text-muted-foreground">Giá vốn</th>}
                     {skuCols.isVisible('sale_price') && <th className="px-3 py-2.5 text-right text-xs font-semibold text-muted-foreground">Giá bán</th>}
                     {skuCols.isVisible('vat_percent') && <th className="px-3 py-2.5 text-center text-xs font-semibold text-muted-foreground">VAT%</th>}
-                    {skuCols.isVisible('warranty_months') && <th className="px-3 py-2.5 text-center text-xs font-semibold text-muted-foreground">BH (tháng)</th>}
+                    {skuCols.isVisible('manufacturer_warranty_months') && <th className="px-3 py-2.5 text-center text-xs font-semibold text-muted-foreground">BH hãng (th)</th>}
                     {skuCols.isVisible('reorder_point') && <th className="px-3 py-2.5 text-center text-xs font-semibold text-muted-foreground">Điểm ĐH</th>}
                     {skuCols.isVisible('weight_kg') && <th className="px-3 py-2.5 text-center text-xs font-semibold text-muted-foreground">KL (kg)</th>}
                     <th className="px-3 py-2.5 text-center text-xs font-semibold text-muted-foreground">Tồn kho</th>
@@ -431,7 +431,7 @@ export default function ProductsPage() {
                         {skuCols.isVisible('cost_price') && <td className="px-3 py-2.5 text-center text-sm tabular-nums text-foreground">{v.cost_price != null ? Number(v.cost_price).toLocaleString('en-US') : '—'}</td>}
                         {skuCols.isVisible('sale_price') && <td className="px-3 py-2.5 text-center text-sm tabular-nums text-foreground">{v.sale_price != null ? Number(v.sale_price).toLocaleString('en-US') : '—'}</td>}
                         {skuCols.isVisible('vat_percent') && <td className="px-3 py-2.5 text-center text-sm tabular-nums text-foreground">{v.vat_percent != null ? `${v.vat_percent}%` : '—'}</td>}
-                        {skuCols.isVisible('warranty_months') && <td className="px-3 py-2.5 text-center text-sm tabular-nums text-foreground">{v.warranty_months != null ? v.warranty_months : '—'}</td>}
+                        {skuCols.isVisible('manufacturer_warranty_months') && <td className="px-3 py-2.5 text-center text-sm tabular-nums text-foreground">{v.manufacturer_warranty_months != null ? v.manufacturer_warranty_months : '—'}</td>}
                         {skuCols.isVisible('reorder_point') && <td className="px-3 py-2.5 text-center text-sm tabular-nums text-foreground">{v.reorder_point != null ? v.reorder_point : '—'}</td>}
                         {skuCols.isVisible('weight_kg') && <td className="px-3 py-2.5 text-center text-sm tabular-nums text-foreground">{v.weight_kg != null ? v.weight_kg : '—'}</td>}
                         <td className="px-3 py-2.5 text-center">

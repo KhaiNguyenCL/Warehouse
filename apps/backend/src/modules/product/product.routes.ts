@@ -16,6 +16,8 @@ import {
   updateBundleItemSchema,
   createCustomerPriceSchema,
   updateCustomerPriceSchema,
+  createCustomerDescriptionSchema,
+  updateCustomerDescriptionSchema,
   CreateCategoryBody,
   UpdateCategoryBody,
   CreateBrandBody,
@@ -31,6 +33,8 @@ import {
   UpdateBundleItemBody,
   CreateCustomerPriceBody,
   UpdateCustomerPriceBody,
+  CreateCustomerDescriptionBody,
+  UpdateCustomerDescriptionBody,
 } from './product.schema'
 import { authenticate } from '../../middleware/auth'
 import { requirePermission } from '../../middleware/permission'
@@ -333,6 +337,42 @@ const productRoutes: FastifyPluginAsync = async (app) => {
     },
   )
 
+  // ─── Customer Descriptions ────────────────────────────────────────────────
+
+  app.get<{ Params: { id: string; variantId: string }; Querystring: { company_id?: string } }>(
+    '/:id/variants/:variantId/customer-descriptions',
+    { preHandler: authenticate },
+    async (request) => service.listCustomerDescriptions(request.params.id, request.params.variantId, request.query.company_id),
+  )
+
+  app.post<{ Params: { id: string; variantId: string }; Body: CreateCustomerDescriptionBody }>(
+    '/:id/variants/:variantId/customer-descriptions',
+    { schema: createCustomerDescriptionSchema, preHandler: requirePermission('settings.products') },
+    async (request, reply) => {
+      const row = await service.addCustomerDescription(request.params.id, request.params.variantId, request.body)
+      return reply.code(201).send(row)
+    },
+  )
+
+  app.patch<{ Params: { id: string; variantId: string }; Body: UpdateCustomerDescriptionBody }>(
+    '/:id/variants/:variantId/customer-descriptions/:descId',
+    { schema: updateCustomerDescriptionSchema, preHandler: requirePermission('settings.products') },
+    async (request) => {
+      const { id, variantId, descId } = request.params as any
+      return service.updateCustomerDescription(id, variantId, descId, request.body)
+    },
+  )
+
+  app.delete<{ Params: { id: string; variantId: string; descId: string } }>(
+    '/:id/variants/:variantId/customer-descriptions/:descId',
+    { preHandler: requirePermission('settings.products') },
+    async (request, reply) => {
+      const { id, variantId, descId } = request.params as any
+      await service.deleteCustomerDescription(id, variantId, descId)
+      return reply.code(204).send()
+    },
+  )
+
   // ─── Variant Attribute Values ─────────────────────────────────────────────
   // PUT thay thế toàn bộ attribute values của 1 variant (upsert array)
   app.put<{ Params: { id: string; variantId: string }; Body: any }>(
@@ -362,7 +402,7 @@ const productRoutes: FastifyPluginAsync = async (app) => {
     '/import/template',
     { preHandler: authenticate },
     async (_req, reply) => {
-      const buf = service.generateImportTemplate()
+      const buf = await service.generateImportTemplate()
       reply
         .header('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
         .header('Content-Disposition', 'attachment; filename="import_products_template.xlsx"')

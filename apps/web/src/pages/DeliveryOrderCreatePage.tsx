@@ -1,4 +1,4 @@
-import { Form, Input, Select, Button, Table, Tooltip } from 'antd'
+import { Form, Input, Select, Button, Table, Tooltip, DatePicker } from 'antd'
 import { ArrowLeftOutlined } from '@ant-design/icons'
 import { useDeliveryOrderCreate } from '../hooks/useDeliveryOrderCreate'
 import { PageHeader } from '../components/ui/PageHeader'
@@ -145,6 +145,13 @@ export default function DeliveryOrderCreatePage() {
                         title: 'Số lượng xuất', width: 140, render: (_: any, f: any) => (
                           <Form.Item name={[f.name, 'quantity']} noStyle rules={[{ required: true }]}>
                             <Input type="number" style={{ width: 100 }} />
+                          </Form.Item>
+                        ),
+                      },
+                      {
+                        title: 'Ngày bắt đầu BH', width: 160, render: (_: any, f: any) => (
+                          <Form.Item name={[f.name, 'customer_warranty_start']} noStyle>
+                            <DatePicker style={{ width: '100%' }} placeholder="Tuỳ chọn" format="DD/MM/YYYY" />
                           </Form.Item>
                         ),
                       },

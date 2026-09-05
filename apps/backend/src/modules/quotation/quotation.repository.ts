@@ -21,10 +21,18 @@ export interface ComputedLineItem {
   note?: string
 }
 
+export interface ComputedSubSection {
+  name: string
+  product_id?: string
+  sub_section_order: number
+  line_items: ComputedLineItem[]
+}
+
 export interface ComputedSection {
   name: string
   section_order: number
   subtotal: number
+  sub_sections: ComputedSubSection[]
   line_items: ComputedLineItem[]
 }
 

@@ -17,6 +17,7 @@ export function useQuotationDetail(id: string) {
   const [bitrixLoading, setBitrixLoading] = useState(false)
   const [bitrixError, setBitrixError]  = useState<string | null>(null)
   const [bitrixInfo,  setBitrixInfo]   = useState<string | null>(null)
+  const [bitrixCompany, setBitrixCompany] = useState<{ id: string; name: string } | null>(null)
 
   const { data, isLoading } = useQuery({
     queryKey: ['quotations', id],
@@ -61,7 +62,10 @@ export function useQuotationDetail(id: string) {
       ])
       const d = resolveRes.data
       const patch: Record<string, any> = { bitrix_deal_id: dealId }
-      if (d.company?.id)       patch.company_id = d.company.id
+      if (d.company?.id) {
+        patch.company_id = d.company.id
+        setBitrixCompany({ id: d.company.id, name: d.company.name })
+      }
       if (d.contact?.id)       patch.contact_id = d.contact.id
       if (d.deal_title)        patch.project_name = d.deal_title
       if (d.delivery_location) patch.delivery_location = d.delivery_location
@@ -244,7 +248,7 @@ export function useQuotationDetail(id: string) {
     companies, companyId, companyDetail, warehouses,
     templates, templateId, setTemplateId,
     exporting,
-    dealId, setDealId, fetchFromBitrix, bitrixLoading, bitrixError, bitrixInfo,
+    dealId, setDealId, fetchFromBitrix, bitrixLoading, bitrixError, bitrixInfo, bitrixCompany,
     updateMutation,
     confirmMutation, unconfirmMutation, cancelMutation, expireMutation, syncMutation,
     handleExport, handlePdfExport, handlePdfPreview,

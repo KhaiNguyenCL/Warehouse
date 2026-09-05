@@ -48,7 +48,7 @@ beforeAll(async () => {
   variantId = JSON.parse((await app.inject({
     method: 'POST', url: `/api/v1/products/${productId}/variants`,
     headers: auth(token),
-    payload: { sku: uid('TSKU'), name: uid('TVar'), sale_price: 100000, cost_price: 80000, warranty_months: 0 },
+    payload: { sku: uid('TSKU'), name: uid('TVar'), sale_price: 100000, cost_price: 80000, manufacturer_warranty_months: 0 },
   })).body).id
 
   // Nhập hàng vào kho nguồn trước
@@ -57,7 +57,7 @@ beforeAll(async () => {
     headers: auth(token),
     payload: {
       import_type: 'purchase', warehouse_id: srcWarehouseId,
-      lines: [{ variant_id: variantId, quantity: 10, cost_price: 80000, warranty_months: 0 }],
+      lines: [{ variant_id: variantId, quantity: 10, cost_price: 80000, manufacturer_warranty_months: 0 }],
     },
   })
   const rId = JSON.parse(receiptRes.body).id

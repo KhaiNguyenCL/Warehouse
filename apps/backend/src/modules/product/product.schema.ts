@@ -112,14 +112,15 @@ export const createVariantSchema = {
       name:            { type: 'string', minLength: 1 },
       model:           { type: 'string' },
       part_number:     { type: 'string' },
-      description:     { type: 'string' },
+      description:      { type: 'string' },
+      description_long: { type: 'string' },
       unit:            { type: 'string' },
       cost_price:      { type: 'number', minimum: 0 },
       sale_price:      { type: 'number', minimum: 0 },
       vat_percent:     { type: 'number', minimum: 0, maximum: 100 },
       currency:        { type: 'string', minLength: 3, maxLength: 3 },
       weight_kg:       { type: 'number', minimum: 0 },
-      warranty_months: { type: 'integer', minimum: 0 },
+      manufacturer_warranty_months: { type: 'integer', minimum: 0 },
       reorder_point:   { type: 'integer', minimum: 0 },
       image_url:       { type: 'string' },
     },
@@ -130,21 +131,43 @@ export const updateVariantSchema = {
   body: {
     type: 'object',
     properties: {
-      item_code:       { type: 'string', minLength: 1 },
-      name:            { type: 'string', minLength: 1 },
-      model:           { type: 'string' },
-      part_number:     { type: 'string' },
-      description:     { type: 'string' },
-      unit:            { type: 'string' },
+      item_code:        { type: 'string', minLength: 1 },
+      name:             { type: 'string', minLength: 1 },
+      model:            { type: 'string' },
+      part_number:      { type: 'string' },
+      description:      { type: 'string' },
+      description_long: { type: 'string' },
+      unit:             { type: 'string' },
       cost_price:      { type: 'number', minimum: 0 },
       sale_price:      { type: 'number', minimum: 0 },
       vat_percent:     { type: 'number', minimum: 0, maximum: 100 },
       currency:        { type: 'string', minLength: 3, maxLength: 3 },
       weight_kg:       { type: 'number', minimum: 0 },
-      warranty_months: { type: 'integer', minimum: 0 },
+      manufacturer_warranty_months: { type: 'integer', minimum: 0 },
       reorder_point:   { type: 'integer', minimum: 0 },
       is_active:       { type: 'boolean' },
       image_url:       { type: 'string' },
+    },
+  },
+}
+
+export const createCustomerDescriptionSchema = {
+  body: {
+    type: 'object',
+    required: ['company_id', 'description'],
+    properties: {
+      company_id:  { type: 'string', format: 'uuid' },
+      description: { type: 'string', minLength: 1 },
+    },
+  },
+}
+
+export const updateCustomerDescriptionSchema = {
+  body: {
+    type: 'object',
+    required: ['description'],
+    properties: {
+      description: { type: 'string', minLength: 1 },
     },
   },
 }
@@ -230,6 +253,7 @@ export type ProductType = (typeof PRODUCT_TYPES)[number]
 export interface CreateCategoryBody {
   name: string
   short_code?: string
+  created_by?: string
   parent_id?: string
 }
 
@@ -240,6 +264,7 @@ export interface UpdateCategoryBody extends Partial<CreateCategoryBody> {
 export interface CreateBrandBody {
   name: string
   short_code?: string
+  created_by?: string
 }
 
 export interface UpdateBrandBody extends Partial<CreateBrandBody> {
@@ -278,14 +303,25 @@ export interface CreateVariantBody {
   name: string
   model?: string
   part_number?: string
+  description?: string
+  description_long?: string
   unit?: string
   cost_price?: number
   sale_price?: number
   vat_percent?: number
   currency?: string
   weight_kg?: number
-  warranty_months?: number
+  manufacturer_warranty_months?: number
   reorder_point?: number
+}
+
+export interface CreateCustomerDescriptionBody {
+  company_id: string
+  description: string
+}
+
+export interface UpdateCustomerDescriptionBody {
+  description: string
 }
 
 export interface UpdateVariantBody extends Partial<CreateVariantBody> {

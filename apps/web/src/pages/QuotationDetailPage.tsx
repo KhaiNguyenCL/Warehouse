@@ -281,7 +281,10 @@ export default function QuotationDetailPage() {
               {hook.isEditing
                 ? <Form.Item name="company_id" noStyle rules={[{ required: true, message: 'Bắt buộc chọn khách hàng' }]}>
                     <Select showSearch optionFilterProp="label" style={{ width: '100%' }} placeholder="Chọn khách hàng"
-                      options={hook.companies?.data?.map((c: any) => ({ value: c.id, label: c.name }))}
+                      options={[
+                        ...(hook.companies?.data ?? []),
+                        ...(hook.bitrixCompany && !hook.companies?.data?.find((c: any) => c.id === hook.bitrixCompany!.id) ? [hook.bitrixCompany] : []),
+                      ].map((c: any) => ({ value: c.id, label: c.name }))}
                       onChange={() => hook.form.setFieldValue('contact_id', undefined)} />
                   </Form.Item>
                 : <Val v={q?.company_name} />}

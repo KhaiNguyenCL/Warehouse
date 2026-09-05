@@ -56,6 +56,8 @@ export default function QuotationCreatePage() {
   const [bitrixLoading, setBitrixLoading] = useState(false)
   const [bitrixError, setBitrixError] = useState<string | null>(null)
   const [bitrixInfo, setBitrixInfo] = useState<string | null>(null)
+  // Company resolve từ Bitrix có thể không nằm trong top 100 của companies list
+  const [bitrixCompany, setBitrixCompany] = useState<{ id: string; name: string } | null>(null)
 
   const { data: companies } = useQuery({
     queryKey: ['companies', 'customer'],
@@ -89,7 +91,10 @@ export default function QuotationCreatePage() {
       const patch: Record<string, any> = { bitrix_deal_id: dealId }
 
       // Base fields từ resolve (luôn có, không phụ thuộc mapping)
-      if (d.company?.id)       patch.company_id = d.company.id
+      if (d.company?.id) {
+        patch.company_id = d.company.id
+        setBitrixCompany({ id: d.company.id, name: d.company.name })
+      }
       if (d.contact?.id)       patch.contact_id = d.contact.id
       if (d.deal_title)        patch.project_name = d.deal_title
       if (d.delivery_location) patch.delivery_location = d.delivery_location
@@ -199,7 +204,10 @@ export default function QuotationCreatePage() {
                 <Select
                   showSearch optionFilterProp="label" style={{ width: '100%' }}
                   placeholder="Chọn khách hàng"
-                  options={companies?.data?.map((c: any) => ({ value: c.id, label: c.name }))}
+                  options={[
+                    ...(companies?.data ?? []),
+                    ...(bitrixCompany && !companies?.data?.find((c: any) => c.id === bitrixCompany.id) ? [bitrixCompany] : []),
+                  ].map((c: any) => ({ value: c.id, label: c.name }))}
                   onChange={() => form.setFieldValue('contact_id', undefined)}
                 />
               </Form.Item>

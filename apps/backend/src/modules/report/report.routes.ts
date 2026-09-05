@@ -9,6 +9,7 @@ import {
   slowMovingStockSchema,
   kpiTrendSchema,
   backlogQuotationsSchema,
+  overdueDocumentsSchema,
   InventoryReportQuery,
   RevenueReportQuery,
   TopProductsQuery,
@@ -17,6 +18,7 @@ import {
   SlowMovingStockQuery,
   KpiTrendQuery,
   BacklogQuotationsQuery,
+  OverdueDocumentsQuery,
 } from './report.schema'
 import { requirePermission } from '../../middleware/permission'
 
@@ -73,6 +75,12 @@ const reportRoutes: FastifyPluginAsync = async (app) => {
     '/low-stock-items',
     { schema: lowStockItemsSchema, preHandler: requirePermission('report.inventory') },
     (request) => service.lowStockItems(request.query.limit),
+  )
+
+  app.get<{ Querystring: OverdueDocumentsQuery }>(
+    '/overdue-documents',
+    { schema: overdueDocumentsSchema, preHandler: requirePermission('report.view') },
+    (request) => service.overdueDocuments(request.query.days, request.query.limit),
   )
 
   app.get('/inventory/by-warehouse', { preHandler: requirePermission('report.inventory') }, () => service.inventoryByWarehouse())

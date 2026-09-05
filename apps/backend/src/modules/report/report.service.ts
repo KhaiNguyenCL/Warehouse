@@ -48,6 +48,10 @@ export class ReportService {
     return this.repo.lowStockItems(limit)
   }
 
+  overdueDocuments(days = 2, limit = 20) {
+    return this.repo.overdueDocuments(days, limit)
+  }
+
   inventoryByWarehouse() {
     return this.repo.inventoryByWarehouse()
   }

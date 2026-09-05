@@ -3,7 +3,7 @@
 // cho 2-step Product→SKU; khi chọn variant hiện breakdown tồn kho theo từng kho.
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Form, InputNumber, Input, Button } from 'antd'
+import { Form, InputNumber, Input, Button, DatePicker } from 'antd'
 import { api } from '../lib/api'
 import VariantSelect, { type VariantData } from './VariantSelect'
 
@@ -55,7 +55,10 @@ export default function DeliveryLineItem({ name, remove, exportType }: Props) {
       <Form.Item name={[name, 'quantity']} label="Số lượng" rules={[{ required: true }]} style={{ flex: '0 0 110px', marginBottom: 0 }}>
         <InputNumber min={1} style={{ width: '100%' }} />
       </Form.Item>
-      <Form.Item name={[name, 'note']} label="Ghi chú" style={{ flex: '1 1 200px', marginBottom: 0 }}>
+      <Form.Item name={[name, 'customer_warranty_start']} label="Ngày BĐ bảo hành" style={{ flex: '0 0 160px', marginBottom: 0 }}>
+        <DatePicker style={{ width: '100%' }} placeholder="Tuỳ chọn" format="DD/MM/YYYY" />
+      </Form.Item>
+      <Form.Item name={[name, 'note']} label="Ghi chú" style={{ flex: '1 1 160px', marginBottom: 0 }}>
         <Input />
       </Form.Item>
       <Button danger onClick={remove} style={{ flexShrink: 0, marginBottom: 0 }}>

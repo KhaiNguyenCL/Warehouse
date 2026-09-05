@@ -15,6 +15,8 @@ import {
   UpdateBundleItemBody,
   CreateCustomerPriceBody,
   UpdateCustomerPriceBody,
+  CreateCustomerDescriptionBody,
+  UpdateCustomerDescriptionBody,
 } from './product.schema'
 
 function castVariantNumerics(row: any) {
@@ -149,7 +151,7 @@ export class ProductRepository {
           .whereIn('product_id', productIds)
           .where('is_active', true)
           .select('id', 'product_id', 'sku', 'item_code', 'name', 'unit',
-                  'cost_price', 'sale_price', 'vat_percent', 'weight_kg', 'warranty_months', 'reorder_point')
+                  'cost_price', 'sale_price', 'vat_percent', 'weight_kg', 'manufacturer_warranty_months', 'reorder_point')
           .orderBy('created_at')
       : []
 
@@ -238,6 +240,32 @@ export class ProductRepository {
     return this.db('products').insert(data).returning('*').then(([row]) => row)
   }
 
+  findProductByCode(code: string) {
+    return this.db('products').whereILike('code', code).first()
+  }
+
+  createProductImport(data: {
+    name: string; code: string; product_type: string
+    category_id?: string; brand_id?: string; created_by?: string
+  }) {
+    return this.db('products').insert(data).returning('*').then(([row]) => row)
+  }
+
+  findVariantByItemCode(item_code: string) {
+    return this.db('variants').where({ item_code }).first()
+  }
+
+  async createVariantImport(data: {
+    product_id: string; name: string; item_code?: string
+    model?: string; part_number?: string; unit?: string; currency?: string
+    cost_price?: number; sale_price?: number; vat_percent?: number
+    manufacturer_warranty_months?: number; weight_kg?: number; description?: string
+  }) {
+    const result = await this.db.raw("SELECT nextval('variant_sku_seq') AS nextval")
+    const sku = String(result.rows[0].nextval)
+    return this.db('variants').insert({ ...data, sku }).returning('*').then(([row]: any[]) => row)
+  }
+
   async updateProduct(id: string, data: UpdateProductBody) {
     const [row] = await this.db('products')
       .where({ id })
@@ -263,7 +291,7 @@ export class ProductRepository {
       .where('p.is_active', true)
       .select(
         'v.id', 'v.sku', 'v.item_code', 'v.name', 'v.unit', 'v.description',
-        'v.cost_price', 'v.sale_price', 'v.vat_percent', 'v.warranty_months',
+        'v.cost_price', 'v.sale_price', 'v.vat_percent', 'v.manufacturer_warranty_months',
         'p.id as product_id', 'p.name as product_name', 'p.product_type',
       )
       .orderBy('v.sku')
@@ -278,9 +306,10 @@ export class ProductRepository {
     if (inStockOnly) {
       q.whereExists(
         this.db('inventory as i')
+          .select('i.variant_id')
           .whereRaw('i.variant_id = v.id')
-          .havingRaw('SUM(i.qty_on_hand - i.qty_reserved) > 0')
-          .groupBy('i.variant_id'),
+          .groupBy('i.variant_id')
+          .havingRaw('SUM(i.qty_on_hand - i.qty_reserved) > 0'),
       )
     }
     const rows = await q
@@ -314,7 +343,7 @@ export class ProductRepository {
       )
       .select(
         'v.id', 'v.sku', 'v.item_code', 'v.name', 'v.unit',
-        'v.cost_price', 'v.sale_price', 'v.vat_percent', 'v.warranty_months',
+        'v.cost_price', 'v.sale_price', 'v.vat_percent', 'v.manufacturer_warranty_months',
         'v.reorder_point', 'v.weight_kg', 'v.is_active',
         'p.id as product_id', 'p.name as product_name', 'p.product_type',
         this.db.raw('COALESCE(inv.qty_on_hand, 0) as qty_on_hand'),
@@ -496,5 +525,40 @@ export class ProductRepository {
 
   deleteCustomerPrice(id: string) {
     return this.db('customer_prices').where({ id }).del()
+  }
+
+  // ─── Customer Descriptions ────────────────────────────────────────────────
+
+  findCustomerDescriptions(variantId: string, companyId?: string) {
+    const q = this.db('variant_customer_descriptions as vcd')
+      .join('companies as c', 'c.id', 'vcd.company_id')
+      .where('vcd.variant_id', variantId)
+      .select('vcd.*', 'c.name as company_name')
+      .orderBy('c.name')
+    if (companyId) q.where('vcd.company_id', companyId)
+    return q
+  }
+
+  findCustomerDescriptionById(id: string) {
+    return this.db('variant_customer_descriptions').where({ id }).first()
+  }
+
+  async addCustomerDescription(variantId: string, data: CreateCustomerDescriptionBody) {
+    const [row] = await this.db('variant_customer_descriptions')
+      .insert({ ...data, variant_id: variantId })
+      .returning('*')
+    return row
+  }
+
+  async updateCustomerDescription(id: string, data: UpdateCustomerDescriptionBody) {
+    const [row] = await this.db('variant_customer_descriptions')
+      .where({ id })
+      .update({ ...data, updated_at: this.db.fn.now() })
+      .returning('*')
+    return row
+  }
+
+  deleteCustomerDescription(id: string) {
+    return this.db('variant_customer_descriptions').where({ id }).del()
   }
 }

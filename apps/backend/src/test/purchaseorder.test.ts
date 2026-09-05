@@ -45,7 +45,7 @@ beforeAll(async () => {
   variantId = JSON.parse((await app.inject({
     method: 'POST', url: `/api/v1/products/${productId}/variants`,
     headers: auth(token),
-    payload: { sku: uid('POSKU'), name: uid('POVar'), sale_price: 1000000, cost_price: 800000, warranty_months: 24 },
+    payload: { sku: uid('POSKU'), name: uid('POVar'), sale_price: 1000000, cost_price: 800000, manufacturer_warranty_months: 24 },
   })).body).id
 })
 

@@ -107,7 +107,7 @@ describe('Variant CRUD', () => {
         name: uid('Variant'),
         sale_price: 1000000,
         cost_price: 800000,
-        warranty_months: 12,
+        manufacturer_warranty_months: 12,
       },
     })
     expect(res.statusCode).toBe(201)
@@ -120,7 +120,7 @@ describe('Variant CRUD', () => {
     const res = await app.inject({
       method: 'POST', url: `/api/v1/products/${productId}/variants`,
       headers: auth(token),
-      payload: { sku, name: uid('Dup'), sale_price: 1000, cost_price: 800, warranty_months: 6 },
+      payload: { sku, name: uid('Dup'), sale_price: 1000, cost_price: 800, manufacturer_warranty_months: 6 },
     })
     expect(res.statusCode).toBeGreaterThanOrEqual(400)
   })

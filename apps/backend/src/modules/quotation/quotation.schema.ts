@@ -128,9 +128,17 @@ export interface QuotationLineItemInput {
   note?: string
 }
 
+export interface QuotationSubSectionInput {
+  name: string
+  product_id?: string
+  sub_section_order?: number
+  line_items?: QuotationLineItemInput[]
+}
+
 export interface QuotationSectionInput {
   name: string
   section_order?: number
+  sub_sections?: QuotationSubSectionInput[]
   line_items: QuotationLineItemInput[]
 }
 

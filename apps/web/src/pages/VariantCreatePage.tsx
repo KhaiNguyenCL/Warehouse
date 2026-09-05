@@ -45,7 +45,7 @@ export default function VariantCreatePage() {
         currency:        ref?.currency ?? 'VND',
         cost_price:      ref?.cost_price ?? undefined,
         sale_price:      ref?.sale_price ?? undefined,
-        warranty_months: ref?.warranty_months ?? undefined,
+        manufacturer_warranty_months: ref?.manufacturer_warranty_months ?? undefined,
         weight_kg:       ref?.weight_kg ?? undefined,
         reorder_point:   ref?.reorder_point ?? undefined,
       })
@@ -184,11 +184,17 @@ export default function VariantCreatePage() {
             <Form.Item name="weight_kg" label="Cân nặng (kg)">
               <InputNumber controls={false} style={{ width: '100%' }} min={0} />
             </Form.Item>
-            <Form.Item name="warranty_months" label="Bảo hành gợi ý (tháng)">
+            <Form.Item name="manufacturer_warranty_months" label="BH hãng gợi ý (tháng)">
               <InputNumber controls={false} style={{ width: '100%' }} min={0} />
             </Form.Item>
             <Form.Item name="reorder_point" label="Điểm đặt lại">
               <InputNumber controls={false} style={{ width: '100%' }} min={0} />
+            </Form.Item>
+            <Form.Item name="description" label="Mô tả ngắn (mặc định trên báo giá)" style={{ gridColumn: 'span 3' }}>
+              <Input placeholder="Mô tả ngắn — dùng khi chưa có mô tả riêng theo khách" />
+            </Form.Item>
+            <Form.Item name="description_long" label="Mô tả dài (thông số kỹ thuật)" style={{ gridColumn: 'span 3' }}>
+              <Input.TextArea autoSize={{ minRows: 2, maxRows: 6 }} placeholder="Thông số kỹ thuật đầy đủ" />
             </Form.Item>
           </div>
         </SectionCard>

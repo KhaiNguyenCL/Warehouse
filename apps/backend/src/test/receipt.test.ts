@@ -42,7 +42,7 @@ beforeAll(async () => {
   variantId = JSON.parse((await app.inject({
     method: 'POST', url: `/api/v1/products/${productId}/variants`,
     headers: auth(token),
-    payload: { sku: uid('RSKU'), name: uid('RVariant'), sale_price: 500000, cost_price: 400000, warranty_months: 12 },
+    payload: { sku: uid('RSKU'), name: uid('RVariant'), sale_price: 500000, cost_price: 400000, manufacturer_warranty_months: 12 },
   })).body).id
 })
 
@@ -61,7 +61,7 @@ describe('Receipt — tạo và chuyển trạng thái', () => {
           variant_id: variantId,
           quantity: 3,
           cost_price: 400000,
-          warranty_months: 12,
+          manufacturer_warranty_months: 12,
         }],
       },
     })
@@ -165,7 +165,7 @@ describe('Receipt — cancel', () => {
       headers: auth(token),
       payload: {
         import_type: 'purchase', warehouse_id: warehouseId,
-        lines: [{ variant_id: variantId, quantity: 1, cost_price: 400000, warranty_months: 0 }],
+        lines: [{ variant_id: variantId, quantity: 1, cost_price: 400000, manufacturer_warranty_months: 0 }],
       },
     })
     expect(res.statusCode).toBe(201)

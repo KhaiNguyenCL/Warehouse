@@ -23,9 +23,18 @@ export function useActions() {
     queryFn: async () => (await api.get('/reports/low-stock-items', { params: { limit: 20 } })).data,
   })
 
+  // Phiếu pending_approval/approved quá 2 ngày — bổ sung cho signal "Phê duyệt" vốn chỉ
+  // đếm tổng số đang chờ, không nêu được phiếu nào đang bị "ngâm" lâu.
+  const { data: overdueDocuments, isLoading: overdueDocumentsLoading } = useQuery({
+    queryKey: ['reports', 'overdue-documents'],
+    queryFn: async () => (await api.get('/reports/overdue-documents', { params: { limit: 20 } })).data,
+    refetchInterval: 60_000,
+  })
+
   return {
     dashboard, dashboardLoading,
     pipeline, pipelineLoading,
     lowStockItems, lowStockLoading,
+    overdueDocuments, overdueDocumentsLoading,
   }
 }

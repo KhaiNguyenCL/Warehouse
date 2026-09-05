@@ -16,6 +16,8 @@ import {
   UpdateBundleItemBody,
   CreateCustomerPriceBody,
   UpdateCustomerPriceBody,
+  CreateCustomerDescriptionBody,
+  UpdateCustomerDescriptionBody,
 } from './product.schema'
 
 // Postgres SQLSTATE codes — map sang lỗi nghiệp vụ dễ hiểu thay vì để lộ lỗi DB thô ra API.
@@ -358,141 +360,326 @@ export class ProductService {
     await this.repo.deleteCustomerPrice(priceId)
   }
 
+  // ─── Customer Descriptions ────────────────────────────────────────────────
+
+  async listCustomerDescriptions(productId: string, variantId: string, companyId?: string) {
+    await this.assertVariantBelongsToProduct(productId, variantId)
+    return this.repo.findCustomerDescriptions(variantId, companyId)
+  }
+
+  async addCustomerDescription(productId: string, variantId: string, data: CreateCustomerDescriptionBody) {
+    await this.assertVariantBelongsToProduct(productId, variantId)
+    try {
+      return await this.repo.addCustomerDescription(variantId, data)
+    } catch (err) {
+      mapDbError(err)
+    }
+  }
+
+  async updateCustomerDescription(productId: string, variantId: string, descId: string, data: UpdateCustomerDescriptionBody) {
+    await this.assertVariantBelongsToProduct(productId, variantId)
+    const existing = await this.repo.findCustomerDescriptionById(descId)
+    if (!existing || existing.variant_id !== variantId) {
+      throw { statusCode: 404, message: 'Customer description not found' }
+    }
+    return this.repo.updateCustomerDescription(descId, data)
+  }
+
+  async deleteCustomerDescription(productId: string, variantId: string, descId: string) {
+    await this.assertVariantBelongsToProduct(productId, variantId)
+    const existing = await this.repo.findCustomerDescriptionById(descId)
+    if (!existing || existing.variant_id !== variantId) {
+      throw { statusCode: 404, message: 'Customer description not found' }
+    }
+    await this.repo.deleteCustomerDescription(descId)
+  }
+
   // ─── Excel Import ─────────────────────────────────────────────────────────
 
   async importFromExcel(buffer: Buffer, userId?: string) {
     const XLSX = await import('xlsx')
     const wb = XLSX.read(buffer, { type: 'buffer' })
-    const ws = wb.Sheets[wb.SheetNames[0]]
-    const rows: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' })
 
-    // Bỏ header (row 0) và các dòng trống
-    const dataRows = rows.slice(1).filter((r) => r.some((c) => String(c).trim()))
+    // ── Detect format: multi-sheet mới (có sheet "Sản phẩm" + "SKU")
+    //    hoặc single-sheet cũ (sheet đầu tiên, flat 12 cột).
+    const hasMultiSheet = wb.SheetNames.includes('Sản phẩm') && wb.SheetNames.includes('SKU')
 
     const PRODUCT_TYPES_VALID = ['storable', 'consumable', 'service', 'bundle']
-
     const created_products: string[] = []
     const created_variants: string[] = []
     const skipped: string[] = []
-    const errors: { row: number; reason: string }[] = []
+    const errors: { sheet?: string; row: number; reason: string }[] = []
 
-    for (let i = 0; i < dataRows.length; i++) {
-      const rowNum = i + 2 // 1-indexed, +1 for header
-      const [
-        productName, productCode, productType,
-        categoryCode, brandCode,
-        variantName, itemCode, unit,
-        salePriceRaw, costPriceRaw, vatRaw, warrantyRaw,
-      ] = dataRows[i].map((c: any) => String(c ?? '').trim())
+    function toRows(ws: any): any[][] {
+      return (XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' }) as any[][])
+        .slice(1)
+        .filter((r: any[]) => r.some((c: any) => String(c).trim()))
+    }
 
-      // Validate bắt buộc
-      if (!productName) { errors.push({ row: rowNum, reason: 'Thiếu Tên sản phẩm' }); continue }
-      if (!productCode) { errors.push({ row: rowNum, reason: 'Thiếu Mã sản phẩm' }); continue }
-      if (!PRODUCT_TYPES_VALID.includes(productType)) {
-        errors.push({ row: rowNum, reason: `Loại SP không hợp lệ: "${productType}" — phải là storable/consumable/service/bundle` })
-        continue
-      }
-      if (!variantName) { errors.push({ row: rowNum, reason: 'Thiếu Tên SKU' }); continue }
+    function num(v: string): number | undefined {
+      const n = Number(String(v).replace(/,/g, ''))
+      return isNaN(n) || v === '' ? undefined : n
+    }
 
-      try {
-        // Lookup category / brand
-        const category = categoryCode ? await this.repo.findCategoryByShortCode(categoryCode) : null
-        const brand    = brandCode    ? await this.repo.findBrandByShortCode(brandCode)       : null
+    if (hasMultiSheet) {
+      // ── Format mới: sheet Sản phẩm ────────────────────────────────────────
+      // Cột: TênSP | MãSP | LoạiSP | MãDM | MãHiệu
+      const prodRows = toRows(wb.Sheets['Sản phẩm'])
+      for (let i = 0; i < prodRows.length; i++) {
+        const rowNum = i + 2
+        const [productName, productCode, productType, categoryCode, brandCode] =
+          prodRows[i].map((c: any) => String(c ?? '').trim())
 
-        if (categoryCode && !category) {
-          errors.push({ row: rowNum, reason: `Mã danh mục "${categoryCode}" không tồn tại` }); continue
-        }
-        if (brandCode && !brand) {
-          errors.push({ row: rowNum, reason: `Mã thương hiệu "${brandCode}" không tồn tại` }); continue
+        if (!productName) { errors.push({ sheet: 'Sản phẩm', row: rowNum, reason: 'Thiếu Tên sản phẩm' }); continue }
+        if (!productCode) { errors.push({ sheet: 'Sản phẩm', row: rowNum, reason: 'Thiếu Mã sản phẩm' }); continue }
+        if (!PRODUCT_TYPES_VALID.includes(productType)) {
+          errors.push({ sheet: 'Sản phẩm', row: rowNum, reason: `Loại SP không hợp lệ: "${productType}"` }); continue
         }
 
-        // Find or create product
-        let product = await this.repo.findProductByCode(productCode)
-        if (!product) {
-          product = await this.repo.createProductImport({
-            name: productName,
-            code: productCode,
-            product_type: productType,
-            category_id: category?.id,
-            brand_id: brand?.id,
-            created_by: userId,
-          })
-          created_products.push(productCode)
-        }
+        try {
+          const category = categoryCode ? await this.repo.findCategoryByShortCode(categoryCode) : null
+          const brand    = brandCode    ? await this.repo.findBrandByShortCode(brandCode)       : null
+          if (categoryCode && !category) { errors.push({ sheet: 'Sản phẩm', row: rowNum, reason: `Mã danh mục "${categoryCode}" không tồn tại` }); continue }
+          if (brandCode    && !brand)    { errors.push({ sheet: 'Sản phẩm', row: rowNum, reason: `Mã thương hiệu "${brandCode}" không tồn tại` }); continue }
 
-        // Check variant by item_code
-        if (itemCode) {
-          const existingVariant = await this.repo.findVariantByItemCode(itemCode)
-          if (existingVariant) {
-            skipped.push(itemCode || variantName)
-            continue
+          const existing = await this.repo.findProductByCode(productCode)
+          if (!existing) {
+            await this.repo.createProductImport({
+              name: productName, code: productCode, product_type: productType,
+              category_id: category?.id, brand_id: brand?.id, created_by: userId,
+            })
+            created_products.push(productCode)
           }
+        } catch (err: any) {
+          errors.push({ sheet: 'Sản phẩm', row: rowNum, reason: err?.message ?? 'Lỗi không xác định' })
         }
+      }
 
-        const salePrice = salePriceRaw ? Number(String(salePriceRaw).replace(/[,\.]/g, '')) || undefined : undefined
-        const costPrice = costPriceRaw ? Number(String(costPriceRaw).replace(/[,\.]/g, '')) || undefined : undefined
-        const vatPct    = vatRaw       ? Number(vatRaw) || 0   : 0
-        const warranty  = warrantyRaw  ? Number(warrantyRaw)   : 0
+      // ── Format mới: sheet SKU ──────────────────────────────────────────────
+      // Cột: MãSP | TênSKU | MãHàng | Model | PartNo | Đơn vị | Tiền tệ
+      //      | GiáNhập | GiáBán | VAT% | BHHãng | CânNặng | MôTả
+      const skuRows = toRows(wb.Sheets['SKU'])
+      for (let i = 0; i < skuRows.length; i++) {
+        const rowNum = i + 2
+        const [
+          productCode, variantName, itemCode, model, partNumber,
+          unit, currency,
+          costPriceRaw, salePriceRaw, vatRaw, warrantyRaw, weightRaw, description,
+        ] = skuRows[i].map((c: any) => String(c ?? '').trim())
 
-        await this.repo.createVariantImport({
-          product_id: product.id,
-          name: variantName,
-          item_code: itemCode || undefined,
-          unit: unit || undefined,
-          sale_price: salePrice,
-          cost_price: costPrice,
-          vat_percent: vatPct,
-          warranty_months: warranty,
-        })
-        created_variants.push(itemCode || variantName)
-      } catch (err: any) {
-        errors.push({ row: rowNum, reason: err?.message ?? 'Lỗi không xác định' })
+        if (!productCode) { errors.push({ sheet: 'SKU', row: rowNum, reason: 'Thiếu Mã sản phẩm' }); continue }
+        if (!variantName) { errors.push({ sheet: 'SKU', row: rowNum, reason: 'Thiếu Tên SKU' }); continue }
+
+        try {
+          const product = await this.repo.findProductByCode(productCode)
+          if (!product) { errors.push({ sheet: 'SKU', row: rowNum, reason: `Mã sản phẩm "${productCode}" không tồn tại` }); continue }
+
+          if (itemCode) {
+            const existing = await this.repo.findVariantByItemCode(itemCode)
+            if (existing) { skipped.push(itemCode); continue }
+          }
+
+          await this.repo.createVariantImport({
+            product_id: product.id,
+            name: variantName,
+            item_code: itemCode || undefined,
+            model: model || undefined,
+            part_number: partNumber || undefined,
+            unit: unit || undefined,
+            currency: currency || 'VND',
+            cost_price: num(costPriceRaw),
+            sale_price: num(salePriceRaw),
+            vat_percent: num(vatRaw) ?? 0,
+            manufacturer_warranty_months: num(warrantyRaw) ?? 0,
+            weight_kg: num(weightRaw),
+            description: description || undefined,
+          })
+          created_variants.push(itemCode || variantName)
+        } catch (err: any) {
+          errors.push({ sheet: 'SKU', row: rowNum, reason: err?.message ?? 'Lỗi không xác định' })
+        }
+      }
+    } else {
+      // ── Format cũ: 1 sheet phẳng (backward-compat) ────────────────────────
+      // Cột: TênSP | MãSP | LoạiSP | MãDM | MãHiệu | TênSKU | MãHàng | ĐVị | GiáBán | GiáNhập | VAT | BH
+      const ws = wb.Sheets[wb.SheetNames[0]]
+      const dataRows = toRows(ws)
+
+      for (let i = 0; i < dataRows.length; i++) {
+        const rowNum = i + 2
+        const [
+          productName, productCode, productType,
+          categoryCode, brandCode,
+          variantName, itemCode, unit,
+          salePriceRaw, costPriceRaw, vatRaw, warrantyRaw,
+        ] = dataRows[i].map((c: any) => String(c ?? '').trim())
+
+        if (!productName) { errors.push({ row: rowNum, reason: 'Thiếu Tên sản phẩm' }); continue }
+        if (!productCode) { errors.push({ row: rowNum, reason: 'Thiếu Mã sản phẩm' }); continue }
+        if (!PRODUCT_TYPES_VALID.includes(productType)) {
+          errors.push({ row: rowNum, reason: `Loại SP không hợp lệ: "${productType}"` }); continue
+        }
+        if (!variantName) { errors.push({ row: rowNum, reason: 'Thiếu Tên SKU' }); continue }
+
+        try {
+          const category = categoryCode ? await this.repo.findCategoryByShortCode(categoryCode) : null
+          const brand    = brandCode    ? await this.repo.findBrandByShortCode(brandCode)       : null
+          if (categoryCode && !category) { errors.push({ row: rowNum, reason: `Mã danh mục "${categoryCode}" không tồn tại` }); continue }
+          if (brandCode    && !brand)    { errors.push({ row: rowNum, reason: `Mã thương hiệu "${brandCode}" không tồn tại` }); continue }
+
+          let product = await this.repo.findProductByCode(productCode)
+          if (!product) {
+            product = await this.repo.createProductImport({
+              name: productName, code: productCode, product_type: productType,
+              category_id: category?.id, brand_id: brand?.id, created_by: userId,
+            })
+            created_products.push(productCode)
+          }
+
+          if (itemCode) {
+            const existing = await this.repo.findVariantByItemCode(itemCode)
+            if (existing) { skipped.push(itemCode || variantName); continue }
+          }
+
+          const salePrice = salePriceRaw ? Number(String(salePriceRaw).replace(/[,\.]/g, '')) || undefined : undefined
+          const costPrice = costPriceRaw ? Number(String(costPriceRaw).replace(/[,\.]/g, '')) || undefined : undefined
+
+          await this.repo.createVariantImport({
+            product_id: product.id,
+            name: variantName,
+            item_code: itemCode || undefined,
+            unit: unit || undefined,
+            sale_price: salePrice,
+            cost_price: costPrice,
+            vat_percent: Number(vatRaw) || 0,
+            manufacturer_warranty_months: Number(warrantyRaw) || 0,
+          })
+          created_variants.push(itemCode || variantName)
+        } catch (err: any) {
+          errors.push({ row: rowNum, reason: err?.message ?? 'Lỗi không xác định' })
+        }
       }
     }
 
     return { created_products, created_variants, skipped, errors }
   }
 
-  generateImportTemplate(): Buffer {
+  async generateImportTemplate(): Promise<Buffer> {
     const XLSX = require('xlsx')
-    const headers = [
+    const wb = XLSX.utils.book_new()
+
+    // ── Hàm helper tạo worksheet với header + style ──────────────────────────
+    function makeSheet(rows: any[][], colWidths: number[]): any {
+      const ws = XLSX.utils.aoa_to_sheet(rows)
+      ws['!cols'] = colWidths.map((wch) => ({ wch }))
+      return ws
+    }
+
+    // ── Sheet 1: Hướng dẫn ───────────────────────────────────────────────────
+    const guideRows = [
+      ['HƯỚNG DẪN NHẬP LIỆU DANH MỤC SẢN PHẨM'],
+      [],
+      ['📌 Quy trình nhập liệu:'],
+      ['  1. Xem sheet Danh mục và Thương hiệu để biết Mã tham chiếu.'],
+      ['  2. Điền dữ liệu vào sheet Sản phẩm (1 dòng = 1 sản phẩm).'],
+      ['  3. Điền dữ liệu vào sheet SKU (1 dòng = 1 SKU, nhiều SKU cho cùng sản phẩm = nhiều dòng).'],
+      ['  4. Upload file này vào WMS qua menu Sản phẩm → Import.'],
+      [],
+      ['📌 Lưu ý:'],
+      ['  - Cột có dấu * là bắt buộc.'],
+      ['  - Mã sản phẩm và Mã hàng phải là duy nhất trong toàn hệ thống.'],
+      ['  - Nếu Mã sản phẩm đã tồn tại trong DB, hệ thống sẽ dùng sản phẩm đó (không tạo mới).'],
+      ['  - Nếu Mã hàng (SKU) đã tồn tại, dòng đó sẽ bị bỏ qua.'],
+      ['  - Loại SP: storable (thiết bị có serial), consumable (vật tư), service (dịch vụ), bundle (gói).'],
+      ['  - Tiền tệ: VND, USD, EUR, CNY, JPY.'],
+      ['  - Đơn vị: tham khảo sheet Đơn vị hoặc tự nhập.'],
+    ]
+    XLSX.utils.book_append_sheet(wb, makeSheet(guideRows, [80]), 'Hướng dẫn')
+
+    // ── Fetch data thực tế từ DB ─────────────────────────────────────────────
+    const [cats, brands] = await Promise.all([
+      this.repo.findAllCategories(),
+      this.repo.findAllBrands(),
+    ])
+
+    // ── Sheet 2: Danh mục (export) ───────────────────────────────────────────
+    const catRows = [
+      ['Tên danh mục', 'Mã (short_code) — dùng trong sheet Sản phẩm'],
+      ...cats.map((c: any) => [c.name, c.short_code ?? '']),
+    ]
+    XLSX.utils.book_append_sheet(wb, makeSheet(catRows, [32, 40]), 'Danh mục')
+
+    // ── Sheet 3: Thương hiệu (export) ────────────────────────────────────────
+    const brandRows = [
+      ['Tên thương hiệu', 'Mã (short_code) — dùng trong sheet Sản phẩm'],
+      ...brands.map((b: any) => [b.name, b.short_code ?? '']),
+    ]
+    XLSX.utils.book_append_sheet(wb, makeSheet(brandRows, [32, 40]), 'Thương hiệu')
+
+    // ── Sheet 4: Đơn vị (danh sách gợi ý) ───────────────────────────────────
+    const unitRows = [
+      ['Đơn vị', 'Mô tả'],
+      ['Cái', 'Thiết bị rời'], ['Chiếc', 'Giống Cái'], ['Bộ', 'Combo nhiều thứ'],
+      ['Hộp', 'Đóng hộp'], ['Cuộn', 'Cáp/dây cuộn'],
+      ['Mét', 'Tính theo chiều dài'], ['Cổng', 'Port/cổng kết nối'],
+      ['License', 'Bản quyền phần mềm'], ['Gói', 'Package dịch vụ'],
+      ['Dây', 'Dây đơn'], ['Lần', 'Dịch vụ tính theo lần'],
+      ['Giờ', 'Dịch vụ tính theo giờ'], ['Ngày', 'Dịch vụ tính theo ngày'],
+    ]
+    XLSX.utils.book_append_sheet(wb, makeSheet(unitRows, [16, 30]), 'Đơn vị')
+
+    // ── Sheet 5: Sản phẩm (nhập liệu) ───────────────────────────────────────
+    const prodHeaders = [
       'Tên sản phẩm *',
       'Mã sản phẩm *',
       'Loại SP * (storable/consumable/service/bundle)',
-      'Mã danh mục',
-      'Mã thương hiệu',
+      'Mã danh mục (xem sheet Danh mục)',
+      'Mã thương hiệu (xem sheet Thương hiệu)',
+    ]
+    const prodExample = [
+      'Switch Ubiquiti UniFi',
+      'NET-UBI-USW',
+      'storable',
+      'NET',
+      'UBI',
+    ]
+    const prodRows = [prodHeaders, prodExample]
+    XLSX.utils.book_append_sheet(wb, makeSheet(prodRows, [30, 20, 38, 30, 30]), 'Sản phẩm')
+
+    // ── Sheet 6: SKU (nhập liệu) ─────────────────────────────────────────────
+    const skuHeaders = [
+      'Mã sản phẩm * (khớp sheet Sản phẩm hoặc DB)',
       'Tên SKU *',
       'Mã hàng (item_code)',
-      'Đơn vị',
-      'Đơn giá bán',
-      'Giá vốn',
+      'Model (mã nhà SX)',
+      'Part Number',
+      'Đơn vị (xem sheet Đơn vị)',
+      'Tiền tệ (VND/USD/EUR/CNY/JPY)',
+      'Giá nhập gợi ý',
+      'Giá bán gợi ý',
       'VAT%',
-      'Bảo hành (tháng)',
+      'BH hãng (tháng)',
+      'Cân nặng (kg)',
+      'Mô tả ngắn',
     ]
-    const example = [
-      'Switch Cisco SG110',
-      'SW-CSC-SG110',
-      'storable',
-      'SW',
-      'CSC',
-      'Switch Cisco SG110 8 Port',
-      'SW-CSC-SG110-8P',
+    const skuExample = [
+      'NET-UBI-USW',
+      'USW-Lite-16-PoE',
+      'NET-UBI-USW-LITE16POE',
+      'USW-Lite-16-PoE',
+      '',
       'Cái',
-      '2500000',
-      '2000000',
+      'VND',
+      '4200000',
+      '5500000',
       '10',
-      '12',
+      '36',
+      '',
+      'Switch 16 port PoE, 8xGE PoE + 8xGE, 2xSFP',
     ]
-    const ws = XLSX.utils.aoa_to_sheet([headers, example])
+    const skuRows = [skuHeaders, skuExample]
+    XLSX.utils.book_append_sheet(wb, makeSheet(skuRows, [38, 26, 22, 20, 18, 20, 22, 16, 16, 8, 16, 14, 40]), 'SKU')
 
-    // Độ rộng cột
-    ws['!cols'] = [
-      { wch: 28 }, { wch: 18 }, { wch: 38 }, { wch: 14 }, { wch: 14 },
-      { wch: 30 }, { wch: 20 }, { wch: 10 }, { wch: 14 }, { wch: 14 }, { wch: 8 }, { wch: 16 },
-    ]
-
-    const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, ws, 'Import')
     return XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }) as Buffer
   }
 

@@ -76,7 +76,7 @@ const skuSchema = z.object({
   model:           z.string().optional(),
   part_number:     z.string().optional(),
   description:     z.string().optional(),
-  warranty_months: intOpt,
+  manufacturer_warranty_months: intOpt,
   reorder_point:   intOpt,
   weight_kg:       numOpt,
   is_active:       z.boolean().optional(),
@@ -137,7 +137,7 @@ export default function ProductDetailPage() {
       item_code: '', name: '', unit: '',
       cost_price: '', sale_price: '', vat_percent: '',
       model: '', part_number: '', description: '',
-      warranty_months: '', reorder_point: '', weight_kg: '',
+      manufacturer_warranty_months: '', reorder_point: '', weight_kg: '',
       is_active: true, image_url: '',
     },
   })
@@ -183,7 +183,7 @@ export default function ProductDetailPage() {
       if (values.cost_price      !== '' && values.cost_price      != null) body.cost_price      = Number(values.cost_price)
       if (values.sale_price      !== '' && values.sale_price      != null) body.sale_price      = Number(values.sale_price)
       if (values.vat_percent     !== '' && values.vat_percent     != null) body.vat_percent     = Number(values.vat_percent)
-      if (values.warranty_months !== '' && values.warranty_months != null) body.warranty_months = Number(values.warranty_months)
+      if (values.manufacturer_warranty_months !== '' && values.manufacturer_warranty_months != null) body.manufacturer_warranty_months = Number(values.manufacturer_warranty_months)
       if (values.reorder_point   !== '' && values.reorder_point   != null) body.reorder_point   = Number(values.reorder_point)
       if (values.weight_kg       !== '' && values.weight_kg       != null) body.weight_kg       = Number(values.weight_kg)
       if (values.image_url       !== '' && values.image_url       != null) body.image_url       = values.image_url
@@ -244,7 +244,7 @@ export default function ProductDetailPage() {
     skuForm.reset({
       item_code: product?.code ? `${product.code}-` : '',
       name: '', unit: '', cost_price: '', sale_price: '', vat_percent: '',
-      model: '', part_number: '', description: '', warranty_months: '', reorder_point: '', weight_kg: '',
+      model: '', part_number: '', description: '', manufacturer_warranty_months: '', reorder_point: '', weight_kg: '',
       is_active: true, image_url: '',
     })
     setSkuOpen(true)
@@ -614,9 +614,9 @@ export default function ProductDetailPage() {
                       )} />
                     </div>
                     <div className="grid grid-cols-2 gap-3">
-                      <FormField control={skuForm.control} name="warranty_months" render={({ field }) => (
+                      <FormField control={skuForm.control} name="manufacturer_warranty_months" render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-xs">Bảo hành (tháng)</FormLabel>
+                          <FormLabel className="text-xs">BH hãng (tháng)</FormLabel>
                           <FormControl>
                             <Input type="number" min={0} step={1} placeholder="0"
                               {...field}

@@ -1,6 +1,6 @@
 // 1 dòng trong Form.List của PO create page — chọn SKU qua VariantSelect (OptGroup theo
-// sản phẩm, tìm kiếm theo mã/tên). Khi chọn variant tự điền unit_price/warranty_months từ
-// cost_price/warranty_months mặc định của variant (user sửa được độc lập sau đó).
+// sản phẩm, tìm kiếm theo mã/tên). Khi chọn variant tự điền unit_price/manufacturer_warranty_months từ
+// cost_price/manufacturer_warranty_months mặc định của variant (user sửa được độc lập sau đó).
 //
 // Custom field có applies_to_po_line=true: chọn variant → prefill từ giá trị hiện tại của
 // SKU đó làm gợi ý; lưu riêng theo custom_field_values của dòng PO.
@@ -59,8 +59,8 @@ export default function POLineItem({ form, name, remove, showLabel = true }: Pro
       ...lines[name],
       variant_id: variant.id,
       unit_price: variant.cost_price != null ? Number(variant.cost_price) : lines[name]?.unit_price,
-      manufacturer_warranty_months: variant.warranty_months ?? lines[name]?.manufacturer_warranty_months,
-      customer_warranty_months: variant.warranty_months ?? lines[name]?.customer_warranty_months,
+      manufacturer_warranty_months: variant.manufacturer_warranty_months ?? lines[name]?.manufacturer_warranty_months,
+      customer_warranty_months: variant.manufacturer_warranty_months ?? lines[name]?.customer_warranty_months,
     }
     form.setFieldValue('lines', lines)
 

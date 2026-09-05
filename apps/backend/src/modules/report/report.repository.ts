@@ -92,14 +92,24 @@ export class ReportRepository {
   // ─── report.view (dashboard tổng hợp) ──────────────────────────────────────
 
   async dashboard() {
+    // Phiếu "chờ xử lý quá hạn" — chỉ tính pending_approval/approved (đang chặn người khác),
+    // không tính draft (còn của người tạo, chưa ai đợi). Ngưỡng 2 ngày khớp overdueDocuments().
+    const overdueWhere = (qb: Knex.QueryBuilder) =>
+      qb.whereIn('status', ['pending_approval', 'approved'])
+        .andWhere('created_at', '<', this.db.raw("now() - interval '2 days'"))
+
     const [
       pendingReceipts, pendingDeliveries, pendingTransfers,
+      overdueReceipts, overdueDeliveries, overdueTransfers,
       activeStocktakes, expiringQuotations,
       lowStock, outOfStock, invValue, totalCompanies,
     ] = await Promise.all([
       this.db('receipts').whereIn('status', ['draft', 'pending_approval', 'approved']).count('id as count').first(),
       this.db('delivery_orders').whereIn('status', ['draft', 'pending_approval', 'approved']).count('id as count').first(),
       this.db('transfer_orders').whereIn('status', ['draft', 'pending_approval', 'approved']).count('id as count').first(),
+      this.db('receipts').where(overdueWhere).count('id as count').first(),
+      this.db('delivery_orders').where(overdueWhere).count('id as count').first(),
+      this.db('transfer_orders').where(overdueWhere).count('id as count').first(),
       this.db('stocktakes').where('status', 'in_progress').count('id as count').first(),
       this.db('quotations')
         .where('status', 'confirmed')
@@ -132,6 +142,9 @@ export class ReportRepository {
       pending_receipts:         Number(pendingReceipts?.count ?? 0),
       pending_deliveries:       Number(pendingDeliveries?.count ?? 0),
       pending_transfers:        Number(pendingTransfers?.count ?? 0),
+      overdue_receipts:         Number(overdueReceipts?.count ?? 0),
+      overdue_deliveries:       Number(overdueDeliveries?.count ?? 0),
+      overdue_transfers:        Number(overdueTransfers?.count ?? 0),
       active_stocktakes:        Number(activeStocktakes?.count ?? 0),
       quotations_expiring_soon: Number(expiringQuotations?.count ?? 0),
       low_stock_count:          Number(lowStock?.count ?? 0),
@@ -417,6 +430,27 @@ export class ReportRepository {
       },
       turnover,
     }
+  }
+
+  // Phiếu đang pending_approval/approved quá lâu (mặc định > 2 ngày) — nêu đích danh phiếu
+  // nào bị "ngâm" thay vì chỉ đếm tổng số đang chờ (đối xứng overdue_* trong dashboard()).
+  // draft không tính vì còn của người tạo, chưa ai khác bị chặn bởi nó.
+  overdueDocuments(days = 2, limit = 20) {
+    const daysPendingExpr = "EXTRACT(DAY FROM now() - created_at)::int as days_pending"
+    const cols = (docType: string) => [
+      this.db.raw('? as doc_type', [docType]),
+      'id', 'code', 'status', 'created_at',
+      this.db.raw(daysPendingExpr),
+    ]
+    const overdueWhere = (qb: Knex.QueryBuilder) =>
+      qb.whereIn('status', ['pending_approval', 'approved'])
+        .andWhere('created_at', '<', this.db.raw("now() - (? || ' days')::interval", [days]))
+
+    const receipts   = this.db('receipts').where(overdueWhere).select(cols('receipt'))
+    const deliveries = this.db('delivery_orders').where(overdueWhere).select(cols('delivery_order'))
+    const transfers  = this.db('transfer_orders').where(overdueWhere).select(cols('transfer_order'))
+
+    return receipts.unionAll([deliveries, transfers]).orderBy('days_pending', 'desc').limit(limit)
   }
 
   // Top SKU sắp hết hàng (dưới reorder_point hoặc qty_available = 0)

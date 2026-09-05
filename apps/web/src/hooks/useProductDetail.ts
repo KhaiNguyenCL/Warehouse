@@ -125,7 +125,7 @@ export function useProductDetail(id: string) {
       currency:         ref?.currency ?? 'VND',
       cost_price:       ref?.cost_price ?? undefined,
       sale_price:       ref?.sale_price ?? undefined,
-      warranty_months:  ref?.warranty_months ?? undefined,
+      manufacturer_warranty_months: ref?.manufacturer_warranty_months ?? undefined,
       weight_kg:        ref?.weight_kg ?? undefined,
       reorder_point:    ref?.reorder_point ?? 0,
     })
