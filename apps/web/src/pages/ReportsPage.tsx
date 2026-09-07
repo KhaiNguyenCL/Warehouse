@@ -158,7 +158,7 @@ function KpiTile({
       <span className="absolute inset-x-0 top-0 h-0.5 origin-left scale-x-0 transition-transform duration-300 group-hover:scale-x-100" style={{ background: sparklineColor }} />
       <div className="flex items-center gap-1.5">
         <Icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" style={{ color: sparklineColor }} />
-        <p className="truncate text-xs font-medium text-muted-foreground">{label}</p>
+        <p className="truncate text-xs font-medium text-muted-foreground" title={label}>{label}</p>
       </div>
       <p className="mt-1.5 text-xl font-extrabold tabular-nums tracking-tight text-foreground">
         {value}{unit && <span className="ml-1 text-xs font-medium text-muted-foreground">{unit}</span>}
@@ -383,7 +383,7 @@ export default function ReportsPage() {
                               <span className="min-w-0">
                                 <span className="block font-mono text-xs font-semibold text-foreground">{q.quotation_code}</span>
                                 {q.customer_name && (
-                                  <span className="block truncate text-[11px] text-muted-foreground">{q.customer_name}</span>
+                                  <span className="block truncate text-[11px] text-muted-foreground" title={q.customer_name}>{q.customer_name}</span>
                                 )}
                               </span>
                               <span className="shrink-0 text-xs font-bold tabular-nums text-amber-600">{fmtMoneyFull(q.backlog_value)}</span>
@@ -501,7 +501,7 @@ export default function ReportsPage() {
                   return (
                     <div key={d.name} className="flex items-center gap-2 rounded-md px-1.5 py-1 transition-colors hover:bg-muted/40">
                       <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: CHART_PALETTE[i % CHART_PALETTE.length] }} />
-                      <span className="flex-1 truncate text-xs font-medium text-foreground">{d.name}</span>
+                      <span className="flex-1 truncate text-xs font-medium text-foreground" title={d.name}>{d.name}</span>
                       <span className="w-8 shrink-0 text-right text-xs font-bold tabular-nums" style={{ color: CHART_PALETTE[i % CHART_PALETTE.length] }}>{pct}%</span>
                       <span className="w-20 shrink-0 text-right text-xs font-semibold tabular-nums text-foreground">{fmtMoney(d.value)}</span>
                     </div>
@@ -535,7 +535,7 @@ export default function ReportsPage() {
               {slowData.map((r: any) => (
                 <div key={r.variant_id} className="flex items-center justify-between gap-3 rounded-lg px-3 py-2 transition-colors hover:bg-muted/30">
                   <div className="min-w-0">
-                    <p className="truncate text-xs font-medium text-foreground">{r.variant_name}</p>
+                    <p className="truncate text-xs font-medium text-foreground" title={r.variant_name}>{r.variant_name}</p>
                     <p className="font-mono text-[10.5px] text-muted-foreground">{r.item_code}</p>
                   </div>
                   <div className="shrink-0 text-right">
@@ -690,7 +690,7 @@ export default function ReportsPage() {
                       <tr key={r.variant_id} className="transition-colors hover:bg-muted/30">
                         <td className="px-3 py-2 text-center text-xs font-bold text-muted-foreground">{i + 1}</td>
                         <td className="px-3 py-2">
-                          <p className="max-w-[160px] truncate text-xs font-medium text-foreground">{r.variant_name}</p>
+                          <p className="max-w-[160px] truncate text-xs font-medium text-foreground" title={r.variant_name}>{r.variant_name}</p>
                           <p className="font-mono text-[11px] text-muted-foreground">{r.item_code}</p>
                         </td>
                         <td className="px-3 py-2 text-right text-xs font-semibold tabular-nums text-muted-foreground">

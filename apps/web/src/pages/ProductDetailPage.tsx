@@ -297,7 +297,7 @@ export default function ProductDetailPage() {
           <span>Sản phẩm</span>
         </button>
         <ChevronRight className="h-3.5 w-3.5 opacity-40" />
-        <span className="font-medium text-foreground truncate max-w-xs">{product.name}</span>
+        <span className="font-medium text-foreground truncate max-w-xs" title={product.name}>{product.name}</span>
       </div>
 
       {/* Product info card */}
@@ -305,7 +305,7 @@ export default function ProductDetailPage() {
         {/* Card header */}
         <div className="flex items-start justify-between gap-4 border-b border-border bg-muted/60 px-5 py-4">
           <div className="flex flex-col gap-1.5 min-w-0">
-            <h2 className="text-base font-semibold text-foreground leading-snug truncate">{product.name}</h2>
+            <h2 className="text-base font-semibold text-foreground leading-snug truncate" title={product.name}>{product.name}</h2>
             <div className="flex items-center gap-2 flex-wrap">
               <CodeText>{product.code}</CodeText>
               {product.product_type && (

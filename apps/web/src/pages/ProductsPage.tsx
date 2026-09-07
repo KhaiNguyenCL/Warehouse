@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useQuery, keepPreviousData } from '@tanstack/react-query'
-import { Form as AntForm, Input as AntInput, Select as AntSelect, Divider, InputNumber } from 'antd'
+import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query'
+import { Form as AntForm, Input as AntInput, Select as AntSelect, Divider, InputNumber, Modal, Upload, message } from 'antd'
 import {
   Plus, Search, Trash2, ChevronLeft, ChevronRight as ChevronRightIcon, X, Package,
+  Upload as UploadIcon, Download,
 } from 'lucide-react'
 import { useProducts } from '../hooks/useProducts'
 import { useDebounce } from '../hooks/useDebounce'
@@ -115,11 +116,58 @@ function useSkuList(categories: any[], brands: any[]) {
 
 export default function ProductsPage() {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const hook = useProducts()
   const productType = AntForm.useWatch('product_type', hook.form)
 
   const [activeTab, setActiveTab] = useState<'products' | 'skus'>('products')
   const [deleteTarget, setDeleteTarget] = useState<any>(null)
+  const [importOpen, setImportOpen] = useState(false)
+  const [importing, setImporting] = useState(false)
+  const [importResult, setImportResult] = useState<any>(null)
+
+  async function handleDownloadTemplate() {
+    try {
+      const res = await api.get('/products/import/template', { responseType: 'blob' })
+      const url = URL.createObjectURL(new Blob([res.data]))
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'import_products_template.xlsx'
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch {
+      message.error('Tải file mẫu thất bại')
+    }
+  }
+
+  async function handleImportFile(file: File) {
+    setImporting(true)
+    setImportResult(null)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      const res = await api.post('/products/import', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      setImportResult(res.data)
+      queryClient.invalidateQueries({ queryKey: ['products'] })
+      queryClient.invalidateQueries({ queryKey: ['products-variants-flat'] })
+      queryClient.invalidateQueries({ queryKey: ['categories'] })
+      queryClient.invalidateQueries({ queryKey: ['brands'] })
+      if ((res.data.errors?.length ?? 0) === 0) message.success('Import thành công')
+      else message.warning('Import hoàn tất, một số dòng bị lỗi')
+    } catch (err: any) {
+      message.error(err.response?.data?.error ?? err.response?.data?.message ?? 'Import thất bại')
+    } finally {
+      setImporting(false)
+    }
+    return false
+  }
+
+  function closeImportModal() {
+    setImportOpen(false)
+    setImportResult(null)
+  }
 
   const skuHook = useSkuList(hook.categories ?? [], hook.brands ?? [])
 
@@ -148,10 +196,16 @@ export default function ProductsPage() {
           <h1 className="text-2xl font-semibold tracking-tight">Sản phẩm</h1>
           <p className="mt-0.5 text-sm text-muted-foreground">Quản lý danh mục sản phẩm và SKU</p>
         </div>
-        <Button onClick={() => hook.openCreate()}>
-          <Plus className="mr-2 h-4 w-4" />
-          Tạo sản phẩm
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => setImportOpen(true)}>
+            <UploadIcon className="mr-2 h-4 w-4" />
+            Import Excel
+          </Button>
+          <Button onClick={() => hook.openCreate()}>
+            <Plus className="mr-2 h-4 w-4" />
+            Tạo sản phẩm
+          </Button>
+        </div>
       </div>
 
       {/* Tabs */}
@@ -425,7 +479,7 @@ export default function ProductsPage() {
                         <td className="px-4 py-2.5">
                           <CodeText>{v.item_code || v.sku || '—'}</CodeText>
                         </td>
-                        <td className="max-w-0 px-4 py-2.5"><span className="block truncate text-sm">{v.name ?? '—'}</span></td>
+                        <td className="max-w-0 px-4 py-2.5"><span className="block truncate text-sm" title={v.name ?? ''}>{v.name ?? '—'}</span></td>
                         <td className="px-4 py-2.5 text-sm text-foreground">{v.product_name ?? '—'}</td>
                         {skuCols.isVisible('unit') && <td className="px-3 py-2.5 text-center text-sm text-foreground">{v.unit ?? '—'}</td>}
                         {skuCols.isVisible('cost_price') && <td className="px-3 py-2.5 text-center text-sm tabular-nums text-foreground">{v.cost_price != null ? Number(v.cost_price).toLocaleString('en-US') : '—'}</td>}
@@ -549,6 +603,59 @@ export default function ProductsPage() {
         </AntForm>
         </SheetContent>
       </Sheet>
+
+      {/* Import Excel modal */}
+      <Modal
+        title="Import Sản phẩm / SKU từ Excel"
+        open={importOpen}
+        onCancel={closeImportModal}
+        footer={null}
+        width={520}
+      >
+        <div className="flex flex-col gap-4 pt-2">
+          <div className="flex items-center justify-between gap-3 rounded-md border border-border bg-muted/30 px-3 py-2.5">
+            <span className="text-sm text-muted-foreground">Chưa có file mẫu? Tải về để điền đúng định dạng.</span>
+            <Button variant="outline" size="sm" onClick={handleDownloadTemplate} className="shrink-0">
+              <Download className="mr-1.5 h-3.5 w-3.5" />
+              Tải file mẫu
+            </Button>
+          </div>
+
+          <Upload.Dragger
+            accept=".xlsx,.xls"
+            maxCount={1}
+            showUploadList={false}
+            disabled={importing}
+            beforeUpload={(file) => handleImportFile(file as unknown as File)}
+          >
+            <p className="py-2 text-sm text-muted-foreground">
+              {importing ? 'Đang import…' : 'Kéo thả file Excel vào đây, hoặc bấm để chọn file'}
+            </p>
+          </Upload.Dragger>
+
+          {importResult && (
+            <div className="flex flex-col gap-2 rounded-md border border-border px-3 py-2.5 text-sm">
+              <div>Sản phẩm tạo mới: <strong>{importResult.created_products?.length ?? 0}</strong></div>
+              <div>SKU tạo mới: <strong>{importResult.created_variants?.length ?? 0}</strong></div>
+              {importResult.skipped?.length > 0 && (
+                <div className="text-amber-700">Bỏ qua (mã hàng đã tồn tại): <strong>{importResult.skipped.length}</strong></div>
+              )}
+              {importResult.errors?.length > 0 && (
+                <div className="flex flex-col gap-1.5">
+                  <span className="font-medium text-red-600">Lỗi ({importResult.errors.length} dòng):</span>
+                  <div className="max-h-48 overflow-y-auto rounded border border-red-100 bg-red-50 px-2.5 py-2">
+                    {importResult.errors.map((e: any, i: number) => (
+                      <div key={i} className="text-xs text-red-700">
+                        {e.sheet ? `[${e.sheet}] ` : ''}Dòng {e.row}: {e.reason}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </Modal>
     </div>
   )
 }

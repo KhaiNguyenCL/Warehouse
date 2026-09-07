@@ -238,7 +238,7 @@ export default function ActionsPage() {
                   <tr key={r.variant_id} className="transition-colors hover:bg-muted/30">
                     <td className="px-4 py-2.5 font-mono text-xs font-semibold text-muted-foreground">{r.item_code}</td>
                     <td className="px-4 py-2.5 max-w-[220px]">
-                      <span className="block truncate text-xs font-medium text-foreground">{r.variant_name}</span>
+                      <span className="block truncate text-xs font-medium text-foreground" title={r.variant_name}>{r.variant_name}</span>
                     </td>
                     <td
                       className="px-4 py-2.5 text-right text-sm font-extrabold tabular-nums"

@@ -153,7 +153,7 @@ function ReservedSheet({
                 </span>
                 <span className="font-mono text-sm font-medium text-foreground">{r.doc_code}</span>
                 {r.customer_name && (
-                  <span className="truncate text-sm text-muted-foreground">{r.customer_name}</span>
+                  <span className="truncate text-sm text-muted-foreground" title={r.customer_name}>{r.customer_name}</span>
                 )}
               </div>
               <span className="ml-3 shrink-0 text-sm font-semibold tabular-nums text-foreground">

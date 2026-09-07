@@ -45,6 +45,10 @@ export class ProductRepository {
     return this.db('categories').whereILike('short_code', short_code).first()
   }
 
+  findCategoryByName(name: string) {
+    return this.db('categories').whereILike('name', name).first()
+  }
+
   createCategory(data: CreateCategoryBody & { created_by?: string }) {
     return this.db('categories').insert(data).returning('*').then(([row]) => row)
   }
@@ -82,6 +86,10 @@ export class ProductRepository {
     return this.db('brands').whereILike('short_code', short_code).first()
   }
 
+  findBrandByName(name: string) {
+    return this.db('brands').whereILike('name', name).first()
+  }
+
   reactivateBrand(id: string, data: Omit<CreateBrandBody, 'short_code'>) {
     return this.db('brands')
       .where({ id })
@@ -114,6 +122,14 @@ export class ProductRepository {
   }
 
   // ─── Products ──────────────────────────────────────────────────────────
+
+  // Dùng cho sheet tham khảo "Sản phẩm hiện có" ở file mẫu import Excel.
+  findAllProductCodes() {
+    return this.db('products')
+      .where('is_active', true)
+      .orderBy('code')
+      .select('code', 'name', 'product_type')
+  }
 
   async findAllProducts(query: ListProductQuery) {
     const { category_id, brand_id, product_type, search, sort_by, sort_order, page = 1, limit = 20 } = query
@@ -246,7 +262,7 @@ export class ProductRepository {
 
   createProductImport(data: {
     name: string; code: string; product_type: string
-    category_id?: string; brand_id?: string; created_by?: string
+    category_id?: string; brand_id?: string
   }) {
     return this.db('products').insert(data).returning('*').then(([row]) => row)
   }

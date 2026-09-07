@@ -57,8 +57,8 @@ export default function GroupMembersPanel({ groupId }: Props) {
           {members.map((m) => (
             <div key={m.id} className="flex items-center justify-between gap-2 px-3 py-2">
               <div className="min-w-0">
-                <div className="truncate text-sm font-medium text-foreground">{m.full_name}</div>
-                <div className="truncate text-xs text-muted-foreground">{m.email}</div>
+                <div className="truncate text-sm font-medium text-foreground" title={m.full_name}>{m.full_name}</div>
+                <div className="truncate text-xs text-muted-foreground" title={m.email}>{m.email}</div>
               </div>
               <button
                 type="button"

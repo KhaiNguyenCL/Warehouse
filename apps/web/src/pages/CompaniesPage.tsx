@@ -125,7 +125,7 @@ function CompaniesTab({ activeTab, onTabChange, hook }: {
     companyId: c.id,
     label: (
       <div className="flex items-center justify-between gap-2">
-        <span className="font-medium truncate">{c.name}</span>
+        <span className="font-medium truncate" title={c.name}>{c.name}</span>
         <span className="text-xs text-muted-foreground font-mono flex-shrink-0">{c.code}</span>
       </div>
     ),
@@ -251,13 +251,13 @@ function CompaniesTab({ activeTab, onTabChange, hook }: {
                         {row.phone && (
                           <span className="flex items-center gap-1.5 text-xs text-foreground min-w-0">
                             <Phone className="h-3 w-3 flex-shrink-0 text-muted-foreground" />
-                            <span className="truncate">{row.phone}</span>
+                            <span className="truncate" title={row.phone}>{row.phone}</span>
                           </span>
                         )}
                         {row.email && (
                           <span className="flex items-center gap-1.5 text-xs text-foreground min-w-0">
                             <Mail className="h-3 w-3 flex-shrink-0 text-muted-foreground" />
-                            <span className="truncate">{row.email}</span>
+                            <span className="truncate" title={row.email}>{row.email}</span>
                           </span>
                         )}
                       </div>
@@ -410,14 +410,14 @@ function ContactsTab({ activeTab, onTabChange, onOpenSync }: {
                   <td className="px-4 py-2.5">
                     <div className="flex items-center gap-2">
                       <User className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
-                      <span className="font-medium text-sm text-foreground truncate">{row.full_name}</span>
+                      <span className="font-medium text-sm text-foreground truncate" title={row.full_name}>{row.full_name}</span>
                     </div>
                   </td>
-                  <td className="px-4 py-2.5 text-sm text-foreground truncate">{row.position || '—'}</td>
+                  <td className="px-4 py-2.5 text-sm text-foreground truncate" title={row.position || ''}>{row.position || '—'}</td>
                   <td className="px-4 py-2.5 text-sm text-foreground">{row.phone || '—'}</td>
-                  <td className="px-4 py-2.5 text-sm text-foreground truncate">{row.email || '—'}</td>
+                  <td className="px-4 py-2.5 text-sm text-foreground truncate" title={row.email || ''}>{row.email || '—'}</td>
                   <td className="px-4 py-2.5">
-                    <div className="text-sm text-foreground truncate">{row.company_name}</div>
+                    <div className="text-sm text-foreground truncate" title={row.company_name}>{row.company_name}</div>
                     {row.company_code && <div className="text-xs text-muted-foreground font-mono">{row.company_code}</div>}
                   </td>
                   <td className="px-4 py-2.5 text-center">

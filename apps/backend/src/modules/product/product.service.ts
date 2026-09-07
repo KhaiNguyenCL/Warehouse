@@ -404,7 +404,8 @@ export class ProductService {
     //    hoặc single-sheet cũ (sheet đầu tiên, flat 12 cột).
     const hasMultiSheet = wb.SheetNames.includes('Sản phẩm') && wb.SheetNames.includes('SKU')
 
-    const PRODUCT_TYPES_VALID = ['storable', 'consumable', 'service', 'bundle']
+    // bundle không hỗ trợ import Excel — phải tạo qua UI để khai báo sản phẩm con.
+    const PRODUCT_TYPES_VALID = ['storable', 'consumable', 'service']
     const created_products: string[] = []
     const created_variants: string[] = []
     const skipped: string[] = []
@@ -423,11 +424,11 @@ export class ProductService {
 
     if (hasMultiSheet) {
       // ── Format mới: sheet Sản phẩm ────────────────────────────────────────
-      // Cột: TênSP | MãSP | LoạiSP | MãDM | MãHiệu
+      // Cột: TênSP | MãSP | LoạiSP | TênDanhMục | TênThươngHiệu
       const prodRows = toRows(wb.Sheets['Sản phẩm'])
       for (let i = 0; i < prodRows.length; i++) {
         const rowNum = i + 2
-        const [productName, productCode, productType, categoryCode, brandCode] =
+        const [productName, productCode, productType, categoryName, brandName] =
           prodRows[i].map((c: any) => String(c ?? '').trim())
 
         if (!productName) { errors.push({ sheet: 'Sản phẩm', row: rowNum, reason: 'Thiếu Tên sản phẩm' }); continue }
@@ -437,16 +438,16 @@ export class ProductService {
         }
 
         try {
-          const category = categoryCode ? await this.repo.findCategoryByShortCode(categoryCode) : null
-          const brand    = brandCode    ? await this.repo.findBrandByShortCode(brandCode)       : null
-          if (categoryCode && !category) { errors.push({ sheet: 'Sản phẩm', row: rowNum, reason: `Mã danh mục "${categoryCode}" không tồn tại` }); continue }
-          if (brandCode    && !brand)    { errors.push({ sheet: 'Sản phẩm', row: rowNum, reason: `Mã thương hiệu "${brandCode}" không tồn tại` }); continue }
+          const category = categoryName ? await this.repo.findCategoryByName(categoryName) : null
+          const brand    = brandName    ? await this.repo.findBrandByName(brandName)       : null
+          if (categoryName && !category) { errors.push({ sheet: 'Sản phẩm', row: rowNum, reason: `Danh mục "${categoryName}" không tồn tại` }); continue }
+          if (brandName    && !brand)    { errors.push({ sheet: 'Sản phẩm', row: rowNum, reason: `Thương hiệu "${brandName}" không tồn tại` }); continue }
 
           const existing = await this.repo.findProductByCode(productCode)
           if (!existing) {
             await this.repo.createProductImport({
               name: productName, code: productCode, product_type: productType,
-              category_id: category?.id, brand_id: brand?.id, created_by: userId,
+              category_id: category?.id, brand_id: brand?.id,
             })
             created_products.push(productCode)
           }
@@ -531,7 +532,7 @@ export class ProductService {
           if (!product) {
             product = await this.repo.createProductImport({
               name: productName, code: productCode, product_type: productType,
-              category_id: category?.id, brand_id: brand?.id, created_by: userId,
+              category_id: category?.id, brand_id: brand?.id,
             })
             created_products.push(productCode)
           }
@@ -565,24 +566,33 @@ export class ProductService {
   }
 
   async generateImportTemplate(): Promise<Buffer> {
-    const XLSX = require('xlsx')
-    const wb = XLSX.utils.book_new()
+    const ExcelJS = require('exceljs')
+    const wb = new ExcelJS.Workbook()
 
-    // ── Hàm helper tạo worksheet với header + style ──────────────────────────
-    function makeSheet(rows: any[][], colWidths: number[]): any {
-      const ws = XLSX.utils.aoa_to_sheet(rows)
-      ws['!cols'] = colWidths.map((wch) => ({ wch }))
+    // ── Hàm helper tạo worksheet với header + độ rộng cột ────────────────────
+    function makeSheet(name: string, rows: any[][], colWidths: number[]) {
+      const ws = wb.addWorksheet(name)
+      ws.columns = colWidths.map((width) => ({ width }))
+      rows.forEach((row) => ws.addRow(row))
       return ws
     }
 
     // ── Sheet 1: Hướng dẫn ───────────────────────────────────────────────────
-    const guideRows = [
+    makeSheet('Hướng dẫn', [
       ['HƯỚNG DẪN NHẬP LIỆU DANH MỤC SẢN PHẨM'],
       [],
+      ['❓ Sản phẩm và SKU khác nhau thế nào?'],
+      ['  - SẢN PHẨM (Product) = dòng sản phẩm chung, chưa bán được, không có giá/tồn kho riêng.'],
+      ['    VD: "Switch Cisco SG350" — mới chỉ là tên dòng, chưa biết bán loại 28 port hay 52 port, giá bao nhiêu.'],
+      ['  - SKU (Variant) = phiên bản CỤ THỂ, bán/nhập/xuất kho được — mỗi SKU có mã hàng, giá, đơn vị, tồn kho RIÊNG.'],
+      ['    VD: Sản phẩm "Switch Cisco SG350" có 2 SKU: "SG350-28P" (bản 28 port, giá X) và "SG350-52P" (bản 52 port, giá Y) — 2 tồn kho tách biệt.'],
+      ['  - 1 Sản phẩm luôn có ÍT NHẤT 1 SKU. Kể cả sản phẩm chỉ có 1 phiên bản duy nhất (không chia dòng con) vẫn phải tạo đủ 2 dòng: 1 dòng ở sheet Sản phẩm + 1 dòng ở sheet SKU tương ứng — vì giá bán và tồn kho luôn nằm ở cấp SKU, sheet Sản phẩm không có 2 cột đó.'],
+      ['  - Ngược lại: 1 dòng ở sheet SKU luôn phải khớp về đúng 1 Mã sản phẩm đã có (ở sheet Sản phẩm hoặc đã có sẵn trong hệ thống) — không có SKU nào "lơ lửng" không thuộc sản phẩm nào.'],
+      [],
       ['📌 Quy trình nhập liệu:'],
-      ['  1. Xem sheet Danh mục và Thương hiệu để biết Mã tham chiếu.'],
-      ['  2. Điền dữ liệu vào sheet Sản phẩm (1 dòng = 1 sản phẩm).'],
-      ['  3. Điền dữ liệu vào sheet SKU (1 dòng = 1 SKU, nhiều SKU cho cùng sản phẩm = nhiều dòng).'],
+      ['  1. Nếu chỉ thêm SKU cho sản phẩm ĐÃ CÓ SẴN: bỏ qua sheet Sản phẩm, sang thẳng bước 2 — dropdown Mã sản phẩm ở sheet SKU đã có sẵn tất cả sản phẩm hiện có.'],
+      ['  2. Nếu cần tạo SẢN PHẨM MỚI: điền vào sheet Sản phẩm (1 dòng = 1 sản phẩm) — cột Danh mục/Thương hiệu chọn trực tiếp từ dropdown, không cần gõ mã. Gõ thêm dòng nào ở đây là dropdown Mã sản phẩm bên sheet SKU có ngay dòng đó.'],
+      ['  3. Điền dữ liệu vào sheet SKU (1 dòng = 1 SKU, nhiều SKU cho cùng sản phẩm = nhiều dòng) — cột Mã sản phẩm chọn từ dropdown (gồm cả sản phẩm có sẵn lẫn sản phẩm mới vừa thêm ở bước 2).'],
       ['  4. Upload file này vào WMS qua menu Sản phẩm → Import.'],
       [],
       ['📌 Lưu ý:'],
@@ -590,34 +600,45 @@ export class ProductService {
       ['  - Mã sản phẩm và Mã hàng phải là duy nhất trong toàn hệ thống.'],
       ['  - Nếu Mã sản phẩm đã tồn tại trong DB, hệ thống sẽ dùng sản phẩm đó (không tạo mới).'],
       ['  - Nếu Mã hàng (SKU) đã tồn tại, dòng đó sẽ bị bỏ qua.'],
-      ['  - Loại SP: storable (thiết bị có serial), consumable (vật tư), service (dịch vụ), bundle (gói).'],
+      ['  - Loại SP: storable (thiết bị có serial), consumable (vật tư), service (dịch vụ). Không hỗ trợ import bundle (gói sản phẩm) — tạo bundle trực tiếp trên web.'],
       ['  - Tiền tệ: VND, USD, EUR, CNY, JPY.'],
       ['  - Đơn vị: tham khảo sheet Đơn vị hoặc tự nhập.'],
-    ]
-    XLSX.utils.book_append_sheet(wb, makeSheet(guideRows, [80]), 'Hướng dẫn')
+      ['  - Danh mục/Thương hiệu ở sheet Sản phẩm nhập đúng TÊN (không phải mã) — chọn từ dropdown cho chắc chắn khớp.'],
+      ['  - Dropdown Danh mục/Thương hiệu lấy đúng danh sách tại THỜI ĐIỂM TẢI file này. Nếu sau đó có thêm/sửa danh mục hoặc thương hiệu, hãy tải lại file mẫu mới để dropdown cập nhật.'],
+    ], [80])
 
     // ── Fetch data thực tế từ DB ─────────────────────────────────────────────
-    const [cats, brands] = await Promise.all([
+    const [cats, brands, existingProducts] = await Promise.all([
       this.repo.findAllCategories(),
       this.repo.findAllBrands(),
+      this.repo.findAllProductCodes(),
     ])
 
-    // ── Sheet 2: Danh mục (export) ───────────────────────────────────────────
-    const catRows = [
-      ['Tên danh mục', 'Mã (short_code) — dùng trong sheet Sản phẩm'],
+    // ── Sheet 2: Danh mục (export — nguồn dropdown cho sheet Sản phẩm) ────────
+    makeSheet('Danh mục', [
+      ['Tên danh mục (chọn ở sheet Sản phẩm)', 'Mã (short_code, chỉ để tham khảo)'],
       ...cats.map((c: any) => [c.name, c.short_code ?? '']),
-    ]
-    XLSX.utils.book_append_sheet(wb, makeSheet(catRows, [32, 40]), 'Danh mục')
+    ], [36, 32])
 
-    // ── Sheet 3: Thương hiệu (export) ────────────────────────────────────────
-    const brandRows = [
-      ['Tên thương hiệu', 'Mã (short_code) — dùng trong sheet Sản phẩm'],
+    // ── Sheet 3: Thương hiệu (export — nguồn dropdown cho sheet Sản phẩm) ────
+    makeSheet('Thương hiệu', [
+      ['Tên thương hiệu (chọn ở sheet Sản phẩm)', 'Mã (short_code, chỉ để tham khảo)'],
       ...brands.map((b: any) => [b.name, b.short_code ?? '']),
-    ]
-    XLSX.utils.book_append_sheet(wb, makeSheet(brandRows, [32, 40]), 'Thương hiệu')
+    ], [36, 32])
 
-    // ── Sheet 4: Đơn vị (danh sách gợi ý) ───────────────────────────────────
-    const unitRows = [
+    // ── Sheet 4: Sản phẩm hiện có (export — nguồn dropdown Mã sản phẩm ở sheet SKU,
+    //    gộp cùng sản phẩm mới qua sheet ẩn MaSP_All, xem thêm bên dưới) ──────────
+    makeSheet('Sản phẩm hiện có', [
+      ['Mã sản phẩm', 'Tên sản phẩm', 'Loại SP'],
+      ...existingProducts.map((p: any) => [p.code, p.name, p.product_type]),
+    ], [30, 36, 16])
+
+    // ── Sheet 5: Đơn vị (danh sách gợi ý) ───────────────────────────────────
+    const unitList = [
+      'Cái', 'Chiếc', 'Bộ', 'Hộp', 'Cuộn', 'Mét', 'Cổng',
+      'License', 'Gói', 'Dây', 'Lần', 'Giờ', 'Ngày',
+    ]
+    makeSheet('Đơn vị', [
       ['Đơn vị', 'Mô tả'],
       ['Cái', 'Thiết bị rời'], ['Chiếc', 'Giống Cái'], ['Bộ', 'Combo nhiều thứ'],
       ['Hộp', 'Đóng hộp'], ['Cuộn', 'Cáp/dây cuộn'],
@@ -625,62 +646,78 @@ export class ProductService {
       ['License', 'Bản quyền phần mềm'], ['Gói', 'Package dịch vụ'],
       ['Dây', 'Dây đơn'], ['Lần', 'Dịch vụ tính theo lần'],
       ['Giờ', 'Dịch vụ tính theo giờ'], ['Ngày', 'Dịch vụ tính theo ngày'],
-    ]
-    XLSX.utils.book_append_sheet(wb, makeSheet(unitRows, [16, 30]), 'Đơn vị')
+    ], [16, 30])
 
-    // ── Sheet 5: Sản phẩm (nhập liệu) ───────────────────────────────────────
-    const prodHeaders = [
-      'Tên sản phẩm *',
-      'Mã sản phẩm *',
-      'Loại SP * (storable/consumable/service/bundle)',
-      'Mã danh mục (xem sheet Danh mục)',
-      'Mã thương hiệu (xem sheet Thương hiệu)',
-    ]
-    const prodExample = [
-      'Switch Ubiquiti UniFi',
-      'NET-UBI-USW',
-      'storable',
-      'NET',
-      'UBI',
-    ]
-    const prodRows = [prodHeaders, prodExample]
-    XLSX.utils.book_append_sheet(wb, makeSheet(prodRows, [30, 20, 38, 30, 30]), 'Sản phẩm')
+    // ── Sheet 6: Sản phẩm (nhập liệu) ───────────────────────────────────────
+    const prodSheet = makeSheet('Sản phẩm', [
+      [
+        'Tên sản phẩm *',
+        'Mã sản phẩm *',
+        'Loại SP * (storable/consumable/service)',
+        'Danh mục (chọn từ dropdown)',
+        'Thương hiệu (chọn từ dropdown)',
+      ],
+    ], [30, 20, 38, 32, 32])
 
-    // ── Sheet 6: SKU (nhập liệu) ─────────────────────────────────────────────
-    const skuHeaders = [
-      'Mã sản phẩm * (khớp sheet Sản phẩm hoặc DB)',
-      'Tên SKU *',
-      'Mã hàng (item_code)',
-      'Model (mã nhà SX)',
-      'Part Number',
-      'Đơn vị (xem sheet Đơn vị)',
-      'Tiền tệ (VND/USD/EUR/CNY/JPY)',
-      'Giá nhập gợi ý',
-      'Giá bán gợi ý',
-      'VAT%',
-      'BH hãng (tháng)',
-      'Cân nặng (kg)',
-      'Mô tả ngắn',
-    ]
-    const skuExample = [
-      'NET-UBI-USW',
-      'USW-Lite-16-PoE',
-      'NET-UBI-USW-LITE16POE',
-      'USW-Lite-16-PoE',
-      '',
-      'Cái',
-      'VND',
-      '4200000',
-      '5500000',
-      '10',
-      '36',
-      '',
-      'Switch 16 port PoE, 8xGE PoE + 8xGE, 2xSFP',
-    ]
-    const skuRows = [skuHeaders, skuExample]
-    XLSX.utils.book_append_sheet(wb, makeSheet(skuRows, [38, 26, 22, 20, 18, 20, 22, 16, 16, 8, 16, 14, 40]), 'SKU')
+    // ── Sheet 7: SKU (nhập liệu) ─────────────────────────────────────────────
+    const skuSheet = makeSheet('SKU', [
+      [
+        'Mã sản phẩm * (chọn từ dropdown — gồm cả sản phẩm có sẵn lẫn sản phẩm mới ở sheet Sản phẩm)',
+        'Tên SKU *',
+        'Mã hàng (item_code)',
+        'Model (mã nhà SX)',
+        'Part Number',
+        'Đơn vị (xem sheet Đơn vị)',
+        'Tiền tệ (VND/USD/EUR/CNY/JPY)',
+        'Giá nhập gợi ý',
+        'Giá bán gợi ý',
+        'VAT%',
+        'BH hãng (tháng)',
+        'Cân nặng (kg)',
+        'Mô tả ngắn',
+      ],
+    ], [38, 26, 22, 20, 18, 20, 22, 16, 16, 8, 16, 14, 40])
 
-    return XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }) as Buffer
+    // ── Dropdown (data validation) cho các cột mã hoá ────────────────────────
+    const LAST_ROW = 500 // số dòng dữ liệu tối đa hỗ trợ dropdown
+
+    function applyListValidation(ws: typeof prodSheet, col: string, formulae: string[]) {
+      for (let r = 2; r <= LAST_ROW; r++) {
+        ws.getCell(`${col}${r}`).dataValidation = {
+          type: 'list',
+          allowBlank: true,
+          formulae,
+          showErrorMessage: true,
+          errorStyle: 'warning',
+          error: 'Giá trị không có trong danh sách gợi ý — vẫn có thể nhập tay nếu chắc chắn đúng.',
+        }
+      }
+    }
+
+    applyListValidation(prodSheet, 'C', ['"storable,consumable,service"'])
+    if (cats.length > 0)   applyListValidation(prodSheet, 'D', [`'Danh mục'!$A$2:$A$${1 + cats.length}`])
+    if (brands.length > 0) applyListValidation(prodSheet, 'E', [`'Thương hiệu'!$A$2:$A$${1 + brands.length}`])
+
+    // Mã sản phẩm ở sheet SKU cần gộp 2 nguồn: sản phẩm đã có sẵn trong DB ("Sản phẩm
+    // hiện có") + sản phẩm đang gõ mới trong chính file này (sheet "Sản phẩm"). Excel
+    // data validation chỉ nhận 1 range liên tục, không gộp trực tiếp 2 sheet được, nên
+    // tạo 1 sheet ẩn làm cầu nối: mỗi dòng = công thức trỏ về 1 trong 2 nguồn, rồi trỏ
+    // dropdown vào sheet ẩn đó — người dùng không thấy sheet này, chỉ thấy dropdown gộp.
+    const helperSheet = wb.addWorksheet('MaSP_All')
+    existingProducts.forEach((_p: any, i: number) => {
+      helperSheet.getCell(`A${i + 1}`).value = { formula: `'Sản phẩm hiện có'!A${i + 2}` } as any
+    })
+    for (let i = 0; i < LAST_ROW; i++) {
+      helperSheet.getCell(`A${existingProducts.length + i + 1}`).value = { formula: `'Sản phẩm'!B${i + 2}` } as any
+    }
+    helperSheet.state = 'veryHidden'
+    const helperRowCount = existingProducts.length + LAST_ROW
+    applyListValidation(skuSheet, 'A', [`MaSP_All!$A$1:$A$${helperRowCount}`])
+
+    applyListValidation(skuSheet, 'F', [`'Đơn vị'!$A$2:$A$${1 + unitList.length}`])
+    applyListValidation(skuSheet, 'G', ['"VND,USD,EUR,CNY,JPY"'])
+
+    return Buffer.from(await wb.xlsx.writeBuffer())
   }
 
   // ─── Variant Attribute Values ──────────────────────────────────────────────

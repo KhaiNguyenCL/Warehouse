@@ -23,6 +23,7 @@
     "bcrypt": "^5.1.1",
     "carbone": "^3.8.2",
     "dotenv": "^16.4.5",
+    "exceljs": "^4.4.0",
     "fastify": "^4.27.0",
     "fastify-plugin": "^4.5.1",
     "knex": "^3.1.0",
