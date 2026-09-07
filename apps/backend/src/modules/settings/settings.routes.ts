@@ -141,6 +141,17 @@ const settingsRoutes: FastifyPluginAsync = async (app) => {
     (request) => service.updateUser(request.params.id, request.body),
   )
 
+  // Soft delete — vô hiệu hoá (is_active=false), không hard-delete (xem settings.service.ts::deleteUser)
+  app.delete<{ Params: { id: string } }>(
+    '/users/:id',
+    { preHandler: requirePermission('settings.users') },
+    async (request, reply) => {
+      const currentUserId = (request.user as any)?.sub
+      await service.deleteUser(request.params.id, currentUserId)
+      return reply.code(204).send()
+    },
+  )
+
   // ─── Import / Export Types ─────────────────────────────────────────────────
 
   app.get('/import-types', { preHandler: authenticate }, () => service.listImportTypes())

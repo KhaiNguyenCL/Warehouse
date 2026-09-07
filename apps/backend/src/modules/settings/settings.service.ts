@@ -204,6 +204,17 @@ export class SettingsService {
     return this.getUserById(updated.id)
   }
 
+  // Soft delete — user vẫn được tham chiếu bởi created_by/activity_log ở nhiều bảng
+  // khác, hard delete sẽ vỡ FK hoặc mất dấu vết. Vô hiệu hoá bằng is_active=false,
+  // chặn đăng nhập, không xoá row.
+  async deleteUser(id: string, currentUserId?: string) {
+    if (id === currentUserId) throw { statusCode: 400, message: 'Không thể tự xoá tài khoản của chính mình' }
+    const user = await this.repo.findUserById(id)
+    if (!user) throw { statusCode: 404, message: 'User not found' }
+
+    await this.repo.updateUser(id, { is_active: false })
+  }
+
   // ─── Import / Export Types ─────────────────────────────────────────────────
 
   listImportTypes() {
