@@ -16,6 +16,7 @@ import {
 } from './settings.schema'
 
 const PG_UNIQUE_VIOLATION = '23505'
+const PG_FOREIGN_KEY_VIOLATION = '23503'
 
 function mapDbError(message: string) {
   return (err: any): never => {
@@ -213,6 +214,29 @@ export class SettingsService {
     if (!user) throw { statusCode: 404, message: 'User not found' }
 
     await this.repo.updateUser(id, { is_active: false })
+  }
+
+  // Hard delete — xoá hẳn khỏi DB. Rất nhiều bảng (receipts, purchase_orders,
+  // quotations, delivery_orders, transfer_orders, stocktakes, stock_movements,
+  // warehouses.manager_id...) tham chiếu users.id qua created_by/approved_by mà
+  // KHÔNG có ON DELETE SET NULL — nếu user từng tạo/duyệt bất kỳ phiếu nào, DB sẽ
+  // trả lỗi FK (23503), map thành message dễ hiểu thay vì để lộ lỗi SQL thô.
+  async hardDeleteUser(id: string, currentUserId?: string) {
+    if (id === currentUserId) throw { statusCode: 400, message: 'Không thể tự xoá tài khoản của chính mình' }
+    const user = await this.repo.findUserById(id)
+    if (!user) throw { statusCode: 404, message: 'User not found' }
+
+    try {
+      await this.repo.deleteUser(id)
+    } catch (err: any) {
+      if (err.code === PG_FOREIGN_KEY_VIOLATION) {
+        throw {
+          statusCode: 409,
+          message: 'Không thể xoá hẳn user này vì đã từng tạo/duyệt phiếu (receipt, PO, quotation, DO...) trong hệ thống. Dùng "Vô hiệu hoá" thay thế.',
+        }
+      }
+      throw err
+    }
   }
 
   // ─── Import / Export Types ─────────────────────────────────────────────────

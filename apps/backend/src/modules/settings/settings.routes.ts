@@ -152,6 +152,18 @@ const settingsRoutes: FastifyPluginAsync = async (app) => {
     },
   )
 
+  // Hard delete — xoá hẳn khỏi DB, chỉ thành công nếu user chưa từng tạo/duyệt phiếu gì
+  // (xem settings.service.ts::hardDeleteUser để biết vì sao có thể bị chặn bởi FK).
+  app.delete<{ Params: { id: string } }>(
+    '/users/:id/hard',
+    { preHandler: requirePermission('settings.users') },
+    async (request, reply) => {
+      const currentUserId = (request.user as any)?.sub
+      await service.hardDeleteUser(request.params.id, currentUserId)
+      return reply.code(204).send()
+    },
+  )
+
   // ─── Import / Export Types ─────────────────────────────────────────────────
 
   app.get('/import-types', { preHandler: authenticate }, () => service.listImportTypes())

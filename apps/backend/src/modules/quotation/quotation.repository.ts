@@ -153,6 +153,13 @@ export class QuotationRepository {
     return { ...quotation, sections: sectionsWithLines }
   }
 
+  // findById() không nhóm line_items theo sub_section (chỉ trả line_items phẳng kèm
+  // sub_section_id) — dùng method này để lấy lại header của từng sub_section (name,
+  // product_id, sub_section_order) khi cần dựng lại cây section đầy đủ (VD: clone()).
+  findSubSectionsByQuotationId(quotationId: string) {
+    return this.db('quotation_sub_sections').where({ quotation_id: quotationId }).orderBy('sub_section_order')
+  }
+
   // exported_qty (DO completed) + pending_qty (DO draft) cho từng
   // quotation_line_item — dùng tính remaining_qty (CLAUDE.md mục 6, 16), khoá khi = 0.
   // Bundle lines: nhiều component lines của cùng bundle trong cùng DO → đếm 1 lần dùng

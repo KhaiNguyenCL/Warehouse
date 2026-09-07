@@ -4,7 +4,7 @@ import {
   Form, Input, InputNumber, Select, Button, Tag, Popconfirm, Table, Skeleton,
   DatePicker, Tooltip,
 } from 'antd'
-import { ArrowLeftOutlined, EditOutlined, SyncOutlined, FileExcelOutlined, FilePdfOutlined, EyeOutlined, UserOutlined } from '@ant-design/icons'
+import { ArrowLeftOutlined, EditOutlined, SyncOutlined, FileExcelOutlined, FilePdfOutlined, EyeOutlined, UserOutlined, CopyOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { useQuotationDetail } from '../hooks/useQuotationDetail'
 import { useTermTemplates } from '../hooks/useTermTemplates'
@@ -207,6 +207,11 @@ export default function QuotationDetailPage() {
           ) : (
             <>
               {exportActions}
+              {!hook.isNew && (
+                <Button icon={<CopyOutlined />} loading={hook.cloneMutation.isPending} onClick={() => hook.cloneMutation.mutate()}>
+                  Nhân bản
+                </Button>
+              )}
               {isDraft && <Button icon={<EditOutlined />} onClick={hook.startEdit}>Sửa</Button>}
               {isDraft && !hook.isNew && (
                 <Button type="primary" loading={hook.confirmMutation.isPending} onClick={() => hook.confirmMutation.mutate()}>

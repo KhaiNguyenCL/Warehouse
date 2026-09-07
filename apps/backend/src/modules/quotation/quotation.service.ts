@@ -178,6 +178,68 @@ export class QuotationService {
     return quotation
   }
 
+  // Nhân bản báo giá cũ (ở bất kỳ trạng thái nào) thành 1 báo giá Draft mới — copy
+  // company/contact/sections/line_items nguyên vẹn, KHÔNG copy: code (tự sinh mới),
+  // quote_number/quote_date (số/ngày báo giá cũ không còn hợp lệ cho lần báo giá mới),
+  // bitrix_deal_id (báo giá mới chưa gắn với deal nào), status (luôn bắt đầu ở Draft).
+  // Tái dùng nguyên create() để không lặp lại logic tính subtotal/vat/reserved-rule.
+  async clone(id: string, userId: string) {
+    const existing = await this.repo.findById(id)
+    if (!existing) throw { statusCode: 404, message: 'Quotation not found' }
+
+    // findById() trả line_items phẳng kèm sub_section_id, không nhóm sẵn theo sub_section
+    // — query lại header của từng sub_section để dựng lại đúng cây section/sub_section.
+    const subSectionRows = await this.repo.findSubSectionsByQuotationId(id)
+
+    function toLineItemInput(li: any): QuotationLineItemInput {
+      return {
+        variant_id: li.variant_id ?? undefined,
+        bundle_id: li.bundle_id ?? undefined,
+        description: li.description ?? undefined,
+        unit: li.unit ?? undefined,
+        quantity: Number(li.quantity),
+        unit_price: Number(li.unit_price ?? 0),
+        warranty: li.warranty ?? undefined,
+        vat_percent: li.vat_percent != null ? Number(li.vat_percent) : undefined,
+        is_reserved: li.is_reserved,
+        line_order: li.line_order ?? undefined,
+        note: li.note ?? undefined,
+      }
+    }
+
+    const sections: QuotationSectionInput[] = existing.sections.map((s: any) => {
+      const subSectionsOfSection = subSectionRows.filter((ss: any) => ss.section_id === s.id)
+      const sub_sections = subSectionsOfSection.map((ss: any) => ({
+        name: ss.name,
+        product_id: ss.product_id ?? undefined,
+        sub_section_order: ss.sub_section_order,
+        line_items: s.line_items.filter((li: any) => li.sub_section_id === ss.id).map(toLineItemInput),
+      }))
+      const line_items = s.line_items.filter((li: any) => !li.sub_section_id).map(toLineItemInput)
+      return { name: s.name, section_order: s.section_order, sub_sections, line_items }
+    })
+
+    const cloned = await this.create({
+      company_id: existing.company_id,
+      contact_id: existing.contact_id ?? undefined,
+      project_name: existing.project_name ?? undefined,
+      delivery_location: existing.delivery_location ?? undefined,
+      warehouse_id: existing.warehouse_id ?? undefined,
+      valid_days: existing.valid_days ?? undefined,
+      terms: existing.terms ?? undefined,
+      note: existing.note ?? undefined,
+      discount: existing.discount != null ? Number(existing.discount) : undefined,
+      sections,
+    }, userId)
+
+    const actorName = await resolveActorName(this.db, userId)
+    await logActivity({
+      db: this.db, objectType: 'quotation', objectId: cloned.id, objectCode: cloned.code,
+      action: 'cloned', actorId: userId, actorName, payload: { cloned_from_code: existing.code, cloned_from_id: existing.id },
+    })
+    return cloned
+  }
+
   // Chỉ sửa được khi còn Draft — muốn sửa báo giá đã Confirm phải /unconfirm trước
   // (giống cách receipt/delivery/transfer không có endpoint "sửa", chỉ có status transition).
   async update(id: string, data: UpdateQuotationBody) {

@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useQueryClient } from '@tanstack/react-query'
-import { Plus, Search, X } from 'lucide-react'
+import { Plus, Search, X, Trash2 } from 'lucide-react'
 
 import { useUsers } from '@/hooks/useUsers'
 import { api } from '@/lib/api'
@@ -15,6 +15,11 @@ import {
 import { Switch } from '@/components/ui/switch'
 import { cn } from '@/lib/utils'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel,
+  AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 
 // ── Schema ──────────────────────────────────────────────────────────────────
 
@@ -31,12 +36,13 @@ type UserForm = z.infer<typeof schema>
 // ── Component ────────────────────────────────────────────────────────────────
 
 export default function UsersPage() {
-  const { data, isLoading, groups, createMutation, updateMutation } = useUsers()
+  const { data, isLoading, groups, createMutation, updateMutation, deleteMutation } = useUsers()
   const qc = useQueryClient()
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing]       = useState<any | null>(null)
   const [search, setSearch]         = useState('')
+  const [deleteTarget, setDeleteTarget] = useState<any | null>(null)
 
   const form = useForm<UserForm>({
     resolver: zodResolver(schema),
@@ -162,18 +168,19 @@ export default function UsersPage() {
               <th className="w-32 px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">SĐT</th>
               <th className="w-48 px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Nhóm</th>
               <th className="w-40 px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground">Trạng thái</th>
+              <th className="w-8 px-2 py-2.5" />
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
             {isLoading ? (
               <tr>
-                <td colSpan={6} className="px-4 py-12 text-center text-xs text-muted-foreground">
+                <td colSpan={7} className="px-4 py-12 text-center text-xs text-muted-foreground">
                   Đang tải…
                 </td>
               </tr>
             ) : filtered.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-12 text-center text-xs text-muted-foreground">
+                <td colSpan={7} className="px-4 py-12 text-center text-xs text-muted-foreground">
                   {search ? 'Không tìm thấy kết quả.' : 'Chưa có người dùng nào.'}
                 </td>
               </tr>
@@ -199,6 +206,16 @@ export default function UsersPage() {
                         checked={r.is_active}
                         onCheckedChange={(checked) => updateMutation.mutate({ id: r.id, is_active: checked })}
                       />
+                    </div>
+                  </td>
+                  <td className="px-2 py-2">
+                    <div className="flex items-center justify-end opacity-0 transition-opacity group-hover/row:opacity-100">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setDeleteTarget(r) }}
+                        className="flex h-7 w-7 items-center justify-center rounded text-muted-foreground hover:bg-red-50 hover:text-red-600 transition-colors"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -340,6 +357,29 @@ export default function UsersPage() {
         </Form>
         </SheetContent>
       </Sheet>
+
+      {/* Delete user dialog */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Xoá hẳn user?</AlertDialogTitle>
+            <AlertDialogDescription>
+              User <strong className="text-foreground">{deleteTarget?.full_name}</strong> sẽ bị xoá vĩnh viễn khỏi hệ thống.
+              Nếu user này đã từng tạo/duyệt phiếu (receipt, PO, quotation, DO...), thao tác sẽ bị chặn —
+              dùng công tắc trạng thái để vô hiệu hoá thay thế.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Huỷ</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+              onClick={() => { deleteMutation.mutate(deleteTarget.id); setDeleteTarget(null) }}
+            >
+              Xoá hẳn
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

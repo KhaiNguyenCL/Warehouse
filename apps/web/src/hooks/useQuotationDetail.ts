@@ -119,6 +119,15 @@ export function useQuotationDetail(id: string) {
     { ...actionOptions, successMessage: 'Đồng bộ Bitrix thành công', onSuccess: () => setDealId('') },
   )
 
+  const cloneMutation = useApiMutation(
+    () => api.post(`/quotations/${id}/clone`),
+    {
+      successMessage: 'Đã nhân bản báo giá',
+      invalidateKey: ['quotations'],
+      onSuccess: (res: any) => navigate(`/quotations/${res.data.id}`),
+    },
+  )
+
   // ── Form actions ───────────────────────────────────────────────────────────
   function mapLineItem(li: any) {
     return {
@@ -250,7 +259,7 @@ export function useQuotationDetail(id: string) {
     exporting,
     dealId, setDealId, fetchFromBitrix, bitrixLoading, bitrixError, bitrixInfo, bitrixCompany,
     updateMutation,
-    confirmMutation, unconfirmMutation, cancelMutation, expireMutation, syncMutation,
+    confirmMutation, unconfirmMutation, cancelMutation, expireMutation, syncMutation, cloneMutation,
     handleExport, handlePdfExport, handlePdfPreview,
   }
 }

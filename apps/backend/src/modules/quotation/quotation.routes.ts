@@ -37,6 +37,16 @@ const quotationRoutes: FastifyPluginAsync = async (app) => {
     },
   )
 
+  // POST /quotations/:id/clone — nhân bản thành 1 báo giá Draft mới (xem quotation.service.ts::clone).
+  app.post<{ Params: { id: string } }>(
+    '/:id/clone',
+    { preHandler: requirePermission('quotation.create') },
+    async (request, reply) => {
+      const cloned = await service.clone(request.params.id, request.user.sub)
+      return reply.code(201).send(cloned)
+    },
+  )
+
   // PATCH /quotations/:id — chỉ sửa được khi Draft (xem quotation.service.ts).
   app.patch<{ Params: { id: string }; Body: UpdateQuotationBody }>(
     '/:id',

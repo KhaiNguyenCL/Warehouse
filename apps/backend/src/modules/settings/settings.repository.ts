@@ -182,6 +182,10 @@ export class SettingsRepository {
     return this.db('users').where({ id }).update({ ...data, updated_at: this.db.fn.now() }).returning('*')
   }
 
+  deleteUser(id: string) {
+    return this.db('users').where({ id }).delete()
+  }
+
   // ─── Import / Export Types ─────────────────────────────────────────────────
 
   findImportTypes() {

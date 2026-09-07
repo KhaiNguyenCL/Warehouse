@@ -28,5 +28,12 @@ export function useUsers() {
     { successMessage: 'Cập nhật thành công', invalidateKey: ['settings', 'users'] },
   )
 
-  return { data, isLoading, groups, createMutation, updateMutation }
+  // Hard delete — chỉ thành công nếu user chưa từng tạo/duyệt phiếu gì (xem
+  // settings.service.ts::hardDeleteUser); nếu vướng FK, backend trả lỗi rõ ràng.
+  const deleteMutation = useApiMutation(
+    (id: string) => api.delete(`/settings/users/${id}/hard`),
+    { successMessage: 'Đã xoá user', invalidateKey: ['settings', 'users'] },
+  )
+
+  return { data, isLoading, groups, createMutation, updateMutation, deleteMutation }
 }
