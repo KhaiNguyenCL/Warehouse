@@ -1,9 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
 import {
   Form as AntForm, Input as AntInput, Select as AntSelect,
   TreeSelect, Switch as AntSwitch, InputNumber,
@@ -16,18 +13,9 @@ import { api } from '../lib/api'
 import { useApiMutation } from '../hooks/useApiMutation'
 import { moneyProps } from '../lib/utils'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import {
-  Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
-} from '@/components/ui/form'
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@/components/ui/select'
 import { ColumnToggle, useColumnVisibility } from '@/components/ui/ColumnToggle'
 import { cn } from '@/lib/utils'
 import { CodeText } from '@/components/ui/CodeText'
-import { Sheet, SheetContent } from '@/components/ui/sheet'
-import { ImageUpload } from '../components/ImageUpload'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -61,28 +49,6 @@ const SKU_COLUMNS = [
   { key: 'avail',       label: 'Khả dụng' },
   { key: 'warehouse',   label: 'Phân bổ kho' },
 ]
-
-// ─── SKU form schema ──────────────────────────────────────────────────────────
-
-const numOpt = z.union([z.number().min(0), z.literal('')]).optional()
-const intOpt = z.union([z.number().int().min(0), z.literal('')]).optional()
-const skuSchema = z.object({
-  item_code:       z.string().min(1, 'Nhập mã SKU'),
-  name:            z.string().min(1, 'Nhập tên SKU'),
-  unit:            z.string().optional(),
-  cost_price:      numOpt,
-  sale_price:      numOpt,
-  vat_percent:     numOpt,
-  model:           z.string().optional(),
-  part_number:     z.string().optional(),
-  description:     z.string().optional(),
-  manufacturer_warranty_months: intOpt,
-  reorder_point:   intOpt,
-  weight_kg:       numOpt,
-  is_active:       z.boolean().optional(),
-  image_url:       z.string().optional(),
-})
-type SkuForm = z.infer<typeof skuSchema>
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -126,21 +92,9 @@ export default function ProductDetailPage() {
   const qc = useQueryClient()
 
   const [isEditing, setIsEditing] = useState(false)
-  const [skuOpen, setSkuOpen]     = useState(false)
 
   const skuCols = useColumnVisibility('products-sku', SKU_COLUMNS)
   const [editForm] = AntForm.useForm()
-
-  const skuForm = useForm<SkuForm>({
-    resolver: zodResolver(skuSchema),
-    defaultValues: {
-      item_code: '', name: '', unit: '',
-      cost_price: '', sale_price: '', vat_percent: '',
-      model: '', part_number: '', description: '',
-      manufacturer_warranty_months: '', reorder_point: '', weight_kg: '',
-      is_active: true, image_url: '',
-    },
-  })
 
   // ── Queries ──────────────────────────────────────────────────────────────
 
@@ -172,29 +126,6 @@ export default function ProductDetailPage() {
     invalidateKey: ['product-detail', id],
     onSuccess: () => setIsEditing(false),
   })
-
-  const skuMutation = useApiMutation(
-    async (values: SkuForm) => {
-      const body: any = { item_code: values.item_code, name: values.name }
-      if (values.unit)                  body.unit         = values.unit
-      if (values.model?.trim())         body.model        = values.model.trim()
-      if (values.part_number?.trim())   body.part_number  = values.part_number.trim()
-      if (values.description?.trim())   body.description  = values.description.trim()
-      if (values.cost_price      !== '' && values.cost_price      != null) body.cost_price      = Number(values.cost_price)
-      if (values.sale_price      !== '' && values.sale_price      != null) body.sale_price      = Number(values.sale_price)
-      if (values.vat_percent     !== '' && values.vat_percent     != null) body.vat_percent     = Number(values.vat_percent)
-      if (values.manufacturer_warranty_months !== '' && values.manufacturer_warranty_months != null) body.manufacturer_warranty_months = Number(values.manufacturer_warranty_months)
-      if (values.reorder_point   !== '' && values.reorder_point   != null) body.reorder_point   = Number(values.reorder_point)
-      if (values.weight_kg       !== '' && values.weight_kg       != null) body.weight_kg       = Number(values.weight_kg)
-      if (values.image_url       !== '' && values.image_url       != null) body.image_url       = values.image_url
-      return (await api.post(`/products/${id}/variants`, body)).data
-    },
-    {
-      successMessage: 'Đã tạo SKU',
-      invalidateKey: [['product-detail', id], ['inventory-by-product', id]],
-      onSuccess: () => closeSkuSheet(),
-    },
-  )
 
   // ── Edit form setup ───────────────────────────────────────────────────────
 
@@ -237,20 +168,6 @@ export default function ProductDetailPage() {
     const values = await editForm.validateFields()
     updateProduct.mutate(values)
   }
-
-  // ── SKU sheet helpers ─────────────────────────────────────────────────────
-
-  function openCreateSku() {
-    skuForm.reset({
-      item_code: product?.code ? `${product.code}-` : '',
-      name: '', unit: '', cost_price: '', sale_price: '', vat_percent: '',
-      model: '', part_number: '', description: '', manufacturer_warranty_months: '', reorder_point: '', weight_kg: '',
-      is_active: true, image_url: '',
-    })
-    setSkuOpen(true)
-  }
-
-  function closeSkuSheet() { setSkuOpen(false); skuForm.reset() }
 
   // ── Derived data ──────────────────────────────────────────────────────────
 
@@ -403,7 +320,7 @@ export default function ProductDetailPage() {
           <div className="flex items-center gap-2">
             <ColumnToggle tableId="products-sku" columns={SKU_COLUMNS} visible={skuCols.visible} onToggle={skuCols.toggle} />
             {product.product_type !== 'service' && (
-              <Button size="sm" onClick={openCreateSku}><Plus className="mr-1.5 h-3.5 w-3.5" />Thêm SKU</Button>
+              <Button size="sm" onClick={() => navigate(`/products/${id}/variants/create`)}><Plus className="mr-1.5 h-3.5 w-3.5" />Thêm SKU</Button>
             )}
           </div>
         </div>
@@ -412,7 +329,7 @@ export default function ProductDetailPage() {
           <div className="flex flex-col items-center justify-center gap-3 py-16 text-muted-foreground">
             <p className="text-sm">Chưa có SKU nào</p>
             {product.product_type !== 'service' && (
-              <Button size="sm" variant="outline" onClick={openCreateSku}><Plus className="mr-1.5 h-3.5 w-3.5" />Tạo SKU đầu tiên</Button>
+              <Button size="sm" variant="outline" onClick={() => navigate(`/products/${id}/variants/create`)}><Plus className="mr-1.5 h-3.5 w-3.5" />Tạo SKU đầu tiên</Button>
             )}
           </div>
         ) : (
@@ -491,193 +408,6 @@ export default function ProductDetailPage() {
         )}
       </div>
 
-      {/* SKU sheet */}
-      <Sheet open={skuOpen} onOpenChange={(o) => !o && closeSkuSheet()}>
-        <SheetContent side="right" className="w-[840px] sm:max-w-[840px] flex flex-col gap-0" showCloseButton={false}>
-        <div className="flex shrink-0 items-center justify-between border-b border-border px-5 py-4">
-          <div>
-            <h2 className="text-base font-semibold">Tạo SKU mới</h2>
-            <p className="text-xs text-muted-foreground">{product.name}</p>
-          </div>
-          <button onClick={closeSkuSheet} className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors">
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-
-        <Form {...skuForm}>
-          <form onSubmit={skuForm.handleSubmit((v) => skuMutation.mutate(v))} className="flex min-h-0 flex-1 flex-col">
-            <div className="flex-1 overflow-y-auto px-5 py-5">
-              <div className="flex gap-6">
-              <div className="w-[200px] shrink-0 flex flex-col gap-2">
-                <FormField control={skuForm.control} name="image_url" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-xs">Hình ảnh</FormLabel>
-                    <FormControl>
-                      <ImageUpload value={field.value || undefined} onChange={(url) => field.onChange(url ?? '')} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-              </div>
-              <div className="flex min-w-0 flex-1 flex-col gap-4">
-
-                <FormField control={skuForm.control} name="item_code" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Mã hàng <span className="text-destructive">*</span></FormLabel>
-                    <FormControl><Input placeholder={`VD: ${product.code}-16P`} className="font-mono" {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-
-                <FormField control={skuForm.control} name="name" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Tên SKU <span className="text-destructive">*</span></FormLabel>
-                    <FormControl><Input placeholder="VD: Switch 16 Port" {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-
-                <FormField control={skuForm.control} name="unit" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Đơn vị</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value ?? ''}>
-                      <FormControl><SelectTrigger><SelectValue placeholder="Chọn đơn vị">{field.value || 'Chọn đơn vị'}</SelectValue></SelectTrigger></FormControl>
-                      <SelectContent>{UNITS.map((u) => <SelectItem key={u} value={u}>{u}</SelectItem>)}</SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-
-                {/* Giá */}
-                <div className="rounded-lg bg-muted/40 p-4">
-                  <p className="mb-3 text-xs font-semibold text-muted-foreground">Giá</p>
-                  <div className="flex flex-col gap-3">
-                    <div className="grid grid-cols-2 gap-3">
-                      <FormField control={skuForm.control} name="cost_price" render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-xs">Giá vốn (VND)</FormLabel>
-                          <FormControl>
-                            <InputNumber {...moneyProps} min={0} placeholder="0"
-                              value={field.value === '' ? undefined : field.value as number}
-                              onChange={(val) => field.onChange(val ?? '')} onBlur={field.onBlur} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )} />
-                      <FormField control={skuForm.control} name="sale_price" render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-xs">Giá bán (VND)</FormLabel>
-                          <FormControl>
-                            <InputNumber {...moneyProps} min={0} placeholder="0"
-                              value={field.value === '' ? undefined : field.value as number}
-                              onChange={(val) => field.onChange(val ?? '')} onBlur={field.onBlur} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )} />
-                    </div>
-                    <div className="w-1/2 pr-1.5">
-                      <FormField control={skuForm.control} name="vat_percent" render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-xs">% VAT</FormLabel>
-                          <FormControl>
-                            <Input type="number" min={0} max={100} step="0.01" placeholder="10"
-                              {...field}
-                              value={field.value === '' ? '' : String(field.value)}
-                              onChange={(e) => field.onChange(e.target.value === '' ? '' : Number(e.target.value))} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )} />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Thông số kỹ thuật */}
-                <div className="rounded-lg bg-muted/40 p-4">
-                  <p className="mb-3 text-xs font-semibold text-muted-foreground">Thông số kỹ thuật</p>
-                  <div className="flex flex-col gap-3">
-                    <div className="grid grid-cols-2 gap-3">
-                      <FormField control={skuForm.control} name="model" render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-xs">Model</FormLabel>
-                          <FormControl><Input placeholder="VD: SG110-16" {...field} /></FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )} />
-                      <FormField control={skuForm.control} name="part_number" render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-xs">Part number</FormLabel>
-                          <FormControl><Input placeholder="VD: CS-SG110..." className="font-mono" {...field} /></FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )} />
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <FormField control={skuForm.control} name="manufacturer_warranty_months" render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-xs">BH hãng (tháng)</FormLabel>
-                          <FormControl>
-                            <Input type="number" min={0} step={1} placeholder="0"
-                              {...field}
-                              value={field.value === '' ? '' : String(field.value)}
-                              onChange={(e) => field.onChange(e.target.value === '' ? '' : Number(e.target.value))} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )} />
-                      <FormField control={skuForm.control} name="reorder_point" render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-xs">Điểm đặt hàng</FormLabel>
-                          <FormControl>
-                            <Input type="number" min={0} step={1} placeholder="0"
-                              {...field}
-                              value={field.value === '' ? '' : String(field.value)}
-                              onChange={(e) => field.onChange(e.target.value === '' ? '' : Number(e.target.value))} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )} />
-                    </div>
-                    <FormField control={skuForm.control} name="description" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-xs">Mô tả (hiển thị trên báo giá)</FormLabel>
-                        <FormControl><Input placeholder="Mô tả ngắn theo khách hàng" {...field} /></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )} />
-                    <div className="w-1/2 pr-1.5">
-                      <FormField control={skuForm.control} name="weight_kg" render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-xs">Trọng lượng (kg)</FormLabel>
-                          <FormControl>
-                            <Input type="number" min={0} step="0.001" placeholder="0.000"
-                              {...field}
-                              value={field.value === '' ? '' : String(field.value)}
-                              onChange={(e) => field.onChange(e.target.value === '' ? '' : Number(e.target.value))} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )} />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Edit-only sections */}
-              </div>
-              </div>
-            </div>
-
-            <div className="flex shrink-0 items-center justify-end gap-2 border-t border-border px-5 py-4">
-              <Button type="button" variant="outline" onClick={closeSkuSheet}>Huỷ</Button>
-              <Button type="submit" disabled={skuMutation.isPending}>
-                {skuMutation.isPending ? 'Đang lưu…' : 'Tạo SKU'}
-              </Button>
-            </div>
-          </form>
-        </Form>
-        </SheetContent>
-      </Sheet>
     </div>
   )
 }
