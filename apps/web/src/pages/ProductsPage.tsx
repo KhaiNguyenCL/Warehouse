@@ -559,13 +559,15 @@ export default function ProductsPage() {
               extra={!hook.categories?.length ? 'Chưa có category nào — vào trang Category để tạo trước.' : undefined}>
               <AntSelect showSearch optionFilterProp="label"
                 options={hook.categories?.map((c: any) => ({ value: c.id, label: c.name }))}
-                onChange={() => hook.suggestCode()} />
+                onChange={() => hook.suggestCode()}
+                getPopupContainer={(t) => t.closest('[data-slot="sheet-content"]') as HTMLElement ?? document.body} />
             </AntForm.Item>
             <AntForm.Item name="brand_id" label="Hãng"
               extra={!hook.brands?.length ? 'Chưa có hãng nào.' : undefined}>
               <AntSelect showSearch optionFilterProp="label"
                 options={hook.brands?.map((b: any) => ({ value: b.id, label: b.name }))}
-                onChange={() => hook.suggestCode()} allowClear />
+                onChange={() => hook.suggestCode()} allowClear
+                getPopupContainer={(t) => t.closest('[data-slot="sheet-content"]') as HTMLElement ?? document.body} />
             </AntForm.Item>
             <AntForm.Item name="model_number" label="Mã dòng sản phẩm"
               extra="Phân biệt các dòng SP khác nhau cùng Category+Hãng">
@@ -579,7 +581,7 @@ export default function ProductsPage() {
             </AntForm.Item>
             <AntForm.Item name="name_en" label="Tên (English)"><AntInput /></AntForm.Item>
             <AntForm.Item name="product_type" label="Loại" rules={[{ required: true }]}>
-              <AntSelect options={PRODUCT_TYPES} />
+              <AntSelect options={PRODUCT_TYPES} getPopupContainer={(t) => t.closest('[data-slot="sheet-content"]') as HTMLElement ?? document.body} />
             </AntForm.Item>
             <AntForm.Item name="description" label="Mô tả"><AntInput.TextArea /></AntForm.Item>
             {productType === 'service' && (
@@ -588,7 +590,8 @@ export default function ProductsPage() {
                 <AntForm.Item name="sku" label="SKU" rules={[{ required: true }]} extra="Tự điền từ Mã sản phẩm"><AntInput /></AntForm.Item>
                 <AntForm.Item name="variant_name" label="Tên SKU" rules={[{ required: true }]} extra="Tự điền từ Tên"><AntInput /></AntForm.Item>
                 <AntForm.Item name="unit" label="Đơn vị" initialValue="Lần">
-                  <AntSelect options={UNITS.map((u) => ({ value: u, label: u }))} showSearch allowClear />
+                  <AntSelect options={UNITS.map((u) => ({ value: u, label: u }))} showSearch allowClear
+                    getPopupContainer={(t) => t.closest('[data-slot="sheet-content"]') as HTMLElement ?? document.body} />
                 </AntForm.Item>
                 <AntForm.Item name="sale_price" label="Giá dịch vụ">
                   <InputNumber {...moneyProps} min={0} />

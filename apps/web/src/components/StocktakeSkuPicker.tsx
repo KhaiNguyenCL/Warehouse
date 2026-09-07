@@ -33,6 +33,7 @@ export default function StocktakeSkuPicker({ form, name, remove }: Props) {
         style={{ width: 220 }}
         options={products?.data.map((p: any) => ({ value: p.id, label: p.name }))}
         onChange={(v) => setProductId(v)}
+        getPopupContainer={(t) => t.closest('[data-slot="sheet-content"]') as HTMLElement ?? document.body}
       />
       <Form.Item name={[name]} rules={[{ required: true, message: 'Chọn SKU' }]} noStyle>
         <Select
@@ -40,6 +41,7 @@ export default function StocktakeSkuPicker({ form, name, remove }: Props) {
           style={{ width: 240 }}
           disabled={!productId}
           options={productDetail?.variants.map((v: any) => ({ value: v.id, label: `${v.item_code ?? v.sku} — ${v.name}` }))}
+          getPopupContainer={(t) => t.closest('[data-slot="sheet-content"]') as HTMLElement ?? document.body}
         />
       </Form.Item>
       <Button danger onClick={remove}>

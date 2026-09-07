@@ -184,10 +184,12 @@ export default function StocktakesPage() {
               <AntInput />
             </Form.Item>
             <Form.Item name="warehouse_id" label="Kho" rules={[{ required: true }]}>
-              <AntSelect options={hook.warehouses?.map((w: any) => ({ value: w.id, label: `${w.name} (${w.code})` }))} />
+              <AntSelect options={hook.warehouses?.map((w: any) => ({ value: w.id, label: `${w.name} (${w.code})` }))}
+                getPopupContainer={(t) => t.closest('[data-slot="sheet-content"]') as HTMLElement ?? document.body} />
             </Form.Item>
             <Form.Item name="scope_type" label="Phạm vi" rules={[{ required: true }]}>
-              <AntSelect options={SCOPE_TYPES} onChange={() => hook.form.setFieldValue('scope_ids', undefined)} />
+              <AntSelect options={SCOPE_TYPES} onChange={() => hook.form.setFieldValue('scope_ids', undefined)}
+                getPopupContainer={(t) => t.closest('[data-slot="sheet-content"]') as HTMLElement ?? document.body} />
             </Form.Item>
             {hook.scopeType === 'by_sku' && (
               <Form.List name="scope_ids">
@@ -203,7 +205,8 @@ export default function StocktakesPage() {
             )}
             {hook.scopeType === 'by_category' && (
               <Form.Item name="scope_ids" label="Chọn Category" rules={[{ required: true }]} className="form-row-full">
-                <AntSelect mode="multiple" options={hook.categories?.map((c: any) => ({ value: c.id, label: c.name }))} />
+                <AntSelect mode="multiple" options={hook.categories?.map((c: any) => ({ value: c.id, label: c.name }))}
+                  getPopupContainer={(t) => t.closest('[data-slot="sheet-content"]') as HTMLElement ?? document.body} />
               </Form.Item>
             )}
             <Form.Item name="note" label="Ghi chú" className="form-row-full">
