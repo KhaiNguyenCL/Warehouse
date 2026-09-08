@@ -1,9 +1,10 @@
+import { useState } from 'react'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import {
   Users, Tags, ShoppingBag, Boxes, Warehouse, ClipboardList,
   PackageCheck, PackageSearch, FileText, PackageOpen, ArrowLeftRight, Database,
   ClipboardCheck, BarChart3, Shield, UserCog, UsersRound, Settings, Layers,
-  GitBranch, FormInput, LogOut, Bell,
+  GitBranch, FormInput, LogOut, Bell, KeyRound,
 } from 'lucide-react'
 import {
   Sidebar, SidebarContent, SidebarGroup,
@@ -16,6 +17,7 @@ import {
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import ChangePasswordDialog from '@/components/ChangePasswordDialog'
 import { useAuthStore } from '../store/auth'
 
 // permission: undefined → hiện với mọi user đã login
@@ -76,6 +78,7 @@ export default function AppLayout() {
   const user = useAuthStore((s) => s.user)
   const logout = useAuthStore((s) => s.logout)
   const hasPermission = useAuthStore((s) => s.hasPermission)
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false)
 
   const initials = (user?.full_name ?? 'U')
     .split(' ')
@@ -157,6 +160,11 @@ export default function AppLayout() {
                   <p className="text-xs text-muted-foreground">{user?.groups?.map(g => g.name).join(', ') || 'Không có nhóm'}</p>
                 </div>
                 <DropdownMenuSeparator />
+                <DropdownMenuItem className="cursor-pointer" onClick={() => setChangePasswordOpen(true)}>
+                  <KeyRound className="mr-2 h-4 w-4" />
+                  Đổi mật khẩu
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
                 <DropdownMenuItem
                   className="text-destructive focus:text-destructive cursor-pointer"
                   onClick={() => { logout(); navigate('/login') }}
@@ -166,6 +174,7 @@ export default function AppLayout() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            <ChangePasswordDialog open={changePasswordOpen} onOpenChange={setChangePasswordOpen} />
           </div>
         </header>
 

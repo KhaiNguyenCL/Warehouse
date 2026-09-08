@@ -16,4 +16,12 @@ export class AuthRepository {
       .select('ug.id', 'ug.name', 'r.name as role_name')
     return { ...user, groups }
   }
+
+  findUserById(id: string) {
+    return this.db('users').where({ id }).select('id', 'password_hash').first()
+  }
+
+  updatePassword(id: string, password_hash: string) {
+    return this.db('users').where({ id }).update({ password_hash, updated_at: this.db.fn.now() })
+  }
 }

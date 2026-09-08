@@ -1,6 +1,6 @@
 import { FastifyPluginAsync } from 'fastify'
 import { AuthService } from './auth.service'
-import { loginSchema, LoginBody } from './auth.schema'
+import { loginSchema, LoginBody, changePasswordSchema, ChangePasswordBody } from './auth.schema'
 import { authenticate } from '../../middleware/auth'
 
 const authRoutes: FastifyPluginAsync = async (app) => {
@@ -37,6 +37,16 @@ const authRoutes: FastifyPluginAsync = async (app) => {
 
     return reply.send({ ...user, groups, permissions: permRows })
   })
+
+  // Đổi mật khẩu tự phục vụ — user tự đổi mật khẩu của chính mình, cần đúng mật khẩu hiện tại.
+  app.patch<{ Body: ChangePasswordBody }>(
+    '/me/password',
+    { schema: changePasswordSchema, preHandler: authenticate },
+    async (request, reply) => {
+      await service.changePassword(request.user.sub, request.body.current_password, request.body.new_password)
+      return reply.code(204).send()
+    },
+  )
 }
 
 export default authRoutes

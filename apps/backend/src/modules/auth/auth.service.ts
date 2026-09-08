@@ -31,4 +31,18 @@ export class AuthService {
       },
     }
   }
+
+  // Đổi mật khẩu tự phục vụ — khác PATCH /settings/users/:id (cần quyền settings.users,
+  // dành cho admin đổi hộ user khác). Ở đây bất kỳ user nào cũng đổi được mật khẩu CHÍNH
+  // MÌNH, miễn nhập đúng mật khẩu hiện tại.
+  async changePassword(userId: string, currentPassword: string, newPassword: string) {
+    const user = await this.repo.findUserById(userId)
+    if (!user) throw { statusCode: 404, message: 'User not found' }
+
+    const valid = await bcrypt.compare(currentPassword, user.password_hash)
+    if (!valid) throw { statusCode: 400, message: 'Mật khẩu hiện tại không đúng' }
+
+    const password_hash = await bcrypt.hash(newPassword, 10)
+    await this.repo.updatePassword(userId, password_hash)
+  }
 }

@@ -19,3 +19,19 @@ export interface LoginBody {
   email: string
   password: string
 }
+
+export const changePasswordSchema = {
+  body: {
+    type: 'object',
+    required: ['current_password', 'new_password'],
+    properties: {
+      current_password: { type: 'string', minLength: 1 },
+      new_password:      { type: 'string', minLength: 6 },
+    },
+  },
+}
+
+export interface ChangePasswordBody {
+  current_password: string
+  new_password: string
+}

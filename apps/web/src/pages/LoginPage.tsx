@@ -68,7 +68,6 @@ export default function LoginPage() {
             >
               <Input
                 prefix={<MailOutlined style={{ color: 'var(--text-3)' }} />}
-                placeholder="admin@wms.local"
                 size="large"
                 style={{ borderRadius: 8 }}
               />
