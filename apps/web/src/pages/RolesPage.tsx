@@ -1,10 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useRef } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Plus, Pencil, Trash2, Shield, X } from 'lucide-react'
 
-import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { useApiMutation } from '@/hooks/useApiMutation'
 import { useRoles } from '@/hooks/useRoles'
@@ -45,16 +44,6 @@ export default function RolesPage() {
     defaultValues: { name: '', description: '' },
   })
 
-  // Load current permissions khi mở edit
-  const { data: editingRole } = useQuery({
-    queryKey: ['settings', 'roles', editing?.id],
-    queryFn: async () => (await api.get(`/settings/roles/${editing!.id}`)).data,
-    enabled: !!editing?.id,
-  })
-  useEffect(() => {
-    if (editingRole) setPermSelected(new Set(editingRole.permissions.map((p: any) => p.key)))
-  }, [editingRole])
-
   const savePermMutation = useApiMutation(
     (roleId: string) => api.put(`/settings/roles/${roleId}/permissions`, { permission_keys: [...permSelected] }),
     { successMessage: 'Cập nhật quyền thành công', invalidateKey: ['settings', 'roles'] },
@@ -67,11 +56,21 @@ export default function RolesPage() {
     setDialogOpen(true)
   }
 
-  function openEdit(record: any) {
+  // Fetch trực tiếp thay vì qua useQuery+useEffect — tránh phụ thuộc vào việc React Query
+  // có refetch/trả cache đúng lúc hay không (từng bị lỗi tick permission lúc hiện lúc không
+  // vì effect chỉ chạy lại khi object trả về đổi REFERENCE, mà cache có thể trả nguyên object
+  // cũ không đổi reference). Gọi thẳng API mỗi lần bấm sửa, set state 1 lần duy nhất, chắc chắn.
+  const openEditRequestId = useRef(0)
+  async function openEdit(record: any) {
     setEditing(record)
     setPermSelected(new Set())
     form.reset({ name: record.name ?? '', description: record.description ?? '' })
     setDialogOpen(true)
+    const requestId = ++openEditRequestId.current
+    const { data: role } = await api.get(`/settings/roles/${record.id}`)
+    // Bấm sang role khác trước khi request này trả về → bỏ qua, tránh set nhầm data cũ.
+    if (openEditRequestId.current !== requestId) return
+    setPermSelected(new Set(role.permissions.map((p: any) => p.key)))
   }
 
   function onSubmit(values: RoleForm) {
