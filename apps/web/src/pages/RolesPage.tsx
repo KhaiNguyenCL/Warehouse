@@ -81,7 +81,10 @@ export default function RolesPage() {
         { onSuccess: () => { savePermMutation.mutate(editing.id); setDialogOpen(false) } },
       )
     } else {
-      createMutation.mutate(values, { onSuccess: () => setDialogOpen(false) })
+      createMutation.mutate(
+        { ...values, permission_keys: [...permSelected] },
+        { onSuccess: () => setDialogOpen(false) },
+      )
     }
   }
 
@@ -186,7 +189,7 @@ export default function RolesPage() {
 
       {/* Create / Edit Sheet */}
       <Sheet open={dialogOpen} onOpenChange={(o) => !o && setDialogOpen(false)}>
-        <SheetContent side="right" className="w-[560px] flex flex-col gap-0" showCloseButton={false}>
+        <SheetContent side="right" className="w-[720px] flex flex-col gap-0" showCloseButton={false}>
         {/* header */}
         <div className="flex shrink-0 items-center justify-between border-b border-border px-5 py-4">
           <h2 className="text-base font-semibold text-foreground">
@@ -235,14 +238,14 @@ export default function RolesPage() {
                   </FormItem>
                 )} />
 
-                {/* Permissions panel — only when editing */}
-                {editing && (
-                  <RolePermissionsPanel
-                    roleId={editing.id}
-                    selected={permSelected}
-                    onChange={setPermSelected}
-                  />
-                )}
+                {/* Permissions panel — hiện cả khi tạo mới lẫn sửa. Component này không
+                    phụ thuộc roleId (chỉ fetch full danh sách permission), nên tạo mới vẫn
+                    chọn được ngay, gửi kèm permission_keys trong lúc POST /roles luôn. */}
+                <RolePermissionsPanel
+                  roleId={editing?.id ?? ''}
+                  selected={permSelected}
+                  onChange={setPermSelected}
+                />
 
               </div>
             </div>
