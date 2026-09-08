@@ -227,7 +227,7 @@ function Sidebar({
         data-slot="sidebar-container"
         data-side={side}
         className={cn(
-          "fixed inset-y-0 z-10 hidden h-svh w-(--sidebar-width) transition-[left,right,width] duration-200 ease-linear data-[side=left]:left-0 data-[side=left]:group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)] data-[side=right]:right-0 data-[side=right]:group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)] md:flex",
+          "fixed inset-y-0 z-10 hidden h-svh w-(--sidebar-width) transition-[left,right,width] duration-200 ease-linear transform-gpu will-change-transform data-[side=left]:left-0 data-[side=left]:group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)] data-[side=right]:right-0 data-[side=right]:group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)] md:flex",
           // Adjust the padding for floating and inset variants.
           variant === "floating" || variant === "inset"
             ? "p-2 group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+(--spacing(4))+2px)]"
@@ -304,7 +304,14 @@ function SidebarInset({ className, ...props }: React.ComponentProps<"main">) {
     <main
       data-slot="sidebar-inset"
       className={cn(
-        "relative flex w-full flex-1 flex-col bg-background md:peer-data-[variant=inset]:m-2 md:peer-data-[variant=inset]:ml-0 md:peer-data-[variant=inset]:rounded-2xl md:peer-data-[variant=inset]:shadow-sm md:peer-data-[variant=inset]:peer-data-[state=collapsed]:ml-2",
+        // transition-[margin] khớp duration/easing với Sidebar (width/left/right ở sidebar.tsx trên) —
+        // nếu không, margin đổi tức thì trong khi sidebar animate 200ms sẽ để lộ 1 khoảnh khắc mép lệch
+        // nhau, lộ màu nền wrapper (bg-sidebar) phía dưới thành 1 đường mờ nhấp nháy lúc mở/đóng.
+        // transform-gpu + will-change-transform: ép Chromium promote element này lên layer riêng —
+        // nếu không, box-shadow (shadow-sm) + rounded-2xl bị rasterize lại theo từng frame trong lúc
+        // margin/width cha nó đổi, gây artifact 1px nhấp nháy dọc theo mép (bug render quen thuộc của
+        // Chromium/Skia với shadow+radius trên phần tử đang resize, không phụ thuộc theme màu).
+        "relative flex w-full flex-1 flex-col bg-background transition-[margin] duration-200 ease-linear transform-gpu will-change-transform md:peer-data-[variant=inset]:m-2 md:peer-data-[variant=inset]:ml-0 md:peer-data-[variant=inset]:rounded-2xl md:peer-data-[variant=inset]:shadow-sm md:peer-data-[variant=inset]:peer-data-[state=collapsed]:ml-2",
         className
       )}
       {...props}
