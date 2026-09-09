@@ -424,7 +424,7 @@ export class ReceiptService {
       }
     }
 
-    return this.db.transaction(async (trx) => {
+    await this.db.transaction(async (trx) => {
       // Atomic guard: nếu giữa lúc check status ở trên và lúc này, phiếu đã bị complete
       // bởi 1 request khác, whereIn không khớp 'completed' → update dưới đây trả undefined.
       const cancelled = await this.repo.updateStatus(
@@ -436,8 +436,8 @@ export class ReceiptService {
       if (!cancelled) {
         throw { statusCode: 400, message: 'Không thể huỷ phiếu đã hoàn thành hoặc đã huỷ' }
       }
-      return cancelled
     })
+
     const actorName = await resolveActorName(this.db, userId)
     await logActivity({ db: this.db, objectType: 'receipt', objectId: id, objectCode: receipt.code, action: 'cancelled', actorId: userId, actorName, payload: body?.reason ? { reason: body?.reason } : null })
     return this.repo.findById(id)

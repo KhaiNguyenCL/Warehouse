@@ -266,10 +266,12 @@ qty_available = qty_on_hand - qty_reserved
 
 | Type | Mô tả | Document gốc | NCC/KH |
 |---|---|---|---|
-| purchase | Mua hàng mới từ NCC | Nhập thủ công, có thể link Purchase Order (`po_id`) | NCC bắt buộc |
-| return_in | Khách trả lại (SN đã sold) | Quotation gốc | KH bắt buộc |
+| purchase | Mua hàng mới từ NCC | **Bắt buộc** `shipment_id` trỏ tới 1 Shipment (Phiếu nhận hàng) đã ở trạng thái "Đã nhận hàng" — có thể kèm link Purchase Order (`po_id`) tuỳ chọn | NCC bắt buộc |
+| return_in | Khách trả lại (SN đã sold) | **Delivery Order gốc** (`ref_document_type='delivery_order'`) — không phải Quotation, vì 1 Quotation có thể sinh nhiều DO, cần biết đúng DO/lô/serial nào đã giao mới xử lý trả hàng đúng | KH bắt buộc |
 | adjustment | Điều chỉnh tồn kho thừa | Stocktake Result | Không cần |
 
+> **purchase bắt buộc qua Shipment**: quy trình chuẩn là hàng mua từ NCC phải đi qua Phiếu nhận hàng (Shipment) trước — người nhận xác nhận hàng vật lý về (status='received') rồi mới tạo Receipt để nhập kho chính thức (xem `receipt.service.ts::validateShipment`). Quan hệ PO 1-N Shipment 1-N Receipt.
+>
 > **warranty_in và demo_in KHÔNG phải Receipt** — là Transfer Order vì SN vẫn còn trong hệ thống, chỉ cần đổi warehouse_id.
 
 ---

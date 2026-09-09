@@ -69,3 +69,35 @@ export async function loginAs(email: string, password: string): Promise<string> 
   })
   return JSON.parse(res.payload).token
 }
+
+// Receipt import_type='purchase' bắt buộc shipment_id trỏ tới 1 Shipment đã "Đã nhận hàng"
+// (xem receipt.service.ts::validateShipment) — helper này tạo + receive luôn 1 shipment,
+// trả về id để dùng làm shipment_id khi test tạo receipt purchase.
+export async function createReceivedShipment(
+  token: string,
+  warehouseId: string,
+  lines: Array<{ variant_id: string; qty_expected: number; po_line_id?: string }>,
+  po_id?: string,
+): Promise<string> {
+  const app = await getApp()
+  const createRes = await app.inject({
+    method: 'POST',
+    url: '/api/v1/shipments',
+    headers: { authorization: `Bearer ${token}` },
+    payload: { warehouse_id: warehouseId, lines, ...(po_id ? { po_id } : {}) },
+  })
+  const shipment = JSON.parse(createRes.payload)
+  if (!shipment.id) {
+    throw new Error(`Tạo shipment thất bại: ${createRes.payload}`)
+  }
+  const receiveRes = await app.inject({
+    method: 'PATCH',
+    url: `/api/v1/shipments/${shipment.id}/receive`,
+    headers: { authorization: `Bearer ${token}` },
+    payload: {},
+  })
+  if (receiveRes.statusCode !== 200) {
+    throw new Error(`Receive shipment thất bại: ${receiveRes.payload}`)
+  }
+  return shipment.id
+}

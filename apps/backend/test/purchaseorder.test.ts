@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { getApp, createUserWithRole, loginAs } from './helpers'
+import { getApp, createUserWithRole, loginAs, createReceivedShipment } from './helpers'
 
 describe('PurchaseOrder', () => {
   let token: string
@@ -122,6 +122,7 @@ describe('PurchaseOrder', () => {
     await authedInject({ method: 'PATCH', url: `/api/v1/purchase-orders/${po.id}/confirm` })
 
     const warehouse = await app.db('warehouses').where({ code: 'WH-DEMO' }).first()
+    const shipmentId = await createReceivedShipment(token, warehouse.id, [{ variant_id: variantId, qty_expected: 1000, po_line_id: po.lines[0].id }], po.id)
     await authedInject({
       method: 'POST',
       url: '/api/v1/receipts',
@@ -129,6 +130,7 @@ describe('PurchaseOrder', () => {
         code: 'PN-PO-001',
         import_type: 'purchase',
         warehouse_id: warehouse.id,
+        shipment_id: shipmentId,
         po_id: po.id,
         lines: [{ variant_id: variantId, quantity: 4, cost_price: 950000, po_line_id: po.lines[0].id }],
       },
@@ -182,6 +184,7 @@ describe('PurchaseOrder', () => {
     await authedInject({ method: 'PATCH', url: `/api/v1/purchase-orders/${po.id}/confirm` })
 
     const warehouse = await app.db('warehouses').where({ code: 'WH-DEMO' }).first()
+    const shipmentId = await createReceivedShipment(token, warehouse.id, [{ variant_id: variantId, qty_expected: 1000, po_line_id: po.lines[0].id }], po.id)
     await authedInject({
       method: 'POST',
       url: '/api/v1/receipts',
@@ -189,6 +192,7 @@ describe('PurchaseOrder', () => {
         code: 'PN-PO-002',
         import_type: 'purchase',
         warehouse_id: warehouse.id,
+        shipment_id: shipmentId,
         po_id: po.id,
         lines: [{ variant_id: variantId, quantity: 4, cost_price: 950000, po_line_id: po.lines[0].id }],
       },

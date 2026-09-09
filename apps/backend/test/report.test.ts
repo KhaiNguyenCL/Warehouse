@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { getApp, createUserWithRole, loginAs } from './helpers'
+import { getApp, createUserWithRole, loginAs, createReceivedShipment } from './helpers'
 
 describe('Report', () => {
   let adminToken: string
@@ -155,10 +155,11 @@ describe('Report', () => {
 
   describe('Dashboard', () => {
     it('trả về đúng số liệu pending/active/expiring', async () => {
+      const shipmentId = await createReceivedShipment(adminToken, warehouseId, [{ variant_id: consumableAId, qty_expected: 1000 }])
       await authedInject({
         method: 'POST',
         url: '/api/v1/receipts',
-        payload: { code: 'PN-RPT-001', import_type: 'purchase', warehouse_id: warehouseId, lines: [{ variant_id: consumableAId, quantity: 5, cost_price: 1000 }] },
+        payload: { code: 'PN-RPT-001', import_type: 'purchase', warehouse_id: warehouseId, shipment_id: shipmentId, lines: [{ variant_id: consumableAId, quantity: 5, cost_price: 1000 }] },
       }).then((r) => authedInject({ method: 'PATCH', url: `/api/v1/receipts/${JSON.parse(r.payload).id}/submit` }))
 
       await authedInject({

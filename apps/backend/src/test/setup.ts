@@ -35,6 +35,7 @@ beforeEach(async () => {
   // Xóa theo đúng thứ tự FK — hoặc dùng TRUNCATE ... CASCADE
   await db.raw(`
     TRUNCATE TABLE
+      activity_logs,
       stock_movements,
       serial_numbers,
       reserved_items,

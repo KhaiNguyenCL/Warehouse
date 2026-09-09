@@ -1,10 +1,14 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { getApp, createUserWithRole, loginAs } from './helpers'
+import { getApp, createUserWithRole, loginAs, createReceivedShipment } from './helpers'
 
 describe('Receipt', () => {
   let token: string
   let warehouseId: string
   let variantId: string
+  // import_type='purchase' bắt buộc shipment_id trỏ tới 1 Shipment đã "Đã nhận hàng"
+  // (receipt.service.ts::validateShipment) — validate chỉ check tồn tại + status, không
+  // đối chiếu số lượng với dòng receipt, nên dùng chung 1 shipment cho mọi test trong file.
+  let shipmentId: string
 
   beforeEach(async () => {
     await createUserWithRole('Admin', 'admin@test.local', 'Test@123')
@@ -24,6 +28,8 @@ describe('Receipt', () => {
       .insert({ product_id: product.id, sku: 'TEST-SW-01', name: 'Test Switch 01', unit: 'Cái' })
       .returning('*')
     variantId = variant.id
+
+    shipmentId = await createReceivedShipment(token, warehouseId, [{ variant_id: variantId, qty_expected: 1000 }])
   })
 
   async function authedInject(opts: Parameters<Awaited<ReturnType<typeof getApp>>['inject']>[0]) {
@@ -45,6 +51,7 @@ describe('Receipt', () => {
         code: 'PN-TEST-001',
         import_type: 'purchase',
         warehouse_id: warehouseId,
+        shipment_id: shipmentId,
         lines: [{ variant_id: variantId, quantity: 10, cost_price: 100000 }],
       },
     })
@@ -98,6 +105,7 @@ describe('Receipt', () => {
         code: 'PN-WARRANTY-001',
         import_type: 'purchase',
         warehouse_id: warehouseId,
+        shipment_id: shipmentId,
         lines: [{ variant_id: variantId, quantity: 2, cost_price: 100000, manufacturer_warranty_months: 24 }],
       },
     })
@@ -132,6 +140,7 @@ describe('Receipt', () => {
         code: 'PN-NO-WARRANTY-001',
         import_type: 'purchase',
         warehouse_id: warehouseId,
+        shipment_id: shipmentId,
         lines: [{ variant_id: variantId, quantity: 1, cost_price: 100000 }],
       },
     })
@@ -159,6 +168,7 @@ describe('Receipt', () => {
         code: 'PN-LIST-001',
         import_type: 'purchase',
         warehouse_id: warehouseId,
+        shipment_id: shipmentId,
         lines: [{ variant_id: variantId, quantity: 1, cost_price: 10000 }],
       },
     })
@@ -178,6 +188,7 @@ describe('Receipt', () => {
         code: 'PN-TEST-005',
         import_type: 'purchase',
         warehouse_id: warehouseId,
+        shipment_id: shipmentId,
         lines: [{ variant_id: variantId, quantity: 5, cost_price: 50000 }],
       },
     })
@@ -202,6 +213,7 @@ describe('Receipt', () => {
         code: 'PN-TEST-006',
         import_type: 'purchase',
         warehouse_id: warehouseId,
+        shipment_id: shipmentId,
         lines: [{ variant_id: variantId, quantity: 5, cost_price: 50000 }],
       },
     })
@@ -224,6 +236,7 @@ describe('Receipt', () => {
         code: 'PN-TEST-009',
         import_type: 'purchase',
         warehouse_id: warehouseId,
+        shipment_id: shipmentId,
         lines: [{ variant_id: variantId, quantity: 2, cost_price: 50000 }],
       },
     })
@@ -249,6 +262,7 @@ describe('Receipt', () => {
         code: 'PN-CONSM-001',
         import_type: 'purchase',
         warehouse_id: warehouseId,
+        shipment_id: shipmentId,
         lines: [{ variant_id: consumableVariant.id, quantity: 5, cost_price: 50000 }],
       },
     })
@@ -274,6 +288,7 @@ describe('Receipt', () => {
               code,
               import_type: 'purchase',
               warehouse_id: warehouseId,
+              shipment_id: shipmentId,
               lines: [{ variant_id: variantId, quantity, cost_price }],
             },
           })
@@ -312,6 +327,7 @@ describe('Receipt', () => {
             code: 'PN-TEST-004',
             import_type: 'purchase',
             warehouse_id: warehouseId,
+            shipment_id: shipmentId,
             lines: [{ variant_id: variantId, quantity: 5, cost_price: 50000 }],
           },
         })
@@ -335,6 +351,7 @@ describe('Receipt', () => {
             code: 'PN-TEST-007',
             import_type: 'purchase',
             warehouse_id: warehouseId,
+            shipment_id: shipmentId,
             lines: [{ variant_id: variantId, quantity: 5, cost_price: 50000 }],
           },
         })
@@ -364,6 +381,7 @@ describe('Receipt', () => {
             code: 'PN-TEST-008',
             import_type: 'purchase',
             warehouse_id: warehouseId,
+            shipment_id: shipmentId,
             lines: [{ variant_id: variantId, quantity: 5, cost_price: 50000 }],
           },
         })
@@ -503,16 +521,22 @@ describe('Receipt', () => {
     })
   })
 
-  describe('import_type=return_in liên kết Quotation', () => {
-    async function createQuotation() {
+  // import_types.return_in.requires_ref_document = 'delivery_order' (khách trả hàng phải
+  // tham chiếu đúng Phiếu xuất kho đã giao — không phải Quotation, vì 1 Quotation có thể
+  // sinh nhiều DO, cần biết chính xác lô/serial nào đã giao mới xử lý trả hàng đúng).
+  describe('import_type=return_in liên kết Delivery Order', () => {
+    async function createDeliveryOrder() {
       const app = await getApp()
       const admin = await app.db('users').where({ email: 'admin@test.local' }).first()
       const [company] = await app.db('companies').insert({ code: 'CUST-RETURN', name: 'KH trả hàng' }).returning('*')
-      const [quotation] = await app
-        .db('quotations')
-        .insert({ code: 'QU-RETURN-001', company_id: company.id, created_by: admin.id })
+      const [deliveryOrder] = await app
+        .db('delivery_orders')
+        .insert({
+          code: 'DO-RETURN-001', export_type: 'sale', company_id: company.id,
+          warehouse_id: warehouseId, created_by: admin.id,
+        })
         .returning('*')
-      return quotation
+      return deliveryOrder
     }
 
     it('thiếu ref_document_type/ref_document_id → 400', async () => {
@@ -529,8 +553,8 @@ describe('Receipt', () => {
       expect(res.statusCode).toBe(400)
     })
 
-    it('ref_document_type sai (vd "stocktake_result" thay vì "quotation") → 400', async () => {
-      const quotation = await createQuotation()
+    it('ref_document_type sai (vd "stocktake_result" thay vì "delivery_order") → 400', async () => {
+      const deliveryOrder = await createDeliveryOrder()
       const res = await authedInject({
         method: 'POST',
         url: '/api/v1/receipts',
@@ -539,14 +563,14 @@ describe('Receipt', () => {
           import_type: 'return_in',
           warehouse_id: warehouseId,
           ref_document_type: 'stocktake_result',
-          ref_document_id: quotation.id,
+          ref_document_id: deliveryOrder.id,
           lines: [{ variant_id: variantId, quantity: 1, cost_price: 0 }],
         },
       })
       expect(res.statusCode).toBe(400)
     })
 
-    it('ref_document_id tham chiếu tới quotation không tồn tại → 400', async () => {
+    it('ref_document_id tham chiếu tới delivery_order không tồn tại → 400', async () => {
       const res = await authedInject({
         method: 'POST',
         url: '/api/v1/receipts',
@@ -554,7 +578,7 @@ describe('Receipt', () => {
           code: 'PN-RETURN-003',
           import_type: 'return_in',
           warehouse_id: warehouseId,
-          ref_document_type: 'quotation',
+          ref_document_type: 'delivery_order',
           ref_document_id: '00000000-0000-0000-0000-000000000000',
           lines: [{ variant_id: variantId, quantity: 1, cost_price: 0 }],
         },
@@ -563,7 +587,7 @@ describe('Receipt', () => {
     })
 
     it('ref_document_type/ref_document_id hợp lệ → tạo thành công', async () => {
-      const quotation = await createQuotation()
+      const deliveryOrder = await createDeliveryOrder()
       const res = await authedInject({
         method: 'POST',
         url: '/api/v1/receipts',
@@ -571,15 +595,15 @@ describe('Receipt', () => {
           code: 'PN-RETURN-004',
           import_type: 'return_in',
           warehouse_id: warehouseId,
-          ref_document_type: 'quotation',
-          ref_document_id: quotation.id,
+          ref_document_type: 'delivery_order',
+          ref_document_id: deliveryOrder.id,
           lines: [{ variant_id: variantId, quantity: 1, cost_price: 0 }],
         },
       })
       expect(res.statusCode).toBe(201)
       const receipt = JSON.parse(res.payload)
-      expect(receipt.ref_document_type).toBe('quotation')
-      expect(receipt.ref_document_id).toBe(quotation.id)
+      expect(receipt.ref_document_type).toBe('delivery_order')
+      expect(receipt.ref_document_id).toBe(deliveryOrder.id)
     })
   })
 
@@ -593,6 +617,7 @@ describe('Receipt', () => {
           code: 'PN-BATCH-001',
           import_type: 'purchase',
           warehouse_id: warehouseId,
+          shipment_id: shipmentId,
           lines: [{ variant_id: variantId, quantity: 3, cost_price: 75000 }],
         },
       })
@@ -654,6 +679,7 @@ describe('Receipt', () => {
           code: 'PN-PO-OK-001',
           import_type: 'purchase',
           warehouse_id: warehouseId,
+          shipment_id: shipmentId,
           po_id: po.id,
           lines: [{ variant_id: variantId, quantity: 6, cost_price: 950000, po_line_id: poLineId }],
         },
@@ -688,6 +714,7 @@ describe('Receipt', () => {
           code: 'PN-PO-DRAFT-001',
           import_type: 'purchase',
           warehouse_id: warehouseId,
+          shipment_id: shipmentId,
           po_id: po.id,
           lines: [{ variant_id: variantId, quantity: 5, cost_price: 950000, po_line_id: po.lines[0].id }],
         },
@@ -715,6 +742,7 @@ describe('Receipt', () => {
           code: 'PN-PO-MISMATCH-001',
           import_type: 'purchase',
           warehouse_id: warehouseId,
+          shipment_id: shipmentId,
           po_id: po.id,
           lines: [{ variant_id: otherVariant.id, quantity: 5, cost_price: 950000, po_line_id: poLineId }],
         },
@@ -732,6 +760,7 @@ describe('Receipt', () => {
           code: 'PN-PO-OVER-001',
           import_type: 'purchase',
           warehouse_id: warehouseId,
+          shipment_id: shipmentId,
           po_id: po.id,
           lines: [{ variant_id: variantId, quantity: 11, cost_price: 950000, po_line_id: poLineId }],
         },
@@ -749,6 +778,7 @@ describe('Receipt', () => {
           code: 'PN-PO-CANCEL-001',
           import_type: 'purchase',
           warehouse_id: warehouseId,
+          shipment_id: shipmentId,
           po_id: po.id,
           lines: [{ variant_id: variantId, quantity: 10, cost_price: 950000, po_line_id: poLineId }],
         },
@@ -763,6 +793,7 @@ describe('Receipt', () => {
           code: 'PN-PO-CANCEL-002',
           import_type: 'purchase',
           warehouse_id: warehouseId,
+          shipment_id: shipmentId,
           po_id: po.id,
           lines: [{ variant_id: variantId, quantity: 10, cost_price: 950000, po_line_id: poLineId }],
         },

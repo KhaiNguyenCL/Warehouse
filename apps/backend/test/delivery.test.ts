@@ -1,11 +1,15 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { getApp, createUserWithRole, loginAs } from './helpers'
+import { getApp, createUserWithRole, loginAs, createReceivedShipment } from './helpers'
 
 describe('Delivery', () => {
   let token: string
   let warehouseId: string
   let variantId: string
   let adminUserId: string
+  // import_type='purchase' bắt buộc shipment_id trỏ tới 1 Shipment đã "Đã nhận hàng"
+  // (receipt.service.ts::validateShipment) — dùng chung 1 shipment cho các test cần tạo
+  // receipt purchase trong file này (validate không đối chiếu số lượng/variant).
+  let shipmentId: string
 
   beforeEach(async () => {
     const adminUser = await createUserWithRole('Admin', 'admin@test.local', 'Test@123')
@@ -45,6 +49,8 @@ describe('Delivery', () => {
         status: 'active',
       })),
     )
+
+    shipmentId = await createReceivedShipment(token, warehouseId, [{ variant_id: variantId, qty_expected: 1000 }])
   })
 
   async function authedInject(opts: Parameters<Awaited<ReturnType<typeof getApp>>['inject']>[0]) {
@@ -432,6 +438,7 @@ describe('Delivery', () => {
           code: 'PN-FOR-DO-001',
           import_type: 'purchase',
           warehouse_id: warehouseId,
+          shipment_id: shipmentId,
           lines: [{ variant_id: variantId, quantity: 2, cost_price: 90000 }],
         },
       })
@@ -484,7 +491,7 @@ describe('Delivery', () => {
         const createRes = await authedInject({
           method: 'POST',
           url: '/api/v1/receipts',
-          payload: { code, import_type: 'purchase', warehouse_id: warehouseId, lines: [{ variant_id: consumableVariant.id, quantity, cost_price: costPrice }] },
+          payload: { code, import_type: 'purchase', warehouse_id: warehouseId, shipment_id: shipmentId, lines: [{ variant_id: consumableVariant.id, quantity, cost_price: costPrice }] },
         })
         const receipt = JSON.parse(createRes.payload)
         await authedInject({ method: 'PATCH', url: `/api/v1/receipts/${receipt.id}/complete`, payload: {} })
@@ -526,6 +533,7 @@ describe('Delivery', () => {
           code: 'PN-FOR-ADJ-001',
           import_type: 'purchase',
           warehouse_id: warehouseId,
+          shipment_id: shipmentId,
           lines: [{ variant_id: variantId, quantity: 1, cost_price: 80000 }],
         },
       })
