@@ -76,7 +76,7 @@ export class PurchaseOrderRepository {
     const customValuesByLine = lineIds.length ? await this.findLineCustomFieldValues(lineIds) : new Map()
 
     const linesWithProgress = lines.map((l: any) => {
-      const p = progress.get(l.id) ?? { received_qty: 0, pending_qty: 0 }
+      const p = progress.get(l.id) ?? { received_qty: 0, pending_qty: 0, shipment_qty: 0 }
       const qty = Number(l.quantity)
       return {
         ...l,
@@ -85,7 +85,8 @@ export class PurchaseOrderRepository {
         vat_percent: l.vat_percent != null ? Number(l.vat_percent) : null,
         received_qty: p.received_qty,
         pending_qty: p.pending_qty,
-        remaining_qty: qty - p.received_qty - p.pending_qty,
+        shipment_qty: p.shipment_qty,
+        remaining_qty: qty - p.received_qty - p.pending_qty - p.shipment_qty,
         custom_field_values: customValuesByLine.get(l.id) ?? [],
       }
     })
@@ -133,30 +134,46 @@ export class PurchaseOrderRepository {
     if (rows.length) await trx('field_values').insert(rows)
   }
 
-  // received_qty (Receipt completed) + pending_qty (Receipt draft)
-  // cho từng purchase_order_line — dùng tính remaining_qty, đối xứng với
-  // quotation.repository.ts::findLineProgress (exported_qty/pending_qty của DO).
+  // received_qty (Receipt completed) + pending_qty (Receipt draft/pending/approved)
+  // + shipment_qty (Shipment draft/received chưa có Receipt) cho từng purchase_order_line
+  // — dùng tính remaining_qty, đối xứng với quotation.repository.ts::findLineProgress.
   // Nhận trx tuỳ chọn: unconfirm()/cancel() gọi với trx SAU KHI đã forUpdate() khoá
   // purchase_orders, để đọc progress mới nhất trong cùng transaction — khoá này khớp
   // với forUpdate() bên receipt.service.ts::validatePurchaseOrder() nên 2 transaction
   // cùng đụng 1 PO sẽ serialize, không còn đọc progress cũ (stale) qua tay nhau.
   async findLineProgress(lineIds: string[], trx?: Knex.Transaction) {
     const runner = trx ?? this.db
-    const rows = await runner('receipt_lines as rl')
-      .join('receipts as r', 'r.id', 'rl.receipt_id')
-      .whereIn('rl.po_line_id', lineIds)
-      .groupBy('rl.po_line_id')
-      .select(
-        'rl.po_line_id',
-        runner.raw(`COALESCE(SUM(rl.quantity) FILTER (WHERE r.status = 'completed'), 0)::int as received_qty`),
-        runner.raw(
-          `COALESCE(SUM(rl.quantity) FILTER (WHERE r.status = 'draft'), 0)::int as pending_qty`,
+    const [receiptRows, shipmentRows] = await Promise.all([
+      runner('receipt_lines as rl')
+        .join('receipts as r', 'r.id', 'rl.receipt_id')
+        .whereIn('rl.po_line_id', lineIds)
+        .groupBy('rl.po_line_id')
+        .select(
+          'rl.po_line_id',
+          runner.raw(`COALESCE(SUM(rl.quantity) FILTER (WHERE r.status = 'completed'), 0)::int as received_qty`),
+          runner.raw(`COALESCE(SUM(rl.quantity) FILTER (WHERE r.status IN ('draft','pending_approval','approved')), 0)::int as pending_qty`),
         ),
-      )
+      // Shipment đang active (draft/received) nhưng chưa có Receipt nào → tính vào shipment_qty
+      // để tránh tạo thêm Shipment vượt số lượng PO. Khi Receipt được tạo từ Shipment đó,
+      // receipt_lines sẽ tính vào pending_qty và shipment này không còn thoả điều kiện NOT EXISTS.
+      runner('shipment_lines as sl')
+        .join('shipments as s', 's.id', 'sl.shipment_id')
+        .whereIn('sl.po_line_id', lineIds)
+        .whereIn('s.status', ['draft', 'received'])
+        .whereNotExists(
+          runner('receipts as r').where('r.shipment_id', runner.ref('s.id')).whereNotIn('r.status', ['cancelled']).select(runner.raw('1')),
+        )
+        .groupBy('sl.po_line_id')
+        .select('sl.po_line_id', runner.raw('COALESCE(SUM(sl.qty_expected), 0)::int as shipment_qty')),
+    ])
 
-    const map = new Map<string, { received_qty: number; pending_qty: number }>()
-    for (const r of rows) {
-      map.set(r.po_line_id, { received_qty: r.received_qty, pending_qty: r.pending_qty })
+    const map = new Map<string, { received_qty: number; pending_qty: number; shipment_qty: number }>()
+    for (const r of receiptRows) {
+      map.set(r.po_line_id, { received_qty: r.received_qty, pending_qty: r.pending_qty, shipment_qty: 0 })
+    }
+    for (const r of shipmentRows) {
+      const existing = map.get(r.po_line_id) ?? { received_qty: 0, pending_qty: 0, shipment_qty: 0 }
+      map.set(r.po_line_id, { ...existing, shipment_qty: r.shipment_qty })
     }
     return map
   }
@@ -171,6 +188,7 @@ export class PurchaseOrderRepository {
       ...l,
       received_qty: progress.get(l.id)?.received_qty ?? 0,
       pending_qty: progress.get(l.id)?.pending_qty ?? 0,
+      shipment_qty: progress.get(l.id)?.shipment_qty ?? 0,
     }))
   }
 

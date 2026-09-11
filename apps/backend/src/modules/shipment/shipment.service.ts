@@ -6,6 +6,7 @@ import {
   ReceiveShipmentBody,
   ListShipmentQuery,
 } from './shipment.schema'
+import { getNotificationService } from '../notification/notification.service'
 
 export class ShipmentService {
   private repo: ShipmentRepository
@@ -81,6 +82,22 @@ export class ShipmentService {
           }
         }
       }
+
+      // Thông báo Warehouse: hàng đã về, cần tạo phiếu nhập kho
+      try {
+        await getNotificationService(this.db).notifyByPermission(
+          this.db,
+          'receipt.create',
+          {
+            type: 'shipment_received',
+            title: `Phiếu nhận hàng ${received.code} đã xác nhận`,
+            body: 'Hàng đã về kho — cần tạo phiếu nhập kho để cập nhật tồn kho.',
+            link: `/shipments/${id}`,
+          },
+          userId,
+          trx,
+        )
+      } catch (_) { /* không chặn luồng chính nếu thông báo lỗi */ }
 
       return this.repo.findById(id)
     })

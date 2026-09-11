@@ -153,11 +153,12 @@ export default function ShipmentFormPage() {
             <Form.Item name="supplier_id" label="Nhà cung cấp" style={{ gridColumn: 'span 5' }}>
               {isView ? (
                 <BBox>{shipment?.supplier_name ?? ph}</BBox>
+              ) : hook.poId ? (
+                <BBox>{hook.poSupplierName ?? ph}</BBox>
               ) : (
                 <Select
                   allowClear
                   showSearch
-                  disabled={!!hook.poId}
                   optionFilterProp="label"
                   options={hook.suppliers?.map((c: any) => ({ value: c.id, label: c.name }))}
                   placeholder="Chọn NCC (tuỳ chọn)"

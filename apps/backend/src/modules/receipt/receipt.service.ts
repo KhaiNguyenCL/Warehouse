@@ -5,6 +5,7 @@ import { ReceiptRepository } from './receipt.repository'
 import { CreateReceiptBody, ListReceiptQuery, CompleteReceiptBody, SerialInput } from './receipt.schema'
 import { userHasPermission } from '../../lib/permission-check'
 import { logActivity, resolveActorName } from '../../lib/activity-logger'
+import { getNotificationService } from '../notification/notification.service'
 
 export class ReceiptService {
   private repo: ReceiptRepository
@@ -400,6 +401,19 @@ export class ReceiptService {
     })
     const actorName = await resolveActorName(this.db, userId)
     await logActivity({ db: this.db, objectType: 'receipt', objectId: id, objectCode: receipt.code, action: 'completed', actorId: userId, actorName })
+    try {
+      await getNotificationService(this.db).notifyByPermission(
+        this.db,
+        'report.inventory',
+        {
+          type: 'receipt_completed',
+          title: `Phiếu nhập kho ${receipt.code} đã hoàn thành`,
+          body: 'Tồn kho đã được cập nhật.',
+          link: `/receipts/${id}`,
+        },
+        userId,
+      )
+    } catch (_) { /* không chặn luồng chính */ }
     return this.repo.findById(id)
   }
 

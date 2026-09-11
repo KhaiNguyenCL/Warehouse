@@ -187,6 +187,7 @@ export function useShipmentForm() {
     poId,
     setPoId,
     poIdFromQuery,
+    poSupplierName: poDetail?.company_name as string | undefined,
     variantSearch,
     setVariantSearch,
     variantOptions,

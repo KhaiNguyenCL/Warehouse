@@ -26,6 +26,7 @@ interface Props {
   style?: React.CSSProperties
   placeholder?: string
   excludeTypes?: string[]
+  excludeIds?: string[]
   productId?: string
   disabled?: boolean
   inStockOnly?: boolean
@@ -38,6 +39,7 @@ export default function VariantSelect({
   style,
   placeholder = 'Tìm mã hàng / tên...',
   excludeTypes,
+  excludeIds,
   productId,
   disabled,
   inStockOnly = false,
@@ -57,7 +59,8 @@ export default function VariantSelect({
     if (!allVariants) return []
     const filtered = allVariants.filter((v) =>
       !excludeTypes?.includes(v.product_type) &&
-      (!productId || v.product_id === productId),
+      (!productId || v.product_id === productId) &&
+      (!excludeIds?.length || !excludeIds.includes(v.id)),
     )
     const groups = new Map<string, { label: React.ReactNode; options: any[] }>()
     for (const v of filtered) {
@@ -75,7 +78,7 @@ export default function VariantSelect({
       })
     }
     return Array.from(groups.values())
-  }, [allVariants, excludeTypes, productId])
+  }, [allVariants, excludeTypes, excludeIds, productId])
 
   function handleChange(val: string | undefined) {
     onChange?.(val)

@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import ChangePasswordDialog from '@/components/ChangePasswordDialog'
+import NotificationBell from '@/components/NotificationBell'
 import { useAuthStore } from '../store/auth'
 
 // permission: undefined → hiện với mọi user đã login
@@ -142,7 +143,8 @@ export default function AppLayout() {
             {NAV.flatMap(s => s.items).find(i => isActive(i.to))?.label ?? 'WMS'}
           </span>
 
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-2">
+            <NotificationBell />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-accent transition-colors outline-none">

@@ -45,11 +45,17 @@ export default function POLineItem({ form, name, remove, showLabel = true }: Pro
   })
   const poLineFields = (variantCustomFields ?? []).filter((f: any) => f.is_active && f.applies_to_po_line)
 
-  const note  = Form.useWatch(['lines', name, 'note'],        form)
-  const qty   = Form.useWatch(['lines', name, 'quantity'],    form) ?? 0
-  const price = Form.useWatch(['lines', name, 'unit_price'],  form) ?? 0
-  const vat   = Form.useWatch(['lines', name, 'vat_percent'], form) ?? 0
-  const total = qty && price ? qty * price * (1 + vat / 100) : null
+  const note     = Form.useWatch(['lines', name, 'note'],        form)
+  const qty      = Form.useWatch(['lines', name, 'quantity'],    form) ?? 0
+  const price    = Form.useWatch(['lines', name, 'unit_price'],  form) ?? 0
+  const vat      = Form.useWatch(['lines', name, 'vat_percent'], form) ?? 0
+  const allLines = Form.useWatch('lines', form) ?? []
+  const total    = qty && price ? qty * price * (1 + vat / 100) : null
+
+  const usedVariantIds: string[] = allLines
+    .filter((_: any, i: number) => i !== name)
+    .map((l: any) => l?.variant_id)
+    .filter(Boolean)
 
   async function onSelectVariant(variant: VariantData | null) {
     if (!variant) return
@@ -59,6 +65,7 @@ export default function POLineItem({ form, name, remove, showLabel = true }: Pro
       ...lines[name],
       variant_id: variant.id,
       unit_price: variant.cost_price != null ? Number(variant.cost_price) : lines[name]?.unit_price,
+      vat_percent: variant.vat_percent != null ? Number(variant.vat_percent) : lines[name]?.vat_percent,
       manufacturer_warranty_months: variant.manufacturer_warranty_months ?? lines[name]?.manufacturer_warranty_months,
       customer_warranty_months: variant.manufacturer_warranty_months ?? lines[name]?.customer_warranty_months,
     }
@@ -89,7 +96,7 @@ export default function POLineItem({ form, name, remove, showLabel = true }: Pro
   return (
     <div style={{ display: 'flex', gap: 8, width: '100%', marginBottom: 0, alignItems: 'flex-start', flexWrap: 'nowrap' }}>
       <Form.Item name={[name, 'variant_id']} label={lbl('Mã hàng / SKU')} style={{ flex: 2, minWidth: 0 }}>
-        <VariantSelect excludeTypes={['service']} onSelectVariant={onSelectVariant} style={{ ...inputStyle }} />
+        <VariantSelect excludeTypes={['service']} excludeIds={usedVariantIds} onSelectVariant={onSelectVariant} style={{ ...inputStyle }} />
       </Form.Item>
 
       <Form.Item name={[name, 'quantity']} label={lbl('SL')} style={{ flex: '0 0 88px' }}>

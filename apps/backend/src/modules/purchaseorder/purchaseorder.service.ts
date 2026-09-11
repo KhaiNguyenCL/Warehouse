@@ -10,6 +10,7 @@ import { CustomFieldRepository } from '../customfield/customfield.repository'
 import { validateCustomFieldValue } from '../customfield/customfield.service'
 import { logActivity, resolveActorName } from '../../lib/activity-logger'
 import { userHasPermission } from '../../lib/permission-check'
+import { getNotificationService } from '../notification/notification.service'
 
 const PG_FOREIGN_KEY_VIOLATION = '23503'
 
@@ -116,6 +117,19 @@ export class PurchaseOrderService {
     })
     const actorName = await resolveActorName(this.db, userId)
     await logActivity({ db: this.db, objectType: 'purchase_order', objectId: id, objectCode: result?.code, action: 'confirmed', actorId: userId, actorName })
+    try {
+      await getNotificationService(this.db).notifyByPermission(
+        this.db,
+        'receipt.create',
+        {
+          type: 'po_confirmed',
+          title: `Phiếu mua hàng ${result?.code} đã được xác nhận`,
+          body: 'Có thể tạo phiếu nhận hàng từ PO này.',
+          link: `/purchase-orders/${id}`,
+        },
+        userId,
+      )
+    } catch (_) { /* không chặn luồng chính */ }
     return result
   }
 
