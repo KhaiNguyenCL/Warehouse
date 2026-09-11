@@ -1,7 +1,6 @@
-import { useState, type ReactNode } from 'react'
-import { Table, Input as AntInput, AutoComplete, Modal, Space, Tag, Checkbox, Spin, Tooltip } from 'antd'
+import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { RefreshCw, Phone, Mail, Search, ChevronLeft, ChevronRight, User } from 'lucide-react'
+import { RefreshCw, Phone, Mail, Search, ChevronLeft, ChevronRight, ChevronDown, Loader2, User } from 'lucide-react'
 import { useCompanies } from '../hooks/useCompanies'
 import { useDebounce } from '../hooks/useDebounce'
 import { api } from '../lib/api'
@@ -9,50 +8,16 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 import { CodeText } from '@/components/ui/CodeText'
-import CompanySheet from '../components/CompanySheet'
-import ContactSheet from '../components/ContactSheet'
-import { PageSizeSelector } from '@/components/ui/PageSizeSelector'
-
-function TypeBadge({ types }: { types: string[] }) {
-  return (
-    <div className="flex flex-wrap gap-x-2 gap-y-0.5">
-      {types?.map((t) => (
-        <span key={t} className="text-sm text-foreground whitespace-nowrap">
-          {t === 'customer' ? 'Khách hàng' : 'NCC'}
-        </span>
-      ))}
-    </div>
-  )
-}
-
-// Switch nhỏ gọn thay cho dải tab full-width — không chiếm riêng 1 hàng, nhúng thẳng
-// vào toolbar/header sẵn có để bảng không bị đẩy xuống.
-function TabSwitch({ value, onChange }: {
-  value: 'companies' | 'contacts'
-  onChange: (v: 'companies' | 'contacts') => void
-}) {
-  return (
-    <div className="flex items-center gap-1 rounded-lg border border-border-md bg-muted/40 p-0.5">
-      {([
-        { key: 'companies', label: 'Đối tác' },
-        { key: 'contacts',  label: 'Người liên hệ' },
-      ] as const).map(({ key, label }) => (
-        <button
-          key={key}
-          onClick={() => onChange(key)}
-          className={cn(
-            'rounded-md px-2.5 py-1 text-xs font-medium transition-colors',
-            value === key
-              ? 'bg-background text-foreground shadow-sm'
-              : 'text-muted-foreground hover:text-foreground',
-          )}
-        >
-          {label}
-        </button>
-      ))}
-    </div>
-  )
-}
+import { SegmentedControl } from '@/components/ui/SegmentedControl'
+import CompanyDetailPanel from '../components/CompanyDetailPanel'
+import ContactDetailPanel from '../components/ContactDetailPanel'
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from '@/components/ui/dialog'
+import {
+  Table, TableHeader, TableBody, TableRow, TableHead, TableCell,
+} from '@/components/ui/table'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 // Header dùng chung cho cả 2 tab — CÙNG 1 cấu trúc DOM/kích thước cố định, chỉ đổi
 // nội dung chữ + actions. Nhờ vậy khi chuyển tab, header không bị "nhảy" hình dạng,
@@ -73,7 +38,14 @@ function TabHeader({
         <p className="mt-0.5 text-sm text-muted-foreground">{subtitle}</p>
       </div>
       <div className="flex items-center gap-2">
-        <TabSwitch value={activeTab} onChange={onTabChange} />
+        <SegmentedControl
+          value={activeTab}
+          onChange={onTabChange}
+          options={[
+            { value: 'companies', label: 'Đối tác' },
+            { value: 'contacts',  label: 'Người liên hệ' },
+          ]}
+        />
         {actions}
       </div>
     </div>
@@ -103,37 +75,18 @@ function CompaniesTab({ activeTab, onTabChange, hook }: {
   hook: ReturnType<typeof useCompanies>
 }) {
   const total = hook.data?.total ?? 0
-  const [sheetOpen, setSheetOpen] = useState(false)
+  const rows: any[] = hook.data?.data ?? []
+  const totalPages = Math.max(1, Math.ceil(total / hook.limit))
+
   const [selectedId, setSelectedId] = useState<string | null>(null)
 
-  function openView(id: string) { setSelectedId(id); setSheetOpen(true) }
-  function closeSheet()         { setSheetOpen(false) }
-
-  const [inputValue, setInputValue] = useState('')
-  const debouncedInput = useDebounce(inputValue, 200)
-
-  const { data: suggestData } = useQuery({
-    queryKey: ['companies-suggest', debouncedInput],
-    queryFn: async () =>
-      (await api.get('/companies', { params: { search: debouncedInput.trim(), limit: 8 } })).data,
-    enabled: debouncedInput.trim().length >= 1,
-    staleTime: 10_000,
-  })
-
-  const suggestOptions = (suggestData?.data ?? []).map((c: any) => ({
-    value: c.name,
-    companyId: c.id,
-    label: (
-      <div className="flex items-center justify-between gap-2">
-        <span className="font-medium truncate" title={c.name}>{c.name}</span>
-        <span className="text-xs text-muted-foreground font-mono flex-shrink-0">{c.code}</span>
-      </div>
-    ),
-  }))
-
-  const rows: any[] = hook.data?.data ?? []
-  const from = total === 0 ? 0 : (hook.page - 1) * hook.limit + 1
-  const to = Math.min(hook.page * hook.limit, total)
+  // Giữ lựa chọn hiện tại nếu vẫn còn trong trang; nếu không (đổi trang/lọc/tìm kiếm) thì
+  // tự chọn dòng đầu tiên để panel bên phải luôn có nội dung hiển thị.
+  useEffect(() => {
+    if (rows.length === 0) { setSelectedId(null); return }
+    if (!selectedId || !rows.some((r) => r.id === selectedId)) setSelectedId(rows[0].id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows])
 
   return (
     <div className="flex flex-col gap-4">
@@ -151,172 +104,113 @@ function CompaniesTab({ activeTab, onTabChange, hook }: {
         }
       />
 
-      {/* Table card */}
-      <div className="overflow-hidden rounded-xl border border-border-md bg-background shadow-sm">
+      <div className="grid grid-cols-[380px_1fr] items-start gap-4">
 
-        {/* Toolbar */}
-        <div className="flex items-center justify-between border-b border-border px-4 py-3">
-          <div className="flex items-center gap-2">
-            {/* AutoComplete search */}
+        {/* Roster */}
+        <div className="flex flex-col overflow-hidden rounded-xl border border-border-md bg-background shadow-sm">
+          <div className="flex flex-col gap-2 border-b border-border p-3">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none z-10" />
-              <AutoComplete
-                options={suggestOptions}
-                value={inputValue}
-                onChange={(v) => { setInputValue(v); hook.setSearch(v) }}
-                onSelect={(_: string, option: any) => { setInputValue(''); openView(option.companyId) }}
-                onClear={() => { setInputValue(''); hook.setSearch('') }}
-                filterOption={false}
-                style={{ width: 320 }}
-                allowClear
-              >
-                <AntInput
-                  placeholder="Tìm tên, mã, MST…"
-                  style={{ height: 36, paddingLeft: 36, fontSize: 14 }}
-                />
-              </AutoComplete>
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Tìm tên, mã, MST…"
+                value={hook.search}
+                onChange={(e) => hook.setSearch(e.target.value)}
+                className="h-9 pl-9 text-sm shadow-none"
+              />
             </div>
-
-            {/* Type filters */}
-            {(['all', 'customer', 'supplier'] as const).map((t) => (
-              <button
-                key={t}
-                onClick={() => hook.setTypeFilter(t)}
-                className={cn(
-                  'rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
-                  hook.typeFilter === t
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground hover:bg-muted hover:text-foreground',
-                )}
-              >
-                {t === 'all' ? 'Tất cả' : t === 'customer' ? 'Khách hàng' : 'NCC'}
-              </button>
-            ))}
+            <SegmentedControl
+              value={hook.typeFilter}
+              onChange={hook.setTypeFilter}
+              options={[
+                { value: 'all' as const,      label: 'Tất cả' },
+                { value: 'customer' as const, label: 'Khách hàng' },
+                { value: 'supplier' as const, label: 'NCC' },
+              ]}
+            />
           </div>
-          <span className="text-sm text-muted-foreground">{total.toLocaleString('vi-VN')} kết quả</span>
-        </div>
 
-        {/* Table */}
-        <table className="w-full table-fixed">
-          <colgroup>
-            <col style={{ width: '4%' }} />
-            <col style={{ width: '14%' }} />
-            <col style={{ width: '32%' }} />
-            <col style={{ width: '12%' }} />
-            <col style={{ width: '22%' }} />
-            <col style={{ width: '16%' }} />
-          </colgroup>
-          <thead>
-            <tr className="border-b border-border bg-muted/60">
-              <th className="px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground">#</th>
-              <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Mã</th>
-              <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Tên công ty</th>
-              <th className="px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground">Loại</th>
-              <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Liên hệ</th>
-              <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">MST</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
+          <ul
+            className="flex-1 overflow-y-auto p-1.5"
+            style={{ maxHeight: 'calc(100vh - 320px)', minHeight: 240 }}
+          >
             {hook.isFetching && rows.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="px-4 py-12 text-center text-xs text-muted-foreground">Đang tải…</td>
-              </tr>
+              <li className="px-3 py-10 text-center text-xs text-muted-foreground">Đang tải…</li>
             ) : rows.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="px-4 py-12 text-center text-xs text-muted-foreground">
-                  {hook.search ? 'Không tìm thấy kết quả.' : 'Chưa có đối tác nào.'}
-                </td>
-              </tr>
+              <li className="px-3 py-10 text-center text-xs text-muted-foreground">
+                {hook.search ? 'Không tìm thấy đối tác nào.' : 'Chưa có đối tác nào.'}
+              </li>
             ) : (
-              rows.map((row, i) => (
-                <tr
-                  key={row.id}
-                  onClick={() => openView(row.id)}
-                  className="cursor-pointer transition-colors hover:bg-muted/30"
-                >
-                  <td className="px-4 py-2 text-center text-xs text-muted-foreground">{from + i}</td>
-                  <td className="px-4 py-2 whitespace-nowrap">
-                    <CodeText>{row.code}</CodeText>
-                  </td>
-                  <td className="px-4 py-2">
-                    <div className="font-medium text-foreground leading-snug">{row.name}</div>
-                    {row.address && (
-                      <div className="mt-0.5 text-xs text-muted-foreground leading-snug line-clamp-1">{row.address}</div>
+              rows.map((c) => (
+                <li key={c.id}>
+                  <button
+                    onClick={() => setSelectedId(c.id)}
+                    className={cn(
+                      'flex w-full items-start gap-2.5 rounded-lg border px-2.5 py-2 text-left transition-colors',
+                      c.id === selectedId
+                        ? 'border-[var(--accent)]/25 bg-[var(--accent-bg)]'
+                        : 'border-transparent hover:bg-muted/60',
                     )}
-                  </td>
-                  <td className="px-4 py-2 text-center"><div className="flex justify-center"><TypeBadge types={row.types ?? []} /></div></td>
-                  <td className="px-4 py-2">
-                    {row.phone || row.email ? (
-                      <div className="flex flex-col gap-0.5 min-w-0">
-                        {row.phone && (
-                          <span className="flex items-center gap-1.5 text-xs text-foreground min-w-0">
-                            <Phone className="h-3 w-3 flex-shrink-0 text-muted-foreground" />
-                            <span className="truncate" title={row.phone}>{row.phone}</span>
-                          </span>
-                        )}
-                        {row.email && (
-                          <span className="flex items-center gap-1.5 text-xs text-foreground min-w-0">
-                            <Mail className="h-3 w-3 flex-shrink-0 text-muted-foreground" />
-                            <span className="truncate" title={row.email}>{row.email}</span>
-                          </span>
-                        )}
-                      </div>
-                    ) : (
-                      <span className="text-muted-foreground">—</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-2 font-mono text-xs text-foreground">
-                    {row.tax_code || '—'}
-                  </td>
-                </tr>
+                  >
+                    <span
+                      className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full"
+                      style={{ background: c.types?.includes('customer') ? 'var(--accent)' : 'var(--s-expired-color)' }}
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span
+                        className="block text-sm font-medium leading-snug text-foreground"
+                        title={c.name}
+                        style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
+                      >
+                        {c.name}
+                      </span>
+                      <span className="mt-1 flex items-center gap-1.5">
+                        <CodeText>{c.code}</CodeText>
+                        {c.phone && <Phone className="h-2.5 w-2.5 flex-shrink-0 text-muted-foreground" />}
+                        {c.email && <Mail className="h-2.5 w-2.5 flex-shrink-0 text-muted-foreground" />}
+                      </span>
+                    </span>
+                  </button>
+                </li>
               ))
             )}
-          </tbody>
-        </table>
+          </ul>
 
-        {/* Pagination */}
-        {total > 0 && (
-          <div className="flex items-center justify-between border-t border-border px-4 py-2.5">
-            <div className="flex items-center gap-3">
-              <span className="text-xs text-muted-foreground">{from}–{to} / {total} công ty</span>
-              <PageSizeSelector value={hook.limit} onChange={hook.setLimit} />
+          {total > 0 && (
+            <div className="flex items-center justify-between border-t border-border px-3 py-2">
+              <span className="text-xs text-muted-foreground">Trang {hook.page} / {totalPages}</span>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline" size="icon-sm"
+                  disabled={hook.page <= 1}
+                  onClick={() => hook.setPage(hook.page - 1)}
+                  className="h-6 w-6"
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                </Button>
+                <Button
+                  variant="outline" size="icon-sm"
+                  disabled={hook.page >= totalPages}
+                  onClick={() => hook.setPage(hook.page + 1)}
+                  className="h-6 w-6"
+                >
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </Button>
+              </div>
             </div>
-            <div className="flex items-center gap-1">
-              <Button
-                variant="ghost" size="sm"
-                disabled={hook.page <= 1}
-                onClick={() => hook.setPage(hook.page - 1)}
-                className="h-7 w-7 p-0"
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <span className="min-w-[3rem] text-center text-xs text-muted-foreground">
-                {hook.page} / {Math.ceil(total / hook.limit)}
-              </span>
-              <Button
-                variant="ghost" size="sm"
-                disabled={to >= total}
-                onClick={() => hook.setPage(hook.page + 1)}
-                className="h-7 w-7 p-0"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        )}
+          )}
+        </div>
+
+        {/* Detail */}
+        <CompanyDetailPanel companyId={selectedId} />
       </div>
-
-      {/* Company detail sidebar */}
-      <CompanySheet
-        open={sheetOpen}
-        companyId={selectedId}
-        onClose={closeSheet}
-      />
     </div>
   )
 }
 
 // ─── Contacts Tab ──────────────────────────────────────────────────────────────
+// Cùng layout master-detail với CompaniesTab ở trên (roster trái 380px + panel chi
+// tiết phải) — trước đây tab này dùng 1 bảng màu slate cứng copy từ mẫu khác, không
+// khớp token WMS và khác hẳn cấu trúc CompaniesTab; giờ quy về đồng bộ.
 
 function ContactsTab({ activeTab, onTabChange, onOpenSync }: {
   activeTab: 'companies' | 'contacts'
@@ -326,8 +220,9 @@ function ContactsTab({ activeTab, onTabChange, onOpenSync }: {
   const [search, setSearch] = useState('')
   const debouncedSearch = useDebounce(search, 200)
   const [page, setPage] = useState(1)
-  const [limit, setLimit] = useState(50)
-  const [selectedContact, setSelectedContact] = useState<any | null>(null)
+  const limit = 50
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+
   const { data, isFetching } = useQuery({
     queryKey: ['contacts', debouncedSearch, page, limit],
     queryFn: async () =>
@@ -337,9 +232,16 @@ function ContactsTab({ activeTab, onTabChange, onOpenSync }: {
 
   const rows: any[] = data?.data ?? []
   const total = data?.total ?? 0
-  const from = total === 0 ? 0 : (page - 1) * limit + 1
-  const to   = Math.min(page * limit, total)
-  const totalPages = Math.ceil(total / limit)
+  const totalPages = Math.max(1, Math.ceil(total / limit))
+  const selected = rows.find((r) => r.id === selectedId) ?? null
+
+  // Giữ lựa chọn hiện tại nếu vẫn còn trong trang; nếu không thì tự chọn dòng đầu
+  // tiên để panel bên phải luôn có nội dung hiển thị — giống hệt CompaniesTab.
+  useEffect(() => {
+    if (rows.length === 0) { setSelectedId(null); return }
+    if (!selectedId || !rows.some((r) => r.id === selectedId)) setSelectedId(rows[0].id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows])
 
   return (
     <div className="flex flex-col gap-4">
@@ -356,107 +258,90 @@ function ContactsTab({ activeTab, onTabChange, onOpenSync }: {
         }
       />
 
-      {/* Table card */}
-      <div className="overflow-hidden rounded-xl border border-border-md bg-background shadow-sm">
+      <div className="grid grid-cols-[380px_1fr] items-start gap-4">
 
-        {/* Toolbar */}
-        <div className="flex items-center justify-between border-b border-border px-4 py-3">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Tìm tên, SĐT, email, công ty…"
-              value={search}
-              onChange={(e) => { setSearch(e.target.value); setPage(1) }}
-              className="h-9 w-72 pl-9 text-sm shadow-none"
-            />
+        {/* Roster */}
+        <div className="flex flex-col overflow-hidden rounded-xl border border-border-md bg-background shadow-sm">
+          <div className="border-b border-border p-3">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Tìm tên, SĐT, email, công ty…"
+                value={search}
+                onChange={(e) => { setSearch(e.target.value); setPage(1) }}
+                className="h-9 pl-9 text-sm shadow-none"
+              />
+            </div>
           </div>
-          <span className="text-sm text-muted-foreground">{total.toLocaleString('vi-VN')} kết quả</span>
-        </div>
 
-        <table className="w-full table-fixed">
-          <colgroup>
-            <col style={{ width: '4%' }} />
-            <col style={{ width: '20%' }} />
-            <col style={{ width: '14%' }} />
-            <col style={{ width: '12%' }} />
-            <col style={{ width: '18%' }} />
-            <col style={{ width: '24%' }} />
-            <col style={{ width: '8%' }} />
-          </colgroup>
-          <thead>
-            <tr className="border-b border-border bg-muted/60">
-              <th className="px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground">#</th>
-              <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Họ tên</th>
-              <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Chức vụ</th>
-              <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">SĐT</th>
-              <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Email</th>
-              <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Công ty</th>
-              <th className="px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground">Chính</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
+          <ul
+            className="flex-1 overflow-y-auto p-1.5"
+            style={{ maxHeight: 'calc(100vh - 320px)', minHeight: 240 }}
+          >
             {isFetching && rows.length === 0 ? (
-              <tr><td colSpan={7} className="px-4 py-12 text-center text-xs text-muted-foreground">Đang tải…</td></tr>
+              <li className="px-3 py-10 text-center text-xs text-muted-foreground">Đang tải…</li>
             ) : rows.length === 0 ? (
-              <tr><td colSpan={7} className="px-4 py-12 text-center text-xs text-muted-foreground">Không có người liên hệ nào.</td></tr>
+              <li className="px-3 py-10 text-center text-xs text-muted-foreground">
+                {search ? 'Không tìm thấy người liên hệ nào.' : 'Chưa có người liên hệ nào.'}
+              </li>
             ) : (
-              rows.map((row, i) => (
-                <tr
-                  key={row.id}
-                  onClick={() => setSelectedContact(row)}
-                  className="cursor-pointer transition-colors hover:bg-muted/30"
-                >
-                  <td className="px-4 py-2.5 text-center text-xs text-muted-foreground">{from + i}</td>
-                  <td className="px-4 py-2.5">
-                    <div className="flex items-center gap-2">
-                      <User className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
-                      <span className="font-medium text-sm text-foreground truncate" title={row.full_name}>{row.full_name}</span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-2.5 text-sm text-foreground truncate" title={row.position || ''}>{row.position || '—'}</td>
-                  <td className="px-4 py-2.5 text-sm text-foreground">{row.phone || '—'}</td>
-                  <td className="px-4 py-2.5 text-sm text-foreground truncate" title={row.email || ''}>{row.email || '—'}</td>
-                  <td className="px-4 py-2.5">
-                    <div className="text-sm text-foreground truncate" title={row.company_name}>{row.company_name}</div>
-                    {row.company_code && <div className="text-xs text-muted-foreground font-mono">{row.company_code}</div>}
-                  </td>
-                  <td className="px-4 py-2.5 text-center">
-                    {row.is_primary && (
-                      <span className="text-sm font-medium text-emerald-700">Chính</span>
+              rows.map((c) => (
+                <li key={c.id}>
+                  <button
+                    onClick={() => setSelectedId(c.id)}
+                    className={cn(
+                      'flex w-full items-start gap-2.5 rounded-lg border px-2.5 py-2 text-left transition-colors',
+                      c.id === selectedId
+                        ? 'border-[var(--accent)]/25 bg-[var(--accent-bg)]'
+                        : 'border-transparent hover:bg-muted/60',
                     )}
-                  </td>
-                </tr>
+                  >
+                    <User className="mt-1 h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-center gap-1.5">
+                        <span className="truncate text-sm font-medium leading-snug text-foreground" title={c.full_name}>{c.full_name}</span>
+                        {c.is_primary && <span className="flex-shrink-0 text-[10px] font-semibold text-emerald-700">Chính</span>}
+                      </span>
+                      <span className="mt-1 flex items-center gap-1.5">
+                        {c.company_name && <span className="truncate text-xs text-muted-foreground" title={c.company_name}>{c.company_name}</span>}
+                        {c.phone && <Phone className="h-2.5 w-2.5 flex-shrink-0 text-muted-foreground" />}
+                        {c.email && <Mail className="h-2.5 w-2.5 flex-shrink-0 text-muted-foreground" />}
+                      </span>
+                    </span>
+                  </button>
+                </li>
               ))
             )}
-          </tbody>
-        </table>
+          </ul>
 
-        {/* Pagination — always show when data loaded */}
-        {total > 0 && (
-          <div className="flex items-center justify-between border-t border-border px-4 py-2.5">
-            <div className="flex items-center gap-3">
-              <span className="text-xs text-muted-foreground">{from}–{to} / {total} người liên hệ</span>
-              <PageSizeSelector value={limit} onChange={(v) => { setLimit(v); setPage(1) }} />
+          {total > 0 && (
+            <div className="flex items-center justify-between border-t border-border px-3 py-2">
+              <span className="text-xs text-muted-foreground">Trang {page} / {totalPages}</span>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline" size="icon-sm"
+                  disabled={page <= 1}
+                  onClick={() => setPage(page - 1)}
+                  className="h-6 w-6"
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                </Button>
+                <Button
+                  variant="outline" size="icon-sm"
+                  disabled={page >= totalPages}
+                  onClick={() => setPage(page + 1)}
+                  className="h-6 w-6"
+                >
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </Button>
+              </div>
             </div>
-            <div className="flex items-center gap-1">
-              <Button variant="ghost" size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)} className="h-7 w-7 p-0">
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <span className="min-w-[3rem] text-center text-xs text-muted-foreground">{page} / {totalPages}</span>
-              <Button variant="ghost" size="sm" disabled={to >= total} onClick={() => setPage(page + 1)} className="h-7 w-7 p-0">
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        )}
+          )}
+        </div>
+
+        {/* Detail */}
+        <ContactDetailPanel contact={selected} />
       </div>
-
-      <ContactSheet
-        open={!!selectedContact}
-        contact={selectedContact}
-        onClose={() => setSelectedContact(null)}
-        onUpdated={() => setSelectedContact(null)}
-      />
     </div>
   )
 }
@@ -467,10 +352,56 @@ const FIELD_LABEL: Record<string, string> = {
   bank_account: 'Tài khoản', bank_name: 'Ngân hàng',
 }
 
+// Checkbox tối giản dùng riêng cho bảng sync — chỉ 4 chỗ dùng (2 select-all + 2 select-row),
+// không đáng để dựng thành component ui/checkbox.tsx dùng chung cho cả app.
+function SyncCheckbox({ checked, indeterminate, onChange }: {
+  checked: boolean
+  indeterminate?: boolean
+  onChange: (checked: boolean) => void
+}) {
+  const ref = useRef<HTMLInputElement>(null)
+  useEffect(() => { if (ref.current) ref.current.indeterminate = !!indeterminate }, [indeterminate])
+  return (
+    <input
+      ref={ref}
+      type="checkbox"
+      checked={checked}
+      onChange={(e) => onChange(e.target.checked)}
+      onClick={(e) => e.stopPropagation()}
+      className="h-4 w-4 cursor-pointer rounded border-border-md accent-[var(--accent)]"
+    />
+  )
+}
+
+function MiniTypeTag({ type }: { type: string }) {
+  const isCust = type === 'customer'
+  const color = isCust ? 'var(--accent-text)' : 'var(--s-expired-color)'
+  const bg    = isCust ? 'var(--accent-bg)'   : 'var(--s-expired-bg)'
+  return (
+    <span className="rounded-full px-1.5 py-0.5 text-[10px] font-semibold" style={{ background: bg, color }}>
+      {isCust ? 'KH' : 'NCC'}
+    </span>
+  )
+}
+
+function ChangeFieldTag({ field, old, next }: { field: string; old: string | null; next: string | null }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className="cursor-default rounded-md border border-border bg-muted/60 px-1.5 py-0.5 text-xs font-medium text-foreground">
+          {FIELD_LABEL[field] ?? field}
+        </span>
+      </TooltipTrigger>
+      <TooltipContent>{old ?? '—'} → {next ?? '—'}</TooltipContent>
+    </Tooltip>
+  )
+}
+
 function SyncBitrixModal({ hook }: { hook: any }) {
   const preview = hook.syncPreview
   const newList: any[]     = preview?.new_companies     ?? []
   const changedList: any[] = preview?.changed_companies ?? []
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
 
   function toggleId(id: string) {
     hook.setSelectedBxIds((prev: string[]) =>
@@ -484,106 +415,178 @@ function SyncBitrixModal({ hook }: { hook: any }) {
     )
   }
 
+  function toggleExpanded(id: string) {
+    setExpandedIds((prev) => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
   const newIds     = newList.map((c: any) => c.bitrix_id)
   const changedIds = changedList.map((c: any) => c.bitrix_id)
   const allNewSel     = newIds.length > 0     && newIds.every((id: string) => hook.selectedBxIds.includes(id))
   const allChangedSel = changedIds.length > 0 && changedIds.every((id: string) => hook.selectedBxIds.includes(id))
+  const someNewSel     = !allNewSel     && newIds.some((id: string) => hook.selectedBxIds.includes(id))
+  const someChangedSel = !allChangedSel && changedIds.some((id: string) => hook.selectedBxIds.includes(id))
 
   return (
-    <Modal
-      title="Đồng bộ công ty từ Bitrix"
-      open={hook.syncOpen}
-      onCancel={() => hook.setSyncOpen(false)}
-      width={820}
-      okText={`Áp dụng (${hook.selectedBxIds.length})`}
-      okButtonProps={{
-        disabled: hook.selectedBxIds.length === 0 || hook.previewLoading,
-        loading: hook.syncMutation.isPending,
-      }}
-      onOk={() => hook.syncMutation.mutate()}
-      cancelText="Đóng"
-    >
-      {hook.previewLoading ? (
-        <div style={{ textAlign: 'center', padding: '40px 0' }}>
-          <Spin tip="Đang tải dữ liệu từ Bitrix…" />
-        </div>
-      ) : preview ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div style={{ display: 'flex', gap: 20, fontSize: 13, color: 'var(--text-2)' }}>
-            <span>Tổng Bitrix: <strong style={{ color: 'var(--text-1)' }}>{preview.total_bitrix}</strong></span>
-            <span>Mới: <strong style={{ color: 'var(--s-completed-color)' }}>{newList.length}</strong></span>
-            <span>Có thay đổi: <strong style={{ color: 'var(--s-pending-color)' }}>{changedList.length}</strong></span>
-            <span>Không đổi: <strong>{preview.unchanged_count}</strong></span>
-            {preview.locked_count > 0 && (
-              <span>Đã khoá: <strong style={{ color: 'var(--s-pending-color)' }}>{preview.locked_count}</strong></span>
-            )}
+    <Dialog open={hook.syncOpen} onOpenChange={(o: boolean) => hook.setSyncOpen(o)}>
+      <DialogContent className="flex max-h-[85vh] flex-col gap-4 sm:max-w-3xl">
+        <DialogHeader>
+          <DialogTitle>Đồng bộ công ty từ Bitrix</DialogTitle>
+        </DialogHeader>
+
+        {hook.previewLoading ? (
+          <div className="flex items-center justify-center gap-2 py-16 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Đang tải dữ liệu từ Bitrix…
           </div>
+        ) : preview ? (
+          <div className="flex min-h-0 flex-1 flex-col gap-4">
 
-          {newList.length > 0 && (
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                <Checkbox
-                  checked={allNewSel}
-                  indeterminate={!allNewSel && newIds.some((id: string) => hook.selectedBxIds.includes(id))}
-                  onChange={(e) => toggleAll(newIds, e.target.checked)}
-                />
-                <span style={{ fontWeight: 600, fontSize: 13 }}>Công ty mới ({newList.length})</span>
-              </div>
-              <Table size="small" pagination={false} rowKey="bitrix_id" dataSource={newList}
-                columns={[
-                  { width: 36, render: (_: any, r: any) => <Checkbox checked={hook.selectedBxIds.includes(r.bitrix_id)} onChange={() => toggleId(r.bitrix_id)} /> },
-                  { title: 'Tên', dataIndex: 'name' },
-                  { title: 'MST', dataIndex: 'tax_code', width: 120, render: (v: string) => v ?? '—' },
-                  { title: 'SĐT', dataIndex: 'phone', width: 120, render: (v: string) => v ?? '—' },
-                  { title: 'Loại', dataIndex: 'types', width: 100, render: (t: string[]) => t?.map((x) => <Tag key={x} color={x === 'customer' ? 'blue' : 'purple'} style={{ margin: 0 }}>{x === 'customer' ? 'KH' : 'NCC'}</Tag>) },
-                ]}
-              />
+            <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm text-muted-foreground">
+              <span>Tổng Bitrix: <strong className="text-foreground">{preview.total_bitrix}</strong></span>
+              <span>Mới: <strong style={{ color: 'var(--s-completed-color)' }}>{newList.length}</strong></span>
+              <span>Có thay đổi: <strong style={{ color: 'var(--s-pending-color)' }}>{changedList.length}</strong></span>
+              <span>Không đổi: <strong className="text-foreground">{preview.unchanged_count}</strong></span>
+              {preview.locked_count > 0 && (
+                <span>Đã khoá: <strong style={{ color: 'var(--s-pending-color)' }}>{preview.locked_count}</strong></span>
+              )}
             </div>
-          )}
 
-          {changedList.length > 0 && (
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                <Checkbox
-                  checked={allChangedSel}
-                  indeterminate={!allChangedSel && changedIds.some((id: string) => hook.selectedBxIds.includes(id))}
-                  onChange={(e) => toggleAll(changedIds, e.target.checked)}
-                />
-                <span style={{ fontWeight: 600, fontSize: 13 }}>Có thay đổi ({changedList.length})</span>
-              </div>
-              <Table size="small" pagination={false} rowKey="bitrix_id" dataSource={changedList}
-                expandable={{
-                  expandedRowRender: (r: any) => (
-                    <div style={{ paddingLeft: 24 }}>
-                      {r.changes.map((ch: any) => (
-                        <div key={ch.field} style={{ display: 'flex', gap: 8, marginBottom: 4, fontSize: 13 }}>
-                          <span style={{ width: 90, color: 'var(--text-3)', flexShrink: 0 }}>{FIELD_LABEL[ch.field] ?? ch.field}</span>
-                          <span style={{ color: 'var(--s-cancelled-color)', textDecoration: 'line-through' }}>{ch.old ?? '—'}</span>
-                          <span style={{ color: 'var(--text-3)' }}>→</span>
-                          <span style={{ color: 'var(--s-completed-color)' }}>{ch.new ?? '—'}</span>
-                        </div>
-                      ))}
+            <div className="flex-1 overflow-y-auto">
+              <div className="flex flex-col gap-5">
+
+                {newList.length > 0 && (
+                  <div>
+                    <div className="mb-1.5 flex items-center gap-2">
+                      <SyncCheckbox checked={allNewSel} indeterminate={someNewSel} onChange={(c) => toggleAll(newIds, c)} />
+                      <span className="text-sm font-semibold text-foreground">Công ty mới ({newList.length})</span>
                     </div>
-                  ),
-                  rowExpandable: (r: any) => r.changes?.length > 0,
-                }}
-                columns={[
-                  { width: 36, render: (_: any, r: any) => <Checkbox checked={hook.selectedBxIds.includes(r.bitrix_id)} onChange={() => toggleId(r.bitrix_id)} /> },
-                  { title: 'Mã WMS', dataIndex: 'wms_code', width: 110 },
-                  { title: 'Tên hiện tại', dataIndex: 'name' },
-                  { title: 'Thay đổi', dataIndex: 'changes', render: (changes: any[]) => <Space size={4} wrap>{changes.map((c: any) => <Tooltip key={c.field} title={`${c.old ?? '—'} → ${c.new ?? '—'}`}><Tag style={{ cursor: 'default' }}>{FIELD_LABEL[c.field] ?? c.field}</Tag></Tooltip>)}</Space> },
-                ]}
-              />
-            </div>
-          )}
+                    <div className="overflow-hidden rounded-lg border border-border-md">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="bg-muted/60 hover:bg-muted/60">
+                            <TableHead className="w-9" />
+                            <TableHead>Tên</TableHead>
+                            <TableHead className="w-32">MST</TableHead>
+                            <TableHead className="w-32">SĐT</TableHead>
+                            <TableHead className="w-16 text-center">Loại</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {newList.map((r: any) => (
+                            <TableRow key={r.bitrix_id}>
+                              <TableCell><SyncCheckbox checked={hook.selectedBxIds.includes(r.bitrix_id)} onChange={() => toggleId(r.bitrix_id)} /></TableCell>
+                              <TableCell className="whitespace-normal font-medium text-foreground">{r.name}</TableCell>
+                              <TableCell className="text-muted-foreground">{r.tax_code ?? '—'}</TableCell>
+                              <TableCell className="text-muted-foreground">{r.phone ?? '—'}</TableCell>
+                              <TableCell>
+                                <div className="flex justify-center gap-1">
+                                  {r.types?.map((t: string) => <MiniTypeTag key={t} type={t} />)}
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+                )}
 
-          {newList.length === 0 && changedList.length === 0 && (
-            <div style={{ textAlign: 'center', color: 'var(--text-3)', padding: '20px 0' }}>
-              Tất cả công ty đã đồng bộ, không có gì thay đổi.
+                {changedList.length > 0 && (
+                  <div>
+                    <div className="mb-1.5 flex items-center gap-2">
+                      <SyncCheckbox checked={allChangedSel} indeterminate={someChangedSel} onChange={(c) => toggleAll(changedIds, c)} />
+                      <span className="text-sm font-semibold text-foreground">Có thay đổi ({changedList.length})</span>
+                    </div>
+                    <div className="overflow-hidden rounded-lg border border-border-md">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="bg-muted/60 hover:bg-muted/60">
+                            <TableHead className="w-9" />
+                            <TableHead className="w-28">Mã WMS</TableHead>
+                            <TableHead>Tên hiện tại</TableHead>
+                            <TableHead>Thay đổi</TableHead>
+                            <TableHead className="w-9" />
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {changedList.map((r: any) => {
+                            const expanded = expandedIds.has(r.bitrix_id)
+                            const expandable = r.changes?.length > 0
+                            return (
+                              <Fragment key={r.bitrix_id}>
+                                <TableRow>
+                                  <TableCell><SyncCheckbox checked={hook.selectedBxIds.includes(r.bitrix_id)} onChange={() => toggleId(r.bitrix_id)} /></TableCell>
+                                  <TableCell><CodeText size="sm">{r.wms_code}</CodeText></TableCell>
+                                  <TableCell className="whitespace-normal font-medium text-foreground">{r.name}</TableCell>
+                                  <TableCell>
+                                    <div className="flex flex-wrap gap-1">
+                                      {r.changes.map((c: any) => (
+                                        <ChangeFieldTag key={c.field} field={c.field} old={c.old} next={c.new} />
+                                      ))}
+                                    </div>
+                                  </TableCell>
+                                  <TableCell>
+                                    {expandable && (
+                                      <button
+                                        type="button"
+                                        onClick={() => toggleExpanded(r.bitrix_id)}
+                                        className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                                      >
+                                        <ChevronDown className={cn('h-3.5 w-3.5 transition-transform', expanded && 'rotate-180')} />
+                                      </button>
+                                    )}
+                                  </TableCell>
+                                </TableRow>
+                                {expanded && expandable && (
+                                  <TableRow className="hover:bg-transparent">
+                                    <TableCell colSpan={5} className="bg-muted/30 py-2.5">
+                                      <div className="flex flex-col gap-1.5 pl-9">
+                                        {r.changes.map((ch: any) => (
+                                          <div key={ch.field} className="flex items-center gap-2 text-xs">
+                                            <span className="w-20 flex-shrink-0 text-muted-foreground">{FIELD_LABEL[ch.field] ?? ch.field}</span>
+                                            <span className="line-through" style={{ color: 'var(--s-cancelled-color)' }}>{ch.old ?? '—'}</span>
+                                            <span className="text-muted-foreground">→</span>
+                                            <span style={{ color: 'var(--s-completed-color)' }}>{ch.new ?? '—'}</span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </TableCell>
+                                  </TableRow>
+                                )}
+                              </Fragment>
+                            )
+                          })}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+                )}
+
+                {newList.length === 0 && changedList.length === 0 && (
+                  <div className="py-8 text-center text-sm text-muted-foreground">
+                    Tất cả công ty đã đồng bộ, không có gì thay đổi.
+                  </div>
+                )}
+              </div>
             </div>
-          )}
-        </div>
-      ) : null}
-    </Modal>
+          </div>
+        ) : null}
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => hook.setSyncOpen(false)}>Đóng</Button>
+          <Button
+            disabled={hook.selectedBxIds.length === 0 || hook.previewLoading || hook.syncMutation.isPending}
+            onClick={() => hook.syncMutation.mutate()}
+          >
+            {hook.syncMutation.isPending && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
+            Áp dụng ({hook.selectedBxIds.length})
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }

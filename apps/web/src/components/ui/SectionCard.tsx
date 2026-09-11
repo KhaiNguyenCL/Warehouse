@@ -1,94 +1,29 @@
-import type { CSSProperties, ReactNode } from 'react'
+import type { ReactNode } from 'react'
 
-// ── SectionCard ───────────────────────────────────────────────
+// SectionCard — khối card chuẩn cho từng phần trong detail panel (master-detail layout):
+// header có tiêu đề + action tuỳ chọn, body padding cố định. Dùng cho mọi trang chi tiết
+// đi kèm layout master-detail (roster trái + panel phải) — xem CLAUDE.md mục UI Standards.
 export function SectionCard({
-  title, extra, children, padding,
-}: {
-  title: string
-  extra?: ReactNode
-  children: ReactNode
-  padding?: number | string
-}) {
+  title, children, actions,
+}: { title: string; children: ReactNode; actions?: ReactNode }) {
   return (
-    <div style={{
-      background: 'var(--bg-card)',
-      border: '1px solid var(--border)',
-      borderRadius: 'var(--r-md)',
-      overflow: 'hidden',
-    }}>
-      <div style={{
-        padding: '8px 14px',
-        borderBottom: '1px solid var(--border)',
-        background: 'var(--bg-subtle)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-      }}>
-        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-1)', letterSpacing: '0.1px' }}>{title}</span>
-        {extra}
+    <div className="overflow-hidden rounded-xl border border-border-md bg-background shadow-sm">
+      <div className="flex items-center justify-between border-b border-border px-4 py-3">
+        <h2 className="font-serif text-sm font-semibold text-foreground">{title}</h2>
+        {actions}
       </div>
-      <div style={{ padding: padding ?? '10px 14px' }}>{children}</div>
+      <div className="p-4">{children}</div>
     </div>
   )
 }
 
-// ── Field ─────────────────────────────────────────────────────
-// Horizontal layout: label (right-align, fixed width) | value (flex)
-// Tiết kiệm 50% chiều cao so với label-on-top.
-
-const LABEL_W = 110  // px — đủ cho label ~15 ký tự tiếng Việt
-
-const labelStyle: CSSProperties = {
-  width: LABEL_W,
-  flexShrink: 0,
-  fontSize: 12,
-  fontWeight: 500,
-  color: 'var(--text-2)',
-  textAlign: 'right',
-  paddingRight: 10,
-  lineHeight: 1.4,
-}
-
-export function Field({
-  label, children, span, labelWidth, alignStart,
-}: {
-  label: string
-  children: ReactNode
-  span?: number
-  labelWidth?: number
-  alignStart?: boolean   // dùng khi children là TextArea / nội dung nhiều dòng
-}) {
+// InfoRow — cặp label/value chuẩn trong SectionCard, xếp lưới 2 cột (full=true để chiếm
+// trọn hàng, dùng cho field dài như địa chỉ/ghi chú).
+export function InfoRow({ label, value, full }: { label: string; value?: string | null; full?: boolean }) {
   return (
-    <div style={{
-      display: 'flex',
-      alignItems: alignStart ? 'flex-start' : 'center',
-      minHeight: 30,
-      ...(span ? { gridColumn: `span ${span}` } : undefined),
-    }}>
-      <div style={{
-        ...(labelWidth ? { ...labelStyle, width: labelWidth } : labelStyle),
-        ...(alignStart ? { paddingTop: 7 } : undefined),
-      }}>
-        {label}
-      </div>
-      <div style={{ flex: 1, minWidth: 0 }}>{children}</div>
+    <div className={full ? 'col-span-2' : ''}>
+      <div className="text-xs font-semibold text-muted-foreground">{label}</div>
+      <div className="mt-1 text-sm text-foreground">{value || '—'}</div>
     </div>
-  )
-}
-
-// ── Val ───────────────────────────────────────────────────────
-// Read-mode value: plain text, không cần background vì horizontal layout
-// đã phân biệt rõ label ↔ value.
-// Edit mode: AntD Input (có border) → contrast tự nhiên.
-export function Val({ v }: { v?: ReactNode }) {
-  const empty = v == null || v === ''
-  return (
-    <span style={{
-      fontSize: 14,
-      fontWeight: empty ? 400 : 500,
-      color: empty ? 'var(--text-3)' : 'var(--text-1)',
-    }}>
-      {empty ? '—' : v}
-    </span>
   )
 }

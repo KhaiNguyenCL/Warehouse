@@ -684,3 +684,99 @@ docker exec wms-postgres psql -U postgres wms_db \
 docker exec wms-postgres psql -U postgres wms_test_db \
   -c "DELETE FROM knex_migrations WHERE name != '20260618000000_initial_schema.ts';"
 ```
+
+---
+
+## 22. UI Standards — chuẩn giao diện (frontend)
+
+> Đang trong quá trình redesign toàn bộ `apps/web` theo thứ tự: **List page → Detail/Form
+> page → Dashboard (đã xong: Hành động, Báo cáo) → Settings đơn lẻ**. Mục này là nguồn sự
+> thật duy nhất cho quy tắc UI — cập nhật ngay khi có quyết định thiết kế mới, đừng để lệch
+> giữa các trang như đã từng xảy ra (CompaniesPage có lúc 2 tab dùng 2 ngôn ngữ thiết kế
+> khác nhau).
+
+### Nguyên tắc phân loại "trạng thái" khi làm UI
+
+- **Component state** (mở/đóng sidebar, hover, focus, dropdown/modal đang mở): xử lý ngay
+  trong component dùng chung, KHÔNG thiết kế riêng cho từng trang — component đúng 1 lần thì
+  mọi trang dùng nó đều đúng theo.
+- **Page/data state** (Loading, Empty, Error, Có dữ liệu, khác nhau theo quyền RBAC, khác nhau
+  theo status nghiệp vụ của entity): đây là nội dung thực sự đổi ý nghĩa với người dùng — PHẢI
+  thiết kế/code rõ ràng cho từng trường hợp, không bỏ sót. Mọi trang List tối thiểu phải có đủ
+  4 trạng thái: Loading / Empty / Error / Có dữ liệu.
+
+### Layout chuẩn cho trang List — Master-detail
+
+Trang danh sách (List page) dùng layout **master-detail**: roster (danh sách rút gọn) bên
+trái + panel chi tiết bên phải, KHÔNG dùng bảng đầy chiều rộng + chuyển trang riêng để xem
+chi tiết (pattern cũ). Xem `CompaniesPage.tsx` (tab Đối tác) làm mẫu tham chiếu.
+
+```
+┌─────────────────────────────────────────────────────────┐
+│ PageHeader: h1 (font-serif) + subtitle · SegmentedControl │
+│             (nếu có nhiều view) · actions bên phải        │
+├───────────────────┬───────────────────────────────────────┤
+│ Roster (380px)    │ Detail panel (1fr)                    │
+│ ┌───────────────┐ │ ┌───────────────────────────────────┐ │
+│ │ Search + filter│ │ │ Header: icon + tên + actions       │ │
+│ ├───────────────┤ │ ├───────────────────────────────────┤ │
+│ │ scroll list    │ │ │ SectionCard "Thông tin" (InfoRow)  │ │
+│ │ (item = border │ │ ├───────────────────────────────────┤ │
+│ │  rounded-lg,   │ │ │ SectionCard khác (con, liên quan…) │ │
+│ │  active =      │ │ └───────────────────────────────────┘ │
+│ │  accent-bg)    │ │                                       │
+│ ├───────────────┤ │                                       │
+│ │ pagination nhỏ │ │                                       │
+│ └───────────────┘ │                                       │
+└───────────────────┴───────────────────────────────────────┘
+```
+
+Container: `grid grid-cols-[380px_1fr] items-start gap-4`. Roster tự chọn dòng đầu tiên khi
+đổi trang/lọc/tìm kiếm (`useEffect` theo `rows`) để panel phải luôn có nội dung — không để
+trắng khi mới vào trang.
+
+**Component dùng chung** (`apps/web/src/components/ui/`):
+- `SegmentedControl` — switch giữa vài lựa chọn loại trừ nhau (đổi tab, filter loại). KHÔNG
+  viết lại local trong từng trang.
+- `SectionCard` + `InfoRow` — khối card + cặp label/value chuẩn cho detail panel.
+- `TableCard` (`TableCard.tsx`, legacy) — chỉ còn dùng ở vài trang settings đơn giản
+  (Categories, InventorySerials...) chưa redesign; trang mới KHÔNG dùng cái này, dùng
+  master-detail ở trên.
+
+**Màu sắc:** luôn dùng token WMS (`var(--accent)`, `text-foreground`, `text-muted-foreground`,
+`border-border-md`, `bg-[var(--accent-bg)]`...) — KHÔNG copy nguyên bảng màu cứng (Tailwind
+slate/rose/violet mặc định) từ template ngoài, kể cả khi đang thử nghiệm 1 layout mới. Nếu
+thấy code có class `bg-white`, `text-slate-900`, `border-slate-200`... trong 1 trang app —
+đó là dấu hiệu chưa quy về token, cần sửa.
+
+### Danh sách trang cần redesign (theo route, xem `router.tsx`)
+
+Trạng thái tại thời điểm viết mục này — cập nhật khi làm xong từng trang:
+
+| Trang | Route | Trạng thái |
+|---|---|---|
+| Đối tác (2 tab) | `/companies` | ✅ Xong — master-detail, cả 2 tab |
+| Danh mục SP | `/categories` | Chưa — đang dùng `TableCard` legacy |
+| Thương hiệu | `/brands` | Chưa |
+| Sản phẩm (2 tab) | `/products` | Chưa |
+| Kho hàng | `/warehouses` | Chưa |
+| Phiếu mua hàng | `/purchase-orders` | Chưa |
+| Phiếu nhận hàng | `/shipments` | Chưa |
+| Phiếu nhập kho | `/receipts` | Chưa |
+| Báo giá | `/quotations` | Chưa |
+| Phiếu xuất kho | `/deliveries` | Chưa |
+| Chuyển kho | `/transfers` | Chưa |
+| Tồn kho | `/inventory` | Chưa |
+| Kiểm kê | `/stocktakes` | Chưa |
+| Vai trò & Quyền | `/settings/roles` | Chưa |
+| Nhóm người dùng | `/settings/groups` | Chưa |
+| Người dùng | `/settings/users` | Chưa |
+| Loại nhập/xuất | `/settings/types` | Chưa |
+| Cài đặt báo giá | `/settings/templates` | Chưa |
+| Trường tùy chỉnh | `/settings/custom-fields` | Chưa |
+| Hành động (dashboard) | `/actions` | ✅ Xong (trước đợt redesign này) |
+| Báo cáo (dashboard) | `/reports` | ✅ Xong (trước đợt redesign này) |
+
+Detail page (VD `/companies/:id` cũ đã gộp vào panel, `/products/:id`, `/quotations/:id`...)
+và Form page (VD `/receipts/new`, `/purchase-orders/new`...) redesign **sau khi xong hết List
+page** — cấu trúc 2 loại này khác hẳn nhau, chưa chốt layout chuẩn.
