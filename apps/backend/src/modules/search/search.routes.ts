@@ -81,8 +81,8 @@ const searchRoutes: FastifyPluginAsync = async (app) => {
           .limit(N).select('id', 'code', 'status'),
 
         db('serial_numbers')
-          .whereILike('serial_number', pat)
-          .limit(N).select('id', 'serial_number'),
+          .whereILike('serial_no', pat)
+          .limit(N).select('id', 'serial_no'),
       ])
 
       const results = [
@@ -133,8 +133,8 @@ const searchRoutes: FastifyPluginAsync = async (app) => {
         })),
         ...serials.map((r: any) => ({
           type: 'serial', id: r.id,
-          title: r.serial_number, subtitle: 'Serial Number',
-          link: `/inventory?sn=${encodeURIComponent(r.serial_number)}`,
+          title: r.serial_no, subtitle: 'Serial Number',
+          link: `/inventory?sn=${encodeURIComponent(r.serial_no)}`,
         })),
       ]
 
