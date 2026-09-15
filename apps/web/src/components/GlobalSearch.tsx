@@ -123,10 +123,35 @@ export default function GlobalSearch() {
             value={query}
             onValueChange={setQuery}
           />
-          <CommandList className="max-h-[420px]">
+          <CommandList className="max-h-[480px]">
             {query.length < 2 && (
-              <div className="py-8 text-center text-sm text-muted-foreground">
-                Nhập ít nhất 2 ký tự để tìm kiếm
+              <div className="px-3 py-3">
+                <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Có thể tìm kiếm
+                </p>
+                <div className="grid grid-cols-2 gap-1">
+                  {[
+                    { icon: Building2,     label: 'Đối tác',           hint: 'tên, mã công ty' },
+                    { icon: Boxes,         label: 'Sản phẩm / SKU',    hint: 'tên, mã, SKU' },
+                    { icon: ClipboardList, label: 'Phiếu mua hàng',    hint: 'mã phiếu, VD: PO-2026-001' },
+                    { icon: PackageSearch, label: 'Phiếu nhận hàng',   hint: 'mã phiếu, VD: SH-2026-001' },
+                    { icon: PackageCheck,  label: 'Phiếu nhập kho',    hint: 'mã phiếu, VD: NK-2026-001' },
+                    { icon: FileText,      label: 'Báo giá',           hint: 'mã phiếu, VD: BG-2026-001' },
+                    { icon: PackageOpen,   label: 'Phiếu xuất kho',    hint: 'mã phiếu, VD: XK-2026-001' },
+                    { icon: ArrowLeftRight,label: 'Chuyển kho',        hint: 'mã phiếu, VD: CK-2026-001' },
+                    { icon: Hash,          label: 'Serial Number',     hint: 'SN đầy đủ hoặc một phần' },
+                  ].map(({ icon: Icon, label, hint }) => (
+                    <div key={label} className="flex items-start gap-2 rounded-lg px-2 py-1.5">
+                      <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded bg-[var(--accent-bg)]">
+                        <Icon className="h-3 w-3 text-[var(--accent-text)]" />
+                      </span>
+                      <div>
+                        <p className="text-xs font-medium text-foreground leading-tight">{label}</p>
+                        <p className="text-[11px] text-muted-foreground leading-tight">{hint}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
@@ -137,7 +162,10 @@ export default function GlobalSearch() {
             )}
 
             {showEmpty && (
-              <CommandEmpty>Không tìm thấy kết quả cho "{debouncedQuery}"</CommandEmpty>
+              <div className="px-4 py-6 text-center">
+                <p className="text-sm text-muted-foreground">Không tìm thấy kết quả cho <strong>"{debouncedQuery}"</strong></p>
+                <p className="mt-1 text-xs text-muted-foreground">Thử nhập mã phiếu (VD: NK-2026-...) hoặc tên sản phẩm</p>
+              </div>
             )}
 
             {!isFetching && hasResults && TYPE_ORDER.map((type) => {
