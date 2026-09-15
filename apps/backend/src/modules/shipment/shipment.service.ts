@@ -58,7 +58,8 @@ export class ShipmentService {
 
   // Xác nhận đã nhận hàng vật lý — cập nhật qty_received + condition cho từng dòng
   async receive(id: string, userId: string, body: ReceiveShipmentBody) {
-    return this.db.transaction(async (trx) => {
+    let shipmentCode: string | undefined
+    await this.db.transaction(async (trx) => {
       const received = await this.repo.updateStatus(
         id, 'draft', 'received',
         {
@@ -72,6 +73,7 @@ export class ShipmentService {
       if (!received) {
         throw { statusCode: 400, message: 'Phiếu đã được xử lý bởi yêu cầu khác — vui lòng tải lại' }
       }
+      shipmentCode = received.code
 
       // Cập nhật từng dòng nếu client gửi
       if (body.lines && body.lines.length > 0) {
@@ -82,25 +84,26 @@ export class ShipmentService {
           }
         }
       }
-
-      // Thông báo Warehouse: hàng đã về, cần tạo phiếu nhập kho
-      try {
-        await getNotificationService(this.db).notifyByPermission(
-          this.db,
-          'receipt.create',
-          {
-            type: 'shipment_received',
-            title: `Phiếu nhận hàng ${received.code} đã xác nhận`,
-            body: 'Hàng đã về kho — cần tạo phiếu nhập kho để cập nhật tồn kho.',
-            link: `/shipments/${id}`,
-          },
-          userId,
-          trx,
-        )
-      } catch (_) { /* không chặn luồng chính nếu thông báo lỗi */ }
-
-      return this.repo.findById(id)
     })
+
+    // Thông báo ngoài transaction — dùng this.db, không dùng trx
+    // để tránh notification failure làm rollback transaction chính
+    try {
+      await getNotificationService(this.db).notifyByPermission(
+        this.db,
+        'receipt.create',
+        {
+          type: 'shipment_received',
+          title: `Phiếu nhận hàng ${shipmentCode} đã xác nhận`,
+          body: 'Hàng đã về kho — cần tạo phiếu nhập kho để cập nhật tồn kho.',
+          link: `/shipments/${id}`,
+        },
+        userId,
+      )
+    } catch (_) { /* không chặn luồng chính nếu thông báo lỗi */ }
+
+    // findById ngoài transaction — đọc data đã commit, trả về status mới nhất
+    return this.repo.findById(id)
   }
 
   async cancel(id: string) {
