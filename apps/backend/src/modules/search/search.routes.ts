@@ -47,13 +47,12 @@ const searchRoutes: FastifyPluginAsync = async (app) => {
           .where((b) => b.whereILike('name', pat).orWhereILike('code', pat))
           .limit(N).select('id', 'name', 'code'),
 
-        db('products').whereNull('deleted_at')
+        db('products')
           .where((b) => b.whereILike('name', pat).orWhereILike('code', pat))
           .limit(N).select('id', 'name', 'code'),
 
         db('variants as v')
           .join('products as p', 'p.id', 'v.product_id')
-          .whereNull('p.deleted_at')
           .where((b) => b.whereILike('v.sku', pat).orWhereILike('v.name', pat))
           .limit(N).select('v.id', 'v.sku', 'v.name', 'v.product_id'),
 
@@ -61,7 +60,7 @@ const searchRoutes: FastifyPluginAsync = async (app) => {
           .whereILike('code', pat)
           .limit(N).select('id', 'code', 'status'),
 
-        db('quotations').whereNull('deleted_at')
+        db('quotations')
           .whereILike('code', pat)
           .limit(N).select('id', 'code', 'status'),
 
@@ -69,7 +68,7 @@ const searchRoutes: FastifyPluginAsync = async (app) => {
           .whereILike('code', pat)
           .limit(N).select('id', 'code', 'status'),
 
-        db('delivery_orders').whereNull('deleted_at')
+        db('delivery_orders')
           .whereILike('code', pat)
           .limit(N).select('id', 'code', 'status'),
 
@@ -77,7 +76,7 @@ const searchRoutes: FastifyPluginAsync = async (app) => {
           .whereILike('code', pat)
           .limit(N).select('id', 'code', 'status'),
 
-        db('transfer_orders').whereNull('deleted_at')
+        db('transfer_orders')
           .whereILike('code', pat)
           .limit(N).select('id', 'code', 'status'),
 
