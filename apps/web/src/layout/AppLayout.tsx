@@ -19,6 +19,8 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import ChangePasswordDialog from '@/components/ChangePasswordDialog'
 import NotificationBell from '@/components/NotificationBell'
+import GlobalSearch from '@/components/GlobalSearch'
+import { PageHeaderProvider } from './PageHeaderSlot'
 import { useAuthStore } from '../store/auth'
 
 // permission: undefined → hiện với mọi user đã login
@@ -136,54 +138,66 @@ export default function AppLayout() {
 
       {/* ── Main content ── */}
       <SidebarInset>
-        {/* Topbar */}
-        <header className="flex h-12 shrink-0 items-center gap-2 border-b border-border bg-card px-4">
-          <SidebarTrigger className="-ml-1" />
-          <span className="text-sm text-muted-foreground">
-            {NAV.flatMap(s => s.items).find(i => isActive(i.to))?.label ?? 'WMS'}
-          </span>
+        <PageHeaderProvider>
+          {(pageHeader) => (
+            <>
+              {/* Topbar — trang bên trong <Outlet/> đẩy tiêu đề/nút hành động của nó vào đây
+                  qua usePageHeader() (xem PageHeaderSlot.tsx), gộp còn 1 hàng duy nhất thay vì
+                  topbar + hàng tiêu đề riêng của từng trang.
+                  Mobile (< md): header không đủ chỗ nhét cả icon + tiêu đề + nút hành động trên
+                  1 hàng h-12 cố định — dùng flex-wrap + CSS order để pageHeader tự xuống hàng
+                  dưới (full-width, không bị bóp), còn icon sidebar/chuông/avatar vẫn ở hàng
+                  trên. Từ md trở lên quay lại đúng 1 hàng như thiết kế gốc. */}
+              <header className="flex flex-wrap items-center gap-2 border-b border-border bg-card px-4 py-2 md:h-12 md:flex-nowrap md:gap-3 md:py-0">
+                <SidebarTrigger className="order-1 -ml-1" />
 
-          <div className="ml-auto flex items-center gap-2">
-            <NotificationBell />
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-accent transition-colors outline-none">
-                  <Avatar className="h-7 w-7 shrink-0">
-                    <AvatarFallback className="bg-primary/10 text-primary text-xs font-bold">
-                      {initials}
-                    </AvatarFallback>
-                  </Avatar>
-                  <span className="font-medium text-foreground">{user?.full_name}</span>
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent side="bottom" align="end" className="w-48">
-                <div className="px-2 py-1.5">
-                  <p className="text-sm font-semibold">{user?.full_name}</p>
-                  <p className="text-xs text-muted-foreground">{user?.groups?.map(g => g.name).join(', ') || 'Không có nhóm'}</p>
+                <div className="order-2 ml-auto flex items-center gap-2 md:order-3 md:ml-0">
+                  <GlobalSearch />
+                  <NotificationBell />
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-accent transition-colors outline-none">
+                        <Avatar className="h-7 w-7 shrink-0">
+                          <AvatarFallback className="bg-primary/10 text-primary text-xs font-bold">
+                            {initials}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className="font-medium text-foreground">{user?.full_name}</span>
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent side="bottom" align="end" className="w-48">
+                      <div className="px-2 py-1.5">
+                        <p className="text-sm font-semibold">{user?.full_name}</p>
+                        <p className="text-xs text-muted-foreground">{user?.groups?.map(g => g.name).join(', ') || 'Không có nhóm'}</p>
+                      </div>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem className="cursor-pointer" onClick={() => setChangePasswordOpen(true)}>
+                        <KeyRound className="mr-2 h-4 w-4" />
+                        Đổi mật khẩu
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        className="text-destructive focus:text-destructive cursor-pointer"
+                        onClick={() => { logout(); navigate('/login') }}
+                      >
+                        <LogOut className="mr-2 h-4 w-4" />
+                        Đăng xuất
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                  <ChangePasswordDialog open={changePasswordOpen} onOpenChange={setChangePasswordOpen} />
                 </div>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem className="cursor-pointer" onClick={() => setChangePasswordOpen(true)}>
-                  <KeyRound className="mr-2 h-4 w-4" />
-                  Đổi mật khẩu
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  className="text-destructive focus:text-destructive cursor-pointer"
-                  onClick={() => { logout(); navigate('/login') }}
-                >
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Đăng xuất
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <ChangePasswordDialog open={changePasswordOpen} onOpenChange={setChangePasswordOpen} />
-          </div>
-        </header>
 
-        {/* Page content */}
-        <div className="flex flex-1 flex-col overflow-y-auto p-6">
-          <Outlet />
-        </div>
+                <div className="order-3 w-full min-w-0 md:order-2 md:w-auto md:flex-1">{pageHeader}</div>
+              </header>
+
+              {/* Page content */}
+              <div className="flex flex-1 flex-col overflow-y-auto p-6">
+                <Outlet />
+              </div>
+            </>
+          )}
+        </PageHeaderProvider>
       </SidebarInset>
     </SidebarProvider>
   )
