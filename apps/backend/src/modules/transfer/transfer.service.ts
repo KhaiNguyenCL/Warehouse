@@ -138,9 +138,21 @@ export class TransferService {
 
       for (const line of transfer.lines) {
         const lineFromWh = line.from_warehouse_id ?? transfer.from_warehouse_id
+
+        // FOR UPDATE lock — đọc lại tồn kho trong transaction để serialize với request
+        // khác; tránh race condition giữa pre-check (ngoài trx) và update thật.
         const fromInventory = await trx('inventory')
           .where({ variant_id: line.variant_id, warehouse_id: lineFromWh })
+          .forUpdate()
           .first()
+
+        const availableInTrx = fromInventory?.qty_on_hand ?? 0
+        if (availableInTrx < line.quantity) {
+          throw {
+            statusCode: 400,
+            message: `Không đủ tồn kho cho ${line.variant_name} ở kho nguồn — còn ${availableInTrx}, cần chuyển ${line.quantity}`,
+          }
+        }
 
         // Trừ kho nguồn — không đổi avg_cost (avg_cost chỉ đổi khi NHẬP MỚI, không đổi khi xuất/chuyển)
         await trx('inventory')

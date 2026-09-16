@@ -248,9 +248,23 @@ export class DeliveryService {
         // Service không ảnh hưởng tồn kho — chỉ ghi nhận trên phiếu, không trừ kho
         if (line.product_type === 'service') continue
 
+        // FOR UPDATE lock — đọc lại tồn kho trong transaction và giữ lock hàng để
+        // serialize với request khác; tránh race condition giữa pre-check (ngoài trx)
+        // và update thật (sau khi mở trx, 2 request cùng pass pre-check cùng lúc).
         const inventory = await trx('inventory')
           .where({ variant_id: line.variant_id, warehouse_id: delivery.warehouse_id })
+          .forUpdate()
           .first()
+
+        const availableInTrx = line.quotation_line_item_id
+          ? (inventory?.qty_on_hand ?? 0)
+          : (inventory ? inventory.qty_on_hand - inventory.qty_reserved : 0)
+        if (availableInTrx < line.quantity) {
+          throw {
+            statusCode: 400,
+            message: `Không đủ tồn kho cho ${line.variant_name} — còn ${availableInTrx}, cần xuất ${line.quantity}`,
+          }
+        }
 
         // Xuất kho chỉ trừ qty_on_hand — avg_cost giữ nguyên (avg_cost chỉ đổi khi NHẬP thêm,
         // không tính lại khi xuất). unit_cost ghi vào stock_movements lấy từ avg_cost hiện tại
