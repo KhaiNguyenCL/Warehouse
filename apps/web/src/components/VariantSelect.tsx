@@ -30,6 +30,14 @@ interface Props {
   productId?: string
   disabled?: boolean
   inStockOnly?: boolean
+  // Khi true: mỗi option hiện thêm dòng nhỏ giá bán + BH hãng + VAT ngay trong dropdown
+  // (tag đã chọn vẫn hiện tên ngắn gọn). Dùng cho QuotationLineItem.
+  showMeta?: boolean
+}
+
+function fmtPrice(n: number | null | undefined) {
+  if (n == null) return null
+  return Number(n).toLocaleString('en-US')
 }
 
 export default function VariantSelect({
@@ -43,6 +51,7 @@ export default function VariantSelect({
   productId,
   disabled,
   inStockOnly = false,
+  showMeta = false,
 }: Props) {
   const { data: allVariants } = useQuery<VariantData[]>({
     queryKey: ['products', 'variants', 'all', inStockOnly],
@@ -75,6 +84,9 @@ export default function VariantSelect({
         value: v.id,
         label,
         searchText: `${v.product_name} ${v.item_code ?? ''} ${v.sku} ${v.name ?? ''}`.toLowerCase(),
+        sale_price: v.sale_price,
+        manufacturer_warranty_months: v.manufacturer_warranty_months,
+        vat_percent: v.vat_percent,
       })
     }
     return Array.from(groups.values())
@@ -101,6 +113,27 @@ export default function VariantSelect({
         return false
       }}
       options={groupedOptions}
+      optionRender={showMeta ? (option) => {
+        const d = option.data as any
+        const priceParts: string[] = []
+        const priceStr = fmtPrice(d.sale_price)
+        if (priceStr) priceParts.push(`${priceStr} VND`)
+        else priceParts.push('Chưa có giá')
+        if (d.manufacturer_warranty_months != null) {
+          priceParts.push(
+            d.manufacturer_warranty_months === 0 ? 'Không BH' : `BH ${d.manufacturer_warranty_months}T`,
+          )
+        }
+        if (d.vat_percent) priceParts.push(`VAT ${d.vat_percent}%`)
+        return (
+          <div style={{ lineHeight: 1.35, padding: '1px 0' }}>
+            <div style={{ fontSize: 13 }}>{option.label as string}</div>
+            <div style={{ fontSize: 11, color: 'var(--text-2)', marginTop: 1 }}>
+              {priceParts.join(' · ')}
+            </div>
+          </div>
+        )
+      } : undefined}
     />
   )
 }

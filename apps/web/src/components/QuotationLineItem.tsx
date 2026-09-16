@@ -153,6 +153,7 @@ export default function QuotationLineItem({ form, parentPath, name, productId, r
               onSelectVariant={onSelectVariant}
               style={{ width: '100%' }}
               productId={productId}
+              showMeta
             />
           </Form.Item>
           {lotHint && (
@@ -187,8 +188,12 @@ export default function QuotationLineItem({ form, parentPath, name, productId, r
         </Tooltip>
       </div>
 
-      {/* Dòng 2: các field ngắn (số lượng, giá, thuế...) */}
-      <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', marginTop: 6 }}>
+      {/* Dòng 2: các field ngắn (số lượng, giá, thuế...) — alignItems: 'flex-start' (không
+          phải 'flex-end' như trước) vì các cột cao thấp khác nhau (ô input 32px vs Switch
+          nhỏ hơn nhiều) khiến label bị neo lệch theo đáy cột thay vì thẳng hàng ở trên cùng —
+          đây là nguyên nhân label "lệch lệch" giữa các field. Field nào không có label thật
+          (khối Thành tiền/Thuế GTGT/Tổng tiền) tự đặt alignSelf: 'flex-end' riêng để neo đáy. */}
+      <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginTop: 6 }}>
         {/* ĐVT lấy cố định từ variant/bundle đã chọn (onSelectVariant) — không cho sửa tay
             vì mỗi SKU chỉ có 1 đơn vị tính chuẩn, khác với code/sku vốn cho phép tự nhập. */}
         <Field label="ĐVT" basis={70}>
@@ -226,14 +231,16 @@ export default function QuotationLineItem({ form, parentPath, name, productId, r
         </Field>
 
         <Field label="Giữ chỗ" basis={64}>
-          <div style={{ display: 'flex', justifyContent: 'center', paddingBottom: 5 }}>
+          <div style={{ height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Form.Item name={path('is_reserved')} noStyle valuePropName="checked" initialValue={true}>
               <Switch disabled={isService} size="small" />
             </Form.Item>
           </div>
         </Field>
 
-        <div style={{ flex: '1 1 0', display: 'flex', justifyContent: 'flex-end', gap: 24, paddingBottom: 5, fontSize: 12, color: 'var(--text-2)' }}>
+        {/* Không có label riêng như các Field khác — tự neo đáy (alignSelf) để thẳng hàng với
+            input phía trên thay vì trồi lên theo alignItems: 'flex-start' của cả hàng. */}
+        <div style={{ flex: '1 1 0', alignSelf: 'flex-end', display: 'flex', justifyContent: 'flex-end', gap: 24, paddingBottom: 6, fontSize: 12, color: 'var(--text-2)' }}>
           <span>Thành tiền: <strong style={{ color: 'var(--text-1)', fontVariantNumeric: 'tabular-nums' }}>{fmt(lineTotal)}</strong></span>
           <span>Thuế GTGT: <strong style={{ color: 'var(--text-1)', fontVariantNumeric: 'tabular-nums' }}>{fmt(vatAmount)}</strong></span>
           <span style={{ color: 'var(--text-1)' }}>Tổng tiền: <strong style={{ fontVariantNumeric: 'tabular-nums' }}>{fmt(lineTotal + vatAmount)}</strong></span>
