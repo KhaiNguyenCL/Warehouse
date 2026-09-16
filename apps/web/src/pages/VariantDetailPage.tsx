@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import {
   Form, Input, InputNumber, Select, Switch, Button, Popconfirm,
-  Checkbox, DatePicker, Skeleton,
+  Checkbox, DatePicker, Skeleton, Tooltip,
 } from 'antd'
 import dayjs from 'dayjs'
-import { ArrowLeftOutlined, EditOutlined } from '@ant-design/icons'
+import { ArrowLeftOutlined, EditOutlined, InfoCircleOutlined, CheckOutlined } from '@ant-design/icons'
+import { api } from '../lib/api'
 import { useVariantDetail } from '../hooks/useVariantDetail'
 import { PageHeader } from '../components/ui/PageHeader'
 import VariantSuppliersPanel from '../components/VariantSuppliersPanel'
@@ -57,9 +59,9 @@ const valueStyle: React.CSSProperties = {
   alignItems: 'center',
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, children, full }: { label: string; children: React.ReactNode; full?: boolean }) {
   return (
-    <div>
+    <div style={full ? { gridColumn: '1 / -1' } : undefined}>
       <div style={labelStyle}>{label}</div>
       <div style={valueStyle}>{children}</div>
     </div>
@@ -127,6 +129,13 @@ export default function VariantDetailPage() {
     )
   }
 
+  const { data: reorderSuggestion, isLoading: suggLoading } = useQuery({
+    queryKey: ['reorder-suggestion', productId, variantId],
+    queryFn: async () => (await api.get(`/products/${productId}/variants/${variantId}/reorder-suggestion`)).data,
+    enabled: !!productId && !!variantId,
+    staleTime: 5 * 60 * 1000,
+  })
+
   if (hook.isLoading) return <Skeleton active style={{ padding: '20px' }} />
   if (!hook.product || !hook.variant) return <div style={{ padding: 20 }}>Không tìm thấy SKU</div>
 
@@ -185,8 +194,10 @@ export default function VariantDetailPage() {
 
         <div style={{ flex: 1, minWidth: 0 }}>
       <SectionCard title="Thông tin SKU">
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '14px 24px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '14px 24px' }}>
 
+            {/* Field ngắn trước — sắp theo nhóm: định danh → phân loại/đơn vị → giá & tồn kho.
+                4 cột (thay vì 3) vì các field này (mã, số, select, switch) không cần rộng. */}
             <Field label="SKU (hệ thống)">
               <span style={{ fontFamily: 'monospace', fontSize: 12 }}><Val v={v.sku} /></span>
             </Field>
@@ -215,18 +226,6 @@ export default function VariantDetailPage() {
               </Form.Item>
             </Field>
 
-            <Field label="Mô tả ngắn (mặc định trên báo giá)">
-              <Form.Item name="description" noStyle>
-                <Input style={{ width: '100%' }} placeholder="Mô tả ngắn — dùng khi chưa có mô tả riêng theo khách" disabled={!isEditing} />
-              </Form.Item>
-            </Field>
-
-            <Field label="Mô tả dài (thông số kỹ thuật)">
-              <Form.Item name="description_long" noStyle>
-                <Input.TextArea autoSize={{ minRows: 2, maxRows: 6 }} style={{ width: '100%' }} placeholder="Thông số kỹ thuật đầy đủ" disabled={!isEditing} />
-              </Form.Item>
-            </Field>
-
             <Field label="Đơn vị">
               <Form.Item name="unit" noStyle>
                 <Select options={UNITS.map((u) => ({ value: u, label: u }))} showSearch allowClear style={{ width: '100%' }} disabled={!isEditing} />
@@ -236,6 +235,12 @@ export default function VariantDetailPage() {
             <Field label="Tiền tệ">
               <Form.Item name="currency" noStyle>
                 <Select options={CURRENCIES} style={{ width: '100%' }} disabled={!isEditing} />
+              </Form.Item>
+            </Field>
+
+            <Field label="Trạng thái">
+              <Form.Item name="is_active" noStyle valuePropName="checked">
+                <Switch checkedChildren="Active" unCheckedChildren="Inactive" disabled={!isEditing} />
               </Form.Item>
             </Field>
 
@@ -269,9 +274,17 @@ export default function VariantDetailPage() {
               </Form.Item>
             </Field>
 
-            <Field label="Trạng thái">
-              <Form.Item name="is_active" noStyle valuePropName="checked">
-                <Switch checkedChildren="Active" unCheckedChildren="Inactive" disabled={!isEditing} />
+            {/* Field dài xuống cuối, chiếm trọn hàng — nhồi vào 1/4 hay 1/3 cột trước đây
+                làm mô tả ngắn bị cắt và textarea bị bóp hẹp không cần thiết. */}
+            <Field label="Mô tả ngắn (mặc định trên báo giá)" full>
+              <Form.Item name="description" noStyle>
+                <Input style={{ width: '100%' }} placeholder="Mô tả ngắn — dùng khi chưa có mô tả riêng theo khách" disabled={!isEditing} />
+              </Form.Item>
+            </Field>
+
+            <Field label="Mô tả dài (thông số kỹ thuật)" full>
+              <Form.Item name="description_long" noStyle>
+                <Input.TextArea autoSize={{ minRows: 2, maxRows: 6 }} style={{ width: '100%' }} placeholder="Thông số kỹ thuật đầy đủ" disabled={!isEditing} />
               </Form.Item>
             </Field>
 
@@ -282,6 +295,102 @@ export default function VariantDetailPage() {
 
       </div>
       </Form>
+
+      {/* ── Đề xuất điểm đặt lại ── */}
+      {p.product_type !== 'service' && p.product_type !== 'bundle' && (
+        <SectionCard title="Đề xuất điểm đặt lại">
+          {suggLoading ? (
+            <Skeleton active paragraph={{ rows: 2 }} />
+          ) : reorderSuggestion?.insufficient_data ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-2)', fontSize: 13 }}>
+              <InfoCircleOutlined />
+              <span>
+                Chưa đủ dữ liệu để tính gợi ý — cần ít nhất 3 lần xuất kho trong {reorderSuggestion.period_days} ngày gần nhất.
+                Hiện tại có <strong>{reorderSuggestion.delivery_count}</strong> lần.
+              </span>
+            </div>
+          ) : reorderSuggestion ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {/* Công thức */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px 20px' }}>
+                <div>
+                  <div style={labelStyle}>
+                    Tiêu thụ TB / ngày
+                    <Tooltip title={`Tổng xuất kho ${reorderSuggestion.period_days} ngày ÷ ${reorderSuggestion.period_days}`}>
+                      <InfoCircleOutlined style={{ marginLeft: 4, opacity: 0.5, cursor: 'help' }} />
+                    </Tooltip>
+                  </div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-1)' }}>
+                    {reorderSuggestion.avg_daily_consumption.toFixed(2)}
+                    <span style={{ fontSize: 12, fontWeight: 400, color: 'var(--text-2)', marginLeft: 4 }}>/ ngày</span>
+                  </div>
+                </div>
+                <div>
+                  <div style={labelStyle}>
+                    Lead time TB
+                    <Tooltip title="Trung bình ngày từ khi PO được xác nhận đến khi Receipt hoàn thành">
+                      <InfoCircleOutlined style={{ marginLeft: 4, opacity: 0.5, cursor: 'help' }} />
+                    </Tooltip>
+                  </div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-1)' }}>
+                    {reorderSuggestion.avg_lead_time_days.toFixed(1)}
+                    <span style={{ fontSize: 12, fontWeight: 400, color: 'var(--text-2)', marginLeft: 4 }}>ngày</span>
+                  </div>
+                </div>
+                <div>
+                  <div style={labelStyle}>
+                    Tồn kho an toàn
+                    <Tooltip title={`Đệm ${reorderSuggestion.safety_stock_days} ngày tiêu thụ để đề phòng biến động`}>
+                      <InfoCircleOutlined style={{ marginLeft: 4, opacity: 0.5, cursor: 'help' }} />
+                    </Tooltip>
+                  </div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-1)' }}>
+                    {reorderSuggestion.safety_stock.toFixed(1)}
+                    <span style={{ fontSize: 12, fontWeight: 400, color: 'var(--text-2)', marginLeft: 4 }}>đơn vị</span>
+                  </div>
+                </div>
+                <div>
+                  <div style={labelStyle}>Điểm đặt lại gợi ý</div>
+                  <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--accent)' }}>
+                    {reorderSuggestion.suggested_reorder_point}
+                    <span style={{ fontSize: 12, fontWeight: 400, color: 'var(--text-2)', marginLeft: 4 }}>đơn vị</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Dữ liệu hỗ trợ + nút áp dụng */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid var(--border)', paddingTop: 10 }}>
+                <div style={{ fontSize: 12, color: 'var(--text-2)', display: 'flex', gap: 16 }}>
+                  <span>Dựa trên <strong>{reorderSuggestion.delivery_count}</strong> lần xuất kho</span>
+                  <span><strong>{reorderSuggestion.purchase_count}</strong> lần nhập có PO</span>
+                  <span><strong>{reorderSuggestion.quotation_count}</strong> báo giá trong {reorderSuggestion.period_days} ngày</span>
+                  <span style={{ color: 'var(--text-3)', fontStyle: 'italic' }}>
+                    = tiêu thụ TB × lead time + đệm an toàn
+                  </span>
+                </div>
+                <Button
+                  type="primary"
+                  size="small"
+                  icon={<CheckOutlined />}
+                  onClick={() => {
+                    form.setFieldValue('reorder_point', reorderSuggestion.suggested_reorder_point)
+                    if (!isEditing) setIsEditing(true)
+                  }}
+                >
+                  Áp dụng gợi ý
+                </Button>
+              </div>
+            </div>
+          ) : null}
+        </SectionCard>
+      )}
+
+      {/* Đưa lên ngay dưới Thông tin SKU theo yêu cầu — trước đây nằm cuối trang, dưới cả
+          Thuộc tính/Nhà cung cấp/Giá theo khách hàng, ít liên quan trực tiếp tới các field
+          định danh/giá cơ bản ở trên. */}
+      <SectionCard title="Mô tả theo khách hàng">
+        <CustomerDescriptionsPanel productId={productId!} variantId={variantId!} />
+      </SectionCard>
 
       {/* ── Thuộc tính SKU ── */}
       {hook.attrValues.length > 0 && (
@@ -339,10 +448,6 @@ export default function VariantDetailPage() {
 
       <SectionCard title="Giá theo khách hàng">
         <CustomerPricesPanel productId={productId!} variantId={variantId!} />
-      </SectionCard>
-
-      <SectionCard title="Mô tả theo khách hàng">
-        <CustomerDescriptionsPanel productId={productId!} variantId={variantId!} />
       </SectionCard>
     </div>
   )

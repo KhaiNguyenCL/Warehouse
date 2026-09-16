@@ -196,6 +196,12 @@ const productRoutes: FastifyPluginAsync = async (app) => {
     },
   )
 
+  app.get<{ Params: { id: string; variantId: string } }>(
+    '/:id/variants/:variantId/reorder-suggestion',
+    { preHandler: authenticate },
+    async (request) => service.getVariantReorderSuggestion(request.params.id, request.params.variantId),
+  )
+
   app.post<{ Params: { id: string }; Body: CreateVariantBody }>(
     '/:id/variants',
     { schema: createVariantSchema, preHandler: requirePermission('settings.products') },

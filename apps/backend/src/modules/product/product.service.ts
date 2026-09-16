@@ -185,6 +185,87 @@ export class ProductService {
     }
   }
 
+  // ─── Reorder Suggestion ───────────────────────────────────────────────────
+  // Tính điểm đặt lại gợi ý dựa trên 3 thành phần:
+  //   1. avg_daily_consumption  = tổng xuất kho 90 ngày gần nhất / 90
+  //   2. avg_lead_time_days     = trung bình (receipt.completed_at − po.confirmed_at) tính bằng ngày
+  //   3. safety_stock           = avg_daily_consumption × 7 (đệm 1 tuần)
+  //   suggested_reorder_point   = ceil(avg_daily × lead_time + safety_stock)
+  //
+  // Tất cả nguồn dữ liệu đều từ transactional data (DO Completed + Receipt Completed + Quotation Confirmed).
+  // insufficient_data = true khi <3 delivery transactions trong 90 ngày (quá ít để tin cậy).
+  async getVariantReorderSuggestion(productId: string, variantId: string) {
+    await this.assertVariantBelongsToProduct(productId, variantId)
+
+    const PERIOD_DAYS = 90
+    const SAFETY_STOCK_DAYS = 7
+    const MIN_DELIVERIES = 3
+
+    const since = new Date(Date.now() - PERIOD_DAYS * 24 * 60 * 60 * 1000).toISOString()
+
+    // Tổng qty xuất kho (sale/internal/demo_out...) trong 90 ngày — dùng delivery_order_lines
+    // vì cần per-variant granularity (delivery_orders.warehouse_id không đủ).
+    const deliveryRows = await this.db('delivery_order_lines as dol')
+      .join('delivery_orders as d', 'd.id', 'dol.delivery_order_id')
+      .where('dol.variant_id', variantId)
+      .andWhere('d.status', 'completed')
+      .andWhere('d.completed_at', '>=', since)
+      .sum('dol.quantity as total_qty')
+      .count('d.id as delivery_count')
+      .first()
+
+    const totalQty = Number(deliveryRows?.total_qty ?? 0)
+    const deliveryCount = Number(deliveryRows?.delivery_count ?? 0)
+
+    // Trung bình lead time: từ PO confirmed → receipt completed (chỉ receipt gắn PO).
+    // Bỏ các receipt không có po_id (adjustment/return_in không có lead time ý nghĩa).
+    const leadTimeRows = await this.db('receipt_lines as rl')
+      .join('receipts as r', 'r.id', 'rl.receipt_id')
+      .join('purchase_orders as po', 'po.id', 'r.po_id')
+      .where('rl.variant_id', variantId)
+      .andWhere('r.status', 'completed')
+      .whereNotNull('r.po_id')
+      .whereNotNull('po.confirmed_at')
+      .whereNotNull('r.completed_at')
+      .select(
+        this.db.raw("AVG(EXTRACT(EPOCH FROM (r.completed_at - po.confirmed_at)) / 86400) AS avg_lead"),
+        this.db.raw('COUNT(r.id) AS purchase_count'),
+      )
+      .first()
+
+    const avgLeadTimeDays = Math.max(Number(leadTimeRows?.avg_lead ?? 0), 1) // tối thiểu 1 ngày
+    const purchaseCount = Number(leadTimeRows?.purchase_count ?? 0)
+
+    // Số lần xuất hiện trong báo giá confirmed (90 ngày) — chỉ để hiển thị context, không ảnh hưởng công thức.
+    const quotationCount = await this.db('quotation_line_items as qli')
+      .join('quotation_sections as qs', 'qs.id', 'qli.section_id')
+      .join('quotations as q', 'q.id', 'qs.quotation_id')
+      .where('qli.variant_id', variantId)
+      .whereIn('q.status', ['confirmed', 'expired'])
+      .andWhere('q.created_at', '>=', since)
+      .countDistinct('q.id as cnt')
+      .first()
+      .then((r) => Number(r?.cnt ?? 0))
+
+    const avgDailyConsumption = totalQty / PERIOD_DAYS
+    const safetyStock = avgDailyConsumption * SAFETY_STOCK_DAYS
+    const suggestedReorderPoint = Math.ceil(avgDailyConsumption * avgLeadTimeDays + safetyStock)
+
+    return {
+      period_days: PERIOD_DAYS,
+      avg_daily_consumption: Math.round(avgDailyConsumption * 100) / 100,
+      avg_lead_time_days:    Math.round(avgLeadTimeDays * 10) / 10,
+      safety_stock_days:     SAFETY_STOCK_DAYS,
+      safety_stock:          Math.round(safetyStock * 100) / 100,
+      suggested_reorder_point: suggestedReorderPoint,
+      // Dữ liệu hỗ trợ — hiển thị để user đánh giá mức độ tin cậy của gợi ý
+      delivery_count:  deliveryCount,
+      purchase_count:  purchaseCount,
+      quotation_count: quotationCount,
+      insufficient_data: deliveryCount < MIN_DELIVERIES,
+    }
+  }
+
   async deleteVariant(productId: string, variantId: string) {
     const variant = await this.repo.findVariantById(variantId)
     if (!variant || variant.product_id !== productId) {
