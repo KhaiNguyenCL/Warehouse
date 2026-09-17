@@ -44,11 +44,6 @@ export function useShipmentForm() {
     queryFn: async () => (await api.get('/warehouses')).data,
   })
 
-  const { data: suppliersData } = useQuery({
-    queryKey: ['companies', 'supplier', 100],
-    queryFn: async () => (await api.get('/companies', { params: { type: 'supplier', limit: 100 } })).data,
-  })
-
   const { data: confirmedPOs } = useQuery({
     queryKey: ['purchase-orders', 'confirmed'],
     queryFn: async () => (await api.get('/purchase-orders', { params: { status: 'confirmed', limit: 100 } })).data,
@@ -71,7 +66,6 @@ export function useShipmentForm() {
   useEffect(() => {
     if (!shipment) return
     form.setFieldsValue({
-      supplier_id: shipment.supplier_id,
       warehouse_id: shipment.warehouse_id,
       expected_date: shipment.expected_date ? dayjs(shipment.expected_date) : undefined,
       notes: shipment.notes,
@@ -83,7 +77,6 @@ export function useShipmentForm() {
     if (!poDetail || id) return
     form.setFieldsValue({
       po_id: poDetail.id,
-      supplier_id: poDetail.company_id,
       lines: poDetail.lines
         .filter((l: any) => l.remaining_qty > 0)
         .map((l: any) => ({
@@ -98,7 +91,7 @@ export function useShipmentForm() {
   // When poId cleared → reset po-related fields
   useEffect(() => {
     if (!poId) {
-      form.setFieldsValue({ po_id: undefined, supplier_id: undefined, lines: [{}] })
+      form.setFieldsValue({ po_id: undefined, lines: [{}] })
     }
   }, [poId])
 
@@ -187,14 +180,12 @@ export function useShipmentForm() {
     poId,
     setPoId,
     poIdFromQuery,
-    poSupplierName: poDetail?.company_name as string | undefined,
     variantSearch,
     setVariantSearch,
     variantOptions,
     confirmedPOs,
     // queries
     warehouses,
-    suppliers: suppliersData?.data ?? [],
     // receive-mode
     receiveMode,
     setReceiveMode,

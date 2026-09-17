@@ -4,7 +4,6 @@ export const createShipmentSchema = {
     required: ['warehouse_id', 'lines'],
     properties: {
       po_id:         { type: 'string', format: 'uuid' },
-      supplier_id:   { type: 'string', format: 'uuid' },
       warehouse_id:  { type: 'string', format: 'uuid' },
       expected_date: { type: 'string', format: 'date-time' },
       notes:         { type: 'string' },
@@ -35,7 +34,6 @@ export const updateShipmentSchema = {
   body: {
     type: 'object',
     properties: {
-      supplier_id:   { type: 'string', format: 'uuid' },
       warehouse_id:  { type: 'string', format: 'uuid' },
       expected_date: { type: 'string', format: 'date-time' },
       notes:         { type: 'string' },
@@ -88,7 +86,6 @@ export const listShipmentSchema = {
 
 export interface CreateShipmentBody {
   po_id?: string
-  supplier_id?: string
   warehouse_id: string
   expected_date?: string
   notes?: string
@@ -106,7 +103,6 @@ export interface CreateShipmentBody {
 }
 
 export interface UpdateShipmentBody {
-  supplier_id?: string
   warehouse_id?: string
   expected_date?: string
   notes?: string

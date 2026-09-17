@@ -8,15 +8,21 @@ import { useShipmentForm } from '../hooks/useShipmentForm'
 import { StatusBadge } from '../components/ui/StatusBadge'
 import { Button } from '@/components/ui/button'
 import { usePageHeader } from '@/layout/PageHeaderSlot'
+import { fieldTier } from '@/styles/fieldWidths'
 
 // ── Shared display helpers (mirrors ReceiptFormPage) ──────────────────────────
 
-function BBox({ children }: { children: React.ReactNode }) {
+function BBox({ children, style, title }: { children: React.ReactNode; style?: React.CSSProperties; title?: string }) {
+  // Cột này có thể bị thu hẹp (VD Kho nhận/Nhà cung cấp) — luôn cắt 1 dòng + `title` để tên
+  // công ty dài không bị wrap phá vỡ chiều cao 32px cố định, thay vì phụ thuộc cột phải luôn
+  // đủ rộng cho MỌI giá trị (không thực tế vì tên công ty dài ngắn khác nhau).
   return (
-    <div style={{
+    <div title={title} style={{
       height: 32, display: 'flex', alignItems: 'center', padding: '0 11px',
-      border: '1px solid var(--border, #d9d9d9)', borderRadius: 6,
+      border: '1px solid var(--border-strong, #10141f)', borderRadius: 6,
       background: 'var(--bg-subtle)', fontSize: 14, userSelect: 'text',
+      overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis',
+      ...style,
     }}>
       {children}
     </div>
@@ -29,7 +35,7 @@ function ReadOnlyText({ value }: { value?: string }) {
   return (
     <div style={{
       height: 32, display: 'flex', alignItems: 'center', padding: '0 11px',
-      border: '1px solid var(--border, #d9d9d9)', borderRadius: 6,
+      border: '1px solid var(--border-strong, #10141f)', borderRadius: 6,
       background: 'var(--bg-subtle)', fontSize: 14,
       cursor: 'not-allowed', userSelect: 'text',
     }}>
@@ -132,15 +138,31 @@ export default function ShipmentFormPage() {
       >
 
         {/* ─── Card 1: Thông tin phiếu ──────────────────────────────── */}
-        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, padding: '20px 24px', marginBottom: 16 }}>
+        {/* Border input/select/textarea trong TOÀN BỘ card này dùng --border-strong (đậm hơn
+            mặc định) theo yêu cầu — style CSS scoped qua class .shipment-info-card (không chỉ
+            hàng field phía trên) để Ghi chú cũng đồng bộ, không đổi border toàn app. */}
+        <style>{`
+          .shipment-info-card .ant-select-selector,
+          .shipment-info-card .ant-picker,
+          .shipment-info-card .ant-input { border-color: var(--border-strong) !important; }
+        `}</style>
+        <div className="shipment-info-card" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, padding: '20px 24px', marginBottom: 16 }}>
           <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 16, color: 'var(--text-1)' }}>
             Thông tin phiếu
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: '0 16px' }}>
-            <Form.Item name="warehouse_id" label="Kho nhận" style={{ gridColumn: 'span 5' }} rules={isCreate || isEdit ? [{ required: true }] : undefined}>
+          {/* Cột lệch thay vì chia đều: Nhà cung cấp cần rộng nhất (tên công ty dài). 2 cột
+              cuối (Ngày dự kiến, PO liên kết/Chọn PO) dùng track width CỐ ĐỊNH bằng đúng
+              fieldTier thay vì "fr + maxWidth" — fr rộng hơn giá trị thực sẽ để lại khoảng
+              trống chết trong ô, làm khoảng cách nhìn giữa các field không đều nhau (xem
+              CLAUDE.md mục 22 / fieldTier). */}
+          {/* minmax(0, Nfr) thay vì Nfr thuần — tránh cột co giãn lệch tỷ lệ theo nội dung bên
+              trong (VD "Kho HCM" ngắn khiến grid co cột đó gần hết cỡ min-content rồi dồn hết
+              phần dư sang cột kế, thay vì giữ đúng tỷ lệ 0.7:1.1 đã đặt). */}
+          <div className="shipment-info-row" style={{ display: 'grid', gridTemplateColumns: `minmax(0, 1fr) ${fieldTier.medium}px 360px`, gap: '0 16px' }}>
+            <Form.Item name="warehouse_id" label="Kho nhận" rules={isCreate || isEdit ? [{ required: true }] : undefined}>
               {isView ? (
-                <BBox>{shipment?.warehouse_name ?? ph}</BBox>
+                <BBox title={shipment?.warehouse_name}>{shipment?.warehouse_name ?? ph}</BBox>
               ) : (
                 <Select
                   options={hook.warehouses?.map((w: any) => ({ value: w.id, label: `${w.name} (${w.code})` }))}
@@ -149,69 +171,43 @@ export default function ShipmentFormPage() {
               )}
             </Form.Item>
 
-            <Form.Item name="supplier_id" label="Nhà cung cấp" style={{ gridColumn: 'span 5' }}>
+            <Form.Item name="expected_date" label="Ngày dự kiến">
               {isView ? (
-                <BBox>{shipment?.supplier_name ?? ph}</BBox>
-              ) : hook.poId ? (
-                <BBox>{hook.poSupplierName ?? ph}</BBox>
+                <BBox style={{ maxWidth: fieldTier.medium }}>{shipment?.expected_date ? new Date(shipment.expected_date).toLocaleDateString('vi-VN') : ph}</BBox>
               ) : (
-                <Select
-                  allowClear
-                  showSearch
-                  optionFilterProp="label"
-                  options={[
-                    // Inject option hiện tại để Select luôn hiện tên, không hiện UUID,
-                    // dù công ty đó không nằm trong danh sách lọc theo type=supplier
-                    // hoặc suppliersData chưa load xong khi form đã có giá trị.
-                    ...(shipment?.supplier_id && shipment?.supplier_name
-                      ? [{ value: shipment.supplier_id, label: shipment.supplier_name }]
-                      : []),
-                    ...(hook.suppliers ?? [])
-                      .filter((c: any) => c.id !== shipment?.supplier_id)
-                      .map((c: any) => ({ value: c.id, label: c.name })),
-                  ]}
-                  placeholder="Chọn NCC (tuỳ chọn)"
-                />
+                <DatePicker format="DD/MM/YYYY" style={{ width: '100%', maxWidth: fieldTier.medium }} placeholder="Ngày dự kiến" />
               )}
             </Form.Item>
 
-            <Form.Item name="expected_date" label="Ngày dự kiến" style={{ gridColumn: 'span 2' }}>
-              {isView ? (
-                <BBox>{shipment?.expected_date ? new Date(shipment.expected_date).toLocaleDateString('vi-VN') : ph}</BBox>
-              ) : (
-                <DatePicker format="DD/MM/YYYY" style={{ width: '100%' }} placeholder="Ngày dự kiến" />
-              )}
-            </Form.Item>
-          </div>
-
-          {isCreate && (
-            <>
-              <Form.Item label="Chọn PO (tuỳ chọn)" style={{ maxWidth: '66%', marginBottom: 12 }}>
-                <Select
-                  allowClear
-                  value={hook.poId}
-                  placeholder="Chọn PO đã Confirmed để tự điền dòng hàng"
-                  options={hook.confirmedPOs?.data?.map((p: any) => ({
-                    value: p.id,
-                    label: [p.bitrix_deal_id, p.deal_title].filter(Boolean).join(' — ') || p.code,
-                  }))}
-                  onChange={(v) => hook.setPoId(v)}
-                />
+            {isCreate && (
+              <>
+                <Form.Item label="Chọn PO (tuỳ chọn)">
+                  <Select
+                    allowClear
+                    value={hook.poId}
+                    placeholder="Chọn PO đã Confirmed"
+                    options={hook.confirmedPOs?.data?.map((p: any) => ({
+                      value: p.id,
+                      label: [p.bitrix_deal_id, p.deal_title].filter(Boolean).join(' — ') || p.code,
+                    }))}
+                    onChange={(v) => hook.setPoId(v)}
+                  />
+                </Form.Item>
+                <Form.Item name="po_id" hidden><Input /></Form.Item>
+              </>
+            )}
+            {!isCreate && shipment?.po_code && (
+              <Form.Item label="PO liên kết">
+                <BBox title={shipment.po_code} style={{ maxWidth: 360 }}>{shipment.po_code}</BBox>
               </Form.Item>
-              <Form.Item name="po_id" hidden><Input /></Form.Item>
-            </>
-          )}
-          {!isCreate && shipment?.po_code && (
-            <Form.Item label="PO liên kết" style={{ maxWidth: '66%', marginBottom: 12 }}>
-              <BBox>{shipment.po_code}</BBox>
-            </Form.Item>
-          )}
+            )}
+          </div>
 
           <Form.Item name="notes" label="Ghi chú" style={{ marginBottom: 0 }}>
             {isView ? (
               <div style={{
                 minHeight: 32, padding: '4px 11px',
-                border: '1px solid var(--border, #d9d9d9)', borderRadius: 6,
+                border: '1px solid var(--border-strong, #10141f)', borderRadius: 6,
                 background: 'var(--bg-subtle)', fontSize: 14, userSelect: 'text',
                 whiteSpace: 'pre-wrap', lineHeight: 1.5,
                 color: shipment?.notes ? undefined : 'var(--text-3, #bbb)',
