@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import {
-  Button, Form, Input, Select, InputNumber, DatePicker,
+  Button as AntButton, Form, Input, Select, InputNumber, DatePicker,
   Table, Modal,
 } from 'antd'
-import { ArrowLeftOutlined } from '@ant-design/icons'
+import { ArrowLeft } from 'lucide-react'
 import { useShipmentForm } from '../hooks/useShipmentForm'
 import { StatusBadge } from '../components/ui/StatusBadge'
+import { Button } from '@/components/ui/button'
+import { usePageHeader } from '@/layout/PageHeaderSlot'
 
 // ── Shared display helpers (mirrors ReceiptFormPage) ──────────────────────────
 
@@ -57,16 +59,6 @@ export default function ShipmentFormPage() {
   const isEdit = mode === 'edit'
   const isView = mode === 'view'
 
-  if (!isCreate && hook.isLoading) return null
-
-  function handleSubmit(v: any) {
-    if (isCreate) {
-      hook.createMutation.mutate(v)
-    } else {
-      hook.updateMutation.mutate(v)
-    }
-  }
-
   function handleCancel() {
     Modal.confirm({
       title: 'Huỷ phiếu nhận hàng?',
@@ -78,51 +70,58 @@ export default function ShipmentFormPage() {
     })
   }
 
+  // usePageHeader là hook — PHẢI gọi vô điều kiện trước early return bên dưới (xem CLAUDE.md mục 22).
+  usePageHeader(
+    <div className="flex items-center justify-between gap-4">
+      <div className="flex min-w-0 items-center gap-2">
+        <Button variant="ghost" size="icon-sm" onClick={() => hook.navigate('/shipments')}>
+          <ArrowLeft className="h-4 w-4" />
+        </Button>
+        <h1 className="flex min-w-0 items-baseline gap-2 truncate text-sm font-semibold tracking-tight">
+          <button
+            onClick={() => hook.navigate('/shipments')}
+            className="text-muted-foreground transition-colors hover:text-foreground"
+          >
+            Phiếu nhận hàng
+          </button>
+          <span className="text-muted-foreground">/</span>
+          <span className="truncate text-foreground">{isCreate ? 'Tạo mới' : (shipment?.code ?? hook.id)}</span>
+        </h1>
+        {shipment?.status && <StatusBadge status={shipment.status} />}
+      </div>
+
+      <div className="flex flex-shrink-0 items-center gap-2">
+        {isEdit && !hook.receiveMode && (
+          <Button size="sm" variant="success" onClick={hook.startReceive}>
+            Xác nhận nhận hàng
+          </Button>
+        )}
+        {shipment?.status === 'received' && (
+          <Button size="sm" onClick={() => hook.navigate(`/receipts/new?shipment_id=${hook.id}`)}>
+            Tạo phiếu nhập kho
+          </Button>
+        )}
+        {!isCreate && !['cancelled'].includes(shipment?.status ?? '') && (
+          <Button size="sm" variant="danger" onClick={handleCancel} disabled={hook.cancelMutation.isPending}>
+            Huỷ phiếu
+          </Button>
+        )}
+      </div>
+    </div>,
+  )
+
+  if (!isCreate && hook.isLoading) return null
+
+  function handleSubmit(v: any) {
+    if (isCreate) {
+      hook.createMutation.mutate(v)
+    } else {
+      hook.updateMutation.mutate(v)
+    }
+  }
+
   return (
     <div style={{ padding: '0 0 48px' }}>
-
-      {/* ─── Breadcrumb + action row ──────────────────────────────────── */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 24 }}>
-        <Button
-          type="text"
-          icon={<ArrowLeftOutlined />}
-          onClick={() => hook.navigate('/shipments')}
-          style={{ padding: '4px 8px' }}
-        />
-        <span
-          style={{ color: 'var(--text-3)', fontSize: 14, cursor: 'pointer' }}
-          onClick={() => hook.navigate('/shipments')}
-        >
-          Phiếu nhận hàng
-        </span>
-        <span style={{ color: 'var(--text-3)', fontSize: 14 }}>/</span>
-        <span style={{ fontSize: 14 }}>
-          {isCreate ? 'Tạo mới' : (shipment?.code ?? hook.id)}
-        </span>
-        {shipment?.status && <StatusBadge status={shipment.status} />}
-
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
-          {/* Xác nhận nhận hàng — chỉ hiện khi draft */}
-          {isEdit && !hook.receiveMode && (
-            <Button type="primary" onClick={hook.startReceive}
-              style={{ background: 'var(--s-completed-color)', borderColor: 'var(--s-completed-color)' }}>
-              Xác nhận nhận hàng
-            </Button>
-          )}
-
-          {/* Tạo phiếu nhập kho — chỉ hiện khi đã received */}
-          {shipment?.status === 'received' && (
-            <Button type="primary" onClick={() => hook.navigate(`/receipts/new?shipment_id=${hook.id}`)}>
-              Tạo phiếu nhập kho
-            </Button>
-          )}
-
-          {/* Huỷ phiếu */}
-          {!isCreate && !['cancelled'].includes(shipment?.status ?? '') && (
-            <Button danger onClick={handleCancel} loading={hook.cancelMutation.isPending}>Huỷ phiếu</Button>
-          )}
-        </div>
-      </div>
 
       <Form
         form={hook.form}
@@ -160,7 +159,17 @@ export default function ShipmentFormPage() {
                   allowClear
                   showSearch
                   optionFilterProp="label"
-                  options={hook.suppliers?.map((c: any) => ({ value: c.id, label: c.name }))}
+                  options={[
+                    // Inject option hiện tại để Select luôn hiện tên, không hiện UUID,
+                    // dù công ty đó không nằm trong danh sách lọc theo type=supplier
+                    // hoặc suppliersData chưa load xong khi form đã có giá trị.
+                    ...(shipment?.supplier_id && shipment?.supplier_name
+                      ? [{ value: shipment.supplier_id, label: shipment.supplier_name }]
+                      : []),
+                    ...(hook.suppliers ?? [])
+                      .filter((c: any) => c.id !== shipment?.supplier_id)
+                      .map((c: any) => ({ value: c.id, label: c.name })),
+                  ]}
                   placeholder="Chọn NCC (tuỳ chọn)"
                 />
               )}
@@ -299,15 +308,15 @@ export default function ShipmentFormPage() {
             />
 
             <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
-              <Button onClick={() => hook.setReceiveMode(false)}>Huỷ</Button>
-              <Button
+              <AntButton onClick={() => hook.setReceiveMode(false)}>Huỷ</AntButton>
+              <AntButton
                 type="primary"
                 onClick={hook.submitReceive}
                 loading={hook.receiveMutation.isPending}
                 style={{ background: 'var(--s-completed-color)', borderColor: 'var(--s-completed-color)' }}
               >
                 Xác nhận
-              </Button>
+              </AntButton>
             </div>
           </div>
         )}
@@ -341,17 +350,17 @@ export default function ShipmentFormPage() {
 
         {/* ─── Bottom actions ───────────────────────────────────────── */}
         <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-          <Button onClick={() => hook.navigate('/shipments')}>Quay lại</Button>
+          <AntButton onClick={() => hook.navigate('/shipments')}>Quay lại</AntButton>
 
           {!isView && !hook.receiveMode && (
-            <Button
+            <AntButton
               type="primary"
               htmlType="submit"
               disabled={isEdit && !isDirty}
               loading={hook.createMutation.isPending || hook.updateMutation.isPending}
             >
               {isCreate ? 'Tạo phiếu nhận hàng' : isDirty ? 'Lưu thay đổi' : 'Sửa'}
-            </Button>
+            </AntButton>
           )}
         </div>
       </Form>
@@ -415,7 +424,7 @@ function CreateLinesTable({ hook }: { hook: ReturnType<typeof useShipmentForm> }
                         <Form.Item name={[f.name, 'variant_id']} hidden><Input /></Form.Item>
                       )}
                       <Form.Item name={[f.name, 'po_line_id']} hidden><Input /></Form.Item>
-                      <Button size="small" danger onClick={() => remove(f.name)}>Xóa</Button>
+                      <AntButton size="small" danger onClick={() => remove(f.name)}>Xóa</AntButton>
                     </>
                   ),
                 },
@@ -423,9 +432,9 @@ function CreateLinesTable({ hook }: { hook: ReturnType<typeof useShipmentForm> }
             />
           </div>
           {!hook.poId && (
-            <Button style={{ marginTop: 8 }} onClick={() => add({ qty_expected: 1 })}>
+            <AntButton style={{ marginTop: 8 }} onClick={() => add({ qty_expected: 1 })}>
               + Thêm dòng
-            </Button>
+            </AntButton>
           )}
         </>
       )}
