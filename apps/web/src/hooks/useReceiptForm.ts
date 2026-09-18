@@ -69,7 +69,7 @@ export function useReceiptForm(options?: { onUpdateSuccess?: () => void }) {
   // tiếp với Loại nhập = "purchase" (không bắt buộc phải đi từ nút trên trang Shipment).
   const { data: receivedShipments } = useQuery({
     queryKey: ['shipments', 'received-list'],
-    queryFn: async () => (await api.get('/shipments', { params: { status: 'received', limit: 100 } })).data,
+    queryFn: async () => (await api.get('/shipments', { params: { status: 'received', available_for_receipt: true, limit: 100 } })).data,
     enabled: !id,
   })
 

@@ -75,8 +75,9 @@ export const listShipmentSchema = {
       po_id:        { type: 'string', format: 'uuid' },
       supplier_id:  { type: 'string', format: 'uuid' },
       warehouse_id: { type: 'string', format: 'uuid' },
-      search:       { type: 'string' },
-      sort_by:      { type: 'string' },
+      search:                { type: 'string' },
+      available_for_receipt: { type: 'boolean' },
+      sort_by:               { type: 'string' },
       sort_order:   { type: 'string', enum: ['asc', 'desc'] },
       page:         { type: 'integer', minimum: 1, default: 1 },
       limit:        { type: 'integer', minimum: 1, maximum: 100, default: 20 },
@@ -128,6 +129,7 @@ export interface ListShipmentQuery {
   supplier_id?: string
   warehouse_id?: string
   search?: string
+  available_for_receipt?: boolean
   sort_by?: string
   sort_order?: 'asc' | 'desc'
   page?: number

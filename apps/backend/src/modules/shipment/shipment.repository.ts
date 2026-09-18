@@ -6,7 +6,7 @@ export class ShipmentRepository {
   constructor(private db: Knex) {}
 
   async findAll(query: ListShipmentQuery) {
-    const { status, po_id, supplier_id, warehouse_id, search, sort_by, sort_order, page = 1, limit = 20 } = query
+    const { status, po_id, supplier_id, warehouse_id, search, available_for_receipt, sort_by, sort_order, page = 1, limit = 20 } = query
     const offset = (page - 1) * limit
 
     const SORTABLE: Record<string, string> = {
@@ -20,13 +20,16 @@ export class ShipmentRepository {
       .leftJoin('warehouses as w', 'w.id', 's.warehouse_id')
       .leftJoin('purchase_orders as po', 'po.id', 's.po_id')
       .leftJoin('users as u', 'u.id', 's.created_by')
+      .leftJoin('users as ur', 'ur.id', 's.received_by')
       .select(
         's.id', 's.code', 's.status', 's.expected_date', 's.received_date',
         's.created_at', 's.attachments',
         'c.name as supplier_name',
+        'c.code as supplier_code',
         'w.name as warehouse_name',
         'po.code as po_code',
         'u.full_name as created_by_name',
+        'ur.full_name as received_by_name',
       )
 
     if (status)       base.where('s.status', status)
@@ -34,6 +37,23 @@ export class ShipmentRepository {
     if (supplier_id)  base.where('s.supplier_id', supplier_id)
     if (warehouse_id) base.where('s.warehouse_id', warehouse_id)
     if (search)       base.where((qb) => qb.whereILike('s.code', `%${search}%`).orWhereILike('c.name', `%${search}%`))
+
+    // Chỉ hiện shipment còn chưa nhập kho đủ: tổng qty đã completed < tổng qty_received của
+    // shipment lines (bỏ missing). Dùng cho dropdown chọn Phiếu nhận hàng khi tạo Receipt.
+    if (available_for_receipt) {
+      base.whereRaw(`
+        COALESCE((
+          SELECT SUM(rl.quantity)
+          FROM receipts r
+          JOIN receipt_lines rl ON rl.receipt_id = r.id
+          WHERE r.shipment_id = s.id AND r.status = 'completed'
+        ), 0) < COALESCE((
+          SELECT SUM(sl.qty_received)
+          FROM shipment_lines sl
+          WHERE sl.shipment_id = s.id AND sl.condition != 'missing'
+        ), 0)
+      `)
+    }
 
 
     const [rows, countResult] = await Promise.all([
