@@ -61,7 +61,7 @@ export class QuotationRepository {
   // ─── Quotations ────────────────────────────────────────────────────────
 
   async findAll(query: ListQuotationQuery) {
-    const { status, company_id, search, sort_by, sort_order, page = 1, limit = 20 } = query
+    const { status, company_id, search, has_remaining, sort_by, sort_order, page = 1, limit = 20 } = query
     const offset = (page - 1) * limit
 
     const SORTABLE: Record<string, string> = {
@@ -82,14 +82,34 @@ export class QuotationRepository {
       })
     }
 
+    // Chỉ hiện Quotation còn dòng chưa xuất đủ — dùng cho dropdown chọn BG khi tạo DO.
+    if (has_remaining) {
+      base.whereExists(
+        this.db('quotation_line_items as qli')
+          .join('quotation_sections as qs', 'qs.id', 'qli.section_id')
+          .where('qs.quotation_id', this.db.ref('q.id'))
+          .whereRaw(`
+            qli.quantity > COALESCE((
+              SELECT SUM(dl.quantity)
+              FROM delivery_order_lines dl
+              JOIN delivery_orders d ON d.id = dl.delivery_order_id
+              WHERE dl.quotation_line_item_id = qli.id
+              AND d.status != 'cancelled'
+            ), 0)
+          `)
+          .select(this.db.raw('1')),
+      )
+    }
+
     const [rows, countResult] = await Promise.all([
       base
         .clone()
         .select(
           'q.id', 'q.code', 'q.status', 'q.project_name',
           'q.subtotal', 'q.vat_total', 'q.discount', 'q.grand_total',
-          'q.expired_at', 'q.created_at',
+          'q.expired_at', 'q.created_at', 'q.bitrix_deal_id',
           'c.name as company_name',
+          'c.code as company_code',
           'u.full_name as created_by_name',
         )
         .orderBy(SORTABLE[sort_by ?? ''] ?? 'q.created_at', sortDir)

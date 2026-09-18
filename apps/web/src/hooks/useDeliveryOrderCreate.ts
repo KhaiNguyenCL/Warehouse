@@ -43,7 +43,7 @@ export function useDeliveryOrderCreate() {
 
   const { data: confirmedQuotations } = useQuery({
     queryKey: ['quotations', 'confirmed'],
-    queryFn: async () => (await api.get('/quotations', { params: { status: 'confirmed', limit: 100 } })).data,
+    queryFn: async () => (await api.get('/quotations', { params: { status: 'confirmed', has_remaining: true, limit: 100 } })).data,
     enabled: requiresQuotation,
   })
 

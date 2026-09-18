@@ -99,7 +99,7 @@ export function useDeliveryOrders() {
   // Quotation Confirmed để chọn (xuất theo báo giá) — chỉ cần khi export_type yêu cầu (sale).
   const { data: confirmedQuotations } = useQuery({
     queryKey: ['quotations', 'confirmed'],
-    queryFn: async () => (await api.get('/quotations', { params: { status: 'confirmed', limit: 100 } })).data,
+    queryFn: async () => (await api.get('/quotations', { params: { status: 'confirmed', has_remaining: true, limit: 100 } })).data,
     enabled: requiresQuotation,
   })
 

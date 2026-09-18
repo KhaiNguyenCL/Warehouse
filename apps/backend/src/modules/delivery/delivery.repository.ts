@@ -6,7 +6,7 @@ export class DeliveryRepository {
   constructor(private db: Knex) {}
 
   async findAll(query: ListDeliveryQuery) {
-    const { status, export_type, warehouse_id, company_id, search, sort_by, sort_order, page = 1, limit = 20 } = query
+    const { status, export_type, warehouse_id, company_id, search, available_for_return, sort_by, sort_order, page = 1, limit = 20 } = query
     const offset = (page - 1) * limit
 
     const SORTABLE: Record<string, string> = {
@@ -23,6 +23,7 @@ export class DeliveryRepository {
         'd.id', 'd.code', 'd.export_type', 'd.status',
         'd.created_at', 'd.completed_at',
         'c.name as company_name',
+        'c.code as company_code',
         'w.name as warehouse_name',
         'u.full_name as created_by_name',
       )
@@ -32,6 +33,25 @@ export class DeliveryRepository {
     if (warehouse_id) base.where('d.warehouse_id', warehouse_id)
     if (company_id) base.where('d.company_id', company_id)
     if (search) base.where((qb) => qb.whereILike('d.code', `%${search}%`).orWhereILike('c.name', `%${search}%`))
+
+    // Chỉ hiện DO còn dòng chưa trả đủ — dùng cho dropdown chọn DO khi tạo Receipt return_in.
+    if (available_for_return) {
+      base.whereRaw(`
+        COALESCE((
+          SELECT SUM(dl.quantity)
+          FROM delivery_order_lines dl
+          WHERE dl.delivery_order_id = d.id
+        ), 0) > COALESCE((
+          SELECT SUM(rl.quantity)
+          FROM receipt_lines rl
+          JOIN receipts r ON r.id = rl.receipt_id
+          WHERE r.ref_document_id = d.id
+          AND r.ref_document_type = 'delivery_order'
+          AND r.import_type = 'return_in'
+          AND r.status != 'cancelled'
+        ), 0)
+      `)
+    }
 
     const [rows, countResult] = await Promise.all([
       base.clone().orderBy(SORTABLE[sort_by ?? ''] ?? 'd.created_at', sortDir).limit(limit).offset(offset),

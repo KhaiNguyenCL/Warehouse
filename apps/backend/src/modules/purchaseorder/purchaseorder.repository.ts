@@ -13,7 +13,7 @@ export class PurchaseOrderRepository {
   constructor(private db: Knex) {}
 
   async findAll(query: ListPurchaseOrderQuery) {
-    const { status, company_id, search, sort_by, sort_order, page = 1, limit = 20 } = query
+    const { status, company_id, search, has_remaining, sort_by, sort_order, page = 1, limit = 20 } = query
     const offset = (page - 1) * limit
 
     const SORTABLE: Record<string, string> = {
@@ -31,12 +31,31 @@ export class PurchaseOrderRepository {
     if (company_id) base.where('po.company_id', company_id)
     if (search) base.where((qb) => qb.whereILike('po.code', `%${search}%`).orWhereILike('c.name', `%${search}%`))
 
+    // Chỉ hiện PO còn dòng chưa nhận đủ — dùng cho dropdown chọn PO khi tạo Shipment/Receipt.
+    if (has_remaining) {
+      base.whereExists(
+        this.db('purchase_order_lines as pol')
+          .where('pol.purchase_order_id', this.db.ref('po.id'))
+          .whereRaw(`
+            pol.quantity > COALESCE((
+              SELECT SUM(rl.quantity)
+              FROM receipt_lines rl
+              JOIN receipts r ON r.id = rl.receipt_id
+              WHERE rl.po_line_id = pol.id
+              AND r.status != 'cancelled'
+            ), 0)
+          `)
+          .select(this.db.raw('1')),
+      )
+    }
+
     const [rows, countResult] = await Promise.all([
       base
         .clone()
         .select(
           'po.id', 'po.code', 'po.status', 'po.bitrix_deal_id', 'po.deal_title', 'po.created_at',
-          'c.name as company_name',
+          'po.company_id',
+          'c.name as company_name', 'c.code as company_code',
           'u.full_name as created_by_name',
           'uc.full_name as confirmed_by_name',
           this.db.raw(`(

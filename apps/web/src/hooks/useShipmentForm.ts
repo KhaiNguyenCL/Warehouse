@@ -46,7 +46,7 @@ export function useShipmentForm() {
 
   const { data: confirmedPOs } = useQuery({
     queryKey: ['purchase-orders', 'confirmed'],
-    queryFn: async () => (await api.get('/purchase-orders', { params: { status: 'confirmed', limit: 100 } })).data,
+    queryFn: async () => (await api.get('/purchase-orders', { params: { status: 'confirmed', has_remaining: true, limit: 100 } })).data,
   })
 
   const { data: poDetail } = useQuery({

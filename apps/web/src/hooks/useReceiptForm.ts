@@ -76,7 +76,7 @@ export function useReceiptForm(options?: { onUpdateSuccess?: () => void }) {
   // Danh sách Phiếu xuất kho đã Completed — dùng khi Loại nhập = "return_in"
   const { data: completedDOs } = useQuery({
     queryKey: ['delivery-orders', 'completed-list'],
-    queryFn: async () => (await api.get('/deliveries', { params: { status: 'completed', limit: 100 } })).data,
+    queryFn: async () => (await api.get('/deliveries', { params: { status: 'completed', available_for_return: true, limit: 100 } })).data,
     enabled: !id,
   })
 

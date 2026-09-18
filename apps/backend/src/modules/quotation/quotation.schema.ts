@@ -101,10 +101,11 @@ export const listQuotationSchema = {
   querystring: {
     type: 'object',
     properties: {
-      status:     { type: 'string', enum: QUOTATION_STATUSES },
-      company_id: { type: 'string', format: 'uuid' },
-      search:     { type: 'string' },
-      sort_by:    { type: 'string', enum: ['code', 'created_at', 'expired_at', 'grand_total', 'company_name'] },
+      status:        { type: 'string', enum: QUOTATION_STATUSES },
+      company_id:    { type: 'string', format: 'uuid' },
+      search:        { type: 'string' },
+      has_remaining: { type: 'boolean' },
+      sort_by:       { type: 'string', enum: ['code', 'created_at', 'expired_at', 'grand_total', 'company_name'] },
       sort_order: { type: 'string', enum: ['asc', 'desc'] },
       page:       { type: 'integer', minimum: 1, default: 1 },
       limit:      { type: 'integer', minimum: 1, maximum: 100, default: 20 },
@@ -166,6 +167,7 @@ export interface ListQuotationQuery {
   status?: QuotationStatus
   company_id?: string
   search?: string
+  has_remaining?: boolean
   sort_by?: string
   sort_order?: 'asc' | 'desc'
   page?: number

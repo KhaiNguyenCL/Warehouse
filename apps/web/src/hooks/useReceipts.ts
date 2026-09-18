@@ -78,7 +78,7 @@ export function useReceipts() {
   // PO Confirmed để chọn (nhận hàng theo PO) — chỉ cần khi import_type = purchase.
   const { data: confirmedPOs } = useQuery({
     queryKey: ['purchase-orders', 'confirmed'],
-    queryFn: async () => (await api.get('/purchase-orders', { params: { status: 'confirmed', limit: 100 } })).data,
+    queryFn: async () => (await api.get('/purchase-orders', { params: { status: 'confirmed', has_remaining: true, limit: 100 } })).data,
   })
 
   // Chi tiết PO đang chọn — lấy danh sách po_line + remaining_qty để tự điền dòng hàng.

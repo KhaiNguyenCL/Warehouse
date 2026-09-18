@@ -58,12 +58,13 @@ export const listDeliverySchema = {
   querystring: {
     type: 'object',
     properties: {
-      status:       { type: 'string' },
-      export_type:  { type: 'string' },
-      warehouse_id: { type: 'string' },
-      company_id:   { type: 'string', format: 'uuid' },
-      search:       { type: 'string' },
-      sort_by:      { type: 'string', enum: ['code', 'status', 'created_at', 'export_type', 'company_name'] },
+      status:               { type: 'string' },
+      export_type:          { type: 'string' },
+      warehouse_id:         { type: 'string' },
+      company_id:           { type: 'string', format: 'uuid' },
+      search:               { type: 'string' },
+      available_for_return: { type: 'boolean' },
+      sort_by:              { type: 'string', enum: ['code', 'status', 'created_at', 'export_type', 'company_name'] },
       sort_order:   { type: 'string', enum: ['asc', 'desc'] },
       page:         { type: 'integer', minimum: 1, default: 1 },
       limit:        { type: 'integer', minimum: 1, maximum: 100, default: 20 },
@@ -122,6 +123,7 @@ export interface ListDeliveryQuery {
   warehouse_id?: string
   company_id?: string
   search?: string
+  available_for_return?: boolean
   sort_by?: string
   sort_order?: 'asc' | 'desc'
   page?: number
