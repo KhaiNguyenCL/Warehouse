@@ -38,15 +38,16 @@ export class ShipmentRepository {
     if (warehouse_id) base.where('s.warehouse_id', warehouse_id)
     if (search)       base.where((qb) => qb.whereILike('s.code', `%${search}%`).orWhereILike('c.name', `%${search}%`))
 
-    // Chỉ hiện shipment còn chưa nhập kho đủ: tổng qty đã completed < tổng qty_received của
-    // shipment lines (bỏ missing). Dùng cho dropdown chọn Phiếu nhận hàng khi tạo Receipt.
+    // Chỉ hiện shipment còn chưa nhập kho đủ: tổng qty của mọi receipt chưa huỷ (kể cả
+    // draft/pending/approved) < tổng qty_received của shipment lines (bỏ missing).
+    // Đếm cả pending để tránh tạo 2 receipt từ cùng 1 shipment khi cái đầu chưa complete.
     if (available_for_receipt) {
       base.whereRaw(`
         COALESCE((
           SELECT SUM(rl.quantity)
           FROM receipts r
           JOIN receipt_lines rl ON rl.receipt_id = r.id
-          WHERE r.shipment_id = s.id AND r.status = 'completed'
+          WHERE r.shipment_id = s.id AND r.status != 'cancelled'
         ), 0) < COALESCE((
           SELECT SUM(sl.qty_received)
           FROM shipment_lines sl
