@@ -43,8 +43,8 @@ export class ReceiptService {
   async create(data: CreateReceiptBody, userId: string) {
     const importType = await this.resolveActiveImportType(data.import_type)
     await this.validateRefDocument(data, importType.requires_ref_document)
-    await this.validateShipment(data)
     const receipt = await this.db.transaction(async (trx) => {
+      await this.validateShipment(data, trx)
       await this.validatePurchaseOrder(data, trx)
       return this.repo.create(data, userId, trx)
     })
@@ -54,19 +54,54 @@ export class ReceiptService {
   }
 
   // Quy trình chuẩn: hàng mua từ NCC (import_type='purchase') PHẢI đi qua Phiếu nhận
-  // hàng (Shipment) trước — người nhận xác nhận hàng vật lý về (status='received') rồi
-  // mới tạo Receipt để nhập kho chính thức. Quan hệ PO 1-N Shipment 1-N Receipt: 1
-  // shipment có thể sinh nhiều Receipt (nhập nhiều đợt/nhiều kho), nên KHÔNG chặn theo
-  // "đã có Receipt rồi". return_in/adjustment không xuất phát từ NCC nên không áp dụng.
-  private async validateShipment(data: CreateReceiptBody) {
+  // hàng (Shipment) trước. 1 shipment có thể sinh nhiều Receipt (nhập nhiều đợt), nhưng
+  // tổng qty của TẤT CẢ receipt (non-cancelled) KHÔNG được vượt qty_received của shipment
+  // line tương ứng (per variant). forUpdate() lock shipment để 2 request đồng thời không
+  // cùng pass validate rồi over-receipt (race condition giống PO).
+  private async validateShipment(data: CreateReceiptBody, trx: Knex.Transaction) {
     if (data.import_type !== 'purchase') return
     if (!data.shipment_id) {
       throw { statusCode: 400, message: 'Phiếu nhập kho (mua hàng) phải được tạo từ 1 Phiếu nhận hàng đã xác nhận nhận hàng' }
     }
-    const shipment = await this.db('shipments').where({ id: data.shipment_id }).first()
+    const shipment = await trx('shipments').where({ id: data.shipment_id }).forUpdate().first()
     if (!shipment) throw { statusCode: 400, message: 'Phiếu nhận hàng tham chiếu không tồn tại' }
     if (shipment.status !== 'received') {
       throw { statusCode: 400, message: 'Phiếu nhận hàng phải ở trạng thái "Đã nhận hàng" để tạo Phiếu nhập kho' }
+    }
+
+    // Tổng qty có thể nhập theo shipment line (bỏ missing) — group theo variant_id
+    const shipmentLines = await trx('shipment_lines')
+      .where({ shipment_id: data.shipment_id })
+      .whereNot({ condition: 'missing' })
+      .select('variant_id', trx.raw('SUM(qty_received)::int as allowed_qty'))
+      .groupBy('variant_id')
+    const allowedByVariant = new Map(shipmentLines.map((l) => [l.variant_id, l.allowed_qty as number]))
+
+    // Tổng qty đã có trong các receipt non-cancelled khác — group theo variant_id
+    const usedRows = await trx('receipt_lines as rl')
+      .join('receipts as r', 'r.id', 'rl.receipt_id')
+      .where('r.shipment_id', data.shipment_id)
+      .whereNot('r.status', 'cancelled')
+      .select('rl.variant_id', trx.raw('SUM(rl.quantity)::int as used_qty'))
+      .groupBy('rl.variant_id')
+    const usedByVariant = new Map(usedRows.map((r) => [r.variant_id, r.used_qty as number]))
+
+    // Tổng qty của request mới — group theo variant_id
+    const newQtyByVariant = new Map<string, number>()
+    for (const line of data.lines) {
+      newQtyByVariant.set(line.variant_id, (newQtyByVariant.get(line.variant_id) ?? 0) + line.quantity)
+    }
+
+    for (const [variantId, newQty] of newQtyByVariant) {
+      const allowed = allowedByVariant.get(variantId) ?? 0
+      const used = usedByVariant.get(variantId) ?? 0
+      const remaining = allowed - used
+      if (newQty > remaining) {
+        throw {
+          statusCode: 400,
+          message: `Số lượng nhập (${newQty}) vượt quá số lượng còn lại trong Phiếu nhận hàng (${remaining}) cho SKU ${variantId}`,
+        }
+      }
     }
   }
 
@@ -249,7 +284,7 @@ export class ReceiptService {
     // TOÀN BỘ logic dưới đây nằm trong 1 transaction — nếu 1 trong N dòng cập nhật
     // inventory thất bại (ví dụ lỗi DB giữa đường), Postgres rollback hết, không để
     // tồn kho bị cập nhật "nửa chừng" (ví dụ 3/5 dòng hàng đã cộng kho, 2 dòng chưa).
-    return this.db.transaction(async (trx) => {
+    await this.db.transaction(async (trx) => {
       // Guard THẬT chống race condition: chỉ chuyển trạng thái nếu ĐÚNG LÚC NÀY (không
       // phải lúc đọc receipt ở trên — đã có thể stale) vẫn đang approved. Nếu 1 request
       // complete/cancel khác đã xử lý xong trước khi tới lượt transaction này, update
