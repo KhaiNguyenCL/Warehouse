@@ -70,14 +70,15 @@ export class ReceiptService {
     }
 
     // Tổng qty có thể nhập theo shipment line (bỏ missing) — group theo variant_id
-    const shipmentLines = await trx('shipment_lines')
-      .where({ shipment_id: data.shipment_id })
-      .whereNot({ condition: 'missing' })
-      .select('variant_id', trx.raw('SUM(qty_received)::int as allowed_qty'))
-      .groupBy('variant_id')
-    const allowedByVariant = new Map(shipmentLines.map((l) => [l.variant_id, l.allowed_qty as number]))
+    const shipmentLines = await trx('shipment_lines as sl')
+      .join('variants as v', 'v.id', 'sl.variant_id')
+      .where({ 'sl.shipment_id': data.shipment_id })
+      .whereNot({ 'sl.condition': 'missing' })
+      .select('sl.variant_id', trx.raw('SUM(sl.qty_received)::int as allowed_qty'), 'v.item_code', 'v.sku')
+      .groupBy('sl.variant_id', 'v.item_code', 'v.sku')
+    const allowedByVariant = new Map(shipmentLines.map((l) => [l.variant_id, { qty: l.allowed_qty as number, label: l.item_code ?? l.sku }]))
 
-    // Tổng qty đã có trong các receipt non-cancelled khác — group theo variant_id
+    // Tổng qty đã có trong các receipt non-cancelled — group theo variant_id
     const usedRows = await trx('receipt_lines as rl')
       .join('receipts as r', 'r.id', 'rl.receipt_id')
       .where('r.shipment_id', data.shipment_id)
@@ -93,14 +94,16 @@ export class ReceiptService {
     }
 
     for (const [variantId, newQty] of newQtyByVariant) {
-      const allowed = allowedByVariant.get(variantId) ?? 0
+      const entry = allowedByVariant.get(variantId)
+      const allowed = entry?.qty ?? 0
+      const label = entry?.label ?? variantId
       const used = usedByVariant.get(variantId) ?? 0
       const remaining = allowed - used
       if (newQty > remaining) {
-        throw {
-          statusCode: 400,
-          message: `Số lượng nhập (${newQty}) vượt quá số lượng còn lại trong Phiếu nhận hàng (${remaining}) cho SKU ${variantId}`,
-        }
+        const msg = remaining === 0
+          ? `Phiếu nhận hàng ${shipment.code} đã được nhập kho đủ số lượng cho mặt hàng ${label}. Không thể tạo thêm phiếu nhập kho.`
+          : `Mặt hàng ${label}: số lượng nhập (${newQty}) vượt quá số lượng còn lại trong Phiếu nhận hàng ${shipment.code} (còn ${remaining}).`
+        throw { statusCode: 400, message: msg }
       }
     }
   }
@@ -126,10 +129,12 @@ export class ReceiptService {
     const poLineIds = data.lines.map((l) => l.po_line_id).filter((id): id is string => Boolean(id))
     if (poLineIds.length === 0) return
 
-    const poLines = await trx('purchase_order_lines')
-      .where({ purchase_order_id: data.po_id })
-      .whereIn('id', poLineIds)
+    const poLines = await trx('purchase_order_lines as pol')
+      .join('variants as v', 'v.id', 'pol.variant_id')
+      .where({ 'pol.purchase_order_id': data.po_id })
+      .whereIn('pol.id', poLineIds)
       .forUpdate()
+      .select('pol.*', 'v.item_code', 'v.sku')
     const poLineById = new Map(poLines.map((l) => [l.id, l]))
 
     const usedRows = await trx('receipt_lines as rl')
@@ -144,18 +149,19 @@ export class ReceiptService {
       if (!line.po_line_id) continue
       const poLine = poLineById.get(line.po_line_id)
       if (!poLine) {
-        throw { statusCode: 400, message: `purchase_order_line "${line.po_line_id}" không thuộc Purchase Order này` }
+        throw { statusCode: 400, message: `Dòng hàng không thuộc Phiếu mua hàng ${po.code}` }
       }
       if (poLine.variant_id !== line.variant_id) {
-        throw { statusCode: 400, message: 'Dòng hàng không khớp SKU với purchase_order_line tương ứng' }
+        throw { statusCode: 400, message: 'Dòng hàng không khớp SKU với dòng trong Phiếu mua hàng' }
       }
+      const skuLabel = poLine.item_code ?? poLine.sku
       const used = usedByPoLine.get(line.po_line_id) ?? 0
       const remaining = poLine.quantity - used
       if (line.quantity > remaining) {
-        throw {
-          statusCode: 400,
-          message: `Số lượng (${line.quantity}) vượt quá remaining_qty (${remaining}) của purchase_order_line`,
-        }
+        const msg = remaining === 0
+          ? `Phiếu mua hàng ${po.code} đã nhận đủ số lượng cho mặt hàng ${skuLabel}. Không thể nhập thêm.`
+          : `Mặt hàng ${skuLabel}: số lượng nhập (${line.quantity}) vượt quá số lượng còn lại trong Phiếu mua hàng ${po.code} (còn ${remaining}).`
+        throw { statusCode: 400, message: msg }
       }
       // Kế thừa BH từ PO line nếu receipt line không tự khai báo — user nhập 1 lần ở PO,
       // receipt tự điền, không cần nhớ lại. Receipt line vẫn có thể override nếu muốn.
