@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Form } from 'antd'
@@ -72,6 +72,15 @@ export function useReceiptForm(options?: { onUpdateSuccess?: () => void }) {
     queryFn: async () => (await api.get('/shipments', { params: { status: 'received', available_for_receipt: true, limit: 100 } })).data,
     enabled: !id,
   })
+
+  // Khi shipment_id đến từ query param (nút "Tạo phiếu nhập kho" trên trang Shipment),
+  // cần biết ngay shipment đó còn khả dụng không — tính từ receivedShipments (đã filter
+  // available_for_receipt=true) để tránh để user điền form xong mới báo lỗi.
+  const shipmentFullyReceipted = useMemo(() => {
+    if (!shipmentIdFromQuery || !shipmentDetail) return false
+    const list: any[] = receivedShipments?.data ?? receivedShipments ?? []
+    return !list.some((s: any) => s.id === shipmentIdFromQuery)
+  }, [shipmentIdFromQuery, shipmentDetail?.id, receivedShipments])
 
   // Danh sách Phiếu xuất kho đã Completed — dùng khi Loại nhập = "return_in"
   const { data: completedDOs } = useQuery({
@@ -332,6 +341,7 @@ export function useReceiptForm(options?: { onUpdateSuccess?: () => void }) {
     setShipmentId,
     shipmentIdFromQuery,
     shipmentDetail,
+    shipmentFullyReceipted,
     receivedShipments,
     poDetail,
     // return_in DO selector

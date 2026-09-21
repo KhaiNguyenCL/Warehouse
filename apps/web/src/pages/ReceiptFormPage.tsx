@@ -1,30 +1,75 @@
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import {
-  Button, Form, Input, Select, InputNumber, DatePicker,
+  Button as AntButton, Form, Input, DatePicker,
   Space, Modal, Table, Upload, message,
 } from 'antd'
-import { ArrowLeftOutlined, QrcodeOutlined, UploadOutlined, PaperClipOutlined } from '@ant-design/icons'
+import { QrcodeOutlined, UploadOutlined, PaperClipOutlined } from '@ant-design/icons'
 import type { UploadFile } from 'antd'
+import { ArrowLeft, ChevronDown, ChevronUp } from 'lucide-react'
 import { api } from '../lib/api'
 import { useReceiptForm } from '../hooks/useReceiptForm'
 import { StatusBadge } from '../components/ui/StatusBadge'
+import { Button } from '@/components/ui/button'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
+import { usePageHeader } from '@/layout/PageHeaderSlot'
 import { SnScanGrid } from '../components/SnScanGrid'
 import { BatchQRPrint } from '../components/BatchQRPrint'
 import VariantSelect from '../components/VariantSelect'
-import { moneyProps } from '../lib/utils'
 
 // ── Shared display helpers ────────────────────────────────────────────────────
 
-function BBox({ children, title }: { children: React.ReactNode; title?: string }) {
+// Card "Thông tin phiếu" theo đúng pattern form shadcn/ui đã dùng ở WarehousesPage (label
+// TRÊN input, input rounded-lg border-border-md có hover/focus ring) thay vì tự chế viền/kích
+// thước AntD như trước — để đồng bộ với phần còn lại của app thay vì tự sáng tạo style riêng.
+// Vẫn giữ antd `Form`/`Form.Item` để dùng chung state với `Form.List` (bảng dòng hàng) và
+// validate rules; chỉ đổi CONTROL bên trong mỗi Form.Item sang component shadcn.
+const FIELD_MAX_WIDTH = 420
+
+// Field ngắn (enum/tên kho/ngày) không cần rộng bằng field chứa tên công ty/mã phiếu dài —
+// 3 mức giống fieldTier đã dùng ở các trang khác (VariantDetailPage...), chỉ khác tên hằng vì
+// scope riêng cho trang này (đang ở kiểu form khác — label trên, không phải grid nhiều cột).
+const W_SHORT = 220   // Loại nhập, Ngày nhập kho, PO liên kết — giá trị enum/ngày/mã ngắn
+const W_MEDIUM = 300  // Kho nhập — tên kho + mã, dài vừa
+const W_WIDE = 640     // Phiếu nhận hàng, NCC, Phiếu xuất kho, Khách hàng — chứa tên công ty dài
+
+// Adapter: Form.Item tự inject `value`/`onChange` kiểu antd (onChange(value) trực tiếp), còn
+// Select shadcn (Radix) dùng `value`/`onValueChange` — cầu nối 2 convention này.
+function ShadSelectField({
+  value, onChange, placeholder, options, disabled, maxWidth = FIELD_MAX_WIDTH,
+}: {
+  value?: string
+  onChange?: (v: string) => void
+  placeholder?: string
+  options?: { value: string; label: string }[]
+  disabled?: boolean
+  maxWidth?: number
+}) {
+  return (
+    <Select value={value} onValueChange={onChange} disabled={disabled}>
+      <SelectTrigger size="sm" className="w-full text-base" style={{ maxWidth }}>
+        <SelectValue placeholder={placeholder} />
+      </SelectTrigger>
+      <SelectContent>
+        {options?.map((o) => (
+          <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  )
+}
+
+// Ô readonly (view mode) — nhìn giống input shadcn bị disabled: cùng bo góc/viền/chiều cao,
+// chỉ khác nền hơi xám để phân biệt không sửa được, theo đúng token đã dùng ở theme.ts.
+// h-8 (không phải h-9 mặc định của Input) — form này nhiều field/dòng liên tiếp, gọn hơn
+// đọc dễ hơn so với size mặc định của Sheet 1 form đơn lẻ như WarehousesPage.
+function BBox({ children, title, maxWidth = FIELD_MAX_WIDTH }: { children: React.ReactNode; title?: string; maxWidth?: number }) {
   return (
     <div
       title={title}
-      style={{
-        height: 32, display: 'flex', alignItems: 'center', padding: '0 11px',
-        border: '1px solid var(--border, #d9d9d9)', borderRadius: 6,
-        background: 'var(--bg-subtle)', fontSize: 14, userSelect: 'text',
-        overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis',
-      }}
+      className="flex h-8 w-full items-center overflow-hidden text-ellipsis whitespace-nowrap rounded-lg border border-border-md bg-muted/40 px-3 text-base text-foreground"
+      style={{ maxWidth }}
     >
       {children}
     </div>
@@ -33,22 +78,55 @@ function BBox({ children, title }: { children: React.ReactNode; title?: string }
 
 const ph = <span style={{ color: 'var(--text-3, #bbb)' }}>—</span>
 
-function ReadOnlyText({ value }: { value?: string }) {
-  return (
-    <div style={{
-      height: 32, display: 'flex', alignItems: 'center', padding: '0 11px',
-      border: '1px solid var(--border, #d9d9d9)', borderRadius: 6,
-      background: 'var(--bg-subtle)', fontSize: 14,
-      cursor: 'not-allowed', userSelect: 'text',
-    }}>
-      {value}
-    </div>
-  )
-}
-
 function fmt(n: any) {
   if (n == null) return '—'
   return Number(n).toLocaleString('en-US')
+}
+
+// Input số THUẦN tự viết (không dùng antd InputNumber) cho 4 cột số của bảng dòng hàng —
+// theo yêu cầu: input/select AntD chỉ đáng dùng ở cột cần tính năng thật sự cần (SKU cần
+// search/autocomplete, Từ ngày cần lịch chọn) — cột số đơn giản thì tự viết `<input>` nhẹ hơn
+// nhiều so với việc liên tục đè CSS lên control AntD (bo góc, text-align, focus ring...).
+// Tương thích Form.Item: nhận `value`/`onChange` theo đúng convention AntD tự inject.
+function PlainNumberInput({
+  value, onChange, onBlur, autoFocus, align, className, format,
+}: {
+  value?: number
+  onChange?: (v: number | undefined) => void
+  onBlur?: () => void
+  autoFocus?: boolean
+  align?: 'left' | 'center' | 'right'
+  className?: string
+  // Format="thousand" — thêm dấu phẩy ngăn cách hàng nghìn ngay khi gõ (giống moneyProps cũ
+  // của antd InputNumber), dùng cho Giá nhập. Các field số khác (số lượng, số tháng) không
+  // cần vì giá trị luôn nhỏ, không có ý nghĩa phân cách.
+  format?: boolean
+}) {
+  // value có thể là string thập phân từ backend (Postgres NUMERIC serialize dạng "2500000.00")
+  // chứ không chắc luôn là number — ép Number() trước khi format/hiển thị, nếu không
+  // String.prototype.toLocaleString() sẽ trả nguyên "2500000.00" không đổi (không phải lỗi
+  // hiển thị số, mà do gọi nhầm hàm của string thay vì number).
+  const numValue = value != null ? Number(value) : undefined
+  const display = numValue != null && !Number.isNaN(numValue) ? (format ? numValue.toLocaleString('en-US') : String(numValue)) : ''
+  return (
+    <input
+      type="text"
+      inputMode="numeric"
+      autoFocus={autoFocus}
+      value={display}
+      onChange={(e) => {
+        const raw = e.target.value.replace(/[^0-9]/g, '')
+        onChange?.(raw === '' ? undefined : Number(raw))
+      }}
+      onBlur={onBlur}
+      className={className}
+      style={{
+        width: '100%', height: 32, border: 'none', outline: 'none', background: 'transparent',
+        padding: '0 8px', fontSize: 14, textAlign: align ?? 'left',
+        fontFamily: 'inherit', color: 'inherit',
+      }}
+    />
+  )
 }
 
 // ── Main page ─────────────────────────────────────────────────────────────────
@@ -67,6 +145,47 @@ export default function ReceiptFormPage() {
   const isCreate = mode === 'create'
   const isEdit = mode === 'edit'
   const isView = mode === 'view'
+
+  // usePageHeader là hook — PHẢI gọi vô điều kiện trước early return bên dưới (xem CLAUDE.md
+  // mục 22). Chỉ tối đa 2 nút cùng lúc (Complete/Huỷ phiếu, hoặc In nhãn QR) nên không cần
+  // dropdown "···" như Quotation/PO — giữ hiện trực tiếp.
+  usePageHeader(
+    <div className="flex items-center justify-between gap-4">
+      <div className="flex min-w-0 items-center gap-2">
+        <Button variant="ghost" size="icon-sm" onClick={() => hook.navigate('/receipts')}>
+          <ArrowLeft className="h-4 w-4" />
+        </Button>
+        <h1 className="flex min-w-0 items-baseline gap-2 truncate text-sm font-semibold tracking-tight">
+          <button
+            onClick={() => hook.navigate('/receipts')}
+            className="text-muted-foreground transition-colors hover:text-foreground"
+          >
+            Phiếu nhập kho
+          </button>
+          <span className="text-muted-foreground">/</span>
+          <span className="truncate text-foreground">{isCreate ? 'Tạo mới' : (receipt?.code ?? hook.id)}</span>
+        </h1>
+        {receipt?.status && <StatusBadge status={receipt.status} />}
+      </div>
+
+      <div className="flex flex-shrink-0 items-center gap-2">
+        {isEdit && (
+          <Button size="sm" variant="success" disabled={hook.completeMode} onClick={() => hook.setCompleteMode(true)}>
+            Complete
+          </Button>
+        )}
+        {!isCreate && !['completed', 'cancelled'].includes(receipt?.status ?? '') && (
+          <Button size="sm" variant="danger" onClick={() => setCancelOpen(true)}>Huỷ phiếu</Button>
+        )}
+        {receipt?.status === 'completed' && (
+          <Button size="sm" variant="outline" onClick={() => setQrOpen(true)}>
+            <QrcodeOutlined style={{ marginRight: 6 }} />
+            In nhãn QR
+          </Button>
+        )}
+      </div>
+    </div>,
+  )
 
   if (!isCreate && hook.isLoading) return null
 
@@ -108,53 +227,6 @@ export default function ReceiptFormPage() {
   return (
     <div style={{ padding: '0 0 48px' }}>
 
-      {/* ─── Breadcrumb + action row ──────────────────────────────────── */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 24 }}>
-        <Button
-          type="text"
-          icon={<ArrowLeftOutlined />}
-          onClick={() => hook.navigate('/receipts')}
-          style={{ padding: '4px 8px' }}
-        />
-        <span
-          style={{ color: 'var(--text-3)', fontSize: 14, cursor: 'pointer' }}
-          onClick={() => hook.navigate('/receipts')}
-        >
-          Phiếu nhập kho
-        </span>
-        <span style={{ color: 'var(--text-3)', fontSize: 14 }}>/</span>
-        <span style={{ fontSize: 14 }}>
-          {isCreate ? 'Tạo mới' : (receipt?.code ?? hook.id)}
-        </span>
-        {receipt?.status && <StatusBadge status={receipt.status} />}
-
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
-          {/* Complete — chỉ hiện khi draft */}
-          {isEdit && (
-            <Button
-              type="primary"
-              disabled={hook.completeMode}
-              onClick={() => hook.setCompleteMode(true)}
-              style={{ background: 'var(--s-completed-color)', borderColor: 'var(--s-completed-color)' }}
-            >
-              Complete
-            </Button>
-          )}
-
-          {/* Huỷ phiếu */}
-          {!isCreate && !['completed', 'cancelled'].includes(receipt?.status ?? '') && (
-            <Button danger onClick={() => setCancelOpen(true)}>Huỷ phiếu</Button>
-          )}
-
-          {/* In nhãn QR lô — chỉ khi completed */}
-          {receipt?.status === 'completed' && (
-            <Button icon={<QrcodeOutlined />} onClick={() => setQrOpen(true)}>
-              In nhãn QR
-            </Button>
-          )}
-        </div>
-      </div>
-
       {receipt?.status === 'completed' && (
         <BatchQRPrint
           open={qrOpen}
@@ -174,7 +246,17 @@ export default function ReceiptFormPage() {
         onValuesChange={() => { if (!isCreate) setIsDirty(true) }}
       >
 
-        {isCreate && hook.shipmentDetail && (
+        {isCreate && hook.shipmentDetail && hook.shipmentFullyReceipted && (
+          <div style={{
+            marginBottom: 16, padding: '10px 16px', borderRadius: 8,
+            background: 'var(--s-cancelled-bg)', color: 'var(--s-cancelled-color)', fontSize: 13,
+          }}>
+            ⚠️ Phiếu nhận hàng <strong>{hook.shipmentDetail.code}</strong> đã được nhập kho đủ số lượng.
+            Không thể tạo thêm phiếu nhập kho từ phiếu này.
+          </div>
+        )}
+
+        {isCreate && hook.shipmentDetail && !hook.shipmentFullyReceipted && (
           <div style={{
             marginBottom: 16, padding: '10px 16px', borderRadius: 8,
             background: 'var(--s-completed-bg)', color: 'var(--s-completed-color)', fontSize: 13,
@@ -183,141 +265,192 @@ export default function ReceiptFormPage() {
           </div>
         )}
 
-        {/* ─── Card 1: Thông tin phiếu ──────────────────────────────── */}
-        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, padding: '20px 24px', marginBottom: 16 }}>
-          <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 16, color: 'var(--text-1)' }}>
+        {/* ─── Thông tin phiếu ──────────────────────────────── */}
+        {/* Layout kiểu HOÁ ĐƠN (invoice) — bỏ hẳn khung/box bao quanh từng phần (đã thử "card"
+            nhiều vòng, người dùng vẫn thấy rối), thay bằng heading + 1 đường kẻ ngang phân
+            cách section, giống Stripe/QuickBooks/Wave khi tạo hoá đơn: field xếp theo lưới
+            ngang gọn, không có "hộp" nào bao ngoài. Field bên trong (Select/BBox/Textarea) giữ
+            nguyên component đã tinh chỉnh — chỉ đổi phần KHUNG bao quanh. */}
+        <style>{`
+          .receipt-info-card .ant-form-item { margin-bottom: 0; }
+          .receipt-info-card .ant-form-item-label { padding-bottom: 4px; }
+          .receipt-info-card .ant-form-item-label > label {
+            font-size: 14px !important;
+            height: auto !important;
+          }
+          .receipt-info-card .ant-picker {
+            border-radius: 8px !important;
+            border-color: var(--border-md) !important;
+            font-size: 14px !important;
+          }
+          .receipt-info-card .ant-picker-input > input { font-size: 14px !important; }
+        `}</style>
+        <div className="receipt-info-card" style={{ paddingBottom: 32, marginBottom: 32, borderBottom: '1px solid var(--border)' }}>
+          <div className="mb-5 text-base font-semibold text-foreground">
             Thông tin phiếu
           </div>
 
-          {/* Row 1 — 3 field ngắn, cùng chiều cao */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: '0 16px' }}>
+          <div className="grid grid-cols-3 gap-x-8 gap-y-5">
             <Form.Item
-              name="import_type" label="Loại nhập" style={{ gridColumn: 'span 4' }}
+              name="import_type" label="Loại nhập"
               rules={isCreate ? [{ required: true }] : undefined}
             >
               {isCreate ? (
-                <Select
+                <ShadSelectField
                   disabled={!!hook.shipmentIdFromQuery}
                   options={hook.importTypes?.map((t: any) => ({ value: t.key, label: t.label }))}
                   placeholder="Chọn loại nhập"
                   onChange={(v) => { if (v !== 'purchase') hook.setShipmentId(undefined) }}
+                  maxWidth={W_SHORT}
                 />
               ) : (
-                <BBox>{receipt?.import_type ?? ph}</BBox>
+                <BBox maxWidth={W_SHORT}>{receipt?.import_type ?? ph}</BBox>
               )}
             </Form.Item>
 
-            <Form.Item name="warehouse_id" label="Kho nhập" style={{ gridColumn: 'span 5' }} rules={isCreate ? [{ required: true }] : undefined}>
+            <Form.Item name="warehouse_id" label="Kho nhập" rules={isCreate ? [{ required: true }] : undefined}>
               {isCreate ? (
-                <Select
+                <ShadSelectField
                   options={hook.warehouses?.map((w: any) => ({ value: w.id, label: `${w.name} (${w.code})` }))}
                   placeholder="Chọn kho nhập"
+                  maxWidth={W_MEDIUM}
                 />
               ) : (
-                <BBox>{receipt?.warehouse_name ?? ph}</BBox>
+                <BBox maxWidth={W_MEDIUM}>{receipt?.warehouse_name ?? ph}</BBox>
               )}
             </Form.Item>
 
-            <Form.Item name="received_date" label="Ngày nhập kho" style={{ gridColumn: 'span 3' }}>
+            <Form.Item name="received_date" label="Ngày nhập kho">
               {isView ? (
-                <BBox>{receipt?.received_date ? new Date(receipt.received_date).toLocaleDateString('vi-VN') : ph}</BBox>
+                <BBox maxWidth={W_SHORT}>{receipt?.received_date ? new Date(receipt.received_date).toLocaleDateString('vi-VN') : ph}</BBox>
               ) : (
-                <DatePicker format="DD/MM/YYYY" style={{ width: '100%' }} placeholder="Ngày hàng về kho" />
+                <DatePicker format="DD/MM/YYYY" style={{ width: '100%', maxWidth: W_SHORT }} placeholder="Ngày hàng về kho" />
+              )}
+            </Form.Item>
+
+            {/* Chọn Phiếu nhận hàng (bắt buộc khi Loại nhập = "purchase") + NCC đọc ra từ đó
+                (nếu Shipment có gắn PO). Có thể tới từ query (bấm "Tạo phiếu nhập kho" trên
+                trang Shipment, lúc đó khoá lại) hoặc tự chọn tay ở đây. Chiếm trọn hàng (col-
+                span-3) vì chứa tên phiếu/công ty dài, không hợp nhồi vào 1/3 cột như field ngắn. */}
+            {isCreate && importTypeValue === 'purchase' && (
+              <>
+                <Form.Item label="Phiếu nhận hàng" required className="col-span-3">
+                  <ShadSelectField
+                    disabled={!!hook.shipmentIdFromQuery}
+                    value={hook.shipmentId}
+                    placeholder="Chọn Phiếu nhận hàng đã xác nhận nhận hàng"
+                    options={hook.receivedShipments?.data?.map((s: any) => ({
+                      value: s.id,
+                      label: [s.code, s.supplier_name].filter(Boolean).join(' — '),
+                    }))}
+                    onChange={(v) => hook.setShipmentId(v)}
+                    maxWidth={W_WIDE}
+                  />
+                </Form.Item>
+                {hook.poDetail && (
+                  <Form.Item label="NCC" className="col-span-3">
+                    <BBox title={hook.poDetail?.company_name ?? ''} maxWidth={W_WIDE}>
+                      {hook.poDetail?.company_name
+                        ? <span>{hook.poDetail.company_name}</span>
+                        : <span style={{ color: 'var(--text-3, #bbb)' }}>—</span>}
+                    </BBox>
+                  </Form.Item>
+                )}
+              </>
+            )}
+            {/* Chọn Phiếu xuất kho (khi Loại nhập = "return_in") */}
+            {isCreate && importTypeValue === 'return_in' && (
+              <>
+                <Form.Item label="Phiếu xuất kho (khách hàng trả lại)" required className="col-span-3">
+                  <ShadSelectField
+                    value={hook.returnDoId}
+                    placeholder="Chọn Phiếu xuất kho đã hoàn thành"
+                    options={hook.completedDOs?.data?.map((d: any) => ({
+                      value: d.id,
+                      label: [d.code, d.company_name].filter(Boolean).join(' — '),
+                    }))}
+                    onChange={(v) => hook.setReturnDoId(v)}
+                    maxWidth={W_WIDE}
+                  />
+                </Form.Item>
+                {hook.returnDoDetail && (
+                  <Form.Item label="Khách hàng" className="col-span-3">
+                    <BBox title={hook.returnDoDetail?.company_name ?? ''} maxWidth={W_WIDE}>
+                      {hook.returnDoDetail?.company_name
+                        ? <span>{hook.returnDoDetail.company_name}</span>
+                        : ph}
+                    </BBox>
+                  </Form.Item>
+                )}
+              </>
+            )}
+
+            {isCreate && (
+              <>
+                <Form.Item name="po_id" hidden><Input /></Form.Item>
+                <Form.Item name="company_id" hidden><Input /></Form.Item>
+                <Form.Item name="shipment_id" hidden><Input /></Form.Item>
+                <Form.Item name="ref_document_type" hidden><Input /></Form.Item>
+                <Form.Item name="ref_document_id" hidden><Input /></Form.Item>
+              </>
+            )}
+            {!isCreate && receipt?.po_code && (
+              <Form.Item label="PO liên kết">
+                <BBox maxWidth={W_SHORT}>{receipt.po_code}</BBox>
+              </Form.Item>
+            )}
+
+            <Form.Item name="note" label="Ghi chú" className="col-span-3">
+              {isView ? (
+                <div
+                  className="min-h-8 whitespace-pre-wrap rounded-lg border border-border-md bg-muted/40 px-3 py-1.5 text-base text-foreground"
+                  style={{ color: receipt?.note ? undefined : 'var(--text-3, #bbb)' }}
+                >
+                  {receipt?.note || '—'}
+                </div>
+              ) : (
+                <Textarea
+                  rows={2}
+                  placeholder="Ghi chú (tuỳ chọn)"
+                  className="min-h-0 py-1.5 text-base"
+                  style={{ maxWidth: FIELD_MAX_WIDTH * 2 }}
+                />
               )}
             </Form.Item>
           </div>
-
-          {/* Row 2 — chọn Phiếu nhận hàng (bắt buộc khi Loại nhập = "purchase") + PO/NCC
-              đọc ra từ đó (nếu Shipment có gắn PO). Có thể tới từ query (bấm "Tạo phiếu
-              nhập kho" trên trang Shipment, lúc đó khoá lại) hoặc tự chọn tay ở đây. */}
-          {isCreate && importTypeValue === 'purchase' && (
-            <div style={{ display: 'grid', gridTemplateColumns: hook.poDetail ? '1fr 1.6fr' : '1fr', gap: '0 16px' }}>
-              <Form.Item label="Phiếu nhận hàng" required style={{ marginBottom: 12 }}>
-                <Select
-                  disabled={!!hook.shipmentIdFromQuery}
-                  value={hook.shipmentId}
-                  placeholder="Chọn Phiếu nhận hàng đã xác nhận nhận hàng"
-                  options={hook.receivedShipments?.data?.map((s: any) => ({
-                    value: s.id,
-                    label: [s.code, s.supplier_name].filter(Boolean).join(' — '),
-                  }))}
-                  onChange={(v) => hook.setShipmentId(v)}
-                />
-              </Form.Item>
-              {hook.poDetail && (
-                <Form.Item label="NCC" style={{ marginBottom: 12 }}>
-                  <BBox title={hook.poDetail?.company_name ?? ''}>
-                    {hook.poDetail?.company_name
-                      ? <span>{hook.poDetail.company_name}</span>
-                      : <span style={{ color: 'var(--text-3, #bbb)' }}>—</span>}
-                  </BBox>
-                </Form.Item>
-              )}
-            </div>
-          )}
-          {/* Row 2b — chọn Phiếu xuất kho (khi Loại nhập = "return_in") */}
-          {isCreate && importTypeValue === 'return_in' && (
-            <div style={{ display: 'grid', gridTemplateColumns: hook.returnDoDetail ? '1fr 1fr' : '1fr', gap: '0 16px', maxWidth: '80%' }}>
-              <Form.Item label="Phiếu xuất kho (khách hàng trả lại)" required style={{ marginBottom: 12 }}>
-                <Select
-                  value={hook.returnDoId}
-                  placeholder="Chọn Phiếu xuất kho đã hoàn thành"
-                  options={hook.completedDOs?.data?.map((d: any) => ({
-                    value: d.id,
-                    label: [d.code, d.company_name].filter(Boolean).join(' — '),
-                  }))}
-                  onChange={(v) => hook.setReturnDoId(v)}
-                  allowClear
-                />
-              </Form.Item>
-              {hook.returnDoDetail && (
-                <Form.Item label="Khách hàng" style={{ marginBottom: 12 }}>
-                  <BBox title={hook.returnDoDetail?.company_name ?? ''}>
-                    {hook.returnDoDetail?.company_name
-                      ? <span>{hook.returnDoDetail.company_name}</span>
-                      : ph}
-                  </BBox>
-                </Form.Item>
-              )}
-            </div>
-          )}
-
-          {isCreate && (
-            <>
-              <Form.Item name="po_id" hidden><Input /></Form.Item>
-              <Form.Item name="company_id" hidden><Input /></Form.Item>
-              <Form.Item name="shipment_id" hidden><Input /></Form.Item>
-              <Form.Item name="ref_document_type" hidden><Input /></Form.Item>
-              <Form.Item name="ref_document_id" hidden><Input /></Form.Item>
-            </>
-          )}
-          {!isCreate && receipt?.po_code && (
-            <Form.Item label="PO liên kết" style={{ maxWidth: '66%', marginBottom: 12 }}>
-              <BBox>{receipt.po_code}</BBox>
-            </Form.Item>
-          )}
-
-          {/* Row 3 — Ghi chú full width */}
-          <Form.Item name="note" label="Ghi chú" style={{ marginBottom: 0 }}>
-            {isView ? (
-              <div style={{
-                minHeight: 32, padding: '4px 11px',
-                border: '1px solid var(--border, #d9d9d9)', borderRadius: 6,
-                background: 'var(--bg-subtle)', fontSize: 14, userSelect: 'text',
-                whiteSpace: 'pre-wrap', lineHeight: 1.5,
-                color: receipt?.note ? undefined : 'var(--text-3, #bbb)',
-              }}>
-                {receipt?.note || '—'}
-              </div>
-            ) : (
-              <Input.TextArea rows={2} placeholder="Ghi chú (tuỳ chọn)" />
-            )}
-          </Form.Item>
         </div>
 
-        {/* ─── Card 2: Danh sách sản phẩm ──────────────────────────── */}
-        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, padding: '20px 24px', marginBottom: 16 }}>
-          <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 16, color: 'var(--text-1)' }}>
+        {/* ─── Danh sách sản phẩm ──────────────────────────── */}
+        {/* Bảng kiểu HOÁ ĐƠN (invoice line items) — đã thử qua nhiều style (Excel-grid viền
+            đen, click-to-edit...) đều bị chê rối. Chuyển hẳn sang pattern thật của QuickBooks/
+            Xero/Wave: KHÔNG có viền dọc giữa các cột, chỉ 1 đường kẻ đậm dưới header + 1 đường
+            mảnh dưới mỗi dòng — input/select trong suốt, hoà vào dòng thay vì "ô" riêng. Có
+            thêm cột "Thành tiền" (SL × Giá) và dòng tổng cộng cuối bảng, đúng cấu trúc 1 hoá
+            đơn/phiếu thật. */}
+        <style>{`
+          .receipt-lines-card table { border-collapse: collapse; width: 100%; table-layout: fixed; }
+          .receipt-lines-card thead th {
+            border-bottom: 2px solid var(--text-1);
+            padding-bottom: 8px;
+          }
+          .receipt-lines-card tbody > tr > td {
+            border-bottom: 1px solid var(--border);
+            padding: 10px 8px;
+          }
+          .receipt-lines-card td > div { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+          /* SKU (Select) và Từ ngày (DatePicker) là control AntD duy nhất còn lại — bỏ hết
+             viền/nền riêng để hoà vào dòng, đúng tinh thần input "trong suốt" của hoá đơn. */
+          .receipt-lines-card .ant-select-selector,
+          .receipt-lines-card .ant-picker {
+            border: none !important;
+            background: transparent !important;
+            box-shadow: none !important;
+            border-radius: 0 !important;
+            padding-left: 0 !important;
+          }
+        `}</style>
+        <div className="receipt-lines-card" style={{ paddingBottom: 32, marginBottom: 32, borderBottom: '1px solid var(--border)' }}>
+          <div className="mb-5 text-base font-semibold text-foreground">
             Danh sách sản phẩm
           </div>
 
@@ -364,15 +497,15 @@ export default function ReceiptFormPage() {
             )}
 
             <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
-              <Button onClick={() => hook.setCompleteMode(false)}>Huỷ</Button>
-              <Button
+              <AntButton onClick={() => hook.setCompleteMode(false)}>Huỷ</AntButton>
+              <AntButton
                 type="primary"
                 onClick={hook.submitComplete}
                 loading={hook.completeMutation.isPending}
                 style={{ background: 'var(--s-completed-color)', borderColor: 'var(--s-completed-color)' }}
               >
                 Xác nhận Complete
-              </Button>
+              </AntButton>
             </div>
           </div>
         )}
@@ -409,17 +542,17 @@ export default function ReceiptFormPage() {
 
         {/* ─── Bottom actions ───────────────────────────────────────── */}
         <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-          <Button onClick={() => hook.navigate('/receipts')}>Quay lại</Button>
+          <AntButton onClick={() => hook.navigate('/receipts')}>Quay lại</AntButton>
 
           {!isView && (
-            <Button
+            <AntButton
               type="primary"
               htmlType="submit"
-              disabled={isEdit && !isDirty}
+              disabled={(isEdit && !isDirty) || (isCreate && hook.shipmentFullyReceipted)}
               loading={hook.createMutation.isPending || hook.updateMutation.isPending}
             >
               {isCreate ? 'Tạo phiếu nhập' : isDirty ? 'Lưu thay đổi' : 'Sửa'}
-            </Button>
+            </AntButton>
           )}
         </div>
       </Form>
@@ -503,7 +636,7 @@ export default function ReceiptFormPage() {
               onChange={({ fileList }) => setCancelFiles(fileList)}
               listType="text"
             >
-              <Button icon={<UploadOutlined />}>Chọn file (ảnh / PDF, tối đa 20 MB)</Button>
+              <AntButton icon={<UploadOutlined />}>Chọn file (ảnh / PDF, tối đa 20 MB)</AntButton>
             </Upload>
           </div>
         </div>
@@ -514,95 +647,151 @@ export default function ReceiptFormPage() {
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
+// Nhãn nhỏ cho field trong panel mở rộng (bảo hành) — label TRÊN input, giống pattern shadcn
+// đã dùng ở Card 1, chỉ nhỏ hơn 1 chút vì đây là field phụ chứ không phải field chính của dòng.
+function ExpandField({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <Label className="text-xs font-medium text-muted-foreground">{label}</Label>
+      {children}
+    </div>
+  )
+}
+
 function CreateLinesTable({ hook }: { hook: ReturnType<typeof useReceiptForm> }) {
-  // Khi tạo từ PO hoặc từ Shipment → variant đã xác định, hiện ReadOnlyText
+  // Khi tạo từ PO hoặc từ Shipment → variant đã xác định, hiện text thuần (không cho sửa)
   const isVariantLocked = !!(hook.poId || hook.shipmentId)
+  // Dòng hàng có 6 field — nhồi hết vào 1 hàng bảng luôn bị chật/cắt chữ dù chỉnh CSS thế nào
+  // (đã thử nhiều cách). Theo pattern "summary row + expandable detail" (Xero/QuickBooks dùng
+  // cho dòng hoá đơn): hàng chính chỉ hiện 3 field hay dùng nhất để quét mắt theo cột (SKU, Số
+  // lượng, Giá nhập) — 3 field bảo hành (ít khi cần xem lại) gộp vào panel mở rộng bên dưới,
+  // hiện dạng form label-trên-input rộng rãi, không giới hạn bởi độ rộng cột bảng nữa.
+  const [expanded, setExpanded] = useState<Set<string>>(new Set())
+
+  function toggle(key: string) {
+    setExpanded((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
+
+  const th: React.CSSProperties = {
+    padding: '6px 8px', textAlign: 'center', fontSize: 14, fontWeight: 600,
+    color: 'var(--text-1)', background: '#fff', whiteSpace: 'nowrap',
+  }
+
   return (
     <Form.List name="lines">
       {(fields, { add, remove }) => (
         <>
           <div style={{ overflowX: 'auto' }}>
-            <Table
-              size="small"
-              pagination={false}
-              dataSource={fields.map((f) => ({ ...f, key: f.key }))}
-              locale={{ emptyText: 'Chưa có dòng hàng' }}
-              columns={[
-                {
-                  title: 'SKU / Tên sản phẩm',
-                  width: 280,
-                  render: (_: any, f: any) =>
-                    isVariantLocked ? (
-                      <Form.Item name={[f.name, 'variant_label']} noStyle>
-                        <ReadOnlyText />
-                      </Form.Item>
-                    ) : (
-                      <Form.Item name={[f.name, 'variant_id']} noStyle rules={[{ required: true, message: 'Chọn SKU' }]}>
-                        <VariantSelect style={{ width: '100%' }} />
-                      </Form.Item>
-                    ),
-                },
-                {
-                  title: 'Số lượng',
-                  width: 100,
-                  render: (_: any, f: any) => (
-                    <Form.Item name={[f.name, 'quantity']} noStyle rules={[{ required: true }]}>
-                      <InputNumber min={1} style={{ width: 80 }} />
-                    </Form.Item>
-                  ),
-                },
-                {
-                  title: 'Giá nhập',
-                  width: 140,
-                  render: (_: any, f: any) => (
-                    <Form.Item name={[f.name, 'cost_price']} noStyle rules={[{ required: true }]}>
-                      <InputNumber {...moneyProps} min={0} style={{ width: 120 }} />
-                    </Form.Item>
-                  ),
-                },
-                {
-                  title: 'BH hãng (tháng)',
-                  width: 230,
-                  render: (_: any, f: any) => (
-                    <Space size={4}>
-                      <Form.Item name={[f.name, 'manufacturer_warranty_months']} noStyle>
-                        <InputNumber controls={false} min={0} style={{ width: 70 }} placeholder="Tháng" />
-                      </Form.Item>
-                      <Form.Item name={[f.name, 'manufacturer_warranty_start']} noStyle>
-                        <DatePicker style={{ width: 130 }} placeholder="Từ ngày" allowClear />
-                      </Form.Item>
-                    </Space>
-                  ),
-                },
-                {
-                  title: 'BH cty (tháng)',
-                  width: 110,
-                  render: (_: any, f: any) => (
-                    <Form.Item name={[f.name, 'customer_warranty_months']} noStyle>
-                      <InputNumber controls={false} min={0} style={{ width: 90 }} placeholder="Tháng" />
-                    </Form.Item>
-                  ),
-                },
-                {
-                  title: '',
-                  width: 60,
-                  render: (_: any, f: any) => (
-                    <>
-                      {isVariantLocked && (
-                        <Form.Item name={[f.name, 'variant_id']} hidden><Input /></Form.Item>
+            <table>
+              <colgroup>
+                <col />
+                <col style={{ width: 130 }} />
+                <col style={{ width: 160 }} />
+                <col style={{ width: 100 }} />
+                <col style={{ width: 70 }} />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th style={th}>SKU / Tên sản phẩm</th>
+                  <th style={th}>Số lượng</th>
+                  <th style={th}>Giá nhập</th>
+                  <th style={th}>Bảo hành</th>
+                  <th style={th} />
+                </tr>
+              </thead>
+              <tbody>
+                {fields.length === 0 && (
+                  <tr>
+                    <td colSpan={5} style={{ textAlign: 'center', color: 'var(--text-3, #bbb)', padding: '20px 0' }}>
+                      Chưa có dòng hàng
+                    </td>
+                  </tr>
+                )}
+                {fields.map((f) => {
+                  const key = String(f.key)
+                  const isOpen = expanded.has(key)
+                  return (
+                    <Fragment key={f.key}>
+                      <tr>
+                        <td>
+                          {isVariantLocked ? (
+                            <Form.Item name={[f.name, 'variant_label']} noStyle>
+                              <PlainValueField />
+                            </Form.Item>
+                          ) : (
+                            <Form.Item name={[f.name, 'variant_id']} noStyle rules={[{ required: true, message: 'Chọn SKU' }]}>
+                              <VariantSelect style={{ width: '100%' }} />
+                            </Form.Item>
+                          )}
+                          {isVariantLocked && <Form.Item name={[f.name, 'variant_id']} hidden><Input /></Form.Item>}
+                          <Form.Item name={[f.name, 'po_line_id']} hidden><Input /></Form.Item>
+                        </td>
+
+                        <td>
+                          <Form.Item name={[f.name, 'quantity']} noStyle rules={[{ required: true }]}>
+                            <PlainNumberInput align="center" />
+                          </Form.Item>
+                        </td>
+
+                        <td>
+                          <Form.Item name={[f.name, 'cost_price']} noStyle rules={[{ required: true }]}>
+                            <PlainNumberInput align="right" format />
+                          </Form.Item>
+                        </td>
+
+                        <td style={{ textAlign: 'center' }}>
+                          <button
+                            type="button"
+                            onClick={() => toggle(key)}
+                            className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                            title="Thông tin bảo hành"
+                          >
+                            {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                          </button>
+                        </td>
+
+                        <td style={{ textAlign: 'center' }}>
+                          <AntButton size="small" danger onClick={() => remove(f.name)}>Xóa</AntButton>
+                        </td>
+                      </tr>
+                      {isOpen && (
+                        <tr>
+                          <td colSpan={5} style={{ background: 'var(--bg-subtle, #fafafa)', padding: '14px 16px' }}>
+                            <div className="grid max-w-2xl grid-cols-3 gap-4">
+                              <ExpandField label="BH hãng (tháng)">
+                                <Form.Item name={[f.name, 'manufacturer_warranty_months']} noStyle>
+                                  <PlainNumberInput />
+                                </Form.Item>
+                              </ExpandField>
+                              <ExpandField label="Từ ngày">
+                                <Form.Item name={[f.name, 'manufacturer_warranty_start']} noStyle>
+                                  <DatePicker allowClear style={{ width: '100%' }} />
+                                </Form.Item>
+                              </ExpandField>
+                              <ExpandField label="BH cty (tháng)">
+                                <Form.Item name={[f.name, 'customer_warranty_months']} noStyle>
+                                  <PlainNumberInput />
+                                </Form.Item>
+                              </ExpandField>
+                            </div>
+                          </td>
+                        </tr>
                       )}
-                      <Form.Item name={[f.name, 'po_line_id']} hidden><Input /></Form.Item>
-                      <Button size="small" danger onClick={() => remove(f.name)}>Xóa</Button>
-                    </>
-                  ),
-                },
-              ]}
-            />
+                    </Fragment>
+                  )
+                })}
+              </tbody>
+            </table>
           </div>
           {!isVariantLocked && (
-            <Button style={{ marginTop: 8 }} onClick={() => add({ quantity: 1 })}>
+            <AntButton style={{ marginTop: 8 }} onClick={() => add({ quantity: 1 })}>
               + Thêm dòng
-            </Button>
+            </AntButton>
           )}
         </>
       )}
@@ -610,76 +799,116 @@ function CreateLinesTable({ hook }: { hook: ReturnType<typeof useReceiptForm> })
   )
 }
 
+// AntD Form.Item tự inject prop `value` vào child duy nhất — dùng để hiện text thuần cho field
+// chỉ đọc (VD variant_label khi SKU đã khoá theo PO/Shipment) mà không cần input/border gì cả.
+function PlainValueField({ value }: { value?: string }) {
+  return (
+    <div style={{ height: 32, display: 'flex', alignItems: 'center', padding: '0 8px', fontSize: 14 }}>
+      {value}
+    </div>
+  )
+}
+
 function EditLinesTable({ hook }: { hook: ReturnType<typeof useReceiptForm> }) {
+  // Cùng pattern "summary row + expandable detail" như CreateLinesTable — xem comment ở đó.
+  const [expanded, setExpanded] = useState<Set<string>>(new Set())
+
+  function toggle(key: string) {
+    setExpanded((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
+
+  const th: React.CSSProperties = {
+    padding: '6px 8px', textAlign: 'center', fontSize: 14, fontWeight: 600,
+    color: 'var(--text-1)', background: '#fff', whiteSpace: 'nowrap',
+  }
+
   return (
     <Form.List name="lines">
       {(fields) => (
         <div style={{ overflowX: 'auto' }}>
-          <Table
-            size="small"
-            pagination={false}
-            dataSource={fields.map((f) => ({ ...f, key: f.key }))}
-            columns={[
-              {
-                title: 'Mã hàng',
-                render: (_: any, f: any) => {
-                  const line = hook.receipt?.lines?.[f.name]
-                  return (
-                    <span style={{ fontSize: 13, whiteSpace: 'nowrap' }}>
-                      {line?.item_code} — {line?.variant_name}
-                    </span>
-                  )
-                },
-              },
-              {
-                title: 'SL',
-                width: 70,
-                render: (_: any, f: any) => {
-                  const line = hook.receipt?.lines?.[f.name]
-                  return <span>{line?.quantity ?? '—'}</span>
-                },
-              },
-              {
-                title: 'Giá nhập',
-                width: 150,
-                render: (_: any, f: any) => (
-                  <Form.Item name={[f.name, 'cost_price']} noStyle rules={[{ required: true }]}>
-                    <InputNumber {...moneyProps} min={0} style={{ width: 130 }} />
-                  </Form.Item>
-                ),
-              },
-              {
-                title: 'BH hãng (tháng)',
-                width: 230,
-                render: (_: any, f: any) => (
-                  <Space size={4}>
-                    <Form.Item name={[f.name, 'manufacturer_warranty_months']} noStyle>
-                      <InputNumber controls={false} min={0} style={{ width: 70 }} placeholder="Tháng" />
-                    </Form.Item>
-                    <Form.Item name={[f.name, 'manufacturer_warranty_start']} noStyle>
-                      <DatePicker style={{ width: 130 }} placeholder="Từ ngày" allowClear />
-                    </Form.Item>
-                  </Space>
-                ),
-              },
-              {
-                title: 'BH cty (tháng)',
-                width: 110,
-                render: (_: any, f: any) => (
-                  <Form.Item name={[f.name, 'customer_warranty_months']} noStyle>
-                    <InputNumber controls={false} min={0} style={{ width: 90 }} placeholder="Tháng" />
-                  </Form.Item>
-                ),
-              },
-              {
-                title: '',
-                width: 0,
-                render: (_: any, f: any) => (
-                  <Form.Item name={[f.name, 'id']} hidden><Input /></Form.Item>
-                ),
-              },
-            ]}
-          />
+          <table>
+            <colgroup>
+              <col />
+              <col style={{ width: 70 }} />
+              <col style={{ width: 150 }} />
+              <col style={{ width: 100 }} />
+            </colgroup>
+            <thead>
+              <tr>
+                <th style={th}>Mã hàng</th>
+                <th style={th}>SL</th>
+                <th style={th}>Giá nhập</th>
+                <th style={th}>Bảo hành</th>
+              </tr>
+            </thead>
+            <tbody>
+              {fields.map((f) => {
+                const key = String(f.key)
+                const isOpen = expanded.has(key)
+                const receiptLine = hook.receipt?.lines?.[f.name]
+                return (
+                  <Fragment key={f.key}>
+                    <tr>
+                      <td>
+                        <div style={{ height: 32, display: 'flex', alignItems: 'center', padding: '0 8px', fontSize: 13, whiteSpace: 'nowrap' }}>
+                          {receiptLine?.item_code} — {receiptLine?.variant_name}
+                        </div>
+                        <Form.Item name={[f.name, 'id']} hidden><Input /></Form.Item>
+                      </td>
+                      <td>
+                        <div style={{ height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 8px', fontSize: 14 }}>
+                          {receiptLine?.quantity}
+                        </div>
+                      </td>
+                      <td>
+                        <Form.Item name={[f.name, 'cost_price']} noStyle rules={[{ required: true }]}>
+                          <PlainNumberInput align="right" format />
+                        </Form.Item>
+                      </td>
+                      <td style={{ textAlign: 'center' }}>
+                        <button
+                          type="button"
+                          onClick={() => toggle(key)}
+                          className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                          title="Thông tin bảo hành"
+                        >
+                          {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                        </button>
+                      </td>
+                    </tr>
+                    {isOpen && (
+                      <tr>
+                        <td colSpan={4} style={{ background: 'var(--bg-subtle, #fafafa)', padding: '14px 16px' }}>
+                          <div className="grid max-w-2xl grid-cols-3 gap-4">
+                            <ExpandField label="BH hãng (tháng)">
+                              <Form.Item name={[f.name, 'manufacturer_warranty_months']} noStyle>
+                                <PlainNumberInput />
+                              </Form.Item>
+                            </ExpandField>
+                            <ExpandField label="Từ ngày">
+                              <Form.Item name={[f.name, 'manufacturer_warranty_start']} noStyle>
+                                <DatePicker allowClear style={{ width: '100%' }} />
+                              </Form.Item>
+                            </ExpandField>
+                            <ExpandField label="BH cty (tháng)">
+                              <Form.Item name={[f.name, 'customer_warranty_months']} noStyle>
+                                <PlainNumberInput />
+                              </Form.Item>
+                            </ExpandField>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                )
+              })}
+            </tbody>
+          </table>
         </div>
       )}
     </Form.List>
@@ -693,58 +922,113 @@ function ViewLinesTable({
   lines: any[]
   onViewSN: (line: any) => void
 }) {
-  const thStyle: React.CSSProperties = {
-    padding: '8px 10px', textAlign: 'left', fontSize: 13,
-    fontWeight: 500, color: 'var(--text-2, #666)',
-    background: 'var(--bg-subtle)',
-    borderBottom: '1px solid var(--border, #f0f0f0)',
-    whiteSpace: 'nowrap',
-  }
-  const tdStyle: React.CSSProperties = {
-    padding: '8px 10px', fontSize: 14,
-    borderBottom: '1px solid var(--border, #f0f0f0)',
-    whiteSpace: 'nowrap',
+  // Cùng pattern "summary row + expandable detail" như Create/EditLinesTable — hàng chính chỉ
+  // hiện SKU/SL/Giá nhập, các field ít cần xem lại (BH hãng/BH cty/Từ ngày/Còn lại lô) gộp vào
+  // panel mở rộng. "Xem SN" giữ lại ở hàng chính vì đó là hành động chính hay dùng, không phải
+  // thông tin phụ.
+  const [expanded, setExpanded] = useState<Set<string>>(new Set())
+
+  function toggle(key: string) {
+    setExpanded((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
   }
 
-  const cols: { key: string; label: string; render: (l: any) => React.ReactNode }[] = [
-    { key: 'code',     label: 'Mã hàng',       render: (l) => l.item_code ?? '—' },
-    { key: 'name',     label: 'Tên',            render: (l) => l.variant_name ?? '—' },
-    { key: 'qty',      label: 'SL',             render: (l) => fmt(l.quantity) },
-    { key: 'price',    label: 'Giá nhập',       render: (l) => fmt(l.cost_price) },
-    { key: 'mfg_wty', label: 'BH hãng (th)',   render: (l) => l.manufacturer_warranty_months != null ? String(l.manufacturer_warranty_months) : '—' },
-    { key: 'cst_wty', label: 'BH cty (th)',    render: (l) => l.customer_warranty_months != null ? String(l.customer_warranty_months) : '—' },
-    { key: 'qty_rem', label: 'Còn lại (lô)',   render: (l) => l.qty_remaining != null ? fmt(l.qty_remaining) : '—' },
-    {
-      key: 'sn',
-      label: '',
-      render: (l) =>
-        l.product_type === 'storable' ? (
-          <Button size="small" onClick={() => onViewSN(l)}>Xem SN</Button>
-        ) : null,
-    },
-  ]
+  const thStyle: React.CSSProperties = {
+    padding: '6px 8px', textAlign: 'center', fontSize: 14,
+    fontWeight: 600, color: 'var(--text-1)',
+    background: '#fff', whiteSpace: 'nowrap',
+  }
+  const tdStyle: React.CSSProperties = {
+    padding: '4px 8px', fontSize: 14, whiteSpace: 'nowrap',
+  }
 
   return (
     <div style={{ overflowX: 'auto' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+      <table>
+        <colgroup>
+          <col />
+          <col style={{ width: 90 }} />
+          <col style={{ width: 130 }} />
+          <col style={{ width: 100 }} />
+          <col style={{ width: 90 }} />
+        </colgroup>
         <thead>
           <tr>
-            {cols.map((c) => <th key={c.key} style={thStyle}>{c.label}</th>)}
+            <th style={thStyle}>SKU / Tên sản phẩm</th>
+            <th style={thStyle}>SL</th>
+            <th style={thStyle}>Giá nhập</th>
+            <th style={thStyle}>Bảo hành</th>
+            <th style={thStyle} />
           </tr>
         </thead>
         <tbody>
-          {lines.map((l, i) => (
-            <tr key={l.id ?? i}>
-              {cols.map((c) => <td key={c.key} style={tdStyle}>{c.render(l)}</td>)}
-            </tr>
-          ))}
           {lines.length === 0 && (
             <tr>
-              <td colSpan={cols.length} style={{ ...tdStyle, textAlign: 'center', color: 'var(--text-3, #bbb)', padding: '20px 0' }}>
+              <td colSpan={5} style={{ ...tdStyle, textAlign: 'center', color: 'var(--text-3, #bbb)', padding: '20px 0' }}>
                 Không có sản phẩm
               </td>
             </tr>
           )}
+          {lines.map((l, i) => {
+            const key = String(l.id ?? i)
+            const isOpen = expanded.has(key)
+            return (
+              <Fragment key={key}>
+                <tr>
+                  <td style={tdStyle}>{l.item_code ?? '—'} — {l.variant_name ?? '—'}</td>
+                  <td style={{ ...tdStyle, textAlign: 'center' }}>{fmt(l.quantity)}</td>
+                  <td style={{ ...tdStyle, textAlign: 'right' }}>{fmt(l.cost_price)}</td>
+                  <td style={{ ...tdStyle, textAlign: 'center' }}>
+                    <button
+                      type="button"
+                      onClick={() => toggle(key)}
+                      className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                      title="Thông tin bảo hành"
+                    >
+                      {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    </button>
+                  </td>
+                  <td style={{ ...tdStyle, textAlign: 'center' }}>
+                    {l.product_type === 'storable' && (
+                      <AntButton size="small" onClick={() => onViewSN(l)}>Xem SN</AntButton>
+                    )}
+                  </td>
+                </tr>
+                {isOpen && (
+                  <tr>
+                    <td colSpan={5} style={{ background: 'var(--bg-subtle, #fafafa)', padding: '14px 16px' }}>
+                      <div className="grid max-w-2xl grid-cols-4 gap-4">
+                        <ExpandField label="BH hãng (tháng)">
+                          <div className="flex h-8 items-center text-base text-foreground">
+                            {l.manufacturer_warranty_months != null ? String(l.manufacturer_warranty_months) : '—'}
+                          </div>
+                        </ExpandField>
+                        <ExpandField label="Từ ngày">
+                          <div className="flex h-8 items-center text-base text-foreground">
+                            {l.manufacturer_warranty_start ? new Date(l.manufacturer_warranty_start).toLocaleDateString('vi-VN') : '—'}
+                          </div>
+                        </ExpandField>
+                        <ExpandField label="BH cty (tháng)">
+                          <div className="flex h-8 items-center text-base text-foreground">
+                            {l.customer_warranty_months != null ? String(l.customer_warranty_months) : '—'}
+                          </div>
+                        </ExpandField>
+                        <ExpandField label="Còn lại (lô)">
+                          <div className="flex h-8 items-center text-base text-foreground">
+                            {l.qty_remaining != null ? fmt(l.qty_remaining) : '—'}
+                          </div>
+                        </ExpandField>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
+            )
+          })}
         </tbody>
       </table>
     </div>
