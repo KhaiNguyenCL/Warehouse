@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Upload, Pencil, Trash2, X } from 'lucide-react'
+import { Pencil, Trash2, X } from 'lucide-react'
 
 import { useTemplates } from '../hooks/useTemplates'
 import { Button } from '@/components/ui/button'
@@ -15,6 +15,7 @@ import {
 import { cn } from '@/lib/utils'
 import TemplateMappingsPanel from '../components/TemplateMappingsPanel'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
+import { usePageHeader } from '@/layout/PageHeaderSlot'
 
 const OBJECT_TYPE_LABEL: Record<string, string> = {
   quotation:      'Báo giá',
@@ -36,23 +37,23 @@ export default function TemplatesPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const rows: any[] = hook.data?.data ?? hook.data ?? []
 
+  usePageHeader(
+    <div className="flex items-center justify-between gap-4">
+      <h1 className="flex items-baseline gap-2 truncate text-sm font-semibold tracking-tight">
+        Mẫu báo giá / phiếu
+        <span className="text-xs font-normal text-muted-foreground">Quản lý template HTML dùng để xuất phiếu</span>
+      </h1>
+      <Button size="sm" onClick={() => hook.setUploadOpen(true)}>
+        Tải lên template
+      </Button>
+    </div>,
+  )
+
   return (
     <div className="flex flex-col gap-6">
 
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="font-serif text-2xl font-semibold tracking-tight">Mẫu báo giá / phiếu</h1>
-          <p className="mt-0.5 text-sm text-muted-foreground">Quản lý template HTML dùng để xuất phiếu</p>
-        </div>
-        <Button onClick={() => hook.setUploadOpen(true)}>
-          <Upload className="h-4 w-4" />
-          Tải lên template
-        </Button>
-      </div>
-
       {/* Table */}
-      <div className="overflow-hidden rounded-xl border border-border-md bg-background shadow-sm">
+      <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-md">
         <table className="w-full">
           <thead>
             <tr className="border-b border-border bg-muted/60">
@@ -92,7 +93,7 @@ export default function TemplatesPage() {
                 <td className="px-4 py-2.5">
                   <div className="flex justify-center" onClick={(e) => e.stopPropagation()}>
                     {r.is_default ? (
-                      <span className="text-sm font-medium text-blue-700">Mặc định</span>
+                      <span className="text-sm font-medium text-[var(--s-approved-color)]">Mặc định</span>
                     ) : (
                       <Button
                         size="xs"
@@ -109,18 +110,20 @@ export default function TemplatesPage() {
                 </td>
                 <td className="px-4 py-2.5">
                   <div className="flex items-center justify-end gap-1 opacity-0 transition-opacity group-hover/row:opacity-100">
-                    <button
+                    <Button
+                      variant="ghost" size="icon-sm"
                       onClick={(e) => { e.stopPropagation(); hook.setDetectedVariables(undefined); hook.openEdit(r) }}
-                      className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                      className="text-muted-foreground"
                     >
                       <Pencil className="h-3.5 w-3.5" />
-                    </button>
-                    <button
+                    </Button>
+                    <Button
+                      variant="ghost" size="icon-sm"
                       onClick={(e) => { e.stopPropagation(); setDeleteTarget(r) }}
-                      className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-red-50 hover:text-red-600"
+                      className="text-muted-foreground hover:text-destructive"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
-                    </button>
+                    </Button>
                   </div>
                 </td>
               </tr>
@@ -138,7 +141,7 @@ export default function TemplatesPage() {
       {hook.uploadOpen && (
         <>
           <div className="fixed inset-0 z-40 bg-black/40" onClick={() => hook.setUploadOpen(false)} />
-          <div className="fixed left-1/2 top-1/2 z-50 w-[480px] -translate-x-1/2 -translate-y-1/2 rounded-xl border border-border bg-background shadow-xl">
+          <div className="fixed left-1/2 top-1/2 z-50 w-[480px] -translate-x-1/2 -translate-y-1/2 rounded-xl border border-border bg-card shadow-xl">
             <div className="flex items-center justify-between border-b border-border px-5 py-4">
               <h2 className="text-base font-semibold">Tải lên template mới</h2>
               <button onClick={() => hook.setUploadOpen(false)} className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent">
@@ -147,7 +150,7 @@ export default function TemplatesPage() {
             </div>
             <div className="flex flex-col gap-4 px-5 py-5">
               <div className="flex flex-col gap-1.5">
-                <label className="text-sm font-medium">Tên template <span className="text-red-500">*</span></label>
+                <label className="text-sm font-medium">Tên template <span className="text-destructive">*</span></label>
                 <Input
                   placeholder="VD: Báo giá VN"
                   value={hook.uploadName}
@@ -155,7 +158,7 @@ export default function TemplatesPage() {
                 />
               </div>
               <div className="flex flex-col gap-1.5">
-                <label className="text-sm font-medium">Loại đối tượng <span className="text-red-500">*</span></label>
+                <label className="text-sm font-medium">Loại đối tượng <span className="text-destructive">*</span></label>
                 <Select value={hook.uploadObjectType} onValueChange={hook.setUploadObjectType}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -166,7 +169,7 @@ export default function TemplatesPage() {
                 </Select>
               </div>
               <div className="flex flex-col gap-1.5">
-                <label className="text-sm font-medium">File HTML (.html) <span className="text-red-500">*</span></label>
+                <label className="text-sm font-medium">File HTML (.html) <span className="text-destructive">*</span></label>
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -176,7 +179,6 @@ export default function TemplatesPage() {
                 />
                 <div className="flex items-center gap-2">
                   <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()}>
-                    <Upload className="h-4 w-4" />
                     Chọn file
                   </Button>
                   {hook.uploadFile && (
@@ -223,7 +225,7 @@ export default function TemplatesPage() {
         <div className="flex-1 overflow-y-auto px-5 py-5">
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium">Tên template <span className="text-red-500">*</span></label>
+              <label className="text-sm font-medium">Tên template <span className="text-destructive">*</span></label>
               <Input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Tên template" />
             </div>
             <div className="flex flex-col gap-1.5">
@@ -268,7 +270,7 @@ export default function TemplatesPage() {
           <AlertDialogFooter>
             <AlertDialogCancel>Huỷ</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-red-600 hover:bg-red-700"
+              variant="danger"
               onClick={() => { hook.deleteMutation.mutate(deleteTarget.id); setDeleteTarget(null) }}
             >
               Xoá

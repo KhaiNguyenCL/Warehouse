@@ -1,8 +1,8 @@
-import { useState, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Plus, Pencil, Trash2, Shield, X } from 'lucide-react'
+import { Pencil, Trash2, Shield, X, Search, ChevronLeft } from 'lucide-react'
 
 import { api } from '@/lib/api'
 import { useApiMutation } from '@/hooks/useApiMutation'
@@ -20,6 +20,7 @@ import {
 import { cn } from '@/lib/utils'
 import RolePermissionsPanel from '@/components/RolePermissionsPanel'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
+import { usePageNoPadding } from '@/layout/PageHeaderSlot'
 
 // ── Schema ──────────────────────────────────────────────────────────────────
 
@@ -32,12 +33,16 @@ type RoleForm = z.infer<typeof schema>
 // ── Component ────────────────────────────────────────────────────────────────
 
 export default function RolesPage() {
+  usePageNoPadding()
   const { data, isLoading, createMutation, updateMutation, deleteMutation } = useRoles()
 
   const [dialogOpen, setDialogOpen]     = useState(false)
   const [editing, setEditing]           = useState<any | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null)
   const [permSelected, setPermSelected] = useState<Set<string>>(new Set())
+  const [search, setSearch]             = useState('')
+  const [selectedId, setSelectedId]     = useState<string | null>(null)
+  const [mobileDetail, setMobileDetail] = useState(false)
 
   const form = useForm<RoleForm>({
     resolver: zodResolver(schema),
@@ -56,10 +61,6 @@ export default function RolesPage() {
     setDialogOpen(true)
   }
 
-  // Fetch trực tiếp thay vì qua useQuery+useEffect — tránh phụ thuộc vào việc React Query
-  // có refetch/trả cache đúng lúc hay không (từng bị lỗi tick permission lúc hiện lúc không
-  // vì effect chỉ chạy lại khi object trả về đổi REFERENCE, mà cache có thể trả nguyên object
-  // cũ không đổi reference). Gọi thẳng API mỗi lần bấm sửa, set state 1 lần duy nhất, chắc chắn.
   const openEditRequestId = useRef(0)
   async function openEdit(record: any) {
     setEditing(record)
@@ -68,7 +69,6 @@ export default function RolesPage() {
     setDialogOpen(true)
     const requestId = ++openEditRequestId.current
     const { data: role } = await api.get(`/settings/roles/${record.id}`)
-    // Bấm sang role khác trước khi request này trả về → bỏ qua, tránh set nhầm data cũ.
     if (openEditRequestId.current !== requestId) return
     setPermSelected(new Set(role.permissions.map((p: any) => p.key)))
   }
@@ -88,108 +88,127 @@ export default function RolesPage() {
   }
 
   const roles: any[] = data ?? []
+  const filtered = roles.filter((r) => !search || r.name?.toLowerCase().includes(search.toLowerCase()))
+  const selected = filtered.find((r) => r.id === selectedId) ?? null
+
+  useEffect(() => {
+    if (filtered.length === 0) { setSelectedId(null); return }
+    if (!selectedId || !filtered.some((r) => r.id === selectedId)) setSelectedId(filtered[0].id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtered])
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="theme-2a flex h-full min-h-0 flex-col bg-background p-6">
 
-      {/* Page header */}
-      <div className="flex items-center justify-between">
+      <div className="kv-head">
         <div>
-          <h1 className="font-serif text-2xl font-semibold tracking-tight">Vai trò & Phân quyền</h1>
-          <p className="mt-0.5 text-sm text-muted-foreground">
-            Quản lý vai trò và phân quyền cho từng nhóm người dùng
-          </p>
+          <h1 className="kv-title">Vai trò &amp; Phân quyền</h1>
+          <p className="kv-sub">{roles.length.toLocaleString('vi-VN')} vai trò cho từng nhóm người dùng</p>
         </div>
-        <Button onClick={openCreate}>
-          <Plus className="mr-2 h-4 w-4" />
-          Tạo role
-        </Button>
+        <div className="kv-actions">
+          <button type="button" className="kv-btn kv-btn--primary" onClick={openCreate}>Tạo role</button>
+        </div>
       </div>
 
-      {/* Table card */}
-      <div className="overflow-hidden rounded-xl border border-border-md bg-background shadow-sm">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-border bg-muted/60">
-              <th className="w-12 px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">#</th>
-              <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Tên</th>
-              <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Mô tả</th>
-              <th className="w-40 px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground">Hệ thống</th>
-              <th className="w-16 px-4 py-2.5" />
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
+      <div className={cn('kv-md', mobileDetail && 'kv-md--detail-open')}>
+
+        {/* Roster */}
+        <div className="kv-md-list">
+          <div className="kv-md-tools">
+            <div className="kv-search">
+              <Search className="h-4 w-4" />
+              <input className="kv-input" placeholder="Tìm tên vai trò…" value={search} onChange={(e) => setSearch(e.target.value)} />
+            </div>
+          </div>
+
+          <ul className="kv-md-items">
             {isLoading ? (
-              <tr>
-                <td colSpan={5} className="px-4 py-12 text-center text-xs text-muted-foreground">
-                  Đang tải…
-                </td>
-              </tr>
-            ) : roles.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="px-4 py-12 text-center text-xs text-muted-foreground">
-                  Chưa có vai trò nào.
-                </td>
-              </tr>
+              <li className="kv-muted" style={{ padding: '32px 14px', textAlign: 'center', fontSize: 12 }}>Đang tải…</li>
+            ) : filtered.length === 0 ? (
+              <li className="kv-muted" style={{ padding: '32px 14px', textAlign: 'center', fontSize: 12 }}>Chưa có vai trò nào.</li>
             ) : (
-              roles.map((r, i) => (
-                <tr
-                  key={r.id}
-                  onClick={() => openEdit(r)}
-                  className="group/row cursor-pointer transition-colors hover:bg-muted/30"
-                >
-                  <td className="px-4 py-2 text-muted-foreground">{i + 1}</td>
-                  <td className="px-4 py-2 font-medium text-foreground">{r.name}</td>
-                  <td className="px-4 py-2 text-foreground">{r.description ?? <span className="text-muted-foreground">—</span>}</td>
-                  <td className="px-4 py-2">
-                    <div className="flex justify-center">
-                      {r.is_system ? (
-                        <span className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-700">
-                          <Shield className="h-3 w-3" />
-                          Hệ thống
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
+              filtered.map((r) => (
+                <li key={r.id}>
+                  <a
+                    className="kv-md-item"
+                    aria-current={r.id === selectedId}
+                    onClick={() => { setSelectedId(r.id); setMobileDetail(true) }}
+                  >
+                    <div style={{ minWidth: 0 }}>
+                      <div className="kv-cell-title truncate">{r.name}</div>
+                      {r.description && <div className="kv-cell-sub truncate">{r.description}</div>}
                     </div>
-                  </td>
-                  <td className="px-4 py-2">
-                    <div className="flex items-center justify-end gap-1 opacity-0 transition-opacity group-hover/row:opacity-100">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); openEdit(r) }}
-                        className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                      </button>
-                      {!r.is_system && (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); setDeleteTarget(r) }}
-                          className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-red-50 hover:text-red-600"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
+                    {r.is_system && (
+                      <div className="kv-tags">
+                        <Shield className="h-3 w-3" style={{ color: 'var(--s-approved-color)', flexShrink: 0 }} />
+                      </div>
+                    )}
+                  </a>
+                </li>
               ))
             )}
-          </tbody>
-        </table>
+          </ul>
 
-        {roles.length > 0 && (
-          <div className="border-t border-border px-4 py-2.5">
-            <span className="text-xs text-muted-foreground">{roles.length} vai trò</span>
+          <div className="kv-md-foot">{filtered.length} vai trò</div>
+        </div>
+
+        {/* Detail */}
+        {!selected ? (
+          <div className="kv-md-detail flex items-center justify-center">
+            <p className="kv-muted" style={{ fontSize: 13 }}>Chọn 1 vai trò bên trái để xem chi tiết.</p>
+          </div>
+        ) : (
+          <div className="kv-md-detail">
+
+            <button
+              onClick={() => setMobileDetail(false)}
+              className="mb-2.5 flex items-center gap-1.5 border-none bg-transparent text-sm font-medium md:hidden"
+              style={{ color: 'var(--text-2)', cursor: 'pointer' }}
+            >
+              <ChevronLeft className="h-4 w-4" />
+              Quay lại danh sách
+            </button>
+
+            <div className="kv-md-head">
+              <div>
+                <h2 className="kv-md-title">
+                  {selected.name}
+                  {selected.is_system && <span className="kv-tag kv-tag--default">Hệ thống</span>}
+                </h2>
+              </div>
+              <div className="kv-actions">
+                <button type="button" className="kv-btn" onClick={() => openEdit(selected)}>
+                  <Pencil className="h-3.5 w-3.5" />Sửa
+                </button>
+                {!selected.is_system && (
+                  <button type="button" className="kv-btn kv-btn--danger" onClick={() => setDeleteTarget(selected)}>
+                    <Trash2 className="h-3.5 w-3.5" />Xoá
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="kv-md-block">
+              <div className="kv-md-block-head">
+                <h3 className="kv-section-title">Thông tin</h3>
+              </div>
+              <dl className="kv-dl">
+                <div className="kv-span-3"><dt>Mô tả</dt><dd>{selected.description || <span className="kv-empty">Chưa nhập</span>}</dd></div>
+              </dl>
+            </div>
+
+            <p className="kv-muted" style={{ fontSize: 12 }}>
+              Bấm biểu tượng sửa để xem/chỉnh danh sách quyền của vai trò này.
+            </p>
           </div>
         )}
       </div>
 
       {/* Create / Edit Sheet */}
       <Sheet open={dialogOpen} onOpenChange={(o) => !o && setDialogOpen(false)}>
-        <SheetContent side="right" className="w-[720px] flex flex-col gap-0" showCloseButton={false}>
-        {/* header */}
+        <SheetContent side="right" className="theme-2a w-[720px] flex flex-col gap-0" showCloseButton={false}>
         <div className="flex shrink-0 items-center justify-between border-b border-border px-5 py-4">
           <h2 className="text-base font-semibold text-foreground">
             {editing ? `Sửa role "${editing.name}"` : 'Tạo role mới'}
@@ -202,7 +221,6 @@ export default function RolesPage() {
           </button>
         </div>
 
-        {/* scrollable body + footer */}
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="flex min-h-0 flex-1 flex-col">
             <div className="flex-1 overflow-y-auto px-5 py-5">
@@ -210,7 +228,7 @@ export default function RolesPage() {
 
                 <FormField control={form.control} name="name" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Tên role <span className="text-red-500">*</span></FormLabel>
+                    <FormLabel>Tên role <span className="text-destructive">*</span></FormLabel>
                     <FormControl>
                       <Input
                         placeholder="VD: Kế toán"
@@ -219,7 +237,7 @@ export default function RolesPage() {
                       />
                     </FormControl>
                     {editing?.is_system && (
-                      <FormDescription className="text-amber-600">
+                      <FormDescription className="text-[var(--s-pending-color)]">
                         Role hệ thống — không đổi tên được
                       </FormDescription>
                     )}
@@ -237,9 +255,6 @@ export default function RolesPage() {
                   </FormItem>
                 )} />
 
-                {/* Permissions panel — hiện cả khi tạo mới lẫn sửa. Component này không
-                    phụ thuộc roleId (chỉ fetch full danh sách permission), nên tạo mới vẫn
-                    chọn được ngay, gửi kèm permission_keys trong lúc POST /roles luôn. */}
                 <RolePermissionsPanel
                   roleId={editing?.id ?? ''}
                   selected={permSelected}
@@ -249,7 +264,6 @@ export default function RolesPage() {
               </div>
             </div>
 
-            {/* footer */}
             <div className="flex shrink-0 items-center justify-end gap-2 border-t border-border px-5 py-4">
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
                 Huỷ
@@ -265,7 +279,7 @@ export default function RolesPage() {
 
       {/* Delete confirmation */}
       <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
-        <AlertDialogContent>
+        <AlertDialogContent className="theme-2a">
           <AlertDialogHeader>
             <AlertDialogTitle>Xoá role?</AlertDialogTitle>
             <AlertDialogDescription>
@@ -276,7 +290,7 @@ export default function RolesPage() {
           <AlertDialogFooter>
             <AlertDialogCancel>Huỷ</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+              variant="danger"
               onClick={() => { deleteMutation.mutate(deleteTarget.id); setDeleteTarget(null) }}
             >
               Xoá

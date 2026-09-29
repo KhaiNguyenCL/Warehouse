@@ -1,190 +1,159 @@
-// 1 dòng trong Form.List của PO create page — chọn SKU qua VariantSelect (OptGroup theo
-// sản phẩm, tìm kiếm theo mã/tên). Khi chọn variant tự điền unit_price/manufacturer_warranty_months từ
-// cost_price/manufacturer_warranty_months mặc định của variant (user sửa được độc lập sau đó).
+// 1 <tr> trong bảng .kv-table.kv-lines của PurchaseOrderCreatePage.tsx — theo đúng
+// export/purchase-new.html: "Sản phẩm" hiển thị TĨNH (tên đậm + SKU · đơn vị subtext), không
+// còn là ô VariantSelect sửa được tại chỗ nữa — muốn đổi SKU 1 dòng thì xoá dòng rồi thêm lại
+// qua ô "Quét mã / tìm hàng" cuối bảng (xem PurchaseOrderCreatePage.tsx::handleScanAdd, cùng
+// pattern ReceiptFormPage.tsx::CreateLinesTable). Component này thuần hiển thị + input số/ghi
+// chú, không tự chọn variant nữa.
 //
-// Custom field có applies_to_po_line=true: chọn variant → prefill từ giá trị hiện tại của
-// SKU đó làm gợi ý; lưu riêng theo custom_field_values của dòng PO.
+// KHÔNG còn ô BH hãng/BH công ty (theo yêu cầu port mockup) — 2 giá trị này vẫn được set ngầm
+// vào field ẩn lúc thêm dòng (PurchaseOrderCreatePage.tsx::handleScanAdd, lấy từ
+// variant.manufacturer_warranty_months) và gửi lên server như cũ, chỉ không cho sửa tay từng
+// dòng nữa.
+//
+// Ghi chú + custom field động (applies_to_po_line) gộp chung 1 Popover mở bằng icon (kv-note-btn),
+// đổi màu khi đã có nội dung (kv-note-btn--has) — khớp mockup, đồng thời giữ được tính năng
+// custom field vốn không có chỗ trong bảng mockup.
 import { useQuery } from '@tanstack/react-query'
-import { Form, InputNumber, Input, DatePicker, Switch, Select, Button, Popover, Tooltip } from 'antd'
-import { DeleteOutlined, EditOutlined } from '@ant-design/icons'
+import { Form, Input, DatePicker, Switch, Select, Popover } from 'antd'
 import type { FormInstance } from 'antd'
 import dayjs from 'dayjs'
+import { NotebookPen, X } from 'lucide-react'
 import { api } from '../lib/api'
-import { moneyProps } from '../lib/utils'
-import VariantSelect, { type VariantData } from './VariantSelect'
+import { PlainNumberInput } from './PlainNumberInput'
 
 function fmtTotal(n: number) {
   return Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',')
 }
 
-const CTRL_KEYS = ['Backspace', 'Delete', 'Tab', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End']
-
-// Chặn ký tự không phải số nguyên
-function blockNonInteger(e: React.KeyboardEvent<HTMLInputElement>) {
-  if (!/^\d$/.test(e.key) && !CTRL_KEYS.includes(e.key) && !(e.ctrlKey || e.metaKey))
-    e.preventDefault()
-}
-
-// Chặn ký tự không phải số thực (cho phép thêm dấu .)
-function blockNonDecimal(e: React.KeyboardEvent<HTMLInputElement>) {
-  if (!/^\d$/.test(e.key) && e.key !== '.' && !CTRL_KEYS.includes(e.key) && !(e.ctrlKey || e.metaKey))
-    e.preventDefault()
-}
+const VAT_OPTIONS = [0, 5, 8, 10]
 
 interface Props {
   form: FormInstance
   name: number
   remove: () => void
-  showLabel?: boolean
 }
 
-export default function POLineItem({ form, name, remove, showLabel = true }: Props) {
+export default function POLineItem({ form, name, remove }: Props) {
   const { data: variantCustomFields } = useQuery({
     queryKey: ['custom-fields', 'variant'],
     queryFn: async () => (await api.get('/custom-fields', { params: { object_type: 'variant' } })).data,
   })
   const poLineFields = (variantCustomFields ?? []).filter((f: any) => f.is_active && f.applies_to_po_line)
 
-  const note     = Form.useWatch(['lines', name, 'note'],        form)
-  const qty      = Form.useWatch(['lines', name, 'quantity'],    form) ?? 0
-  const price    = Form.useWatch(['lines', name, 'unit_price'],  form) ?? 0
-  const vat      = Form.useWatch(['lines', name, 'vat_percent'], form) ?? 0
-  const allLines = Form.useWatch('lines', form) ?? []
-  const total    = qty && price ? qty * price * (1 + vat / 100) : null
+  const variantName = Form.useWatch(['lines', name, 'variant_name'], form)
+  const variantCode = Form.useWatch(['lines', name, 'variant_code'], form)
+  const variantUnit = Form.useWatch(['lines', name, 'variant_unit'], form)
+  const qty         = Form.useWatch(['lines', name, 'quantity'],    form) ?? 0
+  const price       = Form.useWatch(['lines', name, 'unit_price'],  form) ?? 0
+  const vat         = Form.useWatch(['lines', name, 'vat_percent'], form) ?? 0
+  const note        = Form.useWatch(['lines', name, 'note'],        form)
+  const total       = qty && price ? qty * price * (1 + vat / 100) : null
 
-  const usedVariantIds: string[] = allLines
-    .filter((_: any, i: number) => i !== name)
-    .map((l: any) => l?.variant_id)
-    .filter(Boolean)
-
-  async function onSelectVariant(variant: VariantData | null) {
-    if (!variant) return
-
-    const lines = form.getFieldValue('lines')
-    lines[name] = {
-      ...lines[name],
-      variant_id: variant.id,
-      unit_price: variant.cost_price != null ? Number(variant.cost_price) : lines[name]?.unit_price,
-      vat_percent: variant.vat_percent != null ? Number(variant.vat_percent) : lines[name]?.vat_percent,
-      manufacturer_warranty_months: variant.manufacturer_warranty_months ?? lines[name]?.manufacturer_warranty_months,
-      customer_warranty_months: variant.manufacturer_warranty_months ?? lines[name]?.customer_warranty_months,
-    }
-    form.setFieldValue('lines', lines)
-
-    if (poLineFields.length > 0) {
-      const { data: variantValues } = await api.get('/custom-fields/values', {
-        params: { object_type: 'variant', object_id: variant.id },
-      })
-      const lines2 = form.getFieldValue('lines')
-      lines2[name] = {
-        ...lines2[name],
-        custom_field_values: poLineFields.map((f: any) => ({
-          field_id: f.id,
-          value: variantValues.find((v: any) => v.field_id === f.id)?.value ?? null,
-        })),
-      }
-      form.setFieldValue('lines', lines2)
-    }
-  }
-
-  // Dùng label=' ' (khoảng trắng) trên hàng đầu để AntD tự căn button ngang với input
-  const lbl = (text: string) => (showLabel ? text : null)
-  const btnLabel = showLabel ? ' ' : null
-
-  const inputStyle = { width: '100%', fontSize: 15 }
+  const hasNote = !!note?.trim?.()
 
   return (
-    <div style={{ display: 'flex', gap: 8, width: '100%', marginBottom: 0, alignItems: 'flex-start', flexWrap: 'nowrap' }}>
-      <Form.Item name={[name, 'variant_id']} label={lbl('Mã hàng / SKU')} style={{ flex: 2, minWidth: 0 }}>
-        <VariantSelect excludeTypes={['service']} excludeIds={usedVariantIds} onSelectVariant={onSelectVariant} style={{ ...inputStyle }} />
-      </Form.Item>
+    <tr className="kv-line-hover">
+      <td className="kv-line-no">{name + 1}</td>
 
-      <Form.Item name={[name, 'quantity']} label={lbl('SL')} style={{ flex: '0 0 88px' }}>
-        <InputNumber controls={false} precision={0} onKeyDown={blockNonInteger} style={inputStyle} />
-      </Form.Item>
+      <td>
+        <div className="kv-cell-title">{variantName ?? '—'}</div>
+        <div className="kv-cell-sub mono">{[variantCode, variantUnit].filter(Boolean).join(' · ')}</div>
+        <Form.Item name={[name, 'variant_id']} hidden><Input /></Form.Item>
+        <Form.Item name={[name, 'variant_name']} hidden><Input /></Form.Item>
+        <Form.Item name={[name, 'variant_code']} hidden><Input /></Form.Item>
+        <Form.Item name={[name, 'variant_unit']} hidden><Input /></Form.Item>
+        <Form.Item name={[name, 'manufacturer_warranty_months']} hidden><Input /></Form.Item>
+        <Form.Item name={[name, 'customer_warranty_months']} hidden><Input /></Form.Item>
+      </td>
 
-      <Form.Item name={[name, 'unit_price']} label={lbl('Đơn giá')} style={{ flex: '0 0 150px' }}>
-        <InputNumber {...moneyProps} onKeyDown={blockNonInteger} style={inputStyle} />
-      </Form.Item>
+      <td>
+        <Form.Item name={[name, 'quantity']} noStyle rules={[{ required: true }]}>
+          <PlainNumberInput align="right" />
+        </Form.Item>
+      </td>
 
-      <Form.Item name={[name, 'vat_percent']} label={lbl('VAT %')} style={{ flex: '0 0 80px' }}>
-        <InputNumber controls={false} precision={1} placeholder="—" onKeyDown={blockNonDecimal} style={inputStyle} />
-      </Form.Item>
+      <td>
+        <Form.Item name={[name, 'unit_price']} noStyle rules={[{ required: true }]}>
+          <PlainNumberInput align="right" format />
+        </Form.Item>
+      </td>
 
-      <Form.Item label={lbl('Thành tiền')} style={{ flex: '0 0 160px' }}>
-        <div style={{
-          height: 32, border: '1px solid var(--border, #d9d9d9)', borderRadius: 6,
-          padding: '0 11px', display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
-          background: 'var(--bg-subtle)', fontSize: 15, color: 'var(--text-2)',
-          whiteSpace: 'nowrap',
-        }}>
-          {total != null
-            ? fmtTotal(total)
-            : <span style={{ color: 'var(--text-3, #bbb)' }}>—</span>}
-        </div>
-      </Form.Item>
+      <td>
+        <Form.Item name={[name, 'vat_percent']} noStyle initialValue={10}>
+          {/* Nếu dòng cũ có % ngoài 4 mức chuẩn (VD dữ liệu cũ trước khi đổi sang dropdown) —
+              chèn thêm option cho đúng giá trị đó, tránh <select> âm thầm rơi về option đầu
+              tiên (0%) rồi lỡ tay lưu đè giá trị thật khi user bấm Lưu mà không để ý field này. */}
+          <select className="kv-select">
+            {!VAT_OPTIONS.includes(vat) && vat != null && <option value={vat}>{vat}%</option>}
+            {VAT_OPTIONS.map((v) => <option key={v} value={v}>{v}%</option>)}
+          </select>
+        </Form.Item>
+      </td>
 
-      <Form.Item name={[name, 'manufacturer_warranty_months']} label={lbl('BH hãng')} style={{ flex: '0 0 90px' }}>
-        <InputNumber controls={false} precision={0} placeholder="—" onKeyDown={blockNonInteger} style={inputStyle} />
-      </Form.Item>
+      <td className="num kv-strong">
+        {total != null ? fmtTotal(total) : <span className="kv-muted">—</span>}
+      </td>
 
-      <Form.Item name={[name, 'customer_warranty_months']} label={lbl('BH công ty')} style={{ flex: '0 0 100px' }}>
-        <InputNumber controls={false} precision={0} placeholder="—" onKeyDown={blockNonInteger} style={inputStyle} />
-      </Form.Item>
-
-      {poLineFields.map((f: any, i: number) => (
-        <span key={f.id}>
-          <Form.Item name={[name, 'custom_field_values', i, 'field_id']} hidden initialValue={f.id}>
-            <Input />
-          </Form.Item>
-          <Form.Item
-            name={[name, 'custom_field_values', i, 'value']}
-            label={lbl(f.field_label)}
-            getValueFromEvent={(eventValue: any) => encodeCustomFieldValue(f.field_type, eventValue)}
-            getValueProps={(value: any) => decodeCustomFieldValue(f.field_type, value)}
-          >
-            {renderCustomFieldInput(f)}
-          </Form.Item>
-        </span>
-      ))}
-
-      {/* Nút ghi chú + xoá — căn ngang với ô input nhờ label=' ' */}
-      <Form.Item label={btnLabel} style={{ flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4, height: 32 }}>
-          <Popover
-            trigger="click"
-            placement="top"
-            content={
+      <td className="num">
+        <Popover
+          trigger="click"
+          placement="topRight"
+          content={
+            <div style={{ width: 260, display: 'flex', flexDirection: 'column', gap: 8 }}>
               <Form.Item name={[name, 'note']} noStyle>
-                <Input.TextArea rows={3} style={{ width: 220 }} placeholder="Ghi chú dòng..." />
+                <Input.TextArea rows={3} placeholder="Ghi chú dòng..." />
               </Form.Item>
-            }
+              {poLineFields.map((f: any, i: number) => (
+                <div key={f.id}>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-2)', marginBottom: 2 }}>{f.field_label}</div>
+                  <Form.Item name={[name, 'custom_field_values', i, 'field_id']} hidden initialValue={f.id}>
+                    <Input />
+                  </Form.Item>
+                  <Form.Item
+                    name={[name, 'custom_field_values', i, 'value']}
+                    noStyle
+                    getValueFromEvent={(eventValue: any) => encodeCustomFieldValue(f.field_type, eventValue)}
+                    getValueProps={(value: any) => decodeCustomFieldValue(f.field_type, value)}
+                  >
+                    {renderCustomFieldInput(f)}
+                  </Form.Item>
+                </div>
+              ))}
+            </div>
+          }
+        >
+          <button
+            type="button"
+            className={`kv-icon-btn kv-note-btn ${hasNote ? 'kv-note-btn--has' : ''}`}
+            aria-label={`Ghi chú dòng ${name + 1}`}
+            title={note || 'Thêm ghi chú'}
           >
-            <Tooltip title="Ghi chú">
-              <Button icon={<EditOutlined />} size="small" type={note ? 'primary' : 'text'} />
-            </Tooltip>
-          </Popover>
-          <Tooltip title="Xoá dòng">
-            <Button danger icon={<DeleteOutlined />} size="small" onClick={remove} />
-          </Tooltip>
-        </div>
-      </Form.Item>
-    </div>
+            <NotebookPen className="h-4 w-4" />
+          </button>
+        </Popover>
+      </td>
+
+      <td className="num">
+        <button type="button" className="kv-icon-btn kv-row-del" aria-label={`Xoá dòng ${name + 1}`} onClick={remove}>
+          <X className="h-4 w-4" />
+        </button>
+      </td>
+    </tr>
   )
 }
 
 function renderCustomFieldInput(field: any) {
   switch (field.field_type) {
     case 'number':
-      return <InputNumber controls={false} style={{ width: 120 }} />
+      return <PlainNumberInput decimal />
     case 'date':
-      return <DatePicker style={{ width: 140 }} />
+      return <DatePicker style={{ width: '100%' }} />
     case 'boolean':
       return <Switch />
     case 'select':
-      return <Select style={{ width: 140 }} allowClear options={(field.options ?? []).map((o: string) => ({ value: o, label: o }))} />
+      return <Select style={{ width: '100%' }} allowClear options={(field.options ?? []).map((o: string) => ({ value: o, label: o }))} />
     default:
-      return <Input style={{ width: 140 }} />
+      return <input className="kv-input" style={{ width: '100%', height: 32 }} />
   }
 }
 

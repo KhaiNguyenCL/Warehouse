@@ -21,12 +21,15 @@ export class ReceiptRepository {
       .leftJoin('companies as c', 'c.id', 'r.company_id')
       .leftJoin('warehouses as w', 'w.id', 'r.warehouse_id')
       .leftJoin('users as u', 'u.id', 'r.created_by')
+      .leftJoin('shipments as sh', 'sh.id', 'r.shipment_id')
       .select(
         'r.id', 'r.code', 'r.import_type', 'r.status',
         'r.created_at', 'r.completed_at',
         'c.name as company_name',
+        'c.code as company_code',
         'w.name as warehouse_name',
         'u.full_name as created_by_name',
+        'sh.code as shipment_code',
       )
 
     if (status) base.where('r.status', status)
@@ -74,13 +77,18 @@ export class ReceiptRepository {
   // 2 query rời: nếu insert header xong mà insert lines lỗi, receipt rác (không có dòng nào)
   // sẽ tồn tại trong DB. trx đảm bảo "tất cả thành công hoặc không gì xảy ra".
   async create(data: CreateReceiptBody, userId: string, trx: Knex.Transaction) {
-    const { lines, ...header } = data   // tách lines ra khỏi phần header để insert vào 2 bảng khác nhau
+    // complete không phải cột thật của bảng receipts (chỉ là cờ chỉ đạo cho service.create()
+    // biết có complete ngay hay không) — PHẢI tách ra cùng lines, nếu không insert lỗi
+    // "column complete does not exist".
+    const { lines, complete: _complete, ...header } = data   // tách lines ra khỏi phần header để insert vào 2 bảng khác nhau
     const code = await generateDocumentCode(trx, 'receipt')
     const [receipt] = await trx('receipts')
       .insert({ ...header, code, status: 'draft', created_by: userId })   // mọi receipt mới luôn bắt đầu ở status draft
       .returning('*')   // PostgreSQL hỗ trợ RETURNING — lấy lại row vừa insert (kèm id tự sinh) mà không cần SELECT lại
 
-    const lineRows = lines.map((l, i) => ({
+    // serials không phải cột của receipt_lines (chỉ dùng khi complete=true, xử lý riêng ở
+    // service.applyLineCompletion()) — tách ra tương tự, nếu không insert lỗi cột lạ.
+    const lineRows = lines.map(({ serials: _serials, ...l }, i) => ({
       ...l,
       receipt_id: receipt.id,
       line_order: l.line_order ?? i + 1,   // nếu client không gửi line_order, tự đánh số theo thứ tự trong mảng

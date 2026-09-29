@@ -33,6 +33,11 @@ interface Props {
   // Khi true: mỗi option hiện thêm dòng nhỏ giá bán + BH hãng + VAT ngay trong dropdown
   // (tag đã chọn vẫn hiện tên ngắn gọn). Dùng cho QuotationLineItem.
   showMeta?: boolean
+  // Pass-through cho pattern "click-vào-ô-mới-hiện-input" (xem ReceiptFormPage) — cần tự mở
+  // dropdown + focus ngay khi ô chuyển sang chế độ edit, và biết khi nào rời ô để đóng lại.
+  autoFocus?: boolean
+  defaultOpen?: boolean
+  onBlur?: () => void
 }
 
 function fmtPrice(n: number | null | undefined) {
@@ -52,6 +57,9 @@ export default function VariantSelect({
   disabled,
   inStockOnly = false,
   showMeta = false,
+  autoFocus,
+  defaultOpen,
+  onBlur,
 }: Props) {
   const { data: allVariants } = useQuery<VariantData[]>({
     queryKey: ['products', 'variants', 'all', inStockOnly],
@@ -101,11 +109,15 @@ export default function VariantSelect({
     <Select
       showSearch
       allowClear
+      className="kv-variant-select"
       value={value}
       onChange={handleChange}
       style={style}
       placeholder={placeholder}
       disabled={disabled}
+      autoFocus={autoFocus}
+      defaultOpen={defaultOpen}
+      onBlur={onBlur}
       filterOption={(input, option) => {
         if (option && 'searchText' in option) {
           return (option.searchText as string).includes(input.toLowerCase())

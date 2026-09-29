@@ -36,11 +36,16 @@ const settingsRoutes: FastifyPluginAsync = async (app) => {
 
   // ─── Roles & Permissions (settings.roles) ─────────────────────────────────
 
-  app.get('/roles', { preHandler: authenticate }, () => service.listRoles())
-  app.get<{ Params: { id: string } }>('/roles/:id', { preHandler: authenticate }, (request) =>
+  // GET cũng cần requirePermission('settings.roles') — không chỉ authenticate — vì trả về
+  // toàn bộ cấu trúc role/permission hệ thống, không phải reference data cho nghiệp vụ
+  // thường (khác với import-types/export-types/term-templates... vẫn để authenticate vì
+  // các form Receipt/Delivery/Quotation của mọi role cần đọc). Khớp với permission đã
+  // gate ở nav sidebar (`AppLayout.tsx`).
+  app.get('/roles', { preHandler: requirePermission('settings.roles') }, () => service.listRoles())
+  app.get<{ Params: { id: string } }>('/roles/:id', { preHandler: requirePermission('settings.roles') }, (request) =>
     service.getRoleById(request.params.id),
   )
-  app.get('/permissions', { preHandler: authenticate }, () => service.listPermissions())
+  app.get('/permissions', { preHandler: requirePermission('settings.roles') }, () => service.listPermissions())
 
   app.post<{ Body: CreateRoleBody }>(
     '/roles',
@@ -74,8 +79,8 @@ const settingsRoutes: FastifyPluginAsync = async (app) => {
 
   // ─── Groups (settings.roles) ───────────────────────────────────────────────
 
-  app.get('/groups', { preHandler: authenticate }, () => service.listGroups())
-  app.get<{ Params: { id: string } }>('/groups/:id', { preHandler: authenticate }, (req) =>
+  app.get('/groups', { preHandler: requirePermission('settings.roles') }, () => service.listGroups())
+  app.get<{ Params: { id: string } }>('/groups/:id', { preHandler: requirePermission('settings.roles') }, (req) =>
     service.getGroupById(req.params.id),
   )
 
@@ -116,13 +121,13 @@ const settingsRoutes: FastifyPluginAsync = async (app) => {
 
   app.get<{ Querystring: ListUserQuery }>(
     '/users',
-    { schema: listUserSchema, preHandler: authenticate },
+    { schema: listUserSchema, preHandler: requirePermission('settings.users') },
     (request) => service.listUsers(request.query),
   )
-  app.get<{ Params: { id: string } }>('/users/:id', { preHandler: authenticate }, (request) =>
+  app.get<{ Params: { id: string } }>('/users/:id', { preHandler: requirePermission('settings.users') }, (request) =>
     service.getUserById(request.params.id),
   )
-  app.get<{ Params: { id: string } }>('/users/:id/groups', { preHandler: authenticate }, (request) =>
+  app.get<{ Params: { id: string } }>('/users/:id/groups', { preHandler: requirePermission('settings.users') }, (request) =>
     service.getUserGroups(request.params.id),
   )
 
@@ -169,7 +174,7 @@ const settingsRoutes: FastifyPluginAsync = async (app) => {
   app.get('/import-types', { preHandler: authenticate }, () => service.listImportTypes())
   app.post<{ Body: CreateImportTypeBody }>(
     '/import-types',
-    { schema: createImportTypeSchema, preHandler: authenticate },
+    { schema: createImportTypeSchema, preHandler: requirePermission('settings.warehouse') },
     async (request, reply) => {
       const row = await service.createImportType(request.body)
       return reply.code(201).send(row)
@@ -177,10 +182,10 @@ const settingsRoutes: FastifyPluginAsync = async (app) => {
   )
   app.patch<{ Params: { id: string }; Body: UpdateImportTypeBody }>(
     '/import-types/:id',
-    { schema: updateImportTypeSchema, preHandler: authenticate },
+    { schema: updateImportTypeSchema, preHandler: requirePermission('settings.warehouse') },
     (request) => service.updateImportType(request.params.id, request.body),
   )
-  app.delete<{ Params: { id: string } }>('/import-types/:id', { preHandler: authenticate }, async (request, reply) => {
+  app.delete<{ Params: { id: string } }>('/import-types/:id', { preHandler: requirePermission('settings.warehouse') }, async (request, reply) => {
     await service.deleteImportType(request.params.id)
     return reply.code(204).send()
   })
@@ -188,7 +193,7 @@ const settingsRoutes: FastifyPluginAsync = async (app) => {
   app.get('/export-types', { preHandler: authenticate }, () => service.listExportTypes())
   app.post<{ Body: CreateExportTypeBody }>(
     '/export-types',
-    { schema: createExportTypeSchema, preHandler: authenticate },
+    { schema: createExportTypeSchema, preHandler: requirePermission('settings.warehouse') },
     async (request, reply) => {
       const row = await service.createExportType(request.body)
       return reply.code(201).send(row)
@@ -196,10 +201,10 @@ const settingsRoutes: FastifyPluginAsync = async (app) => {
   )
   app.patch<{ Params: { id: string }; Body: UpdateExportTypeBody }>(
     '/export-types/:id',
-    { schema: updateExportTypeSchema, preHandler: authenticate },
+    { schema: updateExportTypeSchema, preHandler: requirePermission('settings.warehouse') },
     (request) => service.updateExportType(request.params.id, request.body),
   )
-  app.delete<{ Params: { id: string } }>('/export-types/:id', { preHandler: authenticate }, async (request, reply) => {
+  app.delete<{ Params: { id: string } }>('/export-types/:id', { preHandler: requirePermission('settings.warehouse') }, async (request, reply) => {
     await service.deleteExportType(request.params.id)
     return reply.code(204).send()
   })
@@ -211,7 +216,7 @@ const settingsRoutes: FastifyPluginAsync = async (app) => {
     '/term-templates',
     {
       schema: { body: { type: 'object', required: ['name', 'content'], properties: { name: { type: 'string', minLength: 1 }, content: { type: 'string' }, sort_order: { type: 'integer' } } } },
-      preHandler: authenticate,
+      preHandler: requirePermission('settings.products'),
     },
     async (request, reply) => reply.code(201).send(await service.createTermTemplate(request.body)),
   )
@@ -220,14 +225,14 @@ const settingsRoutes: FastifyPluginAsync = async (app) => {
     '/term-templates/:id',
     {
       schema: { body: { type: 'object', properties: { name: { type: 'string', minLength: 1 }, content: { type: 'string' }, sort_order: { type: 'integer' } } } },
-      preHandler: authenticate,
+      preHandler: requirePermission('settings.products'),
     },
     (request) => service.updateTermTemplate(request.params.id, request.body),
   )
 
   app.delete<{ Params: { id: string } }>(
     '/term-templates/:id',
-    { preHandler: authenticate },
+    { preHandler: requirePermission('settings.products') },
     async (request, reply) => { await service.deleteTermTemplate(request.params.id); return reply.code(204).send() },
   )
 
@@ -238,7 +243,7 @@ const settingsRoutes: FastifyPluginAsync = async (app) => {
     '/section-name-presets',
     {
       schema: { body: { type: 'object', required: ['name'], properties: { name: { type: 'string', minLength: 1 }, sort_order: { type: 'integer' } } } },
-      preHandler: authenticate,
+      preHandler: requirePermission('settings.products'),
     },
     async (request, reply) => reply.code(201).send(await service.createSectionNamePreset(request.body)),
   )
@@ -247,14 +252,14 @@ const settingsRoutes: FastifyPluginAsync = async (app) => {
     '/section-name-presets/:id',
     {
       schema: { body: { type: 'object', properties: { name: { type: 'string', minLength: 1 }, sort_order: { type: 'integer' } } } },
-      preHandler: authenticate,
+      preHandler: requirePermission('settings.products'),
     },
     (request) => service.updateSectionNamePreset(request.params.id, request.body),
   )
 
   app.delete<{ Params: { id: string } }>(
     '/section-name-presets/:id',
-    { preHandler: authenticate },
+    { preHandler: requirePermission('settings.products') },
     async (request, reply) => { await service.deleteSectionNamePreset(request.params.id); return reply.code(204).send() },
   )
 
@@ -278,7 +283,7 @@ const settingsRoutes: FastifyPluginAsync = async (app) => {
           },
         },
       },
-      preHandler: authenticate,
+      preHandler: requirePermission('settings.products'),
     },
     async (request, reply) => reply.code(201).send(await service.createVariantAttributeDef(request.body)),
   )
@@ -300,14 +305,14 @@ const settingsRoutes: FastifyPluginAsync = async (app) => {
           },
         },
       },
-      preHandler: authenticate,
+      preHandler: requirePermission('settings.products'),
     },
     (request) => service.updateVariantAttributeDef(request.params.id, request.body),
   )
 
   app.delete<{ Params: { id: string } }>(
     '/variant-attribute-defs/:id',
-    { preHandler: authenticate },
+    { preHandler: requirePermission('settings.products') },
     async (request, reply) => {
       await service.deleteVariantAttributeDef(request.params.id)
       return reply.code(204).send()

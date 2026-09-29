@@ -1,132 +1,99 @@
-import { Fragment, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import {
   Button as AntButton, Form, Input, DatePicker,
-  Space, Modal, Table, Upload, message,
+  Modal, Table, Upload, message,
 } from 'antd'
-import { QrcodeOutlined, UploadOutlined, PaperClipOutlined } from '@ant-design/icons'
+import { UploadOutlined } from '@ant-design/icons'
 import type { UploadFile } from 'antd'
-import { ArrowLeft, ChevronDown, ChevronUp } from 'lucide-react'
+import { ArrowLeft, QrCode, Paperclip, ChevronDown, ChevronUp, Barcode, CheckCircle2, AlertTriangle, X } from 'lucide-react'
 import { api } from '../lib/api'
 import { useReceiptForm } from '../hooks/useReceiptForm'
-import { StatusBadge } from '../components/ui/StatusBadge'
-import { Button } from '@/components/ui/button'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Textarea } from '@/components/ui/textarea'
-import { Label } from '@/components/ui/label'
-import { usePageHeader } from '@/layout/PageHeaderSlot'
-import { SnScanGrid } from '../components/SnScanGrid'
+import { StatusBadge } from '@/components/ui/StatusBadge'
+import { Sheet, SheetContent } from '@/components/ui/sheet'
+import { SnScanGrid, type SnRow } from '../components/SnScanGrid'
 import { BatchQRPrint } from '../components/BatchQRPrint'
-import VariantSelect from '../components/VariantSelect'
+import VariantSelect, { type VariantData } from '../components/VariantSelect'
+import { LineItemsTable, type LineItemsColumn } from '../components/LineItemsTable'
+import { PlainNumberInput } from '../components/PlainNumberInput'
 
-// ── Shared display helpers ────────────────────────────────────────────────────
+// Port .kv-head/.kv-form-grid/.kv-table nguyên bản (đồng bộ với ProductDetailPage — "chi tiết
+// SKU") thay cho SectionCard + shadcn Select/Textarea/Button trước đây. Vẫn giữ AntD `Form`/
+// `Form.List` để dùng chung state + validate rules với bảng dòng hàng — Form.Item vẫn nhận
+// value/onChange bình thường khi child là <select>/<input> thường (không cần Radix Select nữa).
+//
+// Chế độ TẠO MỚI (isCreate) áp theo export/import-new.html — khác biệt lớn nhất so với bản cũ:
+// nhập Serial NGAY lúc tạo (nút "x/n serial" mở drawer per dòng) thay vì tách riêng bước
+// Complete sau. "Lưu nháp" vẫn tạo Draft như cũ (không cần serial); "Tạo phiếu nhập" tạo VÀ
+// hoàn thành trong 1 lần gọi API (complete:true — xem receipt.service.ts::create()), khoá lại
+// nếu còn thiếu serial ở dòng storable nào. Chế độ Sửa/Xem (edit/view — receipt đã tồn tại)
+// GIỮ NGUYÊN luồng Complete tách riêng cũ, không đổi.
+const FIELD_MAX_WIDTH = 480
 
-// Card "Thông tin phiếu" theo đúng pattern form shadcn/ui đã dùng ở WarehousesPage (label
-// TRÊN input, input rounded-lg border-border-md có hover/focus ring) thay vì tự chế viền/kích
-// thước AntD như trước — để đồng bộ với phần còn lại của app thay vì tự sáng tạo style riêng.
-// Vẫn giữ antd `Form`/`Form.Item` để dùng chung state với `Form.List` (bảng dòng hàng) và
-// validate rules; chỉ đổi CONTROL bên trong mỗi Form.Item sang component shadcn.
-const FIELD_MAX_WIDTH = 420
-
-// Field ngắn (enum/tên kho/ngày) không cần rộng bằng field chứa tên công ty/mã phiếu dài —
-// 3 mức giống fieldTier đã dùng ở các trang khác (VariantDetailPage...), chỉ khác tên hằng vì
-// scope riêng cho trang này (đang ở kiểu form khác — label trên, không phải grid nhiều cột).
-const W_SHORT = 220   // Loại nhập, Ngày nhập kho, PO liên kết — giá trị enum/ngày/mã ngắn
-const W_MEDIUM = 300  // Kho nhập — tên kho + mã, dài vừa
-const W_WIDE = 640     // Phiếu nhận hàng, NCC, Phiếu xuất kho, Khách hàng — chứa tên công ty dài
-
-// Adapter: Form.Item tự inject `value`/`onChange` kiểu antd (onChange(value) trực tiếp), còn
-// Select shadcn (Radix) dùng `value`/`onValueChange` — cầu nối 2 convention này.
-function ShadSelectField({
-  value, onChange, placeholder, options, disabled, maxWidth = FIELD_MAX_WIDTH,
-}: {
-  value?: string
-  onChange?: (v: string) => void
-  placeholder?: string
-  options?: { value: string; label: string }[]
-  disabled?: boolean
-  maxWidth?: number
-}) {
-  return (
-    <Select value={value} onValueChange={onChange} disabled={disabled}>
-      <SelectTrigger size="sm" className="w-full text-base" style={{ maxWidth }}>
-        <SelectValue placeholder={placeholder} />
-      </SelectTrigger>
-      <SelectContent>
-        {options?.map((o) => (
-          <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  )
-}
-
-// Ô readonly (view mode) — nhìn giống input shadcn bị disabled: cùng bo góc/viền/chiều cao,
-// chỉ khác nền hơi xám để phân biệt không sửa được, theo đúng token đã dùng ở theme.ts.
-// h-8 (không phải h-9 mặc định của Input) — form này nhiều field/dòng liên tiếp, gọn hơn
-// đọc dễ hơn so với size mặc định của Sheet 1 form đơn lẻ như WarehousesPage.
+// Adapter: Form.Item tự inject `value`/`onChange`. Với <select>/<input> thường, browser tự
+// bắn onChange(event) và Form.Item tự đọc e.target.value — không cần adapter riêng nữa (khác
+// hẳn shadcn Select/Radix trước đây cần onValueChange).
+// Luôn wrap xuống dòng (không cắt 1 dòng + title tooltip) — field CHỈ ĐỌC, không phải input
+// cần giữ chiều cao cố định.
 function BBox({ children, title, maxWidth = FIELD_MAX_WIDTH }: { children: React.ReactNode; title?: string; maxWidth?: number }) {
   return (
     <div
       title={title}
-      className="flex h-8 w-full items-center overflow-hidden text-ellipsis whitespace-nowrap rounded-lg border border-border-md bg-muted/40 px-3 text-base text-foreground"
-      style={{ maxWidth }}
+      className="kv-input"
+      style={{
+        display: 'flex', alignItems: 'flex-start', overflow: 'visible',
+        whiteSpace: 'pre-wrap', wordBreak: 'break-word', height: 'auto', minHeight: 30, padding: '5px 9px',
+        background: 'var(--bg-card)', color: 'var(--text-1)', maxWidth,
+      }}
     >
       {children}
     </div>
   )
 }
 
-const ph = <span style={{ color: 'var(--text-3, #bbb)' }}>—</span>
+// Segmented control (mockup .kv-seg) cho "Loại nhập" — Form.Item clone + compose onChange
+// giống hệt <select> thường, chỉ cần component tự gọi đúng prop `onChange` nó nhận được.
+function ImportTypeSeg({
+  value, onChange, options, disabled,
+}: {
+  value?: string
+  onChange?: (v: string) => void
+  options?: { key: string; label: string }[]
+  disabled?: boolean
+}) {
+  return (
+    <div className="kv-seg" role="radiogroup" aria-label="Loại nhập">
+      {options?.map((o) => (
+        <button
+          key={o.key} type="button" aria-current={value === o.key}
+          disabled={disabled} onClick={() => onChange?.(o.key)}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+const ph = <span style={{ color: 'var(--text-3)' }}>—</span>
 
 function fmt(n: any) {
   if (n == null) return '—'
   return Number(n).toLocaleString('en-US')
 }
 
-// Input số THUẦN tự viết (không dùng antd InputNumber) cho 4 cột số của bảng dòng hàng —
-// theo yêu cầu: input/select AntD chỉ đáng dùng ở cột cần tính năng thật sự cần (SKU cần
-// search/autocomplete, Từ ngày cần lịch chọn) — cột số đơn giản thì tự viết `<input>` nhẹ hơn
-// nhiều so với việc liên tục đè CSS lên control AntD (bo góc, text-align, focus ring...).
-// Tương thích Form.Item: nhận `value`/`onChange` theo đúng convention AntD tự inject.
-function PlainNumberInput({
-  value, onChange, onBlur, autoFocus, align, className, format,
-}: {
-  value?: number
-  onChange?: (v: number | undefined) => void
-  onBlur?: () => void
-  autoFocus?: boolean
-  align?: 'left' | 'center' | 'right'
-  className?: string
-  // Format="thousand" — thêm dấu phẩy ngăn cách hàng nghìn ngay khi gõ (giống moneyProps cũ
-  // của antd InputNumber), dùng cho Giá nhập. Các field số khác (số lượng, số tháng) không
-  // cần vì giá trị luôn nhỏ, không có ý nghĩa phân cách.
-  format?: boolean
-}) {
-  // value có thể là string thập phân từ backend (Postgres NUMERIC serialize dạng "2500000.00")
-  // chứ không chắc luôn là number — ép Number() trước khi format/hiển thị, nếu không
-  // String.prototype.toLocaleString() sẽ trả nguyên "2500000.00" không đổi (không phải lỗi
-  // hiển thị số, mà do gọi nhầm hàm của string thay vì number).
-  const numValue = value != null ? Number(value) : undefined
-  const display = numValue != null && !Number.isNaN(numValue) ? (format ? numValue.toLocaleString('en-US') : String(numValue)) : ''
-  return (
-    <input
-      type="text"
-      inputMode="numeric"
-      autoFocus={autoFocus}
-      value={display}
-      onChange={(e) => {
-        const raw = e.target.value.replace(/[^0-9]/g, '')
-        onChange?.(raw === '' ? undefined : Number(raw))
-      }}
-      onBlur={onBlur}
-      className={className}
-      style={{
-        width: '100%', height: 32, border: 'none', outline: 'none', background: 'transparent',
-        padding: '0 8px', fontSize: 14, textAlign: align ?? 'left',
-        fontFamily: 'inherit', color: 'inherit',
-      }}
-    />
-  )
+
+// Tồn hiện tại (tất cả kho) của 1 SKU — cột riêng theo mockup, giúp người nhập thấy ngay
+// hàng còn/hết trước khi gõ số lượng.
+function StockQtyCell({ variantId }: { variantId?: string }) {
+  const { data } = useQuery({
+    queryKey: ['inventory', 'by-variant', 'qty', variantId],
+    queryFn: async () => (await api.get('/inventory/by-variant', { params: { variant_id: variantId, limit: 1 } })).data,
+    enabled: !!variantId,
+    staleTime: 30_000,
+  })
+  if (!variantId) return <span className="kv-muted">—</span>
+  return <span className="kv-muted">{data?.data?.[0]?.qty_on_hand ?? 0}</span>
 }
 
 // ── Main page ─────────────────────────────────────────────────────────────────
@@ -138,54 +105,62 @@ export default function ReceiptFormPage() {
   const [cancelReason, setCancelReason] = useState('')
   const [cancelFiles, setCancelFiles] = useState<UploadFile[]>([])
   const [cancelLoading, setCancelLoading] = useState(false)
+  // product_type từng dòng (key = index trong Form.List) — quyết định dòng có cần Serial hay
+  // không. Nâng lên component cha vì cả bảng dòng hàng LẪN thanh footer (đếm thiếu serial)
+  // đều cần đọc. Set khi: (1) tự thêm dòng qua ô "Quét mã" (VariantData trả về product_type),
+  // (2) dòng tới từ PO/Shipment (effect bên dưới, cùng filter với hook điền lines tương ứng).
+  const [productTypes, setProductTypes] = useState<Record<number, string>>({})
   const hook = useReceiptForm({ onUpdateSuccess: () => setIsDirty(false) })
   const { mode, receipt } = hook
   const importTypeValue = Form.useWatch('import_type', hook.form)
+  const linesWatch = Form.useWatch('lines', hook.form) as any[] | undefined
 
   const isCreate = mode === 'create'
   const isEdit = mode === 'edit'
   const isView = mode === 'view'
 
-  // usePageHeader là hook — PHẢI gọi vô điều kiện trước early return bên dưới (xem CLAUDE.md
-  // mục 22). Chỉ tối đa 2 nút cùng lúc (Complete/Huỷ phiếu, hoặc In nhãn QR) nên không cần
-  // dropdown "···" như Quotation/PO — giữ hiện trực tiếp.
-  usePageHeader(
-    <div className="flex items-center justify-between gap-4">
-      <div className="flex min-w-0 items-center gap-2">
-        <Button variant="ghost" size="icon-sm" onClick={() => hook.navigate('/receipts')}>
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-        <h1 className="flex min-w-0 items-baseline gap-2 truncate text-sm font-semibold tracking-tight">
-          <button
-            onClick={() => hook.navigate('/receipts')}
-            className="text-muted-foreground transition-colors hover:text-foreground"
-          >
-            Phiếu nhập kho
-          </button>
-          <span className="text-muted-foreground">/</span>
-          <span className="truncate text-foreground">{isCreate ? 'Tạo mới' : (receipt?.code ?? hook.id)}</span>
-        </h1>
-        {receipt?.status && <StatusBadge status={receipt.status} />}
-      </div>
+  // Dòng tới từ Shipment/PO không qua ô "Quét mã" nên productTypes không tự có — đọc lại
+  // product_type từ chính response đó, ÁP ĐÚNG CÙNG FILTER với effect điền `lines` trong hook:
+  // shipment: condition !== 'missing' RỒI loại tiếp dòng có po_line_id đã nhận đủ ở Receipt khác
+  // (hook cũng lọc dòng này ra khỏi `lines` khi cả shipmentDetail LẪN poDetail cùng có, xem
+  // useReceiptForm.ts); PO thuần (không qua Shipment): remaining_qty > 0. Thiếu bước lọc này ở
+  // đây sẽ làm productTypes lệch index so với `lines` thật trong form sau khi hook loại dòng —
+  // dòng kế tiếp bị gán nhầm product_type (bug thật đã gặp).
+  //
+  // Cố ý dùng `received_qty >= quantity` cho nhánh Shipment (KHÔNG dùng remaining_qty) — xem
+  // giải thích chi tiết ở effect tương ứng trong useReceiptForm.ts: remaining_qty đã trừ luôn
+  // shipment_qty của CHÍNH shipment đang tạo receipt này nên luôn ra 0 kể cả với dòng hợp lệ.
+  // Nhánh PO thuần vẫn dùng remaining_qty vì không có vấn đề tự-trừ này (chưa gắn shipment nào).
+  useEffect(() => {
+    if (!isCreate) return
+    const poLineMap = hook.poDetail ? new Map<string, any>(hook.poDetail.lines.map((l: any) => [l.id, l])) : null
+    const source = hook.shipmentDetail
+      ? (hook.shipmentDetail.lines ?? [])
+        .filter((l: any) => l.condition !== 'missing')
+        .filter((l: any) => {
+          if (!l.po_line_id || !poLineMap) return true
+          const poLine = poLineMap.get(l.po_line_id)
+          return !poLine || poLine.received_qty < poLine.quantity
+        })
+      : hook.poDetail
+        ? (hook.poDetail.lines ?? []).filter((l: any) => l.remaining_qty > 0)
+        : null
+    if (!source) return
+    const map: Record<number, string> = {}
+    source.forEach((l: any, i: number) => { if (l.product_type) map[i] = l.product_type })
+    setProductTypes(map)
+  }, [hook.shipmentDetail, hook.poDetail, isCreate])
 
-      <div className="flex flex-shrink-0 items-center gap-2">
-        {isEdit && (
-          <Button size="sm" variant="success" disabled={hook.completeMode} onClick={() => hook.setCompleteMode(true)}>
-            Complete
-          </Button>
-        )}
-        {!isCreate && !['completed', 'cancelled'].includes(receipt?.status ?? '') && (
-          <Button size="sm" variant="danger" onClick={() => setCancelOpen(true)}>Huỷ phiếu</Button>
-        )}
-        {receipt?.status === 'completed' && (
-          <Button size="sm" variant="outline" onClick={() => setQrOpen(true)}>
-            <QrcodeOutlined style={{ marginRight: 6 }} />
-            In nhãn QR
-          </Button>
-        )}
-      </div>
-    </div>,
-  )
+  // Bất kỳ thay đổi nào ở các "nguồn điền dòng hàng" (chọn/bỏ chọn Phiếu nhận hàng, PO, Phiếu
+  // xuất trả hàng) đều khiến hook ghi đè lại toàn bộ mảng `lines` trong form (setFieldsValue) —
+  // productTypes/createSerialsRows (state riêng, key theo INDEX) phải reset theo, nếu không dữ
+  // liệu serial/loại sản phẩm của dòng cũ sẽ "dính" nhầm sang dòng mới ở cùng vị trí sau khi
+  // đổi nguồn (bug thật: gặp khi đổi Loại nhập rồi chọn 1 Phiếu nhận hàng khác).
+  useEffect(() => {
+    if (!isCreate) return
+    setProductTypes({})
+    hook.setCreateSerialsRows({})
+  }, [hook.shipmentId, hook.poId, hook.returnDoId, isCreate])
 
   if (!isCreate && hook.isLoading) return null
 
@@ -197,9 +172,7 @@ export default function ReceiptFormPage() {
     setCancelLoading(true)
     try {
       // AntD Upload tự gọi lại onChange sau khi customRequest báo onSuccess, dùng fileList
-      // do nó tự tính lại (chỉ giữ `response`, không giữ field `url` mình tự gắn thêm trong
-      // customRequest) — field `url` gắn tay có thể bị ghi đè mất trước lúc submit. Đọc từ
-      // `f.response.url` (payload thật của /uploads/file) mới đáng tin cậy.
+      // do nó tự tính lại — đọc từ f.response.url (payload thật của /uploads/file) mới đáng tin.
       const uploaded = cancelFiles
         .filter((f) => f.url || f.response?.url)
         .map((f) => ({ url: (f.url ?? f.response?.url) as string, originalName: f.name }))
@@ -212,20 +185,26 @@ export default function ReceiptFormPage() {
     }
   }
 
-  // ── Submit handler ──────────────────────────────────────────────────────
-
+  // isCreate không còn dùng đường này (2 nút "Lưu nháp"/"Tạo phiếu nhập" tự validateFields()
+  // + mutate() riêng, xem footer bar) — onFinish giờ chỉ phục vụ nút Sửa/Lưu ở edit/view.
   function handleSubmit(v: any) {
-    if (isCreate) {
-      hook.createMutation.mutate(v)
-    } else {
-      hook.updateMutation.mutate(v)
-    }
+    hook.updateMutation.mutate(v)
   }
 
-  // ── Render ──────────────────────────────────────────────────────────────
+  // ── Footer stats (isCreate) ─────────────────────────────────────────────
+  const lineCount = (linesWatch ?? []).filter((l) => l?.variant_id).length
+  const totalQty = (linesWatch ?? []).reduce((s, l) => s + (Number(l?.quantity) || 0), 0)
+  const totalAmount = (linesWatch ?? []).reduce((s, l) => s + (Number(l?.quantity) || 0) * (Number(l?.cost_price) || 0), 0)
+  const missingSerialLine = (linesWatch ?? []).findIndex((l, i) => {
+    if (productTypes[i] !== 'storable') return false
+    const required = Number(l?.quantity) || 0
+    const filled = (hook.createSerialsRows[i] ?? []).filter((r) => r.serial_no.trim() || r.mac_address.trim()).length
+    return filled !== required
+  })
+  const hasMissingSerial = missingSerialLine >= 0
 
   return (
-    <div style={{ padding: '0 0 48px' }}>
+    <div className="theme-2a -m-6 mx-auto flex w-full max-w-[1200px] flex-col gap-4 bg-background p-6">
 
       {receipt?.status === 'completed' && (
         <BatchQRPrint
@@ -238,149 +217,133 @@ export default function ReceiptFormPage() {
         />
       )}
 
+      {/* Header — port .kv-head.kv-head--divided/.kv-crumb/.kv-title--sm nguyên bản, đồng bộ
+          ProductDetailPage thay vì usePageHeader (Detail/Form page không đẩy lên topbar). */}
+      <div className="kv-head kv-head--divided">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <button type="button" className="kv-btn kv-btn--ghost" onClick={() => hook.navigate(-1)} style={{ padding: 0, width: 30, flexShrink: 0 }} aria-label="Quay lại">
+            <ArrowLeft className="h-4 w-4" />
+          </button>
+          <div>
+            <div className="kv-crumb">
+              <button onClick={() => hook.navigate('/receipts')} style={{ background: 'none', border: 'none', padding: 0, font: 'inherit', cursor: 'pointer' }}>
+                Phiếu nhập kho
+              </button>
+              {' / '}{isCreate ? 'Tạo mới' : (receipt?.code ?? hook.id)}
+            </div>
+            <h1 className="kv-title kv-title--sm" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span className="mono">{isCreate ? 'Tạo phiếu nhập' : receipt?.code}</span>
+              {receipt?.status && <StatusBadge status={receipt.status} />}
+            </h1>
+          </div>
+        </div>
+        <div className="kv-actions">
+          {isEdit && (
+            <button type="button" className="kv-btn kv-btn--primary" disabled={hook.completeMode} onClick={() => hook.setCompleteMode(true)}>
+              Complete
+            </button>
+          )}
+          {!isCreate && !['completed', 'cancelled'].includes(receipt?.status ?? '') && (
+            <button type="button" className="kv-btn kv-btn--danger" onClick={() => setCancelOpen(true)}>Huỷ phiếu</button>
+          )}
+          {receipt?.status === 'completed' && (
+            <button type="button" className="kv-btn" onClick={() => setQrOpen(true)}>
+              <QrCode className="h-3.5 w-3.5" /> In nhãn QR
+            </button>
+          )}
+        </div>
+      </div>
+
       <Form
         form={hook.form}
         layout="vertical"
-        initialValues={isCreate ? { import_type: hook.shipmentIdFromQuery ? 'purchase' : undefined, lines: [{}] } : undefined}
+        initialValues={isCreate ? { import_type: hook.shipmentIdFromQuery ? 'purchase' : undefined, lines: [] } : undefined}
         onFinish={isView ? undefined : handleSubmit}
         onValuesChange={() => { if (!isCreate) setIsDirty(true) }}
+        className="flex flex-col gap-4"
       >
 
         {isCreate && hook.shipmentDetail && hook.shipmentFullyReceipted && (
-          <div style={{
-            marginBottom: 16, padding: '10px 16px', borderRadius: 8,
-            background: 'var(--s-cancelled-bg)', color: 'var(--s-cancelled-color)', fontSize: 13,
-          }}>
-            ⚠️ Phiếu nhận hàng <strong>{hook.shipmentDetail.code}</strong> đã được nhập kho đủ số lượng.
+          <div style={{ padding: '10px 16px', borderRadius: 6, background: 'var(--s-cancelled-bg)', color: 'var(--s-cancelled-color)', fontSize: 13 }}>
+            Phiếu nhận hàng <strong>{hook.shipmentDetail.code}</strong> đã được nhập kho đủ số lượng.
             Không thể tạo thêm phiếu nhập kho từ phiếu này.
           </div>
         )}
 
         {isCreate && hook.shipmentDetail && !hook.shipmentFullyReceipted && (
-          <div style={{
-            marginBottom: 16, padding: '10px 16px', borderRadius: 8,
-            background: 'var(--s-completed-bg)', color: 'var(--s-completed-color)', fontSize: 13,
-          }}>
+          <div style={{ padding: '10px 16px', borderRadius: 6, background: 'var(--s-completed-bg)', color: 'var(--s-completed-color)', fontSize: 13 }}>
             Đang tạo từ Phiếu nhận hàng <strong>{hook.shipmentDetail.code}</strong> — dòng hàng đã điền theo số lượng thực nhận.
           </div>
         )}
 
-        {/* ─── Thông tin phiếu ──────────────────────────────── */}
-        {/* Layout kiểu HOÁ ĐƠN (invoice) — bỏ hẳn khung/box bao quanh từng phần (đã thử "card"
-            nhiều vòng, người dùng vẫn thấy rối), thay bằng heading + 1 đường kẻ ngang phân
-            cách section, giống Stripe/QuickBooks/Wave khi tạo hoá đơn: field xếp theo lưới
-            ngang gọn, không có "hộp" nào bao ngoài. Field bên trong (Select/BBox/Textarea) giữ
-            nguyên component đã tinh chỉnh — chỉ đổi phần KHUNG bao quanh. */}
-        <style>{`
-          .receipt-info-card .ant-form-item { margin-bottom: 0; }
-          .receipt-info-card .ant-form-item-label { padding-bottom: 4px; }
-          .receipt-info-card .ant-form-item-label > label {
-            font-size: 14px !important;
-            height: auto !important;
-          }
-          .receipt-info-card .ant-picker {
-            border-radius: 8px !important;
-            border-color: var(--border-md) !important;
-            font-size: 14px !important;
-          }
-          .receipt-info-card .ant-picker-input > input { font-size: 14px !important; }
-        `}</style>
-        <div className="receipt-info-card" style={{ paddingBottom: 32, marginBottom: 32, borderBottom: '1px solid var(--border)' }}>
-          <div className="mb-5 text-base font-semibold text-foreground">
-            Thông tin phiếu
-          </div>
+        {/* ─── Nguồn hàng / Nhập vào — port .kv-form-grid/.kv-group-label/.kv-field nguyên bản,
+            2 nhóm riêng theo đúng bố cục import-new.html (khác 1 nhóm "Thông tin phiếu" gộp
+            chung trước đây). ─── */}
+        <div className="kv-form-grid">
+          <div className="kv-group-label">Nguồn hàng</div>
+          <div className="kv-group-body kv-stack" style={{ maxWidth: 640 }}>
+            <div className="kv-field">
+              <label>Loại nhập {isCreate && <span className="kv-req">*</span>}</label>
+              <Form.Item name="import_type" noStyle rules={isCreate ? [{ required: true }] : undefined}>
+                {isCreate ? (
+                  <ImportTypeSeg
+                    disabled={!!hook.shipmentIdFromQuery}
+                    options={hook.importTypes?.map((t: any) => ({ key: t.key, label: t.label }))}
+                    onChange={(v) => { if (v !== 'purchase') hook.setShipmentId(undefined) }}
+                  />
+                ) : (
+                  <BBox maxWidth={220}>{receipt?.import_type ?? ph}</BBox>
+                )}
+              </Form.Item>
+              {isCreate && <div className="kv-hint">Loại nhập quyết định trường bên dưới: NCC, khách hàng hoặc kho nguồn.</div>}
+            </div>
 
-          <div className="grid grid-cols-3 gap-x-8 gap-y-5">
-            <Form.Item
-              name="import_type" label="Loại nhập"
-              rules={isCreate ? [{ required: true }] : undefined}
-            >
-              {isCreate ? (
-                <ShadSelectField
-                  disabled={!!hook.shipmentIdFromQuery}
-                  options={hook.importTypes?.map((t: any) => ({ value: t.key, label: t.label }))}
-                  placeholder="Chọn loại nhập"
-                  onChange={(v) => { if (v !== 'purchase') hook.setShipmentId(undefined) }}
-                  maxWidth={W_SHORT}
-                />
-              ) : (
-                <BBox maxWidth={W_SHORT}>{receipt?.import_type ?? ph}</BBox>
-              )}
-            </Form.Item>
-
-            <Form.Item name="warehouse_id" label="Kho nhập" rules={isCreate ? [{ required: true }] : undefined}>
-              {isCreate ? (
-                <ShadSelectField
-                  options={hook.warehouses?.map((w: any) => ({ value: w.id, label: `${w.name} (${w.code})` }))}
-                  placeholder="Chọn kho nhập"
-                  maxWidth={W_MEDIUM}
-                />
-              ) : (
-                <BBox maxWidth={W_MEDIUM}>{receipt?.warehouse_name ?? ph}</BBox>
-              )}
-            </Form.Item>
-
-            <Form.Item name="received_date" label="Ngày nhập kho">
-              {isView ? (
-                <BBox maxWidth={W_SHORT}>{receipt?.received_date ? new Date(receipt.received_date).toLocaleDateString('vi-VN') : ph}</BBox>
-              ) : (
-                <DatePicker format="DD/MM/YYYY" style={{ width: '100%', maxWidth: W_SHORT }} placeholder="Ngày hàng về kho" />
-              )}
-            </Form.Item>
-
-            {/* Chọn Phiếu nhận hàng (bắt buộc khi Loại nhập = "purchase") + NCC đọc ra từ đó
-                (nếu Shipment có gắn PO). Có thể tới từ query (bấm "Tạo phiếu nhập kho" trên
-                trang Shipment, lúc đó khoá lại) hoặc tự chọn tay ở đây. Chiếm trọn hàng (col-
-                span-3) vì chứa tên phiếu/công ty dài, không hợp nhồi vào 1/3 cột như field ngắn. */}
+            {/* Chọn Phiếu nhận hàng (bắt buộc khi Loại nhập = "purchase") + NCC đọc ra từ đó */}
             {isCreate && importTypeValue === 'purchase' && (
               <>
-                <Form.Item label="Phiếu nhận hàng" required className="col-span-3">
-                  <ShadSelectField
+                <div className="kv-field">
+                  <label>Phiếu nhận hàng <span className="kv-req">*</span></label>
+                  <select
+                    className="kv-select"
                     disabled={!!hook.shipmentIdFromQuery}
-                    value={hook.shipmentId}
-                    placeholder="Chọn Phiếu nhận hàng đã xác nhận nhận hàng"
-                    options={hook.receivedShipments?.data?.map((s: any) => ({
-                      value: s.id,
-                      label: [s.code, s.supplier_name].filter(Boolean).join(' — '),
-                    }))}
-                    onChange={(v) => hook.setShipmentId(v)}
-                    maxWidth={W_WIDE}
-                  />
-                </Form.Item>
+                    value={hook.shipmentId ?? ''}
+                    onChange={(e) => hook.setShipmentId(e.target.value || undefined)}
+                  >
+                    <option value="">Chọn Phiếu nhận hàng đã xác nhận nhận hàng</option>
+                    {hook.receivedShipments?.data?.map((s: any) => (
+                      <option key={s.id} value={s.id}>{[s.code, s.supplier_name].filter(Boolean).join(' — ')}</option>
+                    ))}
+                  </select>
+                </div>
                 {hook.poDetail && (
-                  <Form.Item label="NCC" className="col-span-3">
-                    <BBox title={hook.poDetail?.company_name ?? ''} maxWidth={W_WIDE}>
-                      {hook.poDetail?.company_name
-                        ? <span>{hook.poDetail.company_name}</span>
-                        : <span style={{ color: 'var(--text-3, #bbb)' }}>—</span>}
-                    </BBox>
-                  </Form.Item>
+                  <div className="kv-field">
+                    <label>NCC</label>
+                    <BBox title={hook.poDetail?.company_name ?? ''}>{hook.poDetail?.company_name ?? ph}</BBox>
+                  </div>
                 )}
               </>
             )}
             {/* Chọn Phiếu xuất kho (khi Loại nhập = "return_in") */}
             {isCreate && importTypeValue === 'return_in' && (
               <>
-                <Form.Item label="Phiếu xuất kho (khách hàng trả lại)" required className="col-span-3">
-                  <ShadSelectField
-                    value={hook.returnDoId}
-                    placeholder="Chọn Phiếu xuất kho đã hoàn thành"
-                    options={hook.completedDOs?.data?.map((d: any) => ({
-                      value: d.id,
-                      label: [d.code, d.company_name].filter(Boolean).join(' — '),
-                    }))}
-                    onChange={(v) => hook.setReturnDoId(v)}
-                    maxWidth={W_WIDE}
-                  />
-                </Form.Item>
+                <div className="kv-field">
+                  <label>Phiếu xuất kho (khách hàng trả lại) <span className="kv-req">*</span></label>
+                  <select
+                    className="kv-select"
+                    value={hook.returnDoId ?? ''}
+                    onChange={(e) => hook.setReturnDoId(e.target.value || undefined)}
+                  >
+                    <option value="">Chọn Phiếu xuất kho đã hoàn thành</option>
+                    {hook.completedDOs?.data?.map((d: any) => (
+                      <option key={d.id} value={d.id}>{[d.code, d.company_name].filter(Boolean).join(' — ')}</option>
+                    ))}
+                  </select>
+                </div>
                 {hook.returnDoDetail && (
-                  <Form.Item label="Khách hàng" className="col-span-3">
-                    <BBox title={hook.returnDoDetail?.company_name ?? ''} maxWidth={W_WIDE}>
-                      {hook.returnDoDetail?.company_name
-                        ? <span>{hook.returnDoDetail.company_name}</span>
-                        : ph}
-                    </BBox>
-                  </Form.Item>
+                  <div className="kv-field">
+                    <label>Khách hàng</label>
+                    <BBox title={hook.returnDoDetail?.company_name ?? ''}>{hook.returnDoDetail?.company_name ?? ph}</BBox>
+                  </div>
                 )}
               </>
             )}
@@ -395,90 +358,92 @@ export default function ReceiptFormPage() {
               </>
             )}
             {!isCreate && receipt?.po_code && (
-              <Form.Item label="PO liên kết">
-                <BBox maxWidth={W_SHORT}>{receipt.po_code}</BBox>
-              </Form.Item>
+              <div className="kv-field" style={{ maxWidth: 220 }}>
+                <label>PO liên kết</label>
+                <BBox maxWidth={220}>{receipt.po_code}</BBox>
+              </div>
             )}
-
-            <Form.Item name="note" label="Ghi chú" className="col-span-3">
-              {isView ? (
-                <div
-                  className="min-h-8 whitespace-pre-wrap rounded-lg border border-border-md bg-muted/40 px-3 py-1.5 text-base text-foreground"
-                  style={{ color: receipt?.note ? undefined : 'var(--text-3, #bbb)' }}
-                >
-                  {receipt?.note || '—'}
-                </div>
-              ) : (
-                <Textarea
-                  rows={2}
-                  placeholder="Ghi chú (tuỳ chọn)"
-                  className="min-h-0 py-1.5 text-base"
-                  style={{ maxWidth: FIELD_MAX_WIDTH * 2 }}
-                />
-              )}
-            </Form.Item>
-          </div>
-        </div>
-
-        {/* ─── Danh sách sản phẩm ──────────────────────────── */}
-        {/* Bảng kiểu HOÁ ĐƠN (invoice line items) — đã thử qua nhiều style (Excel-grid viền
-            đen, click-to-edit...) đều bị chê rối. Chuyển hẳn sang pattern thật của QuickBooks/
-            Xero/Wave: KHÔNG có viền dọc giữa các cột, chỉ 1 đường kẻ đậm dưới header + 1 đường
-            mảnh dưới mỗi dòng — input/select trong suốt, hoà vào dòng thay vì "ô" riêng. Có
-            thêm cột "Thành tiền" (SL × Giá) và dòng tổng cộng cuối bảng, đúng cấu trúc 1 hoá
-            đơn/phiếu thật. */}
-        <style>{`
-          .receipt-lines-card table { border-collapse: collapse; width: 100%; table-layout: fixed; }
-          .receipt-lines-card thead th {
-            border-bottom: 2px solid var(--text-1);
-            padding-bottom: 8px;
-          }
-          .receipt-lines-card tbody > tr > td {
-            border-bottom: 1px solid var(--border);
-            padding: 10px 8px;
-          }
-          .receipt-lines-card td > div { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-          /* SKU (Select) và Từ ngày (DatePicker) là control AntD duy nhất còn lại — bỏ hết
-             viền/nền riêng để hoà vào dòng, đúng tinh thần input "trong suốt" của hoá đơn. */
-          .receipt-lines-card .ant-select-selector,
-          .receipt-lines-card .ant-picker {
-            border: none !important;
-            background: transparent !important;
-            box-shadow: none !important;
-            border-radius: 0 !important;
-            padding-left: 0 !important;
-          }
-        `}</style>
-        <div className="receipt-lines-card" style={{ paddingBottom: 32, marginBottom: 32, borderBottom: '1px solid var(--border)' }}>
-          <div className="mb-5 text-base font-semibold text-foreground">
-            Danh sách sản phẩm
           </div>
 
-          {isView ? (
-            <ViewLinesTable
-              lines={receipt?.lines ?? []}
-              onViewSN={(line) => hook.setSerialsFor({ line_id: line.id, label: line.variant_name })}
-            />
-          ) : isEdit ? (
-            <EditLinesTable hook={hook} />
-          ) : (
-            <CreateLinesTable hook={hook} />
-          )}
-        </div>
-
-        {/* ─── Card 3: Nhập Serial Number ───────────────────────────── */}
-        {hook.completeMode && (
-          <div style={{
-            background: 'var(--bg-card)', border: '2px solid var(--s-completed-color)',
-            borderRadius: 8, padding: '20px 24px', marginBottom: 16,
-          }}>
-            <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 16 }}>
-              Nhập Serial Number
+          <div className="kv-group-label">Nhập vào</div>
+          <div className="kv-group-body kv-stack" style={{ maxWidth: 640 }}>
+            <div className="kv-2col">
+              <div className="kv-field">
+                <label>Kho nhập {isCreate && <span className="kv-req">*</span>}</label>
+                <Form.Item name="warehouse_id" noStyle rules={isCreate ? [{ required: true }] : undefined}>
+                  {isCreate ? (
+                    <select className="kv-select">
+                      <option value="">Chọn kho nhập</option>
+                      {hook.warehouses?.map((w: any) => <option key={w.id} value={w.id}>{w.name} ({w.code})</option>)}
+                    </select>
+                  ) : (
+                    <BBox>{receipt?.warehouse_name ?? ph}</BBox>
+                  )}
+                </Form.Item>
+              </div>
+              <div className="kv-field">
+                <label>Ngày nhập kho</label>
+                <Form.Item name="received_date" noStyle>
+                  {isView ? (
+                    <BBox>{receipt?.received_date ? new Date(receipt.received_date).toLocaleDateString('vi-VN') : ph}</BBox>
+                  ) : (
+                    <DatePicker format="DD/MM/YYYY" style={{ width: '100%' }} placeholder="Ngày hàng về kho" />
+                  )}
+                </Form.Item>
+              </div>
             </div>
+
+            <div className="kv-field">
+              <label>Ghi chú</label>
+              <Form.Item name="note" noStyle>
+                {isView ? (
+                  <BBox>{receipt?.note ?? ph}</BBox>
+                ) : (
+                  <textarea className="kv-input" rows={2} style={{ resize: 'vertical', minHeight: 36 }} placeholder="Ghi chú (tuỳ chọn)" />
+                )}
+              </Form.Item>
+            </div>
+          </div>
+        </div>
+
+        {/* ─── Danh sách sản phẩm — port .kv-table/.kv-section-head nguyên bản ─── */}
+        <div className="kv-section-head">
+          <div>
+            <div className="kv-eyebrow">Dòng hàng</div>
+            <h2 className="kv-section-title">Hàng nhập{isCreate ? ` · ${lineCount} dòng` : ''}</h2>
+          </div>
+        </div>
+        {isView ? (
+          <ViewLinesTable
+            lines={receipt?.lines ?? []}
+            onViewSN={(line) => hook.setSerialsFor({ line_id: line.id, label: line.variant_name })}
+          />
+        ) : isEdit ? (
+          <EditLinesTable hook={hook} />
+        ) : (
+          <CreateLinesTable hook={hook} productTypes={productTypes} setProductTypes={setProductTypes} />
+        )}
+
+        {/* Drawer nhập serial cho 1 dòng (isCreate) — port .kv-drawer nguyên bản (Sheet) */}
+        {isCreate && hook.serialDrawerLine != null && (
+          <SerialDrawer
+            lineIndex={hook.serialDrawerLine}
+            label={linesWatch?.[hook.serialDrawerLine]?.variant_label ?? '—'}
+            quantity={Number(linesWatch?.[hook.serialDrawerLine]?.quantity) || 0}
+            rows={hook.createSerialsRows[hook.serialDrawerLine] ?? []}
+            onChange={(rows) => hook.setCreateSerialsRows((prev) => ({ ...prev, [hook.serialDrawerLine as number]: rows }))}
+            onClose={() => hook.setSerialDrawerLine(null)}
+          />
+        )}
+
+        {/* ─── Nhập Serial Number (Complete) — chế độ Sửa, receipt đã tồn tại ───────────── */}
+        {hook.completeMode && (
+          <div style={{ border: '1px solid var(--s-completed-color)', borderRadius: 6, padding: '16px 20px' }}>
+            <h2 className="kv-section-title" style={{ marginBottom: 14 }}>Nhập Serial Number</h2>
 
             {(receipt?.lines ?? []).filter((l: any) => l.product_type === 'storable').map((l: any) => (
               <div key={l.id} style={{ marginBottom: 24 }}>
-                <p style={{ fontWeight: 600, marginBottom: 8 }}>
+                <p style={{ fontWeight: 600, marginBottom: 8, fontSize: 13 }}>
                   {l.item_code} — {l.variant_name}
                   <span style={{ fontWeight: 400, color: 'var(--text-2)', marginLeft: 8 }}>
                     (cần {l.quantity} SN)
@@ -493,68 +458,96 @@ export default function ReceiptFormPage() {
             ))}
 
             {(receipt?.lines ?? []).every((l: any) => l.product_type !== 'storable') && (
-              <p style={{ color: 'var(--text-2)' }}>Không có dòng Thiết bị — bấm xác nhận để Complete.</p>
+              <p style={{ color: 'var(--text-2)', fontSize: 13 }}>Không có dòng Thiết bị — bấm xác nhận để Complete.</p>
             )}
 
-            <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
-              <AntButton onClick={() => hook.setCompleteMode(false)}>Huỷ</AntButton>
-              <AntButton
-                type="primary"
+            <div className="kv-actions" style={{ marginTop: 4 }}>
+              <button type="button" className="kv-btn" onClick={() => hook.setCompleteMode(false)}>Huỷ</button>
+              <button
+                type="button"
+                className="kv-btn kv-btn--primary"
                 onClick={hook.submitComplete}
-                loading={hook.completeMutation.isPending}
-                style={{ background: 'var(--s-completed-color)', borderColor: 'var(--s-completed-color)' }}
+                disabled={hook.completeMutation.isPending}
               >
-                Xác nhận Complete
-              </AntButton>
+                {hook.completeMutation.isPending ? 'Đang xử lý…' : 'Xác nhận Complete'}
+              </button>
             </div>
           </div>
         )}
 
         {/* ─── Lý do hủy — chỉ hiện khi phiếu đã bị hủy ──────────────── */}
         {receipt?.status === 'cancelled' && (receipt?.cancel_reason || receipt?.cancel_attachments?.length > 0) && (
-          <div style={{
-            background: 'var(--s-cancelled-bg)', border: '1px solid var(--s-cancelled-color)',
-            borderRadius: 8, padding: '20px 24px', marginBottom: 16,
-          }}>
-            <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 8, color: 'var(--s-cancelled-color)' }}>
+          <div style={{ background: 'var(--s-cancelled-bg)', border: '1px solid var(--s-cancelled-color)', borderRadius: 6, padding: '16px 20px' }}>
+            <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8, color: 'var(--s-cancelled-color)' }}>
               Lý do hủy
             </div>
             {receipt.cancel_reason && (
-              <div style={{ color: 'var(--text-1)', whiteSpace: 'pre-wrap', marginBottom: receipt.cancel_attachments?.length ? 12 : 0 }}>
+              <div style={{ color: 'var(--text-1)', whiteSpace: 'pre-wrap', marginBottom: receipt.cancel_attachments?.length ? 12 : 0, fontSize: 13 }}>
                 {receipt.cancel_reason}
               </div>
             )}
             {receipt.cancel_attachments?.length > 0 && (
               <div>
                 <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 4 }}>Đính kèm:</div>
-                <Space wrap>
+                <div className="flex flex-wrap gap-3">
                   {receipt.cancel_attachments.map((f: any, i: number) => (
                     <a key={i} href={f.url} target="_blank" rel="noopener noreferrer"
-                      style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 13 }}>
-                      <PaperClipOutlined /> {f.originalName}
+                      className="inline-flex items-center gap-1 text-sm" style={{ color: 'var(--accent-text)' }}>
+                      <Paperclip className="h-3.5 w-3.5" /> {f.originalName}
                     </a>
                   ))}
-                </Space>
+                </div>
               </div>
             )}
           </div>
         )}
 
-        {/* ─── Bottom actions ───────────────────────────────────────── */}
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-          <AntButton onClick={() => hook.navigate('/receipts')}>Quay lại</AntButton>
-
-          {!isView && (
-            <AntButton
-              type="primary"
-              htmlType="submit"
-              disabled={(isEdit && !isDirty) || (isCreate && hook.shipmentFullyReceipted)}
-              loading={hook.createMutation.isPending || hook.updateMutation.isPending}
-            >
-              {isCreate ? 'Tạo phiếu nhập' : isDirty ? 'Lưu thay đổi' : 'Sửa'}
-            </AntButton>
-          )}
-        </div>
+        {/* ─── Bottom actions — isCreate dùng thanh sticky đáy (.kv-footer-bar) theo mockup,
+            edit/view giữ thanh hành động đơn giản như trước ───────────────────────────── */}
+        {isCreate ? (
+          <div className="kv-footer-bar">
+            <div className="kv-footer-stat"><div className="kv-fact-label">Số dòng</div><div className="kv-fact-value">{lineCount}</div></div>
+            <div className="kv-footer-stat"><div className="kv-fact-label">Tổng số lượng</div><div className="kv-fact-value">{totalQty}</div></div>
+            <div className="kv-footer-stat"><div className="kv-fact-label">Tổng tiền</div><div className="kv-fact-value">{fmt(totalAmount)} ₫</div></div>
+            {hasMissingSerial && (
+              <span className="kv-footer-warn"><AlertTriangle />Còn thiếu serial ở dòng {missingSerialLine + 1}</span>
+            )}
+            <div className="kv-spacer" />
+            <div className="kv-actions">
+              <button type="button" className="kv-btn" onClick={() => hook.navigate('/receipts')}>Huỷ</button>
+              <button
+                type="button"
+                className="kv-btn"
+                disabled={hook.createMutation.isPending}
+                onClick={() => hook.form.validateFields().then((v) => hook.createMutation.mutate(v))}
+              >
+                Lưu nháp
+              </button>
+              <button
+                type="button"
+                className="kv-btn kv-btn--primary"
+                disabled={hasMissingSerial || lineCount === 0 || hook.shipmentFullyReceipted || hook.createMutation.isPending}
+                title={hasMissingSerial ? 'Nhập đủ serial trước khi tạo phiếu' : undefined}
+                onClick={() => hook.form.validateFields().then((v) => hook.createMutation.mutate({ ...v, __complete: true }))}
+              >
+                {hook.createMutation.isPending ? 'Đang lưu…' : 'Tạo phiếu nhập'}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="kv-actions" style={{ paddingTop: 8 }}>
+            <button type="button" className="kv-btn" onClick={() => hook.navigate('/receipts')}>Quay lại</button>
+            {!isView && (
+              <button
+                type="submit"
+                className="kv-btn kv-btn--primary"
+                disabled={!isDirty || hook.updateMutation.isPending}
+              >
+                {hook.updateMutation.isPending ? 'Đang lưu…' : isDirty ? 'Lưu thay đổi' : 'Sửa'}
+              </button>
+            )}
+          </div>
+        )}
       </Form>
 
       {/* ─── SN View Modal ────────────────────────────────────────────── */}
@@ -647,170 +640,259 @@ export default function ReceiptFormPage() {
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
-// Nhãn nhỏ cho field trong panel mở rộng (bảo hành) — label TRÊN input, giống pattern shadcn
-// đã dùng ở Card 1, chỉ nhỏ hơn 1 chút vì đây là field phụ chứ không phải field chính của dòng.
+// Nhãn nhỏ cho field trong panel mở rộng (bảo hành, dùng ở Edit/View) — cùng chuẩn kv-field label.
 function ExpandField({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex flex-col gap-1.5">
-      <Label className="text-xs font-medium text-muted-foreground">{label}</Label>
+    <div className="kv-field">
+      <label>{label}</label>
       {children}
     </div>
   )
 }
 
-function CreateLinesTable({ hook }: { hook: ReturnType<typeof useReceiptForm> }) {
-  // Khi tạo từ PO hoặc từ Shipment → variant đã xác định, hiện text thuần (không cho sửa)
+// Drawer nhập serial cho 1 dòng lúc tạo phiếu — port .kv-drawer-head/-body/-foot + .kv-progress
+// nguyên bản (export/import-new.html), dựng trên shadcn Sheet thay vì <aside> tĩnh của mockup.
+function SerialDrawer({
+  lineIndex, label, quantity, rows, onChange, onClose,
+}: {
+  lineIndex: number
+  label: string
+  quantity: number
+  rows: SnRow[]
+  onChange: (rows: SnRow[]) => void
+  onClose: () => void
+}) {
+  const filled = rows.filter((r) => r.serial_no.trim() || r.mac_address.trim()).length
+  const pct = quantity > 0 ? Math.min(100, Math.round((filled / quantity) * 100)) : 0
+  return (
+    <Sheet open onOpenChange={(o) => !o && onClose()}>
+      <SheetContent side="right" className="theme-2a w-[480px] flex flex-col gap-0" showCloseButton={false}>
+        <div className="flex shrink-0 items-center justify-between border-b border-border px-5 py-4">
+          <div>
+            <div className="kv-eyebrow">Dòng {lineIndex + 1} · Serial</div>
+            <h2 className="kv-section-title" style={{ marginTop: 4, fontSize: 15 }}>{label}</h2>
+          </div>
+          <button type="button" className="kv-icon-btn" onClick={onClose} aria-label="Đóng">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto px-5 py-5" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div>
+            <div className="kv-actions" style={{ justifyContent: 'space-between', marginBottom: 6 }}>
+              <span className="kv-strong">{filled} / {quantity} serial</span>
+              {quantity - filled > 0 && <span className="kv-muted" style={{ fontSize: 12 }}>còn {quantity - filled}</span>}
+            </div>
+            <div className="kv-progress"><span style={{ width: `${pct}%` }} /></div>
+          </div>
+          <SnScanGrid quantity={quantity} rows={rows} onChange={onChange} />
+        </div>
+        <div className="flex shrink-0 items-center justify-end gap-2 border-t border-border px-5 py-4">
+          <button type="button" className="kv-btn kv-btn--primary" onClick={onClose}>Xong</button>
+        </div>
+      </SheetContent>
+    </Sheet>
+  )
+}
+
+function CreateLinesTable({ hook, productTypes, setProductTypes }: {
+  hook: ReturnType<typeof useReceiptForm>
+  productTypes: Record<number, string>
+  setProductTypes: React.Dispatch<React.SetStateAction<Record<number, string>>>
+}) {
+  // Khi tạo từ PO hoặc từ Shipment → variant đã xác định, hiện text thuần (không cho sửa),
+  // không có ô "Quét mã" thêm dòng (dòng đã điền sẵn từ PO/Shipment).
   const isVariantLocked = !!(hook.poId || hook.shipmentId)
-  // Dòng hàng có 6 field — nhồi hết vào 1 hàng bảng luôn bị chật/cắt chữ dù chỉnh CSS thế nào
-  // (đã thử nhiều cách). Theo pattern "summary row + expandable detail" (Xero/QuickBooks dùng
-  // cho dòng hoá đơn): hàng chính chỉ hiện 3 field hay dùng nhất để quét mắt theo cột (SKU, Số
-  // lượng, Giá nhập) — 3 field bảo hành (ít khi cần xem lại) gộp vào panel mở rộng bên dưới,
-  // hiện dạng form label-trên-input rộng rãi, không giới hạn bởi độ rộng cột bảng nữa.
-  const [expanded, setExpanded] = useState<Set<string>>(new Set())
+  const linesWatch = Form.useWatch('lines', hook.form) as any[] | undefined
+  const [scanKey, setScanKey] = useState(0)
 
-  function toggle(key: string) {
-    setExpanded((prev) => {
-      const next = new Set(prev)
-      if (next.has(key)) next.delete(key)
-      else next.add(key)
-      return next
-    })
-  }
-
-  const th: React.CSSProperties = {
-    padding: '6px 8px', textAlign: 'center', fontSize: 14, fontWeight: 600,
-    color: 'var(--text-1)', background: '#fff', whiteSpace: 'nowrap',
-  }
+  const grandTotal = (linesWatch ?? []).reduce((sum, l) => sum + (Number(l?.quantity) || 0) * (Number(l?.cost_price) || 0), 0)
 
   return (
     <Form.List name="lines">
-      {(fields, { add, remove }) => (
-        <>
-          <div style={{ overflowX: 'auto' }}>
-            <table>
-              <colgroup>
-                <col />
-                <col style={{ width: 130 }} />
-                <col style={{ width: 160 }} />
-                <col style={{ width: 100 }} />
-                <col style={{ width: 70 }} />
-              </colgroup>
-              <thead>
-                <tr>
-                  <th style={th}>SKU / Tên sản phẩm</th>
-                  <th style={th}>Số lượng</th>
-                  <th style={th}>Giá nhập</th>
-                  <th style={th}>Bảo hành</th>
-                  <th style={th} />
-                </tr>
-              </thead>
-              <tbody>
-                {fields.length === 0 && (
-                  <tr>
-                    <td colSpan={5} style={{ textAlign: 'center', color: 'var(--text-3, #bbb)', padding: '20px 0' }}>
-                      Chưa có dòng hàng
+      {(fields, { add, remove }) => {
+        // Xoá 1 dòng phải re-index luôn productTypes/createSerialsRows (key theo index) —
+        // không thì dòng phía sau bị lệch dữ liệu serial/loại sản phẩm của dòng đứng trước nó.
+        function handleRemove(name: number) {
+          remove(name)
+          const reindex = <T,>(prev: Record<number, T>): Record<number, T> => {
+            const next: Record<number, T> = {}
+            Object.entries(prev).forEach(([k, v]) => {
+              const i = Number(k)
+              if (i < name) next[i] = v
+              else if (i > name) next[i - 1] = v
+            })
+            return next
+          }
+          setProductTypes(reindex)
+          hook.setCreateSerialsRows(reindex)
+        }
+
+        function handleScanAdd(variant: VariantData) {
+          const current: any[] = hook.form.getFieldValue('lines') ?? []
+          const idx = current.findIndex((l) => l?.variant_id === variant.id)
+          if (idx >= 0) {
+            const next = [...current]
+            next[idx] = { ...next[idx], quantity: (Number(next[idx].quantity) || 0) + 1 }
+            hook.form.setFieldsValue({ lines: next })
+          } else {
+            const newIndex = current.length
+            add({
+              variant_id: variant.id,
+              variant_label: `${variant.item_code ?? variant.sku} — ${variant.name ?? ''}`,
+              quantity: 1,
+              cost_price: variant.cost_price ?? undefined,
+              manufacturer_warranty_months: variant.manufacturer_warranty_months ?? undefined,
+            })
+            setProductTypes((prev) => ({ ...prev, [newIndex]: variant.product_type }))
+          }
+          setScanKey((k) => k + 1)
+        }
+
+        return (
+          <>
+          <div className="overflow-x-auto">
+          <table className="kv-table kv-lines" style={{ tableLayout: 'fixed' }}>
+            <colgroup>
+              <col style={{ width: 30 }} />
+              <col />
+              <col style={{ width: 90 }} />
+              <col style={{ width: 90 }} />
+              <col style={{ width: 130 }} />
+              <col style={{ width: 130 }} />
+              <col style={{ width: 150 }} />
+              <col style={{ width: 36 }} />
+            </colgroup>
+            <thead>
+              <tr>
+                <th></th>
+                <th className="text-left">Sản phẩm</th>
+                <th className="num">Tồn hiện tại</th>
+                <th className="num">Số lượng</th>
+                <th className="num">Giá nhập</th>
+                <th className="num">Thành tiền</th>
+                <th className="text-left">Serial</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {fields.length === 0 && (
+                <tr><td colSpan={8} className="kv-muted" style={{ textAlign: 'center', padding: '20px 0' }}>Chưa có dòng hàng</td></tr>
+              )}
+              {fields.map((f) => {
+                const line = linesWatch?.[f.name] ?? {}
+                const lineTotal = (Number(line.quantity) || 0) * (Number(line.cost_price) || 0)
+                const productType = productTypes[f.name]
+                const required = Number(line.quantity) || 0
+                const filled = (hook.createSerialsRows[f.name] ?? []).filter((r) => r.serial_no.trim() || r.mac_address.trim()).length
+                const done = required > 0 && filled >= required
+                return (
+                  <tr key={f.key} className="kv-line-hover">
+                    <td className="kv-line-no">{f.name + 1}</td>
+                    <td>
+                      {isVariantLocked ? (
+                        <Form.Item name={[f.name, 'variant_label']} noStyle>
+                          <PlainValueField />
+                        </Form.Item>
+                      ) : (
+                        <Form.Item name={[f.name, 'variant_id']} noStyle rules={[{ required: true, message: 'Chọn SKU' }]}>
+                          <VariantSelect style={{ width: '100%' }} onSelectVariant={(v) => v && setProductTypes((prev) => ({ ...prev, [f.name]: v.product_type }))} />
+                        </Form.Item>
+                      )}
+                      {isVariantLocked && <Form.Item name={[f.name, 'variant_id']} hidden><Input /></Form.Item>}
+                      <Form.Item name={[f.name, 'po_line_id']} hidden><Input /></Form.Item>
+                      <Form.Item name={[f.name, 'manufacturer_warranty_months']} hidden><Input /></Form.Item>
+                      <Form.Item name={[f.name, 'manufacturer_warranty_start']} hidden><Input /></Form.Item>
+                      <Form.Item name={[f.name, 'customer_warranty_months']} hidden><Input /></Form.Item>
+                    </td>
+
+                    <td className="num"><StockQtyCell variantId={line.variant_id} /></td>
+
+                    <td>
+                      <Form.Item name={[f.name, 'quantity']} noStyle rules={[{ required: true }]}>
+                        <PlainNumberInput align="right" />
+                      </Form.Item>
+                    </td>
+
+                    <td>
+                      <Form.Item name={[f.name, 'cost_price']} noStyle rules={[{ required: true }]}>
+                        <PlainNumberInput align="right" format />
+                      </Form.Item>
+                    </td>
+
+                    <td className="num kv-cell-title">{lineTotal > 0 ? fmt(lineTotal) : '—'}</td>
+
+                    <td>
+                      {productType === 'storable' ? (
+                        <button
+                          type="button"
+                          className={`kv-serial-btn ${done ? 'kv-serial-btn--done' : 'kv-serial-btn--missing'}`}
+                          onClick={() => hook.setSerialDrawerLine(f.name)}
+                        >
+                          {done ? <CheckCircle2 /> : <Barcode />}
+                          {filled} / {required || 0} serial
+                        </button>
+                      ) : (
+                        <span className="kv-na">Không theo serial</span>
+                      )}
+                    </td>
+
+                    <td className="text-center">
+                      <button type="button" className="kv-icon-btn kv-row-del" aria-label={`Xoá dòng ${f.name + 1}`} onClick={() => handleRemove(f.name)}>
+                        <X className="h-4 w-4" />
+                      </button>
                     </td>
                   </tr>
-                )}
-                {fields.map((f) => {
-                  const key = String(f.key)
-                  const isOpen = expanded.has(key)
-                  return (
-                    <Fragment key={f.key}>
-                      <tr>
-                        <td>
-                          {isVariantLocked ? (
-                            <Form.Item name={[f.name, 'variant_label']} noStyle>
-                              <PlainValueField />
-                            </Form.Item>
-                          ) : (
-                            <Form.Item name={[f.name, 'variant_id']} noStyle rules={[{ required: true, message: 'Chọn SKU' }]}>
-                              <VariantSelect style={{ width: '100%' }} />
-                            </Form.Item>
-                          )}
-                          {isVariantLocked && <Form.Item name={[f.name, 'variant_id']} hidden><Input /></Form.Item>}
-                          <Form.Item name={[f.name, 'po_line_id']} hidden><Input /></Form.Item>
-                        </td>
-
-                        <td>
-                          <Form.Item name={[f.name, 'quantity']} noStyle rules={[{ required: true }]}>
-                            <PlainNumberInput align="center" />
-                          </Form.Item>
-                        </td>
-
-                        <td>
-                          <Form.Item name={[f.name, 'cost_price']} noStyle rules={[{ required: true }]}>
-                            <PlainNumberInput align="right" format />
-                          </Form.Item>
-                        </td>
-
-                        <td style={{ textAlign: 'center' }}>
-                          <button
-                            type="button"
-                            onClick={() => toggle(key)}
-                            className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
-                            title="Thông tin bảo hành"
-                          >
-                            {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                          </button>
-                        </td>
-
-                        <td style={{ textAlign: 'center' }}>
-                          <AntButton size="small" danger onClick={() => remove(f.name)}>Xóa</AntButton>
-                        </td>
-                      </tr>
-                      {isOpen && (
-                        <tr>
-                          <td colSpan={5} style={{ background: 'var(--bg-subtle, #fafafa)', padding: '14px 16px' }}>
-                            <div className="grid max-w-2xl grid-cols-3 gap-4">
-                              <ExpandField label="BH hãng (tháng)">
-                                <Form.Item name={[f.name, 'manufacturer_warranty_months']} noStyle>
-                                  <PlainNumberInput />
-                                </Form.Item>
-                              </ExpandField>
-                              <ExpandField label="Từ ngày">
-                                <Form.Item name={[f.name, 'manufacturer_warranty_start']} noStyle>
-                                  <DatePicker allowClear style={{ width: '100%' }} />
-                                </Form.Item>
-                              </ExpandField>
-                              <ExpandField label="BH cty (tháng)">
-                                <Form.Item name={[f.name, 'customer_warranty_months']} noStyle>
-                                  <PlainNumberInput />
-                                </Form.Item>
-                              </ExpandField>
-                            </div>
-                          </td>
-                        </tr>
-                      )}
-                    </Fragment>
-                  )
-                })}
-              </tbody>
-            </table>
+                )
+              })}
+            </tbody>
+            {fields.length > 0 && (
+              <tfoot>
+                <tr>
+                  <td colSpan={4} className="num kv-strong">Tổng cộng</td>
+                  <td></td>
+                  <td className="num kv-strong" style={{ fontSize: 15 }}>{fmt(grandTotal)}</td>
+                  <td colSpan={2} />
+                </tr>
+              </tfoot>
+            )}
+            {!isVariantLocked && (
+              <tfoot>
+                <tr className="kv-addline">
+                  <td></td>
+                  <td colSpan={7}>
+                    <div className="kv-actions">
+                      <Barcode className="h-4 w-4" style={{ color: 'var(--text-3)', flexShrink: 0 }} />
+                      <VariantSelect
+                        key={scanKey}
+                        style={{ width: 380 }}
+                        placeholder="Quét mã vạch hoặc gõ mã / tên hàng để thêm dòng…"
+                        onSelectVariant={(v) => v && handleScanAdd(v)}
+                      />
+                      <span className="kv-kbd">Enter</span>
+                      <span className="kv-muted" style={{ fontSize: 12 }}>Quét trùng SKU sẽ cộng dồn số lượng</span>
+                    </div>
+                  </td>
+                </tr>
+              </tfoot>
+            )}
+          </table>
           </div>
-          {!isVariantLocked && (
-            <AntButton style={{ marginTop: 8 }} onClick={() => add({ quantity: 1 })}>
-              + Thêm dòng
-            </AntButton>
-          )}
-        </>
-      )}
+          </>
+        )
+      }}
     </Form.List>
   )
 }
 
-// AntD Form.Item tự inject prop `value` vào child duy nhất — dùng để hiện text thuần cho field
-// chỉ đọc (VD variant_label khi SKU đã khoá theo PO/Shipment) mà không cần input/border gì cả.
+// AntD Form.Item tự inject prop `value` vào child duy nhất — hiện text thuần cho field chỉ đọc
+// (VD variant_label khi SKU đã khoá theo PO/Shipment) mà không cần input/border gì cả.
 function PlainValueField({ value }: { value?: string }) {
-  return (
-    <div style={{ height: 32, display: 'flex', alignItems: 'center', padding: '0 8px', fontSize: 14 }}>
-      {value}
-    </div>
-  )
+  return <div style={{ height: 32, display: 'flex', alignItems: 'center', fontSize: 13 }}>{value}</div>
 }
 
 function EditLinesTable({ hook }: { hook: ReturnType<typeof useReceiptForm> }) {
-  // Cùng pattern "summary row + expandable detail" như CreateLinesTable — xem comment ở đó.
+  // Cùng pattern "summary row + expandable detail" như trước — trang Sửa (receipt đã tồn tại)
+  // giữ nguyên luồng cũ, không đổi theo mockup import-new.html (mockup chỉ áp cho lúc Tạo mới).
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
 
   function toggle(key: string) {
@@ -822,93 +904,98 @@ function EditLinesTable({ hook }: { hook: ReturnType<typeof useReceiptForm> }) {
     })
   }
 
-  const th: React.CSSProperties = {
-    padding: '6px 8px', textAlign: 'center', fontSize: 14, fontWeight: 600,
-    color: 'var(--text-1)', background: '#fff', whiteSpace: 'nowrap',
-  }
+  const linesWatch = Form.useWatch('lines', hook.form) as any[] | undefined
+  const grandTotal = (hook.receipt?.lines ?? []).reduce((sum: number, l: any, i: number) => {
+    const cost = Number(linesWatch?.[i]?.cost_price ?? l.cost_price) || 0
+    return sum + (Number(l.quantity) || 0) * cost
+  }, 0)
 
   return (
     <Form.List name="lines">
       {(fields) => (
-        <div style={{ overflowX: 'auto' }}>
-          <table>
-            <colgroup>
-              <col />
-              <col style={{ width: 70 }} />
-              <col style={{ width: 150 }} />
-              <col style={{ width: 100 }} />
-            </colgroup>
-            <thead>
-              <tr>
-                <th style={th}>Mã hàng</th>
-                <th style={th}>SL</th>
-                <th style={th}>Giá nhập</th>
-                <th style={th}>Bảo hành</th>
-              </tr>
-            </thead>
-            <tbody>
-              {fields.map((f) => {
-                const key = String(f.key)
-                const isOpen = expanded.has(key)
-                const receiptLine = hook.receipt?.lines?.[f.name]
-                return (
-                  <Fragment key={f.key}>
+        <div className="overflow-x-auto">
+        <table className="kv-table" style={{ tableLayout: 'fixed' }}>
+          <colgroup>
+            <col />
+            <col style={{ width: 70 }} />
+            <col style={{ width: 150 }} />
+            <col style={{ width: 150 }} />
+            <col style={{ width: 100 }} />
+          </colgroup>
+          <thead>
+            <tr>
+              <th className="text-left">Sản phẩm</th>
+              <th className="num">SL</th>
+              <th className="num">Giá nhập</th>
+              <th className="num">Thành tiền</th>
+              <th className="text-center">Bảo hành</th>
+            </tr>
+          </thead>
+          <tbody>
+            {fields.map((f) => {
+              const key = String(f.key)
+              const isOpen = expanded.has(key)
+              const receiptLine = hook.receipt?.lines?.[f.name]
+              const costPrice = linesWatch?.[f.name]?.cost_price
+              const lineTotal = (Number(receiptLine?.quantity) || 0) * (Number(costPrice ?? receiptLine?.cost_price) || 0)
+              return (
+                <Fragment key={f.key}>
+                  <tr>
+                    <td className="truncate" title={`${receiptLine?.item_code ?? ''} — ${receiptLine?.variant_name ?? ''}`}>
+                      {receiptLine?.item_code} — {receiptLine?.variant_name}
+                      <Form.Item name={[f.name, 'id']} hidden><Input /></Form.Item>
+                    </td>
+                    <td className="num">{receiptLine?.quantity}</td>
+                    <td>
+                      <Form.Item name={[f.name, 'cost_price']} noStyle rules={[{ required: true }]}>
+                        <PlainNumberInput align="right" format />
+                      </Form.Item>
+                    </td>
+                    <td className="num kv-cell-title">{lineTotal > 0 ? fmt(lineTotal) : '—'}</td>
+                    <td className="text-center">
+                      <button type="button" className="kv-btn kv-btn--ghost kv-btn--sm" onClick={() => toggle(key)}>
+                        {isOpen ? 'Ẩn' : 'Chi tiết'}
+                        {isOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                      </button>
+                    </td>
+                  </tr>
+                  {isOpen && (
                     <tr>
-                      <td>
-                        <div style={{ height: 32, display: 'flex', alignItems: 'center', padding: '0 8px', fontSize: 13, whiteSpace: 'nowrap' }}>
-                          {receiptLine?.item_code} — {receiptLine?.variant_name}
+                      <td colSpan={5} style={{ background: 'var(--bg-subtle)' }}>
+                        <div className="kv-2col" style={{ maxWidth: 480, padding: '10px 0' }}>
+                          <ExpandField label="BH hãng (tháng)">
+                            <Form.Item name={[f.name, 'manufacturer_warranty_months']} noStyle>
+                              <PlainNumberInput />
+                            </Form.Item>
+                          </ExpandField>
+                          <ExpandField label="Từ ngày">
+                            <Form.Item name={[f.name, 'manufacturer_warranty_start']} noStyle>
+                              <DatePicker allowClear style={{ width: '100%' }} />
+                            </Form.Item>
+                          </ExpandField>
+                          <ExpandField label="BH cty (tháng)">
+                            <Form.Item name={[f.name, 'customer_warranty_months']} noStyle>
+                              <PlainNumberInput />
+                            </Form.Item>
+                          </ExpandField>
                         </div>
-                        <Form.Item name={[f.name, 'id']} hidden><Input /></Form.Item>
-                      </td>
-                      <td>
-                        <div style={{ height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 8px', fontSize: 14 }}>
-                          {receiptLine?.quantity}
-                        </div>
-                      </td>
-                      <td>
-                        <Form.Item name={[f.name, 'cost_price']} noStyle rules={[{ required: true }]}>
-                          <PlainNumberInput align="right" format />
-                        </Form.Item>
-                      </td>
-                      <td style={{ textAlign: 'center' }}>
-                        <button
-                          type="button"
-                          onClick={() => toggle(key)}
-                          className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
-                          title="Thông tin bảo hành"
-                        >
-                          {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                        </button>
                       </td>
                     </tr>
-                    {isOpen && (
-                      <tr>
-                        <td colSpan={4} style={{ background: 'var(--bg-subtle, #fafafa)', padding: '14px 16px' }}>
-                          <div className="grid max-w-2xl grid-cols-3 gap-4">
-                            <ExpandField label="BH hãng (tháng)">
-                              <Form.Item name={[f.name, 'manufacturer_warranty_months']} noStyle>
-                                <PlainNumberInput />
-                              </Form.Item>
-                            </ExpandField>
-                            <ExpandField label="Từ ngày">
-                              <Form.Item name={[f.name, 'manufacturer_warranty_start']} noStyle>
-                                <DatePicker allowClear style={{ width: '100%' }} />
-                              </Form.Item>
-                            </ExpandField>
-                            <ExpandField label="BH cty (tháng)">
-                              <Form.Item name={[f.name, 'customer_warranty_months']} noStyle>
-                                <PlainNumberInput />
-                              </Form.Item>
-                            </ExpandField>
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                  </Fragment>
-                )
-              })}
-            </tbody>
-          </table>
+                  )}
+                </Fragment>
+              )
+            })}
+          </tbody>
+          {fields.length > 0 && (
+            <tfoot>
+              <tr>
+                <td colSpan={3} className="num kv-strong">Tổng cộng</td>
+                <td className="num kv-strong" style={{ fontSize: 15 }}>{fmt(grandTotal)}</td>
+                <td />
+              </tr>
+            </tfoot>
+          )}
+        </table>
         </div>
       )}
     </Form.List>
@@ -922,115 +1009,45 @@ function ViewLinesTable({
   lines: any[]
   onViewSN: (line: any) => void
 }) {
-  // Cùng pattern "summary row + expandable detail" như Create/EditLinesTable — hàng chính chỉ
-  // hiện SKU/SL/Giá nhập, các field ít cần xem lại (BH hãng/BH cty/Từ ngày/Còn lại lô) gộp vào
-  // panel mở rộng. "Xem SN" giữ lại ở hàng chính vì đó là hành động chính hay dùng, không phải
-  // thông tin phụ.
-  const [expanded, setExpanded] = useState<Set<string>>(new Set())
+  const grandTotal = lines.reduce((sum, l) => sum + (Number(l.quantity) || 0) * (Number(l.cost_price) || 0), 0)
 
-  function toggle(key: string) {
-    setExpanded((prev) => {
-      const next = new Set(prev)
-      if (next.has(key)) next.delete(key)
-      else next.add(key)
-      return next
-    })
-  }
-
-  const thStyle: React.CSSProperties = {
-    padding: '6px 8px', textAlign: 'center', fontSize: 14,
-    fontWeight: 600, color: 'var(--text-1)',
-    background: '#fff', whiteSpace: 'nowrap',
-  }
-  const tdStyle: React.CSSProperties = {
-    padding: '4px 8px', fontSize: 14, whiteSpace: 'nowrap',
-  }
+  const cols: LineItemsColumn<any>[] = [
+    { key: 'variant', label: 'Sản phẩm', width: 300, render: (l) => (
+      <span className="truncate" title={`${l.item_code ?? ''} — ${l.variant_name ?? ''}`}>{l.item_code ?? '—'} — {l.variant_name ?? '—'}</span>
+    ) },
+    { key: 'qty', label: 'SL', align: 'right', width: 70, render: (l) => fmt(l.quantity) },
+    { key: 'price', label: 'Giá nhập', align: 'right', width: 120, render: (l) => fmt(l.cost_price) },
+    { key: 'total', label: 'Thành tiền', align: 'right', width: 120, render: (l) => <span className="kv-cell-title">{fmt((Number(l.quantity) || 0) * (Number(l.cost_price) || 0))}</span> },
+    { key: 'mfg_wty', label: 'BH hãng', align: 'right', width: 90, render: (l) => l.manufacturer_warranty_months != null ? `${l.manufacturer_warranty_months} tháng` : '—' },
+    { key: 'mfg_start', label: 'Từ ngày', width: 100, render: (l) => l.manufacturer_warranty_start ? new Date(l.manufacturer_warranty_start).toLocaleDateString('vi-VN') : '—' },
+    { key: 'cust_wty', label: 'BH công ty', align: 'right', width: 100, render: (l) => l.customer_warranty_months != null ? `${l.customer_warranty_months} tháng` : '—' },
+    { key: 'remaining', label: 'Còn lại (lô)', align: 'right', width: 100, render: (l) => l.qty_remaining != null ? fmt(l.qty_remaining) : '—' },
+    { key: 'sn', label: '', width: 90, render: (l) => (
+      <div className="text-center">
+        {l.product_type === 'storable' && (
+          <button type="button" className="kv-btn kv-btn--sm" onClick={() => onViewSN(l)}>Xem SN</button>
+        )}
+      </div>
+    ) },
+  ]
 
   return (
-    <div style={{ overflowX: 'auto' }}>
-      <table>
-        <colgroup>
-          <col />
-          <col style={{ width: 90 }} />
-          <col style={{ width: 130 }} />
-          <col style={{ width: 100 }} />
-          <col style={{ width: 90 }} />
-        </colgroup>
-        <thead>
+    <LineItemsTable
+      cols={cols}
+      rows={lines}
+      rowKey={(l, i) => l.id ?? i}
+      fixedLayout
+      maxWidth={1190}
+      emptyMessage="Không có sản phẩm"
+      footer={
+        <tfoot>
           <tr>
-            <th style={thStyle}>SKU / Tên sản phẩm</th>
-            <th style={thStyle}>SL</th>
-            <th style={thStyle}>Giá nhập</th>
-            <th style={thStyle}>Bảo hành</th>
-            <th style={thStyle} />
+            <td colSpan={3} className="num kv-strong">Tổng cộng</td>
+            <td className="num kv-strong" style={{ fontSize: 15 }}>{fmt(grandTotal)}</td>
+            <td colSpan={5} />
           </tr>
-        </thead>
-        <tbody>
-          {lines.length === 0 && (
-            <tr>
-              <td colSpan={5} style={{ ...tdStyle, textAlign: 'center', color: 'var(--text-3, #bbb)', padding: '20px 0' }}>
-                Không có sản phẩm
-              </td>
-            </tr>
-          )}
-          {lines.map((l, i) => {
-            const key = String(l.id ?? i)
-            const isOpen = expanded.has(key)
-            return (
-              <Fragment key={key}>
-                <tr>
-                  <td style={tdStyle}>{l.item_code ?? '—'} — {l.variant_name ?? '—'}</td>
-                  <td style={{ ...tdStyle, textAlign: 'center' }}>{fmt(l.quantity)}</td>
-                  <td style={{ ...tdStyle, textAlign: 'right' }}>{fmt(l.cost_price)}</td>
-                  <td style={{ ...tdStyle, textAlign: 'center' }}>
-                    <button
-                      type="button"
-                      onClick={() => toggle(key)}
-                      className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
-                      title="Thông tin bảo hành"
-                    >
-                      {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                    </button>
-                  </td>
-                  <td style={{ ...tdStyle, textAlign: 'center' }}>
-                    {l.product_type === 'storable' && (
-                      <AntButton size="small" onClick={() => onViewSN(l)}>Xem SN</AntButton>
-                    )}
-                  </td>
-                </tr>
-                {isOpen && (
-                  <tr>
-                    <td colSpan={5} style={{ background: 'var(--bg-subtle, #fafafa)', padding: '14px 16px' }}>
-                      <div className="grid max-w-2xl grid-cols-4 gap-4">
-                        <ExpandField label="BH hãng (tháng)">
-                          <div className="flex h-8 items-center text-base text-foreground">
-                            {l.manufacturer_warranty_months != null ? String(l.manufacturer_warranty_months) : '—'}
-                          </div>
-                        </ExpandField>
-                        <ExpandField label="Từ ngày">
-                          <div className="flex h-8 items-center text-base text-foreground">
-                            {l.manufacturer_warranty_start ? new Date(l.manufacturer_warranty_start).toLocaleDateString('vi-VN') : '—'}
-                          </div>
-                        </ExpandField>
-                        <ExpandField label="BH cty (tháng)">
-                          <div className="flex h-8 items-center text-base text-foreground">
-                            {l.customer_warranty_months != null ? String(l.customer_warranty_months) : '—'}
-                          </div>
-                        </ExpandField>
-                        <ExpandField label="Còn lại (lô)">
-                          <div className="flex h-8 items-center text-base text-foreground">
-                            {l.qty_remaining != null ? fmt(l.qty_remaining) : '—'}
-                          </div>
-                        </ExpandField>
-                      </div>
-                    </td>
-                  </tr>
-                )}
-              </Fragment>
-            )
-          })}
-        </tbody>
-      </table>
-    </div>
+        </tfoot>
+      }
+    />
   )
 }

@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AP-UBI-U6-LITE · Serial — DNS</title>
+<link rel="stylesheet" href="broadsheet.css">
+<link rel="stylesheet" href="app.css">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/duotone/style.css">
+</head>
+<body>
+<main class="screens">
+    <div class="kv-sheet">
+      <div class="kv-nav">
+        <div class="kv-nav-left">
+          <span class="kv-brand">DNS</span>
+          <nav class="kv-nav-links">
+            <a href="#">Tổng quan</a>
+            <a href="inventory.html" aria-current="page">Tồn kho</a>
+            <a href="products.html">Sản phẩm</a>
+            <a href="import-new.html">Nhập kho</a>
+            <a href="#">Xuất kho</a>
+            <a href="#">Kiểm kê</a>
+            <a href="purchase-new.html">Mua hàng</a>
+            <a href="#">Nhà cung cấp</a>
+            <a href="#" class="kv-nav-more">Giao dịch <i class="ph-duotone ph-caret-down"></i></a>
+            <a href="warehouses.html">Kho hàng</a>
+            <a href="#" class="kv-nav-more">Thêm <i class="ph-duotone ph-caret-down"></i></a>
+          </nav>
+        </div>
+        <div class="kv-nav-right">
+          <div class="kv-nav-search">
+            <i class="ph-duotone ph-magnifying-glass"></i>
+            <input class="kv-input" type="search" placeholder="Tìm nhanh…  Ctrl K">
+          </div>
+          <button type="button" class="kv-icon-btn" aria-label="Thông báo"><i class="ph-duotone ph-bell"></i></button>
+          <span class="kv-avatar">A</span>
+        </div>
+      </div>
+
+      <div class="kv-head kv-head--divided">
+        <div>
+          <div class="kv-crumb"><a href="inventory.html">Tồn kho</a> / AP-UBI-U6-LITE</div>
+          <h1 class="kv-title">Access Point U6-Lite</h1>
+        </div>
+        <div class="kv-actions">
+          <button type="button" class="kv-btn"><i class="ph-duotone ph-tray-arrow-up"></i>Xuất kho</button>
+          <button type="button" class="kv-btn kv-btn--primary"><i class="ph-duotone ph-tray-arrow-down"></i>Nhập kho</button>
+        </div>
+      </div>
+
+      <div class="kv-facts">
+        <div><div class="kv-fact-label">Mã SKU</div><div class="kv-fact-value mono">AP-UBI-U6-LITE</div></div>
+        <div><div class="kv-fact-label">Hãng · Model</div><div class="kv-fact-value">Ubiquiti · U6-Lite</div></div>
+        <div><div class="kv-fact-label">Tồn khả dụng</div><div class="kv-fact-value">5 / 8 cái</div></div>
+        <div><div class="kv-fact-label">Bảo hành hãng</div><div class="kv-fact-value">36 tháng từ ngày nhập</div></div>
+        <div><div class="kv-fact-label">Bảo hành công ty</div><div class="kv-fact-value">12 tháng từ ngày xuất</div></div>
+        <div><div class="kv-fact-label">Nhập gần nhất</div><div class="kv-fact-value mono">NK-2026-0042 · 04.09.2026</div></div>
+      </div>
+
+      <div class="kv-tabs">
+        <a href="#" class="kv-tab">Thông tin</a>
+        <a href="#" class="kv-tab" aria-current="page">Serial<span class="kv-tab-count">8</span></a>
+        <a href="#" class="kv-tab">Lịch sử tồn</a>
+        <a href="#" class="kv-tab">Kiểm kê</a>
+      </div>
+
+      <div class="kv-toolbar">
+        <div class="kv-search">
+          <i class="ph-duotone ph-magnifying-glass"></i>
+          <input class="kv-input" type="search" placeholder="Tìm serial, MAC, số phiếu…">
+        </div>
+        <div class="kv-seg" role="tablist" aria-label="Lọc trạng thái">
+          <a href="#" aria-current="true">Tất cả<span class="kv-tab-count">8</span></a>
+          <a href="#">Trong kho<span class="kv-tab-count">5</span></a>
+          <a href="#">Đã xuất<span class="kv-tab-count">2</span></a>
+          <a href="#">Bảo hành / RMA<span class="kv-tab-count">1</span></a>
+        </div>
+        <select class="kv-select kv-select--auto" aria-label="Phiếu nhập"><option>Phiếu nhập: tất cả</option><option>NK-2026-0042</option></select>
+        <div class="kv-spacer"></div>
+        <button type="button" class="kv-btn kv-btn--ghost"><i class="ph-duotone ph-upload-simple"></i>Nhập serial từ Excel</button>
+        <button type="button" class="kv-btn kv-btn--ghost"><i class="ph-duotone ph-file-xls"></i>Xuất Excel</button>
+      </div>
+
+      <div class="kv-bulk">
+        <span class="kv-strong">Đã chọn 2 serial</span>
+        <span class="kv-bulk-sep"></span>
+        <a href="#">Xuất kho</a>
+        <a href="#">In tem serial</a>
+        <a href="#">Chuyển vị trí</a>
+        <a href="#">Tạo phiếu bảo hành</a>
+        <div class="kv-spacer"></div>
+        <a href="#" class="kv-bulk-clear">Bỏ chọn</a>
+      </div>
+
+      <div class="kv-table-wrap">
+        <table class="kv-table">
+          <thead>
+            <tr>
+              <th class="kv-col-check"><input type="checkbox" aria-label="Chọn tất cả"></th>
+              <th style="width: 220px">Serial No · MAC</th>
+              <th style="width: 150px">Trạng thái</th>
+              <th>Vị trí / khách hàng</th>
+              <th style="width: 180px">Phiếu xuất</th>
+              <th style="width: 180px">BH hãng đến</th>
+              <th style="width: 200px">BH công ty</th>
+              <th class="kv-col-action"></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="kv-row-link">
+              <td><input type="checkbox" aria-label="Chọn U6LITE-A001" checked></td>
+              <td>
+                <div class="kv-cell-title mono">U6LITE-A001</div>
+                <div class="kv-cell-sub mono">74:83:C2:1A:0F:01</div>
+              </td>
+              <td><span class="kv-tag kv-tag--instock">Trong kho</span></td>
+              <td>Kho HCM · Kệ A2-03</td>
+              <td><span class="kv-muted">—</span></td>
+              <td>
+                <div class="mono">04.09.2029</div>
+                <div class="kv-cell-sub">còn 35 tháng</div>
+              </td>
+              <td><span class="kv-muted">Tính từ ngày xuất</span></td>
+              <td class="num kv-caret"><i class="ph-duotone ph-dots-three-vertical"></i></td>
+            </tr>
+            <tr class="kv-row-link">
+              <td><input type="checkbox" aria-label="Chọn U6LITE-A002" checked></td>
+              <td>
+                <div class="kv-cell-title mono">U6LITE-A002</div>
+                <div class="kv-cell-sub mono">74:83:C2:1A:0F:02</div>
+              </td>
+              <td><span class="kv-tag kv-tag--instock">Trong kho</span></td>
+              <td>Kho HCM · Kệ A2-03</td>
+              <td><span class="kv-muted">—</span></td>
+              <td>
+                <div class="mono">04.09.2029</div>
+                <div class="kv-cell-sub">còn 35 tháng</div>
+              </td>
+              <td><span class="kv-muted">Tính từ ngày xuất</span></td>
+              <td class="num kv-caret"><i class="ph-duotone ph-dots-three-vertical"></i></td>
+            </tr>
+            <tr class="kv-row-link">
+              <td><input type="checkbox" aria-label="Chọn U6LITE-A003"></td>
+              <td>
+                <div class="kv-cell-title mono">U6LITE-A003</div>
+                <div class="kv-cell-sub mono">74:83:C2:1A:0F:03</div>
+              </td>
+              <td><span class="kv-tag kv-tag--sold">Đã xuất</span></td>
+              <td>Cty Minh Phát</td>
+              <td><div class="mono">PX-2026-0318</div><div class="kv-cell-sub mono">15.09.2026</div></td>
+              <td>
+                <div class="mono">04.09.2029</div>
+                <div class="kv-cell-sub">còn 35 tháng</div>
+              </td>
+              <td><div class="mono">đến 15.09.2027</div><div class="kv-cell-sub">12 tháng từ ngày xuất</div></td>
+              <td class="num kv-caret"><i class="ph-duotone ph-dots-three-vertical"></i></td>
+            </tr>
+            <tr class="kv-row-link">
+              <td><input type="checkbox" aria-label="Chọn U6LITE-A004"></td>
+              <td>
+                <div class="kv-cell-title mono">U6LITE-A004</div>
+                <div class="kv-cell-sub mono">74:83:C2:1A:0F:04</div>
+              </td>
+              <td><span class="kv-tag kv-tag--sold">Đã xuất</span></td>
+              <td>Cty Minh Phát</td>
+              <td><div class="mono">PX-2026-0318</div><div class="kv-cell-sub mono">15.09.2026</div></td>
+              <td>
+                <div class="mono">04.09.2029</div>
+                <div class="kv-cell-sub">còn 35 tháng</div>
+              </td>
+              <td><div class="mono">đến 15.09.2027</div><div class="kv-cell-sub">12 tháng từ ngày xuất</div></td>
+              <td class="num kv-caret"><i class="ph-duotone ph-dots-three-vertical"></i></td>
+            </tr>
+            <tr class="kv-row-link">
+              <td><input type="checkbox" aria-label="Chọn U6LITE-A005"></td>
+              <td>
+                <div class="kv-cell-title mono">U6LITE-A005</div>
+                <div class="kv-cell-sub mono">74:83:C2:1A:0F:05</div>
+              </td>
+              <td><span class="kv-tag kv-tag--rma">Bảo hành / RMA</span></td>
+              <td>Gửi hãng · RMA-0091</td>
+              <td><div class="mono">PX-2026-0290</div><div class="kv-cell-sub mono">08.09.2026</div></td>
+              <td>
+                <div class="mono">04.09.2029</div>
+                <div class="kv-cell-sub">còn 35 tháng</div>
+              </td>
+              <td><div class="mono">đến 08.09.2027</div><div class="kv-cell-sub">12 tháng từ ngày xuất</div></td>
+              <td class="num kv-caret"><i class="ph-duotone ph-dots-three-vertical"></i></td>
+            </tr>
+            <tr class="kv-row-link">
+              <td><input type="checkbox" aria-label="Chọn U6LITE-A006"></td>
+              <td>
+                <div class="kv-cell-title mono">U6LITE-A006</div>
+                <div class="kv-cell-sub mono"><a href="#" class="kv-add-link">+ Thêm MAC</a></div>
+              </td>
+              <td><span class="kv-tag kv-tag--instock">Trong kho</span></td>
+              <td>Kho HCM · Kệ A2-03</td>
+              <td><span class="kv-muted">—</span></td>
+              <td>
+                <div class="mono">04.09.2029</div>
+                <div class="kv-cell-sub">còn 35 tháng</div>
+              </td>
+              <td><span class="kv-muted">Tính từ ngày xuất</span></td>
+              <td class="num kv-caret"><i class="ph-duotone ph-dots-three-vertical"></i></td>
+            </tr>
+            <tr class="kv-row-link">
+              <td><input type="checkbox" aria-label="Chọn U6LITE-A007"></td>
+              <td>
+                <div class="kv-cell-title mono">U6LITE-A007</div>
+                <div class="kv-cell-sub mono"><a href="#" class="kv-add-link">+ Thêm MAC</a></div>
+              </td>
+              <td><span class="kv-tag kv-tag--instock">Trong kho</span></td>
+              <td>Kho HCM · Kệ A2-04</td>
+              <td><span class="kv-muted">—</span></td>
+              <td>
+                <div class="mono">04.09.2029</div>
+                <div class="kv-cell-sub">còn 35 tháng</div>
+              </td>
+              <td><span class="kv-muted">Tính từ ngày xuất</span></td>
+              <td class="num kv-caret"><i class="ph-duotone ph-dots-three-vertical"></i></td>
+            </tr>
+            <tr class="kv-row-link">
+              <td><input type="checkbox" aria-label="Chọn U6LITE-A008"></td>
+              <td>
+                <div class="kv-cell-title mono">U6LITE-A008</div>
+                <div class="kv-cell-sub mono"><a href="#" class="kv-add-link">+ Thêm MAC</a></div>
+              </td>
+              <td><span class="kv-tag kv-tag--instock">Trong kho</span></td>
+              <td>Kho HCM · Kệ A2-04</td>
+              <td><span class="kv-muted">—</span></td>
+              <td>
+                <div class="mono">04.09.2029</div>
+                <div class="kv-cell-sub">còn 35 tháng</div>
+              </td>
+              <td><span class="kv-muted">Tính từ ngày xuất</span></td>
+              <td class="num kv-caret"><i class="ph-duotone ph-dots-three-vertical"></i></td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="kv-pager">
+          <span>8 serial · 3 serial chưa có MAC</span>
+        </div>
+      </div>
+    </div>
+</main>
+</body>
+</html>

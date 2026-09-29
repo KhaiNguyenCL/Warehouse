@@ -1,14 +1,12 @@
 import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { RefreshCw, Phone, Mail, Search, ChevronLeft, ChevronRight, ChevronDown, Loader2, User } from 'lucide-react'
+import { Phone, Mail, Search, ChevronLeft, ChevronRight, ChevronDown, Loader2, User } from 'lucide-react'
 import { useCompanies } from '../hooks/useCompanies'
 import { useDebounce } from '../hooks/useDebounce'
 import { api } from '../lib/api'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 import { CodeText } from '@/components/ui/CodeText'
-import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import CompanyDetailPanel from '../components/CompanyDetailPanel'
 import ContactDetailPanel from '../components/ContactDetailPanel'
 import {
@@ -18,10 +16,15 @@ import {
   Table, TableHeader, TableBody, TableRow, TableHead, TableCell,
 } from '@/components/ui/table'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { usePageNoPadding } from '@/layout/PageHeaderSlot'
 
 // Header dùng chung cho cả 2 tab — CÙNG 1 cấu trúc DOM/kích thước cố định, chỉ đổi
 // nội dung chữ + actions. Nhờ vậy khi chuyển tab, header không bị "nhảy" hình dạng,
 // chỉ có bảng dữ liệu bên dưới thay đổi.
+// Đổi từ SegmentedControl (field-trong-form) sang .kv-tabs (điều hướng nội dung trang) —
+// đúng quy tắc HANDOFF.md "1 kiểu tab duy nhất cho điều hướng, .kv-seg chỉ dành cho lọc trong
+// toolbar" — trước đây dùng SegmentedControl ở đây là sai chỗ (đó là control cho 1 field, VD
+// Loại nhập trong form, không phải để đổi hẳn nội dung trang).
 function TabHeader({
   title, subtitle, activeTab, onTabChange, actions,
 }: {
@@ -32,20 +35,16 @@ function TabHeader({
   actions?: ReactNode
 }) {
   return (
-    <div className="flex items-center justify-between gap-3">
+    <div className="kv-head kv-head--divided">
       <div>
-        <h1 className="font-serif text-2xl font-semibold tracking-tight">{title}</h1>
-        <p className="mt-0.5 text-sm text-muted-foreground">{subtitle}</p>
+        <h1 className="kv-title">{title}</h1>
+        <p className="kv-sub">{subtitle}</p>
       </div>
-      <div className="flex items-center gap-2">
-        <SegmentedControl
-          value={activeTab}
-          onChange={onTabChange}
-          options={[
-            { value: 'companies', label: 'Đối tác' },
-            { value: 'contacts',  label: 'Người liên hệ' },
-          ]}
-        />
+      <div className="kv-actions">
+        <nav className="kv-tabs" style={{ marginRight: 8 }}>
+          <button type="button" className="kv-tab" aria-current={activeTab === 'companies' ? 'page' : undefined} onClick={() => onTabChange('companies')}>Đối tác</button>
+          <button type="button" className="kv-tab" aria-current={activeTab === 'contacts' ? 'page' : undefined} onClick={() => onTabChange('contacts')}>Người liên hệ</button>
+        </nav>
         {actions}
       </div>
     </div>
@@ -53,6 +52,7 @@ function TabHeader({
 }
 
 export default function CompaniesPage() {
+  usePageNoPadding()
   const [activeTab, setActiveTab] = useState<'companies' | 'contacts'>('companies')
   // Hook nâng lên parent — dùng chung cho cả 2 tab để nút "Đồng bộ Bitrix" luôn
   // hiện diện ở cùng 1 vị trí bất kể tab nào đang active (switch không bị lệch chỗ),
@@ -79,6 +79,7 @@ function CompaniesTab({ activeTab, onTabChange, hook }: {
   const totalPages = Math.max(1, Math.ceil(total / hook.limit))
 
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [mobileDetail, setMobileDetail] = useState(false)
 
   // Giữ lựa chọn hiện tại nếu vẫn còn trong trang; nếu không (đổi trang/lọc/tìm kiếm) thì
   // tự chọn dòng đầu tiên để panel bên phải luôn có nội dung hiển thị.
@@ -89,7 +90,7 @@ function CompaniesTab({ activeTab, onTabChange, hook }: {
   }, [rows])
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="theme-2a flex h-full min-h-0 flex-col bg-background p-6">
 
       <TabHeader
         title="Đối tác"
@@ -97,111 +98,86 @@ function CompaniesTab({ activeTab, onTabChange, hook }: {
         activeTab={activeTab}
         onTabChange={onTabChange}
         actions={
-          <Button variant="outline" onClick={hook.openSync}>
-            <RefreshCw className="mr-2 h-4 w-4" />
-            Đồng bộ Bitrix
-          </Button>
+          <button type="button" className="kv-btn" onClick={hook.openSync}>Đồng bộ Bitrix</button>
         }
       />
 
-      <div className="grid grid-cols-[380px_1fr] items-start gap-4">
+      <div className={cn('kv-md', mobileDetail && 'kv-md--detail-open')}>
 
         {/* Roster */}
-        <div className="flex flex-col overflow-hidden rounded-xl border border-border-md bg-background shadow-sm">
-          <div className="flex flex-col gap-2 border-b border-border p-3">
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Tìm tên, mã, MST…"
-                value={hook.search}
-                onChange={(e) => hook.setSearch(e.target.value)}
-                className="h-9 pl-9 text-sm shadow-none"
-              />
+        <div className="kv-md-list">
+          <div className="kv-md-tools">
+            <div className="kv-search">
+              <Search className="h-4 w-4" />
+              <input className="kv-input" placeholder="Tìm tên, mã, MST…" value={hook.search} onChange={(e) => hook.setSearch(e.target.value)} />
             </div>
-            <SegmentedControl
-              value={hook.typeFilter}
-              onChange={hook.setTypeFilter}
-              options={[
-                { value: 'all' as const,      label: 'Tất cả' },
-                { value: 'customer' as const, label: 'Khách hàng' },
-                { value: 'supplier' as const, label: 'NCC' },
-              ]}
-            />
+            <div className="kv-seg" role="tablist" aria-label="Lọc loại đối tác">
+              <button type="button" aria-current={hook.typeFilter === 'all'} onClick={() => hook.setTypeFilter('all')}>Tất cả</button>
+              <button type="button" aria-current={hook.typeFilter === 'customer'} onClick={() => hook.setTypeFilter('customer')}>Khách hàng</button>
+              <button type="button" aria-current={hook.typeFilter === 'supplier'} onClick={() => hook.setTypeFilter('supplier')}>NCC</button>
+            </div>
           </div>
 
-          <ul
-            className="flex-1 overflow-y-auto p-1.5"
-            style={{ maxHeight: 'calc(100vh - 320px)', minHeight: 240 }}
-          >
+          <ul className="kv-md-items">
             {hook.isFetching && rows.length === 0 ? (
-              <li className="px-3 py-10 text-center text-xs text-muted-foreground">Đang tải…</li>
+              <li className="kv-muted" style={{ padding: '32px 14px', textAlign: 'center', fontSize: 12 }}>Đang tải…</li>
             ) : rows.length === 0 ? (
-              <li className="px-3 py-10 text-center text-xs text-muted-foreground">
+              <li className="kv-muted" style={{ padding: '32px 14px', textAlign: 'center', fontSize: 12 }}>
                 {hook.search ? 'Không tìm thấy đối tác nào.' : 'Chưa có đối tác nào.'}
               </li>
             ) : (
               rows.map((c) => (
                 <li key={c.id}>
-                  <button
-                    onClick={() => setSelectedId(c.id)}
-                    className={cn(
-                      'flex w-full items-start gap-2.5 rounded-lg border px-2.5 py-2 text-left transition-colors',
-                      c.id === selectedId
-                        ? 'border-[var(--accent)]/25 bg-[var(--accent-bg)]'
-                        : 'border-transparent hover:bg-muted/60',
-                    )}
+                  <a
+                    className="kv-md-item"
+                    aria-current={c.id === selectedId}
+                    onClick={() => { setSelectedId(c.id); setMobileDetail(true) }}
                   >
-                    <span
-                      className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full"
-                      style={{ background: c.types?.includes('customer') ? 'var(--accent)' : 'var(--s-expired-color)' }}
-                    />
-                    <span className="min-w-0 flex-1">
-                      <span
-                        className="block text-sm font-medium leading-snug text-foreground"
-                        title={c.name}
-                        style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
-                      >
-                        {c.name}
-                      </span>
-                      <span className="mt-1 flex items-center gap-1.5">
-                        <CodeText>{c.code}</CodeText>
-                        {c.phone && <Phone className="h-2.5 w-2.5 flex-shrink-0 text-muted-foreground" />}
-                        {c.email && <Mail className="h-2.5 w-2.5 flex-shrink-0 text-muted-foreground" />}
-                      </span>
-                    </span>
-                  </button>
+                    <div style={{ minWidth: 0 }}>
+                      <div className="kv-cell-title truncate">{c.name}</div>
+                      <div className="kv-cell-sub mono" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                        {c.code}
+                        {c.phone && <Phone className="h-2.5 w-2.5 flex-shrink-0" />}
+                        {c.email && <Mail className="h-2.5 w-2.5 flex-shrink-0" />}
+                      </div>
+                    </div>
+                    <div className="kv-tags">
+                      {c.types?.includes('customer') && <span className="kv-tag kv-tag--default">KH</span>}
+                      {c.types?.includes('supplier') && <span className="kv-tag kv-tag--bundle">NCC</span>}
+                    </div>
+                  </a>
                 </li>
               ))
             )}
           </ul>
 
           {total > 0 && (
-            <div className="flex items-center justify-between border-t border-border px-3 py-2">
-              <span className="text-xs text-muted-foreground">Trang {hook.page} / {totalPages}</span>
-              <div className="flex items-center gap-1">
-                <Button
-                  variant="outline" size="icon-sm"
-                  disabled={hook.page <= 1}
-                  onClick={() => hook.setPage(hook.page - 1)}
-                  className="h-6 w-6"
-                >
+            <div className="kv-md-foot" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span>Trang {hook.page} / {totalPages}</span>
+              <div style={{ display: 'flex', gap: 4 }}>
+                <button type="button" className="kv-icon-btn" disabled={hook.page <= 1} onClick={() => hook.setPage(hook.page - 1)}>
                   <ChevronLeft className="h-3.5 w-3.5" />
-                </Button>
-                <Button
-                  variant="outline" size="icon-sm"
-                  disabled={hook.page >= totalPages}
-                  onClick={() => hook.setPage(hook.page + 1)}
-                  className="h-6 w-6"
-                >
+                </button>
+                <button type="button" className="kv-icon-btn" disabled={hook.page >= totalPages} onClick={() => hook.setPage(hook.page + 1)}>
                   <ChevronRight className="h-3.5 w-3.5" />
-                </Button>
+                </button>
               </div>
             </div>
           )}
         </div>
 
         {/* Detail */}
-        <CompanyDetailPanel companyId={selectedId} />
+        <div className="kv-md-detail">
+          <button
+            onClick={() => setMobileDetail(false)}
+            className="mb-2.5 flex items-center gap-1.5 border-none bg-transparent text-sm font-medium md:hidden"
+            style={{ color: 'var(--text-2)', cursor: 'pointer' }}
+          >
+            <ChevronLeft className="h-4 w-4" />
+            Quay lại danh sách
+          </button>
+          <CompanyDetailPanel companyId={selectedId} />
+        </div>
       </div>
     </div>
   )
@@ -222,11 +198,34 @@ function ContactsTab({ activeTab, onTabChange, onOpenSync }: {
   const [page, setPage] = useState(1)
   const limit = 50
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [primaryFilter, setPrimaryFilter] = useState<'all' | 'primary'>('all')
+  const [mobileDetail, setMobileDetail] = useState(false)
 
   const { data, isFetching } = useQuery({
-    queryKey: ['contacts', debouncedSearch, page, limit],
+    queryKey: ['contacts', debouncedSearch, page, limit, primaryFilter],
     queryFn: async () =>
-      (await api.get('/companies/contacts', { params: { search: debouncedSearch.trim() || undefined, page, limit } })).data,
+      (await api.get('/companies/contacts', {
+        params: {
+          search: debouncedSearch.trim() || undefined,
+          page,
+          limit,
+          is_primary: primaryFilter === 'primary' ? true : undefined,
+        },
+      })).data,
+    staleTime: 30_000,
+  })
+
+  // Đếm riêng cho tab lọc — không phụ thuộc search/trang hiện tại, giống cách các
+  // trang master-detail khác (Brands/Warehouses) tính count từ toàn bộ danh sách.
+  const { data: counts } = useQuery({
+    queryKey: ['contacts-counts'],
+    queryFn: async () => {
+      const [all, primary] = await Promise.all([
+        api.get('/companies/contacts', { params: { page: 1, limit: 1 } }),
+        api.get('/companies/contacts', { params: { page: 1, limit: 1, is_primary: true } }),
+      ])
+      return { all: all.data.total ?? 0, primary: primary.data.total ?? 0 }
+    },
     staleTime: 30_000,
   })
 
@@ -244,103 +243,93 @@ function ContactsTab({ activeTab, onTabChange, onOpenSync }: {
   }, [rows])
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="theme-2a flex h-full min-h-0 flex-col bg-background p-6">
       <TabHeader
         title="Người liên hệ"
         subtitle={`${total.toLocaleString('vi-VN')} người liên hệ`}
         activeTab={activeTab}
         onTabChange={onTabChange}
         actions={
-          <Button variant="outline" onClick={onOpenSync}>
-            <RefreshCw className="mr-2 h-4 w-4" />
-            Đồng bộ Bitrix
-          </Button>
+          <button type="button" className="kv-btn" onClick={onOpenSync}>Đồng bộ Bitrix</button>
         }
       />
-
-      <div className="grid grid-cols-[380px_1fr] items-start gap-4">
+      <div className={cn('kv-md', mobileDetail && 'kv-md--detail-open')}>
 
         {/* Roster */}
-        <div className="flex flex-col overflow-hidden rounded-xl border border-border-md bg-background shadow-sm">
-          <div className="border-b border-border p-3">
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Tìm tên, SĐT, email, công ty…"
-                value={search}
-                onChange={(e) => { setSearch(e.target.value); setPage(1) }}
-                className="h-9 pl-9 text-sm shadow-none"
-              />
+        <div className="kv-md-list">
+          <div className="kv-md-tools">
+            <div className="kv-search">
+              <Search className="h-4 w-4" />
+              <input className="kv-input" placeholder="Tìm tên, SĐT, email, công ty…" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1) }} />
+            </div>
+            <div className="kv-seg" role="tablist" aria-label="Lọc liên hệ">
+              <button type="button" aria-current={primaryFilter === 'all'} onClick={() => { setPrimaryFilter('all'); setPage(1) }}>Tất cả<span className="kv-tab-count">{counts?.all ?? 0}</span></button>
+              <button type="button" aria-current={primaryFilter === 'primary'} onClick={() => { setPrimaryFilter('primary'); setPage(1) }}>Liên hệ chính<span className="kv-tab-count">{counts?.primary ?? 0}</span></button>
             </div>
           </div>
 
-          <ul
-            className="flex-1 overflow-y-auto p-1.5"
-            style={{ maxHeight: 'calc(100vh - 320px)', minHeight: 240 }}
-          >
+          <ul className="kv-md-items">
             {isFetching && rows.length === 0 ? (
-              <li className="px-3 py-10 text-center text-xs text-muted-foreground">Đang tải…</li>
+              <li className="kv-muted" style={{ padding: '32px 14px', textAlign: 'center', fontSize: 12 }}>Đang tải…</li>
             ) : rows.length === 0 ? (
-              <li className="px-3 py-10 text-center text-xs text-muted-foreground">
+              <li className="kv-muted" style={{ padding: '32px 14px', textAlign: 'center', fontSize: 12 }}>
                 {search ? 'Không tìm thấy người liên hệ nào.' : 'Chưa có người liên hệ nào.'}
               </li>
             ) : (
               rows.map((c) => (
                 <li key={c.id}>
-                  <button
-                    onClick={() => setSelectedId(c.id)}
-                    className={cn(
-                      'flex w-full items-start gap-2.5 rounded-lg border px-2.5 py-2 text-left transition-colors',
-                      c.id === selectedId
-                        ? 'border-[var(--accent)]/25 bg-[var(--accent-bg)]'
-                        : 'border-transparent hover:bg-muted/60',
-                    )}
+                  <a
+                    className="kv-md-item"
+                    aria-current={c.id === selectedId}
+                    onClick={() => { setSelectedId(c.id); setMobileDetail(true) }}
                   >
-                    <User className="mt-1 h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
-                    <span className="min-w-0 flex-1">
-                      <span className="flex items-center gap-1.5">
-                        <span className="truncate text-sm font-medium leading-snug text-foreground" title={c.full_name}>{c.full_name}</span>
-                        {c.is_primary && <span className="flex-shrink-0 text-[10px] font-semibold text-emerald-700">Chính</span>}
-                      </span>
-                      <span className="mt-1 flex items-center gap-1.5">
-                        {c.company_name && <span className="truncate text-xs text-muted-foreground" title={c.company_name}>{c.company_name}</span>}
-                        {c.phone && <Phone className="h-2.5 w-2.5 flex-shrink-0 text-muted-foreground" />}
-                        {c.email && <Mail className="h-2.5 w-2.5 flex-shrink-0 text-muted-foreground" />}
-                      </span>
-                    </span>
-                  </button>
+                    <div style={{ minWidth: 0, display: 'flex', alignItems: 'flex-start', gap: 6 }}>
+                      <User className="h-3.5 w-3.5 flex-shrink-0" style={{ marginTop: 3, color: 'var(--text-3)' }} />
+                      <div style={{ minWidth: 0 }}>
+                        <div className="kv-cell-title" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                          <span className="truncate">{c.full_name}</span>
+                          {c.is_primary && <span className="kv-tag kv-tag--default" style={{ flexShrink: 0 }}>Chính</span>}
+                        </div>
+                        <div className="kv-cell-sub" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                          {c.company_name && <span className="truncate">{c.company_name}</span>}
+                          {c.phone && <Phone className="h-2.5 w-2.5 flex-shrink-0" />}
+                          {c.email && <Mail className="h-2.5 w-2.5 flex-shrink-0" />}
+                        </div>
+                      </div>
+                    </div>
+                  </a>
                 </li>
               ))
             )}
           </ul>
 
           {total > 0 && (
-            <div className="flex items-center justify-between border-t border-border px-3 py-2">
-              <span className="text-xs text-muted-foreground">Trang {page} / {totalPages}</span>
-              <div className="flex items-center gap-1">
-                <Button
-                  variant="outline" size="icon-sm"
-                  disabled={page <= 1}
-                  onClick={() => setPage(page - 1)}
-                  className="h-6 w-6"
-                >
+            <div className="kv-md-foot" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span>Trang {page} / {totalPages}</span>
+              <div style={{ display: 'flex', gap: 4 }}>
+                <button type="button" className="kv-icon-btn" disabled={page <= 1} onClick={() => setPage(page - 1)}>
                   <ChevronLeft className="h-3.5 w-3.5" />
-                </Button>
-                <Button
-                  variant="outline" size="icon-sm"
-                  disabled={page >= totalPages}
-                  onClick={() => setPage(page + 1)}
-                  className="h-6 w-6"
-                >
+                </button>
+                <button type="button" className="kv-icon-btn" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>
                   <ChevronRight className="h-3.5 w-3.5" />
-                </Button>
+                </button>
               </div>
             </div>
           )}
         </div>
 
         {/* Detail */}
-        <ContactDetailPanel contact={selected} />
+        <div className="kv-md-detail">
+          <button
+            onClick={() => setMobileDetail(false)}
+            className="mb-2.5 flex items-center gap-1.5 border-none bg-transparent text-sm font-medium md:hidden"
+            style={{ color: 'var(--text-2)', cursor: 'pointer' }}
+          >
+            <ChevronLeft className="h-4 w-4" />
+            Quay lại danh sách
+          </button>
+          <ContactDetailPanel contact={selected} />
+        </div>
       </div>
     </div>
   )
@@ -392,7 +381,7 @@ function ChangeFieldTag({ field, old, next }: { field: string; old: string | nul
           {FIELD_LABEL[field] ?? field}
         </span>
       </TooltipTrigger>
-      <TooltipContent>{old ?? '—'} → {next ?? '—'}</TooltipContent>
+      <TooltipContent className="theme-2a">{old ?? '—'} → {next ?? '—'}</TooltipContent>
     </Tooltip>
   )
 }
@@ -432,7 +421,7 @@ function SyncBitrixModal({ hook }: { hook: any }) {
 
   return (
     <Dialog open={hook.syncOpen} onOpenChange={(o: boolean) => hook.setSyncOpen(o)}>
-      <DialogContent className="flex max-h-[85vh] flex-col gap-4 sm:max-w-3xl">
+      <DialogContent className="theme-2a flex max-h-[85vh] flex-col gap-4 sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>Đồng bộ công ty từ Bitrix</DialogTitle>
         </DialogHeader>

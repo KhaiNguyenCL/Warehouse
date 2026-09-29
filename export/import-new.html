@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tạo phiếu nhập — DNS</title>
+<link rel="stylesheet" href="broadsheet.css">
+<link rel="stylesheet" href="app.css">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/duotone/style.css">
+</head>
+<body>
+<main class="screens">
+    <div class="kv-sheet">
+      <div class="kv-nav">
+        <div class="kv-nav-left">
+          <span class="kv-brand">DNS</span>
+          <nav class="kv-nav-links">
+            <a href="#">Tổng quan</a>
+            <a href="inventory.html">Tồn kho</a>
+            <a href="products.html">Sản phẩm</a>
+            <a href="import-new.html" aria-current="page">Nhập kho</a>
+            <a href="#">Xuất kho</a>
+            <a href="#">Kiểm kê</a>
+            <a href="purchase-new.html">Mua hàng</a>
+            <a href="#">Nhà cung cấp</a>
+            <a href="#" class="kv-nav-more">Giao dịch <i class="ph-duotone ph-caret-down"></i></a>
+            <a href="warehouses.html">Kho hàng</a>
+            <a href="#" class="kv-nav-more">Thêm <i class="ph-duotone ph-caret-down"></i></a>
+          </nav>
+        </div>
+        <div class="kv-nav-right">
+          <div class="kv-nav-search">
+            <i class="ph-duotone ph-magnifying-glass"></i>
+            <input class="kv-input" type="search" placeholder="Tìm nhanh…  Ctrl K">
+          </div>
+          <button type="button" class="kv-icon-btn" aria-label="Thông báo"><i class="ph-duotone ph-bell"></i></button>
+          <span class="kv-avatar">A</span>
+        </div>
+      </div>
+
+      <div class="kv-head kv-head--divided">
+        <div>
+          <div class="kv-crumb"><a href="#">Phiếu nhập kho</a> / Tạo mới</div>
+          <h1 class="kv-title">Tạo phiếu nhập</h1>
+        </div>
+        <div class="kv-actions">
+          <span class="kv-muted" style="font-size: var(--kv-fs-sm)">Nháp lưu tự động 15:42</span>
+        </div>
+      </div>
+
+      <div class="kv-form">
+        <div class="kv-form-grid">
+          <div class="kv-group-label">Nguồn hàng</div>
+          <div class="kv-group-body kv-stack">
+            <div class="kv-field">
+              <label>Loại nhập <span class="kv-req">*</span></label>
+              <div class="kv-seg" role="radiogroup" aria-label="Loại nhập">
+                <a href="#" aria-current="true">Mua hàng</a>
+                <a href="#">Khách trả hàng</a>
+                <a href="#">Chuyển kho</a>
+                <a href="#">Khác</a>
+              </div>
+              <div class="kv-hint">Loại nhập quyết định trường bên dưới: NCC, khách hàng hoặc kho nguồn.</div>
+            </div>
+            <div class="kv-field">
+              <label for="f-ncc">Nhà cung cấp <span class="kv-req">*</span></label>
+              <select class="kv-select" id="f-ncc">
+                <option>Chọn nhà cung cấp…</option>
+                <option selected>Ubiquiti VN — Cty TNHH Viễn Thông Á Châu</option>
+              </select>
+            </div>
+            <div class="kv-2col">
+              <div class="kv-field">
+                <label for="f-inv">Số hoá đơn / chứng từ</label>
+                <input class="kv-input mono" id="f-inv" placeholder="VD: 0001234">
+              </div>
+              <div class="kv-field">
+                <label for="f-invd">Ngày hoá đơn</label>
+                <input class="kv-input" id="f-invd" type="date">
+              </div>
+            </div>
+          </div>
+
+          <div class="kv-group-label">Nhập vào</div>
+          <div class="kv-group-body kv-stack">
+            <div class="kv-2col">
+              <div class="kv-field">
+                <label for="f-kho">Kho nhập <span class="kv-req">*</span></label>
+                <select class="kv-select" id="f-kho">
+                  <option>Kho HCM</option>
+                  <option>Kho HN</option>
+                </select>
+              </div>
+              <div class="kv-field">
+                <label for="f-date">Ngày nhập kho <span class="kv-req">*</span></label>
+                <input class="kv-input" id="f-date" type="date" value="2026-09-25">
+              </div>
+            </div>
+            <div class="kv-field">
+              <label for="f-note">Ghi chú</label>
+              <textarea class="kv-textarea" id="f-note" placeholder="Tuỳ chọn — VD: hàng về thiếu 1 thùng, chờ bổ sung"></textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="kv-section-head" style="padding-top: 0">
+        <h2 class="kv-section-title">Hàng nhập · 3 dòng</h2>
+        <div class="kv-actions">
+          <button type="button" class="kv-btn kv-btn--ghost"><i class="ph-duotone ph-upload-simple"></i>Nhập từ Excel</button>
+        </div>
+      </div>
+
+      <div class="kv-table-wrap" style="padding-top: var(--kv-gap-md)">
+        <table class="kv-table kv-lines">
+          <thead>
+            <tr>
+              <th style="width: 36px">#</th>
+              <th>Sản phẩm</th>
+              <th class="num" style="width: 100px">Tồn hiện tại</th>
+              <th class="num" style="width: 110px">Số lượng</th>
+              <th class="num" style="width: 150px">Giá nhập (₫)</th>
+              <th class="num" style="width: 150px">Thành tiền (₫)</th>
+              <th style="width: 170px">Serial</th>
+              <th class="kv-col-action"></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="kv-line-no">1</td>
+              <td>
+                <div class="kv-cell-title">Switch PoE 16 port USW-Lite-16-PoE</div>
+                <div class="kv-cell-sub mono">NET-UBI-USW-LITE16POE · Cái</div>
+              </td>
+              <td class="num kv-muted">3</td>
+              <td><input class="kv-input kv-input--num" value="5" aria-label="Số lượng dòng 1"></td>
+              <td><input class="kv-input kv-input--num" value="4.650.000" aria-label="Giá nhập dòng 1"></td>
+              <td class="num kv-strong">23.250.000</td>
+              <td><button type="button" class="kv-serial-btn kv-serial-btn--missing"><i class="ph-duotone ph-barcode"></i>2 / 5 serial</button></td>
+              <td class="num"><button type="button" class="kv-icon-btn kv-row-del" aria-label="Xoá dòng 1"><i class="ph-duotone ph-trash"></i></button></td>
+            </tr>
+            <tr>
+              <td class="kv-line-no">2</td>
+              <td>
+                <div class="kv-cell-title">Access Point U6-Lite</div>
+                <div class="kv-cell-sub mono">AP-UBI-U6-LITE · Cái</div>
+              </td>
+              <td class="num kv-muted">8</td>
+              <td><input class="kv-input kv-input--num" value="10" aria-label="Số lượng dòng 2"></td>
+              <td><input class="kv-input kv-input--num" value="1.850.000" aria-label="Giá nhập dòng 2"></td>
+              <td class="num kv-strong">18.500.000</td>
+              <td><button type="button" class="kv-serial-btn kv-serial-btn--done"><i class="ph-duotone ph-check-circle"></i>10 / 10 serial</button></td>
+              <td class="num"><button type="button" class="kv-icon-btn kv-row-del" aria-label="Xoá dòng 2"><i class="ph-duotone ph-trash"></i></button></td>
+            </tr>
+            <tr>
+              <td class="kv-line-no">3</td>
+              <td>
+                <div class="kv-cell-title">Cáp Cat6 UTP 305m/cuộn</div>
+                <div class="kv-cell-sub mono">CAP-CMS-CAT6-305 · Cuộn</div>
+              </td>
+              <td class="num kv-muted">20</td>
+              <td><input class="kv-input kv-input--num" value="4" aria-label="Số lượng dòng 3"></td>
+              <td><input class="kv-input kv-input--num" value="850.000" aria-label="Giá nhập dòng 3"></td>
+              <td class="num kv-strong">3.400.000</td>
+              <td><span class="kv-na">Không theo serial</span></td>
+              <td class="num"><button type="button" class="kv-icon-btn kv-row-del" aria-label="Xoá dòng 3"><i class="ph-duotone ph-trash"></i></button></td>
+            </tr>
+            <tr class="kv-total">
+              <td></td>
+              <td>Tổng cộng</td>
+              <td></td>
+              <td class="num">19</td>
+              <td></td>
+              <td class="num">45.150.000</td>
+              <td colspan="2"></td>
+            </tr>
+            <tr class="kv-addline">
+              <td></td>
+              <td colspan="7">
+                <div class="kv-actions">
+                  <div class="kv-search">
+                    <i class="ph-duotone ph-barcode"></i>
+                    <input class="kv-input" placeholder="Quét mã vạch hoặc gõ mã / tên hàng để thêm dòng…">
+                  </div>
+                  <span class="kv-kbd">Enter</span>
+                  <span class="kv-muted" style="font-size: var(--kv-fs-sm)">Quét trùng SKU sẽ cộng dồn số lượng</span>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="kv-footer-bar">
+        <div class="kv-footer-stat"><div class="kv-fact-label">Số dòng</div><div class="kv-fact-value">3</div></div>
+        <div class="kv-footer-stat"><div class="kv-fact-label">Tổng số lượng</div><div class="kv-fact-value">19</div></div>
+        <div class="kv-footer-stat"><div class="kv-fact-label">Tổng tiền</div><div class="kv-fact-value">45.150.000 ₫</div></div>
+        <span class="kv-footer-warn"><i class="ph-duotone ph-warning"></i>Còn thiếu 3 serial ở dòng 1</span>
+        <div class="kv-spacer"></div>
+        <div class="kv-actions">
+          <a href="#" class="kv-btn">Huỷ</a>
+          <button type="button" class="kv-btn">Lưu nháp</button>
+          <button type="button" class="kv-btn kv-btn--primary" disabled title="Nhập đủ serial trước khi tạo phiếu">Tạo phiếu nhập</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="kv-sheet" style="margin-top: 80px" id="serial-panel">
+      <div class="kv-drawer-demo">
+        <div class="kv-drawer-scrim"></div>
+        <aside class="kv-drawer" aria-label="Nhập serial">
+          <div class="kv-drawer-head">
+            <div>
+              <div class="kv-eyebrow">Dòng 1 · Serial</div>
+              <h2 class="kv-section-title" style="margin-top: 4px">Switch PoE 16 port USW-Lite-16-PoE</h2>
+              <div class="kv-cell-sub mono">NET-UBI-USW-LITE16POE · BH hãng 24 tháng</div>
+            </div>
+            <button type="button" class="kv-icon-btn" aria-label="Đóng"><i class="ph-duotone ph-x"></i></button>
+          </div>
+          <div class="kv-drawer-body">
+            <div>
+              <div class="kv-actions" style="justify-content: space-between; margin-bottom: 6px">
+                <span class="kv-strong">2 / 5 serial</span>
+                <span class="kv-muted" style="font-size: var(--kv-fs-sm)">còn 3</span>
+              </div>
+              <div class="kv-progress"><span style="width: 40%"></span></div>
+            </div>
+            <div class="kv-field">
+              <label for="sn-scan">Quét hoặc gõ serial</label>
+              <div class="kv-search" style="width: 100%">
+                <i class="ph-duotone ph-barcode"></i>
+                <input class="kv-input mono" id="sn-scan" placeholder="Quét liên tục — mỗi lần Enter là một serial">
+              </div>
+              <div class="kv-hint">Hoặc dán nhiều serial cùng lúc, mỗi dòng một serial. <a href="#">Dán danh sách</a></div>
+            </div>
+            <ul class="kv-serial-list">
+              <li><span class="mono">USWL16-7A3F01</span><button type="button" class="kv-icon-btn" aria-label="Xoá"><i class="ph-duotone ph-x"></i></button></li>
+              <li><span class="mono">USWL16-7A3F02</span><button type="button" class="kv-icon-btn" aria-label="Xoá"><i class="ph-duotone ph-x"></i></button></li>
+              <li><span class="mono">USWL16-7A3F02 <span class="kv-dup">· trùng, đã bỏ qua</span></span><button type="button" class="kv-icon-btn" aria-label="Xoá"><i class="ph-duotone ph-x"></i></button></li>
+            </ul>
+          </div>
+          <div class="kv-drawer-foot">
+            <button type="button" class="kv-btn">Đóng</button>
+            <button type="button" class="kv-btn kv-btn--primary">Xong</button>
+          </div>
+        </aside>
+      </div>
+    </div>
+</main>
+</body>
+</html>

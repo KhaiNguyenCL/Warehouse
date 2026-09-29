@@ -1,10 +1,14 @@
 import React from 'react'
 import { useParams } from 'react-router-dom'
 import {
-  Form, Input, InputNumber, Select, Button, Tag, Popconfirm, Table, Skeleton,
-  DatePicker, Tooltip,
+  Form, Input, InputNumber, Select, Tag, Skeleton,
+  DatePicker, Button as AntButton,
 } from 'antd'
-import { ArrowLeftOutlined, EditOutlined, SyncOutlined, FileExcelOutlined, FilePdfOutlined, EyeOutlined, UserOutlined, CopyOutlined } from '@ant-design/icons'
+import { SyncOutlined } from '@ant-design/icons'
+import {
+  ArrowLeft, Pencil, RefreshCw, FileSpreadsheet, FileDown, Eye, User, Copy,
+  MoreHorizontal, Loader2,
+} from 'lucide-react'
 import dayjs from 'dayjs'
 import { useQuotationDetail } from '../hooks/useQuotationDetail'
 import { useTermTemplates } from '../hooks/useTermTemplates'
@@ -18,65 +22,62 @@ function toRoman(n: number): string {
   }
   return s
 }
-import { PageHeader } from '../components/ui/PageHeader'
 import { StatusBadge } from '../components/ui/StatusBadge'
+import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel,
+  AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { usePageHeader } from '@/layout/PageHeaderSlot'
+import { fieldTier } from '@/styles/fieldWidths'
 import CustomFieldsPanel from '../components/CustomFieldsPanel'
 import ActivityTimeline from '../components/ActivityTimeline'
 import QuotationSectionItem from '../components/QuotationSectionItem'
+import { LineItemsTable, type LineItemsColumn } from '../components/LineItemsTable'
 
-function makeLineCols(retail: boolean) {
+function makeLineCols(retail: boolean): LineItemsColumn<any>[] {
   return [
-    { title: 'Sản phẩm',   width: 240, render: (_: any, l: any) => l.bundle_name ?? l.variant_name ?? l.description ?? '—' },
-    { title: 'Mã hàng',    width: 130, render: (_: any, l: any) => l.bundle_item_code ?? l.variant_item_code ?? '—' },
-    { title: 'SL',         dataIndex: 'quantity',    width: 60,  align: 'right' as const },
+    { key: 'product',  label: 'Sản phẩm',   render: (l) => l.bundle_name ?? l.variant_name ?? l.description ?? '—' },
+    { key: 'code',     label: 'Mã hàng',    render: (l) => l.bundle_item_code ?? l.variant_item_code ?? '—' },
+    { key: 'qty',      label: 'SL',         align: 'right', render: (l) => l.quantity },
     {
-      title: retail ? 'Đơn giá (đã VAT)' : 'Đơn giá',
-      width: 140,
-      align: 'right' as const,
-      render: (_: any, l: any) => {
+      key: 'price',
+      label: retail ? 'Đơn giá (đã VAT)' : 'Đơn giá',
+      align: 'right',
+      render: (l) => {
         const base = Number(l.unit_price ?? 0)
         const vat = Number(l.vat_percent ?? 0)
         return fmt(retail ? base * (1 + vat / 100) : base)
       },
     },
-    ...(!retail ? [
-      { title: 'VAT%',       dataIndex: 'vat_percent', width: 70,  align: 'right' as const },
-    ] : []),
+    ...(!retail ? [{ key: 'vat', label: 'VAT%', align: 'right' as const, render: (l: any) => l.vat_percent }] : []),
     {
-      title: 'Thành tiền',
-      width: 130,
-      align: 'right' as const,
-      render: (_: any, l: any) => {
+      key: 'total',
+      label: 'Thành tiền',
+      align: 'right',
+      render: (l) => {
         const lineTotal = Number(l.line_total ?? 0)
         const vat = Number(l.vat_percent ?? 0)
         return fmt(retail ? lineTotal * (1 + vat / 100) : lineTotal)
       },
     },
-    ...(!retail ? [
-      { title: 'Tiền VAT',  dataIndex: 'vat_amount',  width: 100, align: 'right' as const, render: fmt },
-    ] : []),
-    { title: 'Bảo hành',  dataIndex: 'warranty',     width: 100 },
-    { title: 'Giữ chỗ',   dataIndex: 'is_reserved',  width: 80,  render: (v: boolean) => <Tag color={v ? 'blue' : 'default'}>{v ? 'Có' : 'Không'}</Tag> },
-    { title: 'Đã xuất',   dataIndex: 'exported_qty', width: 80,  align: 'right' as const },
-    { title: 'Chờ xuất',  dataIndex: 'pending_qty',  width: 80,  align: 'right' as const },
-    { title: 'Còn lại',   dataIndex: 'remaining_qty',width: 80,  align: 'right' as const },
-    { title: 'Ghi chú',   dataIndex: 'note',         width: 140 },
+    ...(!retail ? [{ key: 'vat_amount', label: 'Tiền VAT', align: 'right' as const, render: (l: any) => fmt(l.vat_amount) }] : []),
+    { key: 'warranty', label: 'Bảo hành', render: (l) => l.warranty },
+    { key: 'reserved', label: 'Giữ chỗ', render: (l) => <Tag color={l.is_reserved ? 'blue' : 'default'}>{l.is_reserved ? 'Có' : 'Không'}</Tag> },
+    { key: 'exported', label: 'Đã xuất', align: 'right', render: (l) => l.exported_qty },
+    { key: 'pending',  label: 'Chờ xuất', align: 'right', render: (l) => l.pending_qty },
+    { key: 'remain',   label: 'Còn lại', align: 'right', render: (l) => l.remaining_qty },
+    { key: 'note',     label: 'Ghi chú', render: (l) => l.note },
   ]
 }
 
 function LineTable({ rows, nested, retail }: { rows: any[]; nested?: boolean; retail?: boolean }) {
   if (!rows.length) return null
-  return (
-    <Table
-      rowKey="id"
-      dataSource={rows}
-      pagination={false}
-      size="small"
-      scroll={{ x: 'max-content' }}
-      columns={makeLineCols(!!retail)}
-      style={nested ? { border: '1px solid #b0c4e8', borderTop: 'none', borderRadius: '0 0 6px 6px' } : undefined}
-    />
-  )
+  return <LineItemsTable cols={makeLineCols(!!retail)} rows={rows} rowKey={(l) => l.id} nested={nested} />
 }
 
 function SectionCard({ title, extra, children }: { title: string; extra?: React.ReactNode; children: React.ReactNode }) {
@@ -127,6 +128,8 @@ export default function QuotationDetailPage() {
   const hook = useQuotationDetail(id!)
   const { data: termTemplates } = useTermTemplates()
   const [retailMode, setRetailMode] = React.useState(false)
+  const [cancelOpen, setCancelOpen] = React.useState(false)
+  const [expireOpen, setExpireOpen] = React.useState(false)
 
   // Computed expiry preview trong edit mode
   const watchQuoteDate = Form.useWatch('quote_date', hook.form)
@@ -135,120 +138,157 @@ export default function QuotationDetailPage() {
     ? dayjs(watchQuoteDate).add(Number(watchValidDays), 'day').format('DD/MM/YYYY')
     : null
 
-  if (!hook.isNew && (hook.isLoading || !hook.data)) return <Skeleton active style={{ padding: 20 }} />
-
   const q = hook.data
   const isDraft = hook.isNew || q?.status === 'draft'
   const isConfirmed = q?.status === 'confirmed'
   const allDone = q?.sections?.every((s: any) => s.line_items?.every((l: any) => Number(l.remaining_qty) <= 0))
 
-  const exportActions = !hook.isNew && !hook.isEditing ? (
-    <>
-      <Tooltip title={retailMode ? 'Đang hiện giá gộp VAT (khách lẻ)' : 'Chuyển sang giá gộp VAT (khách lẻ)'}>
-        <Button
-          size="small"
-          icon={<UserOutlined />}
-          type={retailMode ? 'primary' : 'default'}
-          onClick={() => setRetailMode((v) => !v)}
-        >
-          {retailMode ? 'Khách lẻ' : 'Khách lẻ'}
+  // usePageHeader là hook — PHẢI gọi vô điều kiện trước early return bên dưới (xem CLAUDE.md
+  // mục 22 — lỗi từng gặp ở SettingsBitrixPage/PurchaseOrderCreatePage khi đặt sau early return).
+  // Giai đoạn 1: gộp toàn bộ nút hành động (trước đây 8 nút tràn hàng, phải cuộn ngang) —
+  // giữ lộ ra nút hay dùng nhất (Khách lẻ, Xuất PDF, Excel, action theo trạng thái), dồn nút
+  // ít dùng hơn (Xem trước, Nhân bản, Về Draft, Hết hạn, Huỷ) vào menu "···".
+  usePageHeader(
+    <div className="flex items-center justify-between gap-4">
+      <div className="flex min-w-0 items-center gap-2">
+        <Button variant="ghost" size="icon-sm" onClick={() => hook.navigate('/quotations')}>
+          <ArrowLeft className="h-4 w-4" />
         </Button>
-      </Tooltip>
-      <Button
-        size="small"
-        icon={<EyeOutlined />}
-        loading={hook.exporting}
-        onClick={hook.handlePdfPreview}
-      >
-        Xem trước
-      </Button>
-      <Button
-        size="small"
-        icon={<FilePdfOutlined />}
-        type="primary"
-        loading={hook.exporting}
-        onClick={hook.handlePdfExport}
-      >
-        Xuất PDF
-      </Button>
-      <Select
-        placeholder="Chọn template Excel"
-        style={{ width: 180 }}
-        size="small"
-        options={hook.templates?.data?.map((t: any) => ({ value: t.id, label: t.name }))}
-        onChange={hook.setTemplateId}
-        notFoundContent="Chưa có template"
-      />
-      <Button size="small" icon={<FileExcelOutlined />} loading={hook.exporting}
-        disabled={!hook.templateId} onClick={() => hook.handleExport('xlsx')}>Excel</Button>
-    </>
-  ) : null
+        <h1 className="flex min-w-0 items-baseline gap-2 truncate text-sm font-semibold tracking-tight">
+          <button
+            onClick={() => hook.navigate('/quotations')}
+            className="text-muted-foreground transition-colors hover:text-foreground"
+          >
+            Báo giá
+          </button>
+          <span className="text-muted-foreground">/</span>
+          <span className="truncate text-foreground">{hook.isNew ? 'Tạo mới' : q?.code}</span>
+        </h1>
+        {!hook.isNew && q && <StatusBadge status={q.status} />}
+      </div>
+
+      <div className="flex flex-shrink-0 items-center gap-2">
+        {hook.isEditing ? (
+          <>
+            <Button size="sm" variant="outline" onClick={hook.cancelEdit}>Huỷ</Button>
+            <Button size="sm" onClick={hook.saveEdit} disabled={hook.savePending}>
+              {hook.savePending && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
+              {hook.isNew ? 'Tạo báo giá' : 'Lưu'}
+            </Button>
+          </>
+        ) : (
+          <>
+            {!hook.isNew && (
+              <>
+                <Button
+                  size="sm" variant={retailMode ? 'default' : 'outline'}
+                  title={retailMode ? 'Đang hiện giá gộp VAT (khách lẻ)' : 'Chuyển sang giá gộp VAT (khách lẻ)'}
+                  onClick={() => setRetailMode((v) => !v)}
+                >
+                  <User className="mr-1.5 h-4 w-4" />
+                  Khách lẻ
+                </Button>
+                <Button size="sm" onClick={hook.handlePdfExport} disabled={hook.exporting}>
+                  {hook.exporting ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <FileDown className="mr-1.5 h-4 w-4" />}
+                  Xuất PDF
+                </Button>
+                <Select
+                  placeholder="Template Excel"
+                  style={{ width: 150 }}
+                  size="small"
+                  options={hook.templates?.data?.map((t: any) => ({ value: t.id, label: t.name }))}
+                  onChange={hook.setTemplateId}
+                  notFoundContent="Chưa có template"
+                />
+                <Button
+                  size="sm" variant="outline"
+                  disabled={!hook.templateId || hook.exporting}
+                  onClick={() => hook.handleExport('xlsx')}
+                >
+                  <FileSpreadsheet className="mr-1.5 h-4 w-4" />
+                  Excel
+                </Button>
+              </>
+            )}
+
+            {isDraft && (
+              <Button size="sm" variant="outline" onClick={hook.startEdit}>Sửa</Button>
+            )}
+            {isDraft && !hook.isNew && (
+              <Button size="sm" variant="success" onClick={() => hook.confirmMutation.mutate()} disabled={hook.confirmMutation.isPending}>
+                Confirm
+              </Button>
+            )}
+            {isConfirmed && (
+              <Button size="sm" disabled={allDone} onClick={() => hook.navigate(`/deliveries?quotation_id=${q!.id}`)}>
+                Tạo Delivery Order
+              </Button>
+            )}
+
+            {!hook.isNew && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="icon-sm" title="Thao tác khác">
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={hook.handlePdfPreview} disabled={hook.exporting}>
+                    <Eye className="mr-2 h-4 w-4" />
+                    Xem trước PDF
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => hook.cloneMutation.mutate()} disabled={hook.cloneMutation.isPending}>
+                    <Copy className="mr-2 h-4 w-4" />
+                    Nhân bản
+                  </DropdownMenuItem>
+                  {isConfirmed && (
+                    <DropdownMenuItem onClick={() => hook.unconfirmMutation.mutate()} disabled={hook.unconfirmMutation.isPending}>
+                      <RefreshCw className="mr-2 h-4 w-4" />
+                      Về Draft
+                    </DropdownMenuItem>
+                  )}
+                  {isConfirmed && (
+                    <DropdownMenuItem onClick={() => setExpireOpen(true)}>
+                      Đánh dấu hết hạn
+                    </DropdownMenuItem>
+                  )}
+                  {!['cancelled', 'expired'].includes(q?.status ?? '') && (
+                    <DropdownMenuItem
+                      className="text-destructive focus:text-destructive"
+                      onClick={() => setCancelOpen(true)}
+                    >
+                      Huỷ báo giá
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </>
+        )}
+      </div>
+    </div>,
+  )
+
+  if (!hook.isNew && (hook.isLoading || !hook.data)) return <Skeleton active style={{ padding: 20 }} />
 
   return (
-    <div style={{ padding: '10px 20px 40px', display: 'flex', flexDirection: 'column', gap: 28 }}>
-      <PageHeader
-        title={
-          <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => hook.navigate('/quotations')} style={{ padding: '0 4px' }} />
-            <span style={{ color: 'var(--text-3)', fontSize: 14, cursor: 'pointer' }} onClick={() => hook.navigate('/quotations')}>Báo giá</span>
-            <span style={{ color: 'var(--text-3)', fontSize: 14 }}>/</span>
-            <span style={{ fontSize: 14 }}>{hook.isNew ? 'Tạo mới' : q?.code}</span>
-            {!hook.isNew && q && <StatusBadge status={q.status} />}
-          </span>
-        }
-        actions={
-          hook.isEditing ? (
-            <>
-              <Button onClick={hook.cancelEdit}>Huỷ</Button>
-              <Button type="primary" loading={hook.savePending} onClick={hook.saveEdit}>
-                {hook.isNew ? 'Tạo báo giá' : 'Lưu'}
-              </Button>
-            </>
-          ) : (
-            <>
-              {exportActions}
-              {!hook.isNew && (
-                <Button icon={<CopyOutlined />} loading={hook.cloneMutation.isPending} onClick={() => hook.cloneMutation.mutate()}>
-                  Nhân bản
-                </Button>
-              )}
-              {isDraft && <Button icon={<EditOutlined />} onClick={hook.startEdit}>Sửa</Button>}
-              {isDraft && !hook.isNew && (
-                <Button type="primary" loading={hook.confirmMutation.isPending} onClick={() => hook.confirmMutation.mutate()}>
-                  Confirm
-                </Button>
-              )}
-              {isConfirmed && (
-                <>
-                  <Button loading={hook.unconfirmMutation.isPending} onClick={() => hook.unconfirmMutation.mutate()}>Về Draft</Button>
-                  <Popconfirm title="Đánh dấu hết hạn?" onConfirm={() => hook.expireMutation.mutate()}>
-                    <Button>Hết hạn</Button>
-                  </Popconfirm>
-                  <Button type="primary" disabled={allDone} onClick={() => hook.navigate(`/deliveries?quotation_id=${q!.id}`)}>
-                    Tạo Delivery Order
-                  </Button>
-                </>
-              )}
-              {!hook.isNew && !['cancelled', 'expired'].includes(q?.status ?? '') && (
-                <Popconfirm title="Huỷ báo giá này?" onConfirm={() => hook.cancelMutation.mutate()}>
-                  <Button danger loading={hook.cancelMutation.isPending}>Huỷ</Button>
-                </Popconfirm>
-              )}
-            </>
-          )
-        }
-      />
-
+    <div className="theme-2a" style={{ padding: '10px 20px 40px', display: 'flex', flexDirection: 'column', gap: 28 }}>
       <Form form={hook.form} layout="vertical"
         style={{ display: 'flex', flexDirection: 'column', gap: 28 }}
         initialValues={hook.isNew ? { sections: [{ name: 'Nhóm 1', line_items: [{}] }] } : undefined}>
 
         {/* ── Thông tin báo giá ── */}
         <SectionCard title="Thông tin báo giá">
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '22px 28px' }}>
+          {/* Tỷ lệ cột lệch (1.4/1.1/0.8) thay vì chia đều 3 cột bằng nhau — cột 1 (Khách
+              hàng/Bitrix Deal ID/Địa điểm) cần rộng vì chứa tên công ty/địa chỉ dài, cột 3
+              (Hiệu lực/Ngày báo giá/Hết hạn) chỉ cần đủ chỗ cho 1 con số/ngày ngắn. */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1.1fr 0.8fr', gap: '22px 28px' }}>
 
-            {/* Row 1: Bitrix ID+Fetch | Số báo giá | Ngày báo giá */}
-            <div>
+            {/* Row 1: Bitrix ID+Fetch | Số báo giá | Ngày báo giá — cả 3 field này chỉ chứa
+                giá trị ngắn (ID, mã số, ngày) nên giới hạn maxWidth thay vì kéo giãn hết cỡ
+                cột (cột 1.4fr vốn để dành cho Khách hàng/Địa điểm ở các hàng dưới, không phải
+                Bitrix Deal ID). */}
+            <div style={{ maxWidth: fieldTier.long }}>
               <div style={labelStyle}>Bitrix Deal ID</div>
               <div style={{ display: 'flex', gap: 6 }}>
                 <Input
@@ -260,7 +300,7 @@ export default function QuotationDetailPage() {
                   disabled={!hook.isEditing}
                 />
                 {hook.isEditing && (
-                  <Button icon={<SyncOutlined />} loading={hook.bitrixLoading}
+                  <AntButton icon={<SyncOutlined />} loading={hook.bitrixLoading}
                     onClick={hook.fetchFromBitrix} disabled={!hook.dealId.trim()}
                     title="Fetch & điền form từ Bitrix" />
                 )}
@@ -269,17 +309,21 @@ export default function QuotationDetailPage() {
               {hook.bitrixInfo  && <div style={{ color: 'var(--s-completed-color)', fontSize: 12, marginTop: 4 }}>{hook.bitrixInfo}</div>}
             </div>
 
-            <Field editing={hook.isEditing} label="Số báo giá">
-              {hook.isEditing
-                ? <Form.Item name="quote_number" noStyle><Input style={{ width: '100%' }} placeholder="VD: BG-2026-001" /></Form.Item>
-                : <Val v={q?.quote_number} />}
-            </Field>
+            <div style={{ maxWidth: fieldTier.long }}>
+              <Field editing={hook.isEditing} label="Số báo giá">
+                {hook.isEditing
+                  ? <Form.Item name="quote_number" noStyle><Input style={{ width: '100%' }} placeholder="VD: BG-2026-001" /></Form.Item>
+                  : <Val v={q?.quote_number} />}
+              </Field>
+            </div>
 
-            <Field editing={hook.isEditing} label="Ngày báo giá">
-              {hook.isEditing
-                ? <Form.Item name="quote_date" noStyle><DatePicker format="DD/MM/YYYY" style={{ width: '100%' }} /></Form.Item>
-                : <Val v={q?.quote_date ? new Date(q.quote_date).toLocaleDateString('vi-VN') : undefined} />}
-            </Field>
+            <div style={{ maxWidth: fieldTier.medium }}>
+              <Field editing={hook.isEditing} label="Ngày báo giá">
+                {hook.isEditing
+                  ? <Form.Item name="quote_date" noStyle><DatePicker format="DD/MM/YYYY" style={{ width: '100%' }} /></Form.Item>
+                  : <Val v={q?.quote_date ? new Date(q.quote_date).toLocaleDateString('vi-VN') : undefined} />}
+              </Field>
+            </div>
 
             {/* Row 2: Khách hàng | Người liên hệ | Hiệu lực */}
             <Field editing={hook.isEditing} label="Khách hàng">
@@ -305,11 +349,13 @@ export default function QuotationDetailPage() {
                 : <Val v={q?.contact_name} />}
             </Field>
 
-            <Field editing={hook.isEditing} label="Hiệu lực (ngày)">
-              {hook.isEditing
-                ? <Form.Item name="valid_days" noStyle><InputNumber controls={false} min={1} style={{ width: '100%' }} /></Form.Item>
-                : <Val v={q?.valid_days != null ? `${q.valid_days} ngày` : undefined} />}
-            </Field>
+            <div style={{ maxWidth: fieldTier.short }}>
+              <Field editing={hook.isEditing} label="Hiệu lực (ngày)">
+                {hook.isEditing
+                  ? <Form.Item name="valid_days" noStyle><InputNumber controls={false} min={1} style={{ width: '100%' }} /></Form.Item>
+                  : <Val v={q?.valid_days != null ? `${q.valid_days} ngày` : undefined} />}
+              </Field>
+            </div>
 
             {/* Row 3: Tên dự án (full width) */}
             <div style={{ gridColumn: '1 / -1' }}>
@@ -395,9 +441,9 @@ export default function QuotationDetailPage() {
                   {fields.map(({ key, name }, idx) => (
                     <QuotationSectionItem key={key} form={hook.form} name={name} sectionIndex={idx} remove={() => remove(name)} />
                   ))}
-                  <Button style={{ marginTop: 8 }} onClick={() => add({ name: `Nhóm ${fields.length + 1}`, line_items: [{}] })}>
+                  <AntButton style={{ marginTop: 8 }} onClick={() => add({ name: `Nhóm ${fields.length + 1}`, line_items: [{}] })}>
                     + Thêm nhóm
-                  </Button>
+                  </AntButton>
                 </>
               )}
             </Form.List>
@@ -483,6 +529,41 @@ export default function QuotationDetailPage() {
           <ActivityTimeline objectType="quotation" objectId={id} />
         </div>
       )}
+
+      {/* Đánh dấu hết hạn confirm */}
+      <AlertDialog open={expireOpen} onOpenChange={setExpireOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Đánh dấu hết hạn?</AlertDialogTitle>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Không</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => { hook.expireMutation.mutate(); setExpireOpen(false) }}
+            >
+              Đánh dấu hết hạn
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Huỷ báo giá confirm */}
+      <AlertDialog open={cancelOpen} onOpenChange={setCancelOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Huỷ báo giá này?</AlertDialogTitle>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Không</AlertDialogCancel>
+            <AlertDialogAction
+              variant="danger"
+              onClick={() => { hook.cancelMutation.mutate(); setCancelOpen(false) }}
+            >
+              Huỷ báo giá
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

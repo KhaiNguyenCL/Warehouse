@@ -3,13 +3,11 @@ import { useAuthStore } from './store/auth'
 import AppLayout from './layout/AppLayout'
 import LoginPage from './pages/LoginPage'
 import CompaniesPage from './pages/CompaniesPage'
-import CompanyDetailPage from './pages/CompanyDetailPage'
 import CategoriesPage from './pages/CategoriesPage'
 import BrandsPage from './pages/BrandsPage'
 import ProductsPage from './pages/ProductsPage'
 import ProductDetailPage from './pages/ProductDetailPage'
 import VariantDetailPage from './pages/VariantDetailPage'
-import VariantCreatePage from './pages/VariantCreatePage'
 import WarehousesPage from './pages/WarehousesPage'
 import PurchaseOrdersPage from './pages/PurchaseOrdersPage'
 import PurchaseOrderCreatePage from './pages/PurchaseOrderCreatePage'
@@ -38,6 +36,7 @@ import ReportsPage from './pages/ReportsPage'
 import ActionsPage from './pages/ActionsPage'
 import TemplatesPage from './pages/TemplatesPage'
 import SettingsBitrixPage from './pages/SettingsBitrixPage'
+import NotFoundPage from './pages/NotFoundPage'
 
 function ProtectedRoute() {
   const token = useAuthStore((s) => s.token)
@@ -56,12 +55,11 @@ const routes: RouteObject[] = [
           { path: '/', element: <Navigate to="/actions" replace /> },
           { path: '/actions', element: <ActionsPage /> },
           { path: '/companies', element: <CompaniesPage /> },
-          { path: '/companies/:id', element: <CompanyDetailPage /> },
           { path: '/categories', element: <CategoriesPage /> },
           { path: '/brands', element: <BrandsPage /> },
           { path: '/products', element: <ProductsPage /> },
           { path: '/products/:id', element: <ProductDetailPage /> },
-          { path: '/products/:productId/variants/create', element: <VariantCreatePage /> },
+          { path: '/products/:productId/variants/create', element: <VariantDetailPage /> },
           { path: '/products/:productId/variants/:variantId', element: <VariantDetailPage /> },
           { path: '/warehouses', element: <WarehousesPage /> },
           { path: '/purchase-orders', element: <PurchaseOrdersPage /> },
@@ -93,6 +91,7 @@ const routes: RouteObject[] = [
           { path: '/settings/roles', element: <RolesPage /> },
           { path: '/settings/groups', element: <GroupsPage /> },
           { path: '/settings/users', element: <UsersPage /> },
+          { path: '*', element: <NotFoundPage /> },
         ],
       },
     ],

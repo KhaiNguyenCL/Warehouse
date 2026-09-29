@@ -117,8 +117,8 @@ export class CompanyRepository {
 
   // ─── Contacts ──────────────────────────────────────────────────────────
 
-  async findAllContacts(query: { search?: string; company_id?: string; page?: number; limit?: number }) {
-    const { search, company_id, page = 1, limit = 50 } = query
+  async findAllContacts(query: { search?: string; company_id?: string; is_primary?: boolean; page?: number; limit?: number }) {
+    const { search, company_id, is_primary, page = 1, limit = 50 } = query
     const offset = (page - 1) * limit
 
     const base = this.db('contacts as c')
@@ -134,6 +134,7 @@ export class CompanyRepository {
       })
     }
     if (company_id) base.where('cc.company_id', company_id)
+    if (is_primary !== undefined) base.where('cc.is_primary', is_primary)
 
     // Khi không filter theo company_id, 1 contact liên kết nhiều công ty sẽ xuất hiện
     // nhiều lần (do JOIN contact_companies). Dùng DISTINCT ON để dedup — ưu tiên row
@@ -165,6 +166,7 @@ export class CompanyRepository {
                       .orWhereILike('co.name', `%${search}%`)
                   })
                 }
+                if (is_primary !== undefined) q.where('cc.is_primary', is_primary)
               }),
           )
           .from('ranked')
@@ -220,13 +222,16 @@ export class CompanyRepository {
     return { ...contact, is_primary: is_primary ?? false }
   }
 
-  async updateContact(id: string, data: UpdateContactBody, trx: Knex.Transaction) {
+  // is_primary là thuộc tính của LIÊN KẾT contact-company (bảng contact_companies là N-N
+  // thật — 1 contact có thể gắn nhiều company), nên PHẢI lọc thêm company_id khi update —
+  // thiếu điều kiện này sẽ set is_primary cho MỌI liên kết của contact đó, kể cả ở company khác.
+  async updateContact(id: string, companyId: string, data: UpdateContactBody, trx: Knex.Transaction) {
     const { is_primary, ...contactData } = data
     if (Object.keys(contactData).length > 0) {
       await trx('contacts').where({ id }).update(contactData)
     }
     if (is_primary !== undefined) {
-      await trx('contact_companies').where({ contact_id: id }).update({ is_primary })
+      await trx('contact_companies').where({ contact_id: id, company_id: companyId }).update({ is_primary })
     }
     return trx('contacts').where({ id }).first()
   }

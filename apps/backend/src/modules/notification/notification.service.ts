@@ -24,7 +24,11 @@ export class NotificationService {
     await this.repo.markAllRead(userId)
   }
 
-  // Tạo thông báo cho tất cả user có permission key nhất định
+  // Tạo thông báo cho tất cả user có permission key nhất định. Nhận `db` riêng (không
+  // dùng this.db) vì caller luôn gọi qua getNotificationService(this.db).notifyByPermission
+  // (this.db, ...) NGOÀI transaction chính (xem receipt.service.ts::complete()) — cố ý để
+  // lỗi tạo notification không rollback nghiệp vụ chính; tham số `trx` chỉ dùng khi thật sự
+  // cần ghi trong cùng transaction (hiếm, hầu hết callsite truyền `db` = app.db, không phải trx).
   async notifyByPermission(
     db: Knex,
     permissionKey: string,

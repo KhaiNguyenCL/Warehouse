@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quản lí kho — Tồn kho &amp; chi tiết SKU</title>
+<link rel="stylesheet" href="broadsheet.css">
+<link rel="stylesheet" href="app.css">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/duotone/style.css">
+</head>
+<body>
+<main class="screens">
+
+    <div style="width: 1440px; background: var(--color-bg); box-shadow: var(--shadow-md)">
+      <div style="display: flex; align-items: center; justify-content: space-between; padding: 0 var(--space-6); height: 56px; border-bottom: 1px solid var(--color-divider)">
+        <div style="display: flex; align-items: center; gap: var(--space-6)">
+          <span style="font-family: var(--font-heading); font-weight: 600; font-size: 16px; letter-spacing: 0.14em; text-transform: uppercase">Kho Việt</span>
+          <nav style="display: flex; gap: var(--space-4); font-size: 14px">
+            <span style="color: var(--color-neutral-700)">Tổng quan</span>
+            <span style="font-weight: 600; box-shadow: inset 0 -2px 0 var(--color-accent)">Tồn kho</span>
+            <span style="color: var(--color-neutral-700)">Nhập kho</span>
+            <span style="color: var(--color-neutral-700)">Xuất kho</span>
+            <span style="color: var(--color-neutral-700)">Kiểm kê</span>
+            <span style="color: var(--color-neutral-700)">Nhà cung cấp</span>
+          </nav>
+        </div>
+        <div style="display: flex; align-items: center; gap: var(--space-3); font-size: 13px; color: var(--color-neutral-700)">
+          <span>Kho Tân Bình</span>
+          <span style="width: 28px; height: 28px; border-radius: 50%; background: var(--color-neutral-300); display: inline-flex; align-items: center; justify-content: center; font-size: 12px; color: var(--color-text)">TN</span>
+        </div>
+      </div>
+
+      <div style="padding: var(--space-6) var(--space-6) var(--space-4)">
+        <div style="display: flex; align-items: flex-end; justify-content: space-between; gap: var(--space-4)">
+          <div>
+            <h1 style="margin: 0; font-family: var(--font-heading); font-weight: 600; font-size: 34px; letter-spacing: -0.015em">Tồn kho</h1>
+            <p style="margin: 6px 0 0; font-size: 14px; color: var(--color-neutral-700)">1.284 mã hàng · giá trị tồn 3,42 tỉ ₫ · cập nhật 09:12 hôm nay</p>
+          </div>
+          <div style="display: flex; align-items: center; gap: var(--space-2)">
+            <button style="display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 14px; font-size: 14px; font-family: var(--font-heading); font-weight: 600; color: var(--color-text); background: transparent; border: 1px solid var(--color-divider); border-radius: var(--radius-md); cursor: pointer" class="hv1"><i class="ph-duotone ph-barcode" style="font-size: 17px"></i>Quét mã</button>
+            <button style="display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 14px; font-size: 14px; font-family: var(--font-heading); font-weight: 600; color: var(--color-text); background: transparent; border: 1px solid var(--color-divider); border-radius: var(--radius-md); cursor: pointer" class="hv2"><i class="ph-duotone ph-tray-arrow-down" style="font-size: 17px"></i>Nhập kho</button>
+            <button style="display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 14px; font-size: 14px; font-family: var(--font-heading); font-weight: 600; color: var(--color-text); background: transparent; border: 1px solid var(--color-divider); border-radius: var(--radius-md); cursor: pointer" class="hv3"><i class="ph-duotone ph-tray-arrow-up" style="font-size: 17px"></i>Xuất kho</button>
+            <button style="display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 16px; font-size: 14px; font-family: var(--font-heading); font-weight: 600; color: var(--color-bg); background: var(--color-accent); border: 1px solid transparent; border-radius: var(--radius-md); cursor: pointer" class="hv4"><i class="ph-duotone ph-plus" style="font-size: 17px"></i>Thêm mã hàng</button>
+          </div>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-6)">
+          <div style="position: relative; width: 320px">
+            <i class="ph-duotone ph-magnifying-glass" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); font-size: 17px; color: var(--color-neutral-600)"></i>
+            <input placeholder="Tìm mã SKU, tên hàng, số lô…" style="width: 100%; height: 36px; padding: 0 10px 0 34px; font-size: 14px; color: var(--color-text); background: var(--color-surface); border: 1px solid var(--color-divider); border-radius: var(--radius-md); box-sizing: border-box">
+          </div>
+          <select style="height: 36px; padding: 0 10px; font-size: 14px; color: var(--color-text); background: var(--color-surface); border: 1px solid var(--color-divider); border-radius: var(--radius-md)">
+            <option>Danh mục: tất cả</option>
+            <option>Bao bì</option>
+            <option>Vật tư đóng gói</option>
+          </select>
+          <select style="height: 36px; padding: 0 10px; font-size: 14px; color: var(--color-text); background: var(--color-surface); border: 1px solid var(--color-divider); border-radius: var(--radius-md)">
+            <option>Trạng thái: tất cả</option>
+            <option>Sắp hết</option>
+            <option>Hết hàng</option>
+            <option>Cận hạn</option>
+          </select>
+          <select style="height: 36px; padding: 0 10px; font-size: 14px; color: var(--color-text); background: var(--color-surface); border: 1px solid var(--color-divider); border-radius: var(--radius-md)">
+            <option>Vị trí: toàn kho</option>
+            <option>Kệ A</option>
+            <option>Kệ B</option>
+          </select>
+          <span style="display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 10px; font-size: 13px; background: var(--color-accent-100); color: var(--color-accent-800); border-radius: var(--radius-md)">Lô sắp hết hạn ≤ 60 ngày <i class="ph-duotone ph-x" style="font-size: 14px"></i></span>
+          <div style="flex: 1"></div>
+          <button style="display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 12px; font-size: 14px; color: var(--color-accent-700); background: transparent; border: none; border-radius: var(--radius-md); cursor: pointer" class="hv5"><i class="ph-duotone ph-columns" style="font-size: 17px"></i>Cột</button>
+          <button style="display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 12px; font-size: 14px; color: var(--color-accent-700); background: transparent; border: none; border-radius: var(--radius-md); cursor: pointer" class="hv6"><i class="ph-duotone ph-file-xls" style="font-size: 17px"></i>Xuất Excel</button>
+        </div>
+      </div>
+
+      
+        <div style="display: flex; align-items: center; gap: var(--space-4); margin: 0 var(--space-6); padding: 10px var(--space-3); background: var(--color-accent-100); border-radius: var(--radius-md); font-size: 14px">
+          <span style="font-weight: 600">Đã chọn 3 dòng</span>
+          <span style="width: 1px; height: 18px; background: color-mix(in srgb, var(--color-text) 18%, transparent)"></span>
+          <a href="#2a">Nhập kho nhanh</a>
+          <a href="#2a">Xuất kho nhanh</a>
+          <a href="#2a">In tem</a>
+          <a href="#2a">Đổi vị trí</a>
+          <div style="flex: 1"></div>
+          <a href="#2a" style="color: var(--color-neutral-700)">Bỏ chọn</a>
+        </div>
+      
+
+      <div style="padding: var(--space-3) var(--space-6) var(--space-6)">
+        <div style="--rowpad: 11px 10px">
+        <table style="width: 100%; border-collapse: collapse; font-size: 14px">
+          <thead>
+            <tr>
+              <th style="width: 34px; padding: 10px; border-bottom: 1px solid var(--color-divider)"><input type="checkbox" style="accent-color: var(--color-accent)"></th>
+              <th style="text-align: left; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: color-mix(in srgb, var(--color-text) 60%, transparent); padding: 10px; border-bottom: 1px solid var(--color-divider); width: 130px">Mã SKU <i class="ph-duotone ph-caret-up" style="font-size: 12px; color: var(--color-accent)"></i></th>
+              <th style="text-align: left; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: color-mix(in srgb, var(--color-text) 60%, transparent); padding: 10px; border-bottom: 1px solid var(--color-divider)">Tên hàng</th>
+              <th style="text-align: left; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: color-mix(in srgb, var(--color-text) 60%, transparent); padding: 10px; border-bottom: 1px solid var(--color-divider); width: 150px">Danh mục</th>
+              <th style="text-align: right; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: color-mix(in srgb, var(--color-text) 60%, transparent); padding: 10px; border-bottom: 1px solid var(--color-divider); width: 130px">Tồn / tối thiểu</th>
+              <th style="text-align: right; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: color-mix(in srgb, var(--color-text) 60%, transparent); padding: 10px; border-bottom: 1px solid var(--color-divider); width: 110px">Giá nhập</th>
+              <th style="text-align: right; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: color-mix(in srgb, var(--color-text) 60%, transparent); padding: 10px; border-bottom: 1px solid var(--color-divider); width: 130px">Giá trị tồn</th>
+              <th style="text-align: left; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: color-mix(in srgb, var(--color-text) 60%, transparent); padding: 10px; border-bottom: 1px solid var(--color-divider); width: 150px">Lô / hạn dùng</th>
+              <th style="text-align: left; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: color-mix(in srgb, var(--color-text) 60%, transparent); padding: 10px; border-bottom: 1px solid var(--color-divider); width: 110px">Trạng thái</th>
+              <th style="width: 40px; padding: 10px; border-bottom: 1px solid var(--color-divider)"></th>
+            </tr>
+          </thead>
+          <tbody>
+            
+              <tr style="border-bottom: 1px solid color-mix(in srgb, var(--color-text) 8%, transparent)" class="hv7">
+                <td style="padding: var(--rowpad, 11px 10px)"><input type="checkbox" style="accent-color: var(--color-accent)"></td>
+                <td style="padding: var(--rowpad, 11px 10px); font-variant-numeric: tabular-nums; letter-spacing: 0.01em">SKU-1042</td>
+                <td style="padding: var(--rowpad, 11px 10px)">
+                  <div style="font-weight: 600">Thùng carton 5 lớp 40×30</div>
+                  <div style="font-size: 12px; color: var(--color-neutral-700); margin-top: 2px">Kệ A2-03 · thùng</div>
+                </td>
+                <td style="padding: var(--rowpad, 11px 10px); color: var(--color-neutral-800)">Bao bì</td>
+                <td style="padding: var(--rowpad, 11px 10px); text-align: right; font-variant-numeric: tabular-nums">
+                  <span style="font-weight: 600">1.240</span>
+                  <span style="color: var(--color-neutral-600)"> / 300</span>
+                </td>
+                <td style="padding: var(--rowpad, 11px 10px); text-align: right; font-variant-numeric: tabular-nums">12.500</td>
+                <td style="padding: var(--rowpad, 11px 10px); text-align: right; font-variant-numeric: tabular-nums; font-weight: 600">15.500.000</td>
+                <td style="padding: var(--rowpad, 11px 10px); font-variant-numeric: tabular-nums">
+                  <div>L-2409A</div>
+                  <div style="font-size: 12px; color: var(--color-neutral-700); margin-top: 2px">không hạn</div>
+                </td>
+                <td style="padding: var(--rowpad, 11px 10px)">
+                  <span style="display: inline-flex; align-items: center; font-size: 11px; letter-spacing: 0.02em; padding: 3px 10px; border-radius: 1.5px; white-space: nowrap; background: var(--color-neutral-200); color: var(--color-neutral-800); border: 1px solid transparent">Đủ tồn</span>
+                </td>
+                <td style="padding: var(--rowpad, 11px 10px); text-align: right; color: var(--color-neutral-600)"><i class="ph-duotone ph-dots-three-vertical" style="font-size: 18px"></i></td>
+              </tr>
+            
+              <tr style="border-bottom: 1px solid color-mix(in srgb, var(--color-text) 8%, transparent)" class="hv8">
+                <td style="padding: var(--rowpad, 11px 10px)"><input type="checkbox" style="accent-color: var(--color-accent)"></td>
+                <td style="padding: var(--rowpad, 11px 10px); font-variant-numeric: tabular-nums; letter-spacing: 0.01em">SKU-2087</td>
+                <td style="padding: var(--rowpad, 11px 10px)">
+                  <div style="font-weight: 600">Băng keo trong 48mm</div>
+                  <div style="font-size: 12px; color: var(--color-neutral-700); margin-top: 2px">Kệ B1-07 · cuộn</div>
+                </td>
+                <td style="padding: var(--rowpad, 11px 10px); color: var(--color-neutral-800)">Vật tư đóng gói</td>
+                <td style="padding: var(--rowpad, 11px 10px); text-align: right; font-variant-numeric: tabular-nums">
+                  <span style="font-weight: 600">86</span>
+                  <span style="color: var(--color-neutral-600)"> / 200</span>
+                </td>
+                <td style="padding: var(--rowpad, 11px 10px); text-align: right; font-variant-numeric: tabular-nums">7.200</td>
+                <td style="padding: var(--rowpad, 11px 10px); text-align: right; font-variant-numeric: tabular-nums; font-weight: 600">619.200</td>
+                <td style="padding: var(--rowpad, 11px 10px); font-variant-numeric: tabular-nums">
+                  <div>L-2408C</div>
+                  <div style="font-size: 12px; color: var(--color-neutral-700); margin-top: 2px">không hạn</div>
+                </td>
+                <td style="padding: var(--rowpad, 11px 10px)">
+                  <span style="display: inline-flex; align-items: center; font-size: 11px; letter-spacing: 0.02em; padding: 3px 10px; border-radius: 1.5px; white-space: nowrap; background: var(--color-accent-2-100); color: var(--color-accent-2-700); border: 1px solid transparent">Sắp hết</span>
+                </td>
+                <td style="padding: var(--rowpad, 11px 10px); text-align: right; color: var(--color-neutral-600)"><i class="ph-duotone ph-dots-three-vertical" style="font-size: 18px"></i></td>
+              </tr>
+            
+              <tr style="border-bottom: 1px solid color-mix(in srgb, var(--color-text) 8%, transparent)" class="hv9">
+                <td style="padding: var(--rowpad, 11px 10px)"><input type="checkbox" style="accent-color: var(--color-accent)"></td>
+                <td style="padding: var(--rowpad, 11px 10px); font-variant-numeric: tabular-nums; letter-spacing: 0.01em">SKU-3310</td>
+                <td style="padding: var(--rowpad, 11px 10px)">
+                  <div style="font-weight: 600">Màng PE quấn pallet 500mm</div>
+                  <div style="font-size: 12px; color: var(--color-neutral-700); margin-top: 2px">Kệ B2-01 · cuộn</div>
+                </td>
+                <td style="padding: var(--rowpad, 11px 10px); color: var(--color-neutral-800)">Vật tư đóng gói</td>
+                <td style="padding: var(--rowpad, 11px 10px); text-align: right; font-variant-numeric: tabular-nums">
+                  <span style="font-weight: 600">0</span>
+                  <span style="color: var(--color-neutral-600)"> / 60</span>
+                </td>
+                <td style="padding: var(--rowpad, 11px 10px); text-align: right; font-variant-numeric: tabular-nums">48.000</td>
+                <td style="padding: var(--rowpad, 11px 10px); text-align: right; font-variant-numeric: tabular-nums; font-weight: 600">0</td>
+                <td style="padding: var(--rowpad, 11px 10px); font-variant-numeric: tabular-nums">
+                  <div>—</div>
+                  <div style="font-size: 12px; color: var(--color-neutral-700); margin-top: 2px">—</div>
+                </td>
+                <td style="padding: var(--rowpad, 11px 10px)">
+                  <span style="display: inline-flex; align-items: center; font-size: 11px; letter-spacing: 0.02em; padding: 3px 10px; border-radius: 1.5px; white-space: nowrap; background: var(--color-accent-2-600); color: var(--color-bg); border: 1px solid transparent">Hết hàng</span>
+                </td>
+                <td style="padding: var(--rowpad, 11px 10px); text-align: right; color: var(--color-neutral-600)"><i class="ph-duotone ph-dots-three-vertical" style="font-size: 18px"></i></td>
+              </tr>
+            
+              <tr style="border-bottom: 1px solid color-mix(in srgb, var(--color-text) 8%, transparent)" class="hv10">
+                <td style="padding: var(--rowpad, 11px 10px)"><input type="checkbox" style="accent-color: var(--color-accent)"></td>
+                <td style="padding: var(--rowpad, 11px 10px); font-variant-numeric: tabular-nums; letter-spacing: 0.01em">SKU-4521</td>
+                <td style="padding: var(--rowpad, 11px 10px)">
+                  <div style="font-weight: 600">Dầu nhớt công nghiệp SAE-40</div>
+                  <div style="font-size: 12px; color: var(--color-neutral-700); margin-top: 2px">Kho phụ C · can</div>
+                </td>
+                <td style="padding: var(--rowpad, 11px 10px); color: var(--color-neutral-800)">Hoá chất</td>
+                <td style="padding: var(--rowpad, 11px 10px); text-align: right; font-variant-numeric: tabular-nums">
+                  <span style="font-weight: 600">312</span>
+                  <span style="color: var(--color-neutral-600)"> / 80</span>
+                </td>
+                <td style="padding: var(--rowpad, 11px 10px); text-align: right; font-variant-numeric: tabular-nums">210.000</td>
+                <td style="padding: var(--rowpad, 11px 10px); text-align: right; font-variant-numeric: tabular-nums; font-weight: 600">65.520.000</td>
+                <td style="padding: var(--rowpad, 11px 10px); font-variant-numeric: tabular-nums">
+                  <div>L-2312B</div>
+                  <div style="font-size: 12px; color: var(--color-neutral-700); margin-top: 2px">HSD 30.11.2026</div>
+                </td>
+                <td style="padding: var(--rowpad, 11px 10px)">
+                  <span style="display: inline-flex; align-items: center; font-size: 11px; letter-spacing: 0.02em; padding: 3px 10px; border-radius: 1.5px; white-space: nowrap; background: transparent; color: var(--color-accent-2-700); border: 1px solid var(--color-accent-2-500)">Cận hạn</span>
+                </td>
+                <td style="padding: var(--rowpad, 11px 10px); text-align: right; color: var(--color-neutral-600)"><i class="ph-duotone ph-dots-three-vertical" style="font-size: 18px"></i></td>
+              </tr>
+            
+              <tr style="border-bottom: 1px solid color-mix(in srgb, var(--color-text) 8%, transparent)" class="hv11">
+                <td style="padding: var(--rowpad, 11px 10px)"><input type="checkbox" style="accent-color: var(--color-accent)"></td>
+                <td style="padding: var(--rowpad, 11px 10px); font-variant-numeric: tabular-nums; letter-spacing: 0.01em">SKU-5098</td>
+                <td style="padding: var(--rowpad, 11px 10px)">
+                  <div style="font-weight: 600">Pallet nhựa 1100×1100</div>
+                  <div style="font-size: 12px; color: var(--color-neutral-700); margin-top: 2px">Sân D · cái</div>
+                </td>
+                <td style="padding: var(--rowpad, 11px 10px); color: var(--color-neutral-800)">Thiết bị kho</td>
+                <td style="padding: var(--rowpad, 11px 10px); text-align: right; font-variant-numeric: tabular-nums">
+                  <span style="font-weight: 600">148</span>
+                  <span style="color: var(--color-neutral-600)"> / 40</span>
+                </td>
+                <td style="padding: var(--rowpad, 11px 10px); text-align: right; font-variant-numeric: tabular-nums">385.000</td>
+                <td style="padding: var(--rowpad, 11px 10px); text-align: right; font-variant-numeric: tabular-nums; font-weight: 600">56.980.000</td>
+                <td style="padding: var(--rowpad, 11px 10px); font-variant-numeric: tabular-nums">
+                  <div>—</div>
+                  <div style="font-size: 12px; color: var(--color-neutral-700); margin-top: 2px">—</div>
+                </td>
+                <td style="padding: var(--rowpad, 11px 10px)">
+                  <span style="display: inline-flex; align-items: center; font-size: 11px; letter-spacing: 0.02em; padding: 3px 10px; border-radius: 1.5px; white-space: nowrap; background: var(--color-neutral-200); color: var(--color-neutral-800); border: 1px solid transparent">Đủ tồn</span>
+                </td>
+                <td style="padding: var(--rowpad, 11px 10px); text-align: right; color: var(--color-neutral-600)"><i class="ph-duotone ph-dots-three-vertical" style="font-size: 18px"></i></td>
+              </tr>
+            
+              <tr style="border-bottom: 1px solid color-mix(in srgb, var(--color-text) 8%, transparent)" class="hv12">
+                <td style="padding: var(--rowpad, 11px 10px)"><input type="checkbox" style="accent-color: var(--color-accent)"></td>
+                <td style="padding: var(--rowpad, 11px 10px); font-variant-numeric: tabular-nums; letter-spacing: 0.01em">SKU-6234</td>
+                <td style="padding: var(--rowpad, 11px 10px)">
+                  <div style="font-weight: 600">Găng tay bảo hộ phủ PU</div>
+                  <div style="font-size: 12px; color: var(--color-neutral-700); margin-top: 2px">Kệ A1-12 · đôi</div>
+                </td>
+                <td style="padding: var(--rowpad, 11px 10px); color: var(--color-neutral-800)">Bảo hộ</td>
+                <td style="padding: var(--rowpad, 11px 10px); text-align: right; font-variant-numeric: tabular-nums">
+                  <span style="font-weight: 600">940</span>
+                  <span style="color: var(--color-neutral-600)"> / 250</span>
+                </td>
+                <td style="padding: var(--rowpad, 11px 10px); text-align: right; font-variant-numeric: tabular-nums">15.800</td>
+                <td style="padding: var(--rowpad, 11px 10px); text-align: right; font-variant-numeric: tabular-nums; font-weight: 600">14.852.000</td>
+                <td style="padding: var(--rowpad, 11px 10px); font-variant-numeric: tabular-nums">
+                  <div>L-2405A</div>
+                  <div style="font-size: 12px; color: var(--color-neutral-700); margin-top: 2px">HSD 12.10.2026</div>
+                </td>
+                <td style="padding: var(--rowpad, 11px 10px)">
+                  <span style="display: inline-flex; align-items: center; font-size: 11px; letter-spacing: 0.02em; padding: 3px 10px; border-radius: 1.5px; white-space: nowrap; background: transparent; color: var(--color-accent-2-700); border: 1px solid var(--color-accent-2-500)">Cận hạn</span>
+                </td>
+                <td style="padding: var(--rowpad, 11px 10px); text-align: right; color: var(--color-neutral-600)"><i class="ph-duotone ph-dots-three-vertical" style="font-size: 18px"></i></td>
+              </tr>
+            
+              <tr style="border-bottom: 1px solid color-mix(in srgb, var(--color-text) 8%, transparent)" class="hv13">
+                <td style="padding: var(--rowpad, 11px 10px)"><input type="checkbox" style="accent-color: var(--color-accent)"></td>
+                <td style="padding: var(--rowpad, 11px 10px); font-variant-numeric: tabular-nums; letter-spacing: 0.01em">SKU-7411</td>
+                <td style="padding: var(--rowpad, 11px 10px)">
+                  <div style="font-weight: 600">Nhãn decal 100×150</div>
+                  <div style="font-size: 12px; color: var(--color-neutral-700); margin-top: 2px">Kệ A3-05 · cuộn</div>
+                </td>
+                <td style="padding: var(--rowpad, 11px 10px); color: var(--color-neutral-800)">Bao bì</td>
+                <td style="padding: var(--rowpad, 11px 10px); text-align: right; font-variant-numeric: tabular-nums">
+                  <span style="font-weight: 600">54</span>
+                  <span style="color: var(--color-neutral-600)"> / 120</span>
+                </td>
+                <td style="padding: var(--rowpad, 11px 10px); text-align: right; font-variant-numeric: tabular-nums">96.000</td>
+                <td style="padding: var(--rowpad, 11px 10px); text-align: right; font-variant-numeric: tabular-nums; font-weight: 600">5.184.000</td>
+                <td style="padding: var(--rowpad, 11px 10px); font-variant-numeric: tabular-nums">
+                  <div>L-2409B</div>
+                  <div style="font-size: 12px; color: var(--color-neutral-700); margin-top: 2px">không hạn</div>
+                </td>
+                <td style="padding: var(--rowpad, 11px 10px)">
+                  <span style="display: inline-flex; align-items: center; font-size: 11px; letter-spacing: 0.02em; padding: 3px 10px; border-radius: 1.5px; white-space: nowrap; background: var(--color-accent-2-100); color: var(--color-accent-2-700); border: 1px solid transparent">Sắp hết</span>
+                </td>
+                <td style="padding: var(--rowpad, 11px 10px); text-align: right; color: var(--color-neutral-600)"><i class="ph-duotone ph-dots-three-vertical" style="font-size: 18px"></i></td>
+              </tr>
+            
+              <tr style="border-bottom: 1px solid color-mix(in srgb, var(--color-text) 8%, transparent)" class="hv14">
+                <td style="padding: var(--rowpad, 11px 10px)"><input type="checkbox" style="accent-color: var(--color-accent)"></td>
+                <td style="padding: var(--rowpad, 11px 10px); font-variant-numeric: tabular-nums; letter-spacing: 0.01em">SKU-8320</td>
+                <td style="padding: var(--rowpad, 11px 10px)">
+                  <div style="font-weight: 600">Thùng nhựa đặc B12</div>
+                  <div style="font-size: 12px; color: var(--color-neutral-700); margin-top: 2px">Kệ C2-09 · cái</div>
+                </td>
+                <td style="padding: var(--rowpad, 11px 10px); color: var(--color-neutral-800)">Thiết bị kho</td>
+                <td style="padding: var(--rowpad, 11px 10px); text-align: right; font-variant-numeric: tabular-nums">
+                  <span style="font-weight: 600">620</span>
+                  <span style="color: var(--color-neutral-600)"> / 150</span>
+                </td>
+                <td style="padding: var(--rowpad, 11px 10px); text-align: right; font-variant-numeric: tabular-nums">92.000</td>
+                <td style="padding: var(--rowpad, 11px 10px); text-align: right; font-variant-numeric: tabular-nums; font-weight: 600">57.040.000</td>
+                <td style="padding: var(--rowpad, 11px 10px); font-variant-numeric: tabular-nums">
+                  <div>—</div>
+                  <div style="font-size: 12px; color: var(--color-neutral-700); margin-top: 2px">—</div>
+                </td>
+                <td style="padding: var(--rowpad, 11px 10px)">
+                  <span style="display: inline-flex; align-items: center; font-size: 11px; letter-spacing: 0.02em; padding: 3px 10px; border-radius: 1.5px; white-space: nowrap; background: var(--color-neutral-200); color: var(--color-neutral-800); border: 1px solid transparent">Đủ tồn</span>
+                </td>
+                <td style="padding: var(--rowpad, 11px 10px); text-align: right; color: var(--color-neutral-600)"><i class="ph-duotone ph-dots-three-vertical" style="font-size: 18px"></i></td>
+              </tr>
+            
+          </tbody>
+        </table>
+        </div>
+
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-top: var(--space-4); font-size: 13px; color: var(--color-neutral-700)">
+          <span>Hiển thị 1–8 trong 1.284 mã hàng</span>
+          <div style="display: flex; align-items: center; gap: var(--space-2)">
+            <select style="height: 32px; padding: 0 8px; font-size: 13px; background: var(--color-surface); border: 1px solid var(--color-divider); border-radius: var(--radius-md)">
+              <option>50 dòng / trang</option>
+              <option>100 dòng / trang</option>
+            </select>
+            <div style="display: flex; gap: 4px">
+              <span style="display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border: 1px solid var(--color-divider); border-radius: var(--radius-md)"><i class="ph-duotone ph-caret-left"></i></span>
+              <span style="display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; background: var(--color-accent); color: var(--color-bg); border-radius: var(--radius-md)">1</span>
+              <span style="display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border: 1px solid var(--color-divider); border-radius: var(--radius-md)">2</span>
+              <span style="display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border: 1px solid var(--color-divider); border-radius: var(--radius-md)">3</span>
+              <span style="display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border: 1px solid var(--color-divider); border-radius: var(--radius-md)"><i class="ph-duotone ph-caret-right"></i></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+<div style="width: 1440px; background: var(--color-bg); box-shadow: var(--shadow-md)">
+      <div style="display: flex; align-items: center; justify-content: space-between; padding: var(--space-4) var(--space-6); border-bottom: 1px solid var(--color-divider)">
+        <div>
+          <div style="font-size: 13px; color: var(--color-neutral-700)"><a href="#2a">Tồn kho</a> / SKU-2087</div>
+          <h1 style="margin: 4px 0 0; font-family: var(--font-heading); font-weight: 600; font-size: 28px; letter-spacing: -0.015em">Băng keo trong 48mm</h1>
+        </div>
+        <div style="display: flex; align-items: center; gap: var(--space-2)">
+          <button style="height: 36px; padding: 0 14px; font-size: 14px; font-family: var(--font-heading); font-weight: 600; background: transparent; color: var(--color-text); border: 1px solid var(--color-divider); border-radius: var(--radius-md); cursor: pointer" class="hv15">Huỷ</button>
+          <button style="height: 36px; padding: 0 18px; font-size: 14px; font-family: var(--font-heading); font-weight: 600; background: var(--color-accent); color: var(--color-bg); border: 1px solid transparent; border-radius: var(--radius-md); cursor: pointer" class="hv16">Lưu thay đổi</button>
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: var(--space-8); padding: var(--space-6) var(--space-6) var(--space-8)">
+        <div style="display: flex; flex-direction: column; gap: var(--space-6)">
+          <div style="display: flex; gap: var(--space-4); font-size: 14px; border-bottom: 1px solid var(--color-divider); padding-bottom: var(--space-2)">
+            <span style="font-weight: 600; box-shadow: inset 0 -2px 0 var(--color-accent); padding-bottom: 8px">Thông tin</span>
+            <span style="color: var(--color-neutral-700)">Lô &amp; hạn dùng</span>
+            <span style="color: var(--color-neutral-700)">Lịch sử tồn</span>
+            <span style="color: var(--color-neutral-700)">Kiểm kê</span>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 170px minmax(0, 1fr); gap: var(--space-4) var(--space-6); align-items: start">
+            <div style="font-family: var(--font-heading); font-weight: 600; font-size: 17px; padding-top: 6px">Nhận diện</div>
+            <div style="display: flex; flex-direction: column; gap: var(--space-3); max-width: 520px">
+              <div>
+                <label style="display: block; font-size: 12px; margin-bottom: 5px; color: color-mix(in srgb, var(--color-text) 70%, transparent)">Tên hàng <span style="color: var(--color-accent-2-700)">*</span></label>
+                <input value="Băng keo trong 48mm x 100 yard" style="width: 100%; height: 36px; padding: 6px 10px; font-size: 14px; color: var(--color-text); background: var(--color-surface); border: 1px solid var(--color-divider); border-radius: var(--radius-md); box-sizing: border-box">
+              </div>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3)">
+                <div>
+                  <label style="display: block; font-size: 12px; margin-bottom: 5px; color: color-mix(in srgb, var(--color-text) 70%, transparent)">Mã SKU <span style="color: var(--color-accent-2-700)">*</span></label>
+                  <input value="SKU-2087" style="width: 100%; height: 36px; padding: 6px 10px; font-size: 14px; font-variant-numeric: tabular-nums; color: var(--color-text); background: var(--color-surface); border: 1px solid var(--color-divider); border-radius: var(--radius-md); box-sizing: border-box">
+                </div>
+                <div>
+                  <label style="display: block; font-size: 12px; margin-bottom: 5px; color: color-mix(in srgb, var(--color-text) 70%, transparent)">Barcode</label>
+                  <input value="8938 1102 87004" style="width: 100%; height: 36px; padding: 6px 10px; font-size: 14px; font-variant-numeric: tabular-nums; color: var(--color-text); background: var(--color-surface); border: 1px solid var(--color-divider); border-radius: var(--radius-md); box-sizing: border-box">
+                </div>
+              </div>
+            </div>
+
+            <div style="font-family: var(--font-heading); font-weight: 600; font-size: 17px; padding-top: 6px">Phân loại</div>
+            <div style="display: flex; flex-direction: column; gap: var(--space-3); max-width: 520px">
+              <div>
+                <label style="display: block; font-size: 12px; margin-bottom: 5px; color: color-mix(in srgb, var(--color-text) 70%, transparent)">Danh mục <span style="color: var(--color-accent-2-700)">*</span></label>
+                <select style="width: 100%; height: 36px; padding: 0 10px; font-size: 14px; color: var(--color-text); background: var(--color-surface); border: 1px solid var(--color-divider); border-radius: var(--radius-md)">
+                  <option>Vật tư đóng gói</option>
+                  <option>Bao bì</option>
+                </select>
+              </div>
+              <div>
+                <label style="display: block; font-size: 12px; margin-bottom: 5px; color: color-mix(in srgb, var(--color-text) 70%, transparent)">Nhà cung cấp</label>
+                <select style="width: 100%; height: 36px; padding: 0 10px; font-size: 14px; color: var(--color-text); background: var(--color-surface); border: 1px solid var(--color-divider); border-radius: var(--radius-md)">
+                  <option>Bao bì Thành Đạt — NCC-018</option>
+                </select>
+              </div>
+              <div>
+                <label style="display: block; font-size: 12px; margin-bottom: 5px; color: color-mix(in srgb, var(--color-text) 70%, transparent)">Đơn vị tồn <span style="color: var(--color-accent-2-700)">*</span></label>
+                <div style="display: flex; gap: var(--space-2)">
+                  <span style="padding: 7px 14px; font-size: 13px; background: var(--color-accent); color: var(--color-bg); border: 1px solid var(--color-accent); border-radius: var(--radius-md)">Cuộn</span>
+                  <span style="padding: 7px 14px; font-size: 13px; border: 1px solid var(--color-divider); color: var(--color-neutral-800); border-radius: var(--radius-md)">Thùng</span>
+                  <span style="padding: 7px 14px; font-size: 13px; border: 1px solid var(--color-divider); color: var(--color-neutral-800); border-radius: var(--radius-md)">Cái</span>
+                </div>
+              </div>
+            </div>
+
+            <div style="font-family: var(--font-heading); font-weight: 600; font-size: 17px; padding-top: 6px">Tồn &amp; vị trí</div>
+            <div style="display: flex; flex-direction: column; gap: var(--space-3); max-width: 520px">
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3)">
+                <div>
+                  <label style="display: block; font-size: 12px; margin-bottom: 5px; color: color-mix(in srgb, var(--color-text) 70%, transparent)">Tồn hiện tại</label>
+                  <input value="86" disabled="disabled" style="width: 100%; height: 36px; padding: 6px 10px; font-size: 14px; font-variant-numeric: tabular-nums; text-align: right; background: transparent; color: var(--color-text); border: 1px solid var(--color-divider); border-radius: var(--radius-md); box-sizing: border-box; opacity: 0.6">
+                  <div style="margin-top: 5px; font-size: 12px; color: var(--color-neutral-700)">Chỉ đổi được qua phiếu nhập / xuất.</div>
+                </div>
+                <div>
+                  <label style="display: block; font-size: 12px; margin-bottom: 5px; color: color-mix(in srgb, var(--color-text) 70%, transparent)">Tồn tối thiểu</label>
+                  <input value="200" style="width: 100%; height: 36px; padding: 6px 10px; font-size: 14px; font-variant-numeric: tabular-nums; text-align: right; color: var(--color-text); background: var(--color-surface); border: 1px solid var(--color-divider); border-radius: var(--radius-md); box-sizing: border-box">
+                </div>
+              </div>
+              <div>
+                <label style="display: block; font-size: 12px; margin-bottom: 5px; color: color-mix(in srgb, var(--color-text) 70%, transparent)">Vị trí lưu <span style="color: var(--color-accent-2-700)">*</span></label>
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--space-2)">
+                  <select style="height: 36px; padding: 0 10px; font-size: 14px; color: var(--color-text); background: var(--color-surface); border: 1px solid var(--color-divider); border-radius: var(--radius-md)"><option>Kho Tân Bình</option></select>
+                  <select style="height: 36px; padding: 0 10px; font-size: 14px; color: var(--color-text); background: var(--color-surface); border: 1px solid var(--color-divider); border-radius: var(--radius-md)"><option>Kệ B1</option></select>
+                  <select style="height: 36px; padding: 0 10px; font-size: 14px; color: var(--color-text); background: var(--color-surface); border: 1px solid var(--color-divider); border-radius: var(--radius-md)"><option>Tầng 07</option></select>
+                </div>
+              </div>
+            </div>
+
+            <div style="font-family: var(--font-heading); font-weight: 600; font-size: 17px; padding-top: 6px">Giá</div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); max-width: 520px">
+              <div>
+                <label style="display: block; font-size: 12px; margin-bottom: 5px; color: color-mix(in srgb, var(--color-text) 70%, transparent)">Giá nhập (₫)</label>
+                <input value="7.200" style="width: 100%; height: 36px; padding: 6px 10px; font-size: 14px; font-variant-numeric: tabular-nums; text-align: right; color: var(--color-text); background: var(--color-surface); border: 1px solid var(--color-divider); border-radius: var(--radius-md); box-sizing: border-box">
+              </div>
+              <div>
+                <label style="display: block; font-size: 12px; margin-bottom: 5px; color: color-mix(in srgb, var(--color-text) 70%, transparent)">Giá trị tồn (₫)</label>
+                <input value="619.200" disabled="disabled" style="width: 100%; height: 36px; padding: 6px 10px; font-size: 14px; font-variant-numeric: tabular-nums; text-align: right; background: transparent; color: var(--color-text); border: 1px solid var(--color-divider); border-radius: var(--radius-md); box-sizing: border-box; opacity: 0.6">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <aside style="display: flex; flex-direction: column; gap: var(--space-6); border-left: 1px solid var(--color-divider); padding-left: var(--space-6)">
+          <div>
+            <div style="font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: color-mix(in srgb, var(--color-text) 60%, transparent); margin-bottom: var(--space-2)">Tình trạng tồn</div>
+            <span style="display: inline-flex; align-items: center; font-size: 11px; letter-spacing: 0.02em; padding: 3px 10px; border-radius: 1.5px; background: var(--color-accent-2-100); color: var(--color-accent-2-700)">Sắp hết</span>
+            <p style="margin: var(--space-2) 0 0; font-size: 14px; line-height: 1.5; color: var(--color-neutral-800)">Tồn 86 / tối thiểu 200 cuộn. Theo mức xuất 30 ngày, dự kiến hết sau <strong style="color: var(--color-text)">5 ngày</strong>.</p>
+            <button style="width: 100%; margin-top: var(--space-3); height: 36px; font-size: 14px; font-family: var(--font-heading); font-weight: 600; background: var(--color-accent); color: var(--color-bg); border: 1px solid transparent; border-radius: var(--radius-md); cursor: pointer" class="hv17">Tạo phiếu nhập 600 cuộn</button>
+          </div>
+          <div>
+            <div style="font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: color-mix(in srgb, var(--color-text) 60%, transparent); margin-bottom: var(--space-2)">Ảnh hàng</div>
+            <div style="height: 150px; border: 1px solid var(--color-divider); border-radius: var(--radius-md); background: repeating-linear-gradient(135deg, var(--color-surface) 0 7px, var(--color-bg) 7px 14px); display: flex; align-items: center; justify-content: center">
+              <span style="font-family: ui-monospace, monospace; font-size: 11px; color: var(--color-neutral-700); background: var(--color-bg); padding: 3px 8px">ảnh thật của mã hàng</span>
+            </div>
+          </div>
+          <div>
+            <div style="font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: color-mix(in srgb, var(--color-text) 60%, transparent); margin-bottom: var(--space-2)">Hoạt động gần đây</div>
+            <div style="display: flex; flex-direction: column; gap: var(--space-2); font-size: 13px">
+              <div style="display: flex; justify-content: space-between; gap: var(--space-2)"><span>Xuất 120 cuộn · PX-4410</span><span style="color: var(--color-neutral-700); font-variant-numeric: tabular-nums">20.09</span></div>
+              <div style="display: flex; justify-content: space-between; gap: var(--space-2)"><span>Nhập 400 cuộn · PN-2231</span><span style="color: var(--color-neutral-700); font-variant-numeric: tabular-nums">12.09</span></div>
+              <div style="display: flex; justify-content: space-between; gap: var(--space-2)"><span>Kiểm kê lệch −4 cuộn</span><span style="color: var(--color-neutral-700); font-variant-numeric: tabular-nums">31.08</span></div>
+              <a href="#2a" style="font-size: 13px; margin-top: 2px">Xem toàn bộ lịch sử</a>
+            </div>
+          </div>
+          <div>
+            <div style="font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: color-mix(in srgb, var(--color-text) 60%, transparent); margin-bottom: var(--space-2)">In</div>
+            <div style="display: flex; flex-direction: column; gap: var(--space-2)">
+              <button style="width: 100%; height: 34px; font-size: 14px; font-family: var(--font-heading); font-weight: 600; background: transparent; color: var(--color-text); border: 1px solid var(--color-divider); border-radius: var(--radius-md); cursor: pointer" class="hv18">In tem kệ</button>
+              <button style="width: 100%; height: 34px; font-size: 14px; font-family: var(--font-heading); font-weight: 600; background: transparent; color: var(--color-text); border: 1px solid var(--color-divider); border-radius: var(--radius-md); cursor: pointer" class="hv19">In mã vạch</button>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </div>
+</main>
+</body>
+</html>

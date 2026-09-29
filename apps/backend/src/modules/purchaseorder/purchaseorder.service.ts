@@ -213,8 +213,11 @@ export class PurchaseOrderService {
     return this.repo.softDelete(id)
   }
 
+  // shipment_qty (Shipment draft/received cho dòng PO này, chưa có Receipt — xem
+  // findLineProgress()) PHẢI tính vào đây: nếu bỏ sót, PO có thể unconfirm/cancel dù
+  // đã có Shipment "received" (hàng vật lý đã về kho) chỉ vì Receipt chưa được tạo.
   private assertNoReceiptActivity(po: any, action: string) {
-    const hasActivity = po.lines.some((l: any) => l.received_qty > 0 || l.pending_qty > 0)
+    const hasActivity = po.lines.some((l: any) => l.received_qty > 0 || l.pending_qty > 0 || l.shipment_qty > 0)
     if (hasActivity) {
       throw {
         statusCode: 400,

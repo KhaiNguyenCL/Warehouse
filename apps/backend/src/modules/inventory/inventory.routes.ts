@@ -5,10 +5,12 @@ import {
   listLowStockSchema,
   listLotsSchema,
   listSerialsSchema,
+  listSoldSerialsSchema,
   ListInventoryQuery,
   ListLowStockQuery,
   ListLotsQuery,
   ListSerialsQuery,
+  ListSoldSerialsQuery,
 } from './inventory.schema'
 import { requirePermission } from '../../middleware/permission'
 
@@ -46,6 +48,14 @@ const inventoryRoutes: FastifyPluginAsync = async (app) => {
     async (request) => service.serials(request.query),
   )
 
+  // GET /inventory/sold-serials — tab "Hàng đã bán": danh sách SN status='sold', kèm phiếu
+  // xuất/khách hàng. Đặt cùng nhóm route tĩnh với /serials, /lots, /low-stock ở trên.
+  app.get<{ Querystring: ListSoldSerialsQuery }>(
+    '/sold-serials',
+    { schema: listSoldSerialsSchema, preHandler: requirePermission('report.inventory') },
+    async (request) => service.soldSerials(request.query),
+  )
+
   // PATCH /inventory/serials/:id — sửa thông tin SN sau khi nhập kho (mac_address, note).
   // Chỉ cho sửa field thông tin bổ sung, không cho đổi status/warehouse qua đây.
   app.patch<{ Params: { id: string }; Body: { serial_no?: string; mac_address?: string | null; note?: string | null } }>(
@@ -74,6 +84,14 @@ const inventoryRoutes: FastifyPluginAsync = async (app) => {
     '/serials/:id/movements',
     { preHandler: requirePermission('report.inventory') },
     async (request) => service.serialMovements(request.params.id),
+  )
+
+  // GET /inventory/variants/:variantId/movements — 3 hoạt động gần nhất (nhập/xuất/chuyển)
+  // của 1 SKU, gộp tất cả kho — dùng cho panel "Hoạt động gần đây" ở VariantDetailPage.
+  app.get<{ Params: { variantId: string } }>(
+    '/variants/:variantId/movements',
+    { preHandler: requirePermission('report.inventory') },
+    async (request) => service.recentMovements(request.params.variantId),
   )
 
   // GET /inventory/reserved?variant_id=xxx — danh sách báo giá/phiếu xuất đang giữ chỗ

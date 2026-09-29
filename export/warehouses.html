@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kho hàng — DNS</title>
+<link rel="stylesheet" href="broadsheet.css">
+<link rel="stylesheet" href="app.css">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/duotone/style.css">
+</head>
+<body>
+<main class="screens">
+    <div class="kv-sheet">
+      <div class="kv-nav">
+        <div class="kv-nav-left">
+          <span class="kv-brand">DNS</span>
+          <nav class="kv-nav-links">
+            <a href="#">Tổng quan</a>
+            <a href="inventory.html">Tồn kho</a>
+            <a href="products.html">Sản phẩm</a>
+            <a href="import-new.html">Nhập kho</a>
+            <a href="#">Xuất kho</a>
+            <a href="#">Kiểm kê</a>
+            <a href="purchase-new.html">Mua hàng</a>
+            <a href="#">Nhà cung cấp</a>
+            <a href="#" class="kv-nav-more">Giao dịch <i class="ph-duotone ph-caret-down"></i></a>
+            <a href="warehouses.html" aria-current="page">Kho hàng</a>
+            <a href="#" class="kv-nav-more">Thêm <i class="ph-duotone ph-caret-down"></i></a>
+          </nav>
+        </div>
+        <div class="kv-nav-right">
+          <div class="kv-nav-search">
+            <i class="ph-duotone ph-magnifying-glass"></i>
+            <input class="kv-input" type="search" placeholder="Tìm nhanh…  Ctrl K">
+          </div>
+          <button type="button" class="kv-icon-btn" aria-label="Thông báo"><i class="ph-duotone ph-bell"></i></button>
+          <span class="kv-avatar">A</span>
+        </div>
+      </div>
+
+      <div class="kv-head">
+        <div>
+          <h1 class="kv-title">Kho hàng</h1>
+          <p class="kv-sub">5 kho · 1 kho vật lý, 4 kho ảo</p>
+        </div>
+        <div class="kv-actions">
+          <button type="button" class="kv-btn kv-btn--primary"><i class="ph-duotone ph-plus"></i>Tạo kho</button>
+        </div>
+      </div>
+
+      <div class="kv-md">
+        <div class="kv-md-list">
+          <div class="kv-md-tools">
+            <div class="kv-search">
+              <i class="ph-duotone ph-magnifying-glass"></i>
+              <input class="kv-input" type="search" placeholder="Tìm tên, mã kho…">
+            </div>
+            <div class="kv-seg kv-seg--sm" role="tablist" aria-label="Lọc trạng thái">
+              <a href="#" aria-current="true">Tất cả<span class="kv-tab-count">5</span></a>
+              <a href="#">Hoạt động<span class="kv-tab-count">5</span></a>
+              <a href="#">Ngừng<span class="kv-tab-count">0</span></a>
+            </div>
+          </div>
+          <ul class="kv-md-items">
+            <li>
+              <a href="#" class="kv-md-item" aria-current="true">
+                <div>
+                  <div class="kv-cell-title">Kho HCM</div>
+                  <div class="kv-cell-sub mono">LLQ</div>
+                </div>
+                <div class="kv-tags">
+                  <span class="kv-tag kv-tag--default">Mặc định</span>
+                </div>
+              </a>
+            </li>
+            <li>
+              <a href="#" class="kv-md-item">
+                <div>
+                  <div class="kv-cell-title">Kho Bảo Hành</div>
+                  <div class="kv-cell-sub mono">WH-BH</div>
+                </div>
+                <div class="kv-tags">
+                  <span class="kv-tag kv-tag--virtual">Ảo</span>
+                </div>
+              </a>
+            </li>
+            <li>
+              <a href="#" class="kv-md-item">
+                <div>
+                  <div class="kv-cell-title">Kho Demo</div>
+                  <div class="kv-cell-sub mono">WH-DEMO</div>
+                </div>
+                <div class="kv-tags">
+                  <span class="kv-tag kv-tag--virtual">Ảo</span>
+                </div>
+              </a>
+            </li>
+            <li>
+              <a href="#" class="kv-md-item">
+                <div>
+                  <div class="kv-cell-title">Kho Chờ QC</div>
+                  <div class="kv-cell-sub mono">WH-QC</div>
+                </div>
+                <div class="kv-tags">
+                  <span class="kv-tag kv-tag--virtual">Ảo</span>
+                </div>
+              </a>
+            </li>
+            <li>
+              <a href="#" class="kv-md-item">
+                <div>
+                  <div class="kv-cell-title">Kho Chờ Nhập SN</div>
+                  <div class="kv-cell-sub mono">WH-SN</div>
+                </div>
+                <div class="kv-tags">
+                  <span class="kv-tag kv-tag--virtual">Ảo</span>
+                </div>
+              </a>
+            </li>
+          </ul>
+          <div class="kv-md-foot">5 kho</div>
+        </div>
+
+        <div class="kv-md-detail">
+          <div class="kv-md-head">
+            <div>
+              <h2 class="kv-md-title">Kho HCM <span class="kv-tag kv-tag--default">Mặc định</span></h2>
+              <div class="kv-cell-sub"><span class="mono">LLQ</span> · Kho vật lý</div>
+            </div>
+            <div class="kv-actions">
+              <button type="button" class="kv-btn kv-btn--danger"><i class="ph-duotone ph-trash"></i>Xoá</button>
+              <button type="button" class="kv-btn"><i class="ph-duotone ph-pencil-simple"></i>Sửa</button>
+            </div>
+          </div>
+
+          <div class="kv-md-block">
+            <div class="kv-md-block-head">
+              <h3 class="kv-section-title">Thông tin</h3>
+            </div>
+            <dl class="kv-dl">
+              <div><dt>Mã kho</dt><dd class="mono">LLQ</dd></div>
+              <div><dt>Loại kho</dt><dd>Vật lý</dd></div>
+              <div><dt>Trạng thái</dt><dd><span class="kv-dot kv-dot--on"></span>Hoạt động</dd></div>
+              <div><dt>Người quản lý</dt><dd>Administrator</dd></div>
+              <div class="kv-span-2"><dt>Địa chỉ</dt><dd class="kv-empty">Chưa nhập — <a href="#">Thêm địa chỉ</a></dd></div>
+              <div class="kv-span-3"><dt>Mô tả</dt><dd class="kv-empty">Chưa nhập</dd></div>
+            </dl>
+          </div>
+
+          <div class="kv-md-block">
+            <div class="kv-md-block-head">
+              <h3 class="kv-section-title">Hàng trong kho</h3>
+              <a href="inventory.html" style="font-size: var(--kv-fs-sm)">Xem tồn kho của kho này →</a>
+            </div>
+            <dl class="kv-dl">
+              <div><dt>SKU đang tồn</dt><dd class="mono">27</dd></div>
+              <div><dt>Giá trị tồn</dt><dd class="mono">121.990.000 ₫</dd></div>
+              <div><dt>Cảnh báo</dt><dd><a href="inventory.html">3 SKU sắp hết / hết hàng</a></dd></div>
+            </dl>
+          </div>
+        </div>
+      </div>
+    </div>
+</main>
+</body>
+</html>

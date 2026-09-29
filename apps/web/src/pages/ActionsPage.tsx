@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { CheckCircle2, ChevronRight } from 'lucide-react'
 import { useActions } from '../hooks/useActions'
 import { cn } from '@/lib/utils'
+import { usePageHeader } from '@/layout/PageHeaderSlot'
 
 type Signal = 'green' | 'yellow' | 'red' | 'loading'
 
@@ -167,14 +168,15 @@ export default function ActionsPage() {
     return items
   }, [dash, totalOverdue])
 
+  usePageHeader(
+    <h1 className="flex items-baseline gap-2 truncate text-sm font-semibold tracking-tight">
+      Hành động
+      <span className="text-xs font-normal text-muted-foreground">Việc cần xử lý hôm nay · tự động cập nhật mỗi 60 giây</span>
+    </h1>,
+  )
+
   return (
     <div className="flex flex-col gap-6 pb-8">
-
-      {/* Page header */}
-      <div>
-        <h1 className="font-serif text-3xl font-semibold tracking-tight text-foreground">Hành động</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Việc cần xử lý hôm nay · tự động cập nhật mỗi 60 giây</p>
-      </div>
 
       {/* ── Health signals ──────────────────────────────────────────────────── */}
       <div className="flex flex-wrap gap-2">
@@ -202,7 +204,7 @@ export default function ActionsPage() {
       )}
 
       {/* ── SKU cần bổ sung hàng ─────────────────────────────────────────────── */}
-      <div id="low-stock-table" className="scroll-mt-4 overflow-hidden rounded-xl border border-border-md bg-background shadow-sm transition-shadow duration-200 hover:shadow-md">
+      <div id="low-stock-table" className="scroll-mt-4 overflow-hidden rounded-2xl border border-border bg-card shadow-md transition-shadow duration-200 hover:shadow-md">
         <div className="flex items-center gap-2 border-b border-border bg-muted/60 px-4 py-2.5">
           <span className="text-xs font-semibold text-muted-foreground">SKU cần bổ sung hàng</span>
           {lowItems.length > 0 && (
@@ -273,7 +275,7 @@ export default function ActionsPage() {
       </div>
 
       {/* ── Phiếu chờ xử lý quá hạn ──────────────────────────────────────────── */}
-      <div id="overdue-table" className="scroll-mt-4 overflow-hidden rounded-xl border border-border-md bg-background shadow-sm transition-shadow duration-200 hover:shadow-md">
+      <div id="overdue-table" className="scroll-mt-4 overflow-hidden rounded-2xl border border-border bg-card shadow-md transition-shadow duration-200 hover:shadow-md">
         <div className="flex items-center gap-2 border-b border-border bg-muted/60 px-4 py-2.5">
           <span className="text-xs font-semibold text-muted-foreground">Phiếu chờ xử lý quá hạn (&gt; 2 ngày)</span>
           {overdueItems.length > 0 && (

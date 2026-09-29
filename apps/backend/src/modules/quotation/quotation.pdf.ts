@@ -53,6 +53,12 @@ function numberToWords(n: number): string {
 
   const ones = ['', 'một', 'hai', 'ba', 'bốn', 'năm', 'sáu', 'bảy', 'tám', 'chín']
 
+  // Đọc số trong nhóm 3 chữ số theo ngữ pháp tiếng Việt — các trường hợp đặc biệt:
+  // "không trăm" chỉ chèn khi nhóm này KHÔNG phải nhóm đầu tiên của cả số (nhóm đầu
+  // không bao giờ có số 0 vô nghĩa ở đầu); "lẻ" chỉ dùng khi có hàng trăm nhưng hàng
+  // chục = 0 (105 → "một trăm lẻ năm", không phải "một trăm không mươi năm"); hàng đơn
+  // vị đổi "năm"→"lăm" khi đứng sau chục ≥ 1, và "một"→"mốt" khi chục ≥ 2 (không áp
+  // dụng ở "mười một").
   function readGroup(num: number, isFirst: boolean): string {
     const h = Math.floor(num / 100)
     const rem = num % 100

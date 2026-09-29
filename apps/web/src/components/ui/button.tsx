@@ -19,11 +19,11 @@ const buttonVariants = cva(
         destructive:
           "bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40",
         danger:
-          "bg-red-600 text-white hover:bg-red-700 focus-visible:ring-red-300 dark:bg-red-600 dark:hover:bg-red-700",
+          "bg-[var(--s-cancelled-color)] text-white hover:brightness-90 focus-visible:ring-[var(--s-cancelled-bg)]",
         success:
-          "bg-emerald-600 text-white hover:bg-emerald-700 focus-visible:ring-emerald-300",
+          "bg-[var(--s-completed-color)] text-white hover:brightness-90 focus-visible:ring-[var(--s-completed-bg)]",
         warning:
-          "bg-amber-500 text-white hover:bg-amber-600 focus-visible:ring-amber-300",
+          "bg-[var(--s-pending-color)] text-white hover:brightness-90 focus-visible:ring-[var(--s-pending-bg)]",
         link: "text-primary underline-offset-4 hover:underline",
       },
       size: {
@@ -45,20 +45,18 @@ const buttonVariants = cva(
   }
 )
 
-function Button({
-  className,
-  variant = "default",
-  size = "default",
-  asChild = false,
-  ...props
-}: React.ComponentProps<"button"> &
-  VariantProps<typeof buttonVariants> & {
-    asChild?: boolean
-  }) {
+const Button = React.forwardRef<
+  HTMLButtonElement,
+  React.ComponentProps<"button"> &
+    VariantProps<typeof buttonVariants> & {
+      asChild?: boolean
+    }
+>(({ className, variant = "default", size = "default", asChild = false, ...props }, ref) => {
   const Comp = asChild ? Slot.Root : "button"
 
   return (
     <Comp
+      ref={ref}
       data-slot="button"
       data-variant={variant}
       data-size={size}
@@ -66,6 +64,7 @@ function Button({
       {...props}
     />
   )
-}
+})
+Button.displayName = "Button"
 
 export { Button, buttonVariants }

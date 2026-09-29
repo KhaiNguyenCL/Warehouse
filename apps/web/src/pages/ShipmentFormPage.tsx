@@ -1,27 +1,28 @@
 import { useState } from 'react'
 import {
   Button as AntButton, Form, Input, Select, InputNumber, DatePicker,
-  Table, Modal,
+  Modal,
 } from 'antd'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, X } from 'lucide-react'
 import { useShipmentForm } from '../hooks/useShipmentForm'
 import { StatusBadge } from '../components/ui/StatusBadge'
 import { Button } from '@/components/ui/button'
 import { usePageHeader } from '@/layout/PageHeaderSlot'
 import { fieldTier } from '@/styles/fieldWidths'
+import { LineItemsTable, type LineItemsColumn } from '../components/LineItemsTable'
 
 // ── Shared display helpers (mirrors ReceiptFormPage) ──────────────────────────
 
+// Luôn wrap xuống dòng (không cắt 1 dòng + title tooltip) — field CHỈ ĐỌC, không phải input
+// cần giữ chiều cao cố định (khác lo ngại cũ về "phá vỡ chiều cao 32px" — box giờ tự cao theo
+// nội dung, không còn ép đúng 32px nữa).
 function BBox({ children, style, title }: { children: React.ReactNode; style?: React.CSSProperties; title?: string }) {
-  // Cột này có thể bị thu hẹp (VD Kho nhận/Nhà cung cấp) — luôn cắt 1 dòng + `title` để tên
-  // công ty dài không bị wrap phá vỡ chiều cao 32px cố định, thay vì phụ thuộc cột phải luôn
-  // đủ rộng cho MỌI giá trị (không thực tế vì tên công ty dài ngắn khác nhau).
   return (
     <div title={title} style={{
-      height: 32, display: 'flex', alignItems: 'center', padding: '0 11px',
+      minHeight: 32, display: 'flex', alignItems: 'flex-start', padding: '5px 11px',
       border: '1px solid var(--border-strong, #10141f)', borderRadius: 6,
-      background: 'var(--bg-subtle)', fontSize: 14, userSelect: 'text',
-      overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis',
+      background: 'var(--bg-card)', fontSize: 14, userSelect: 'text',
+      whiteSpace: 'pre-wrap', wordBreak: 'break-word',
       ...style,
     }}>
       {children}
@@ -34,9 +35,10 @@ const ph = <span style={{ color: 'var(--text-3, #bbb)' }}>—</span>
 function ReadOnlyText({ value }: { value?: string }) {
   return (
     <div style={{
-      height: 32, display: 'flex', alignItems: 'center', padding: '0 11px',
+      minHeight: 32, display: 'flex', alignItems: 'flex-start', padding: '5px 11px',
       border: '1px solid var(--border-strong, #10141f)', borderRadius: 6,
-      background: 'var(--bg-subtle)', fontSize: 14,
+      background: 'var(--bg-card)', fontSize: 14,
+      whiteSpace: 'pre-wrap', wordBreak: 'break-word',
       cursor: 'not-allowed', userSelect: 'text',
     }}>
       {value}
@@ -127,7 +129,7 @@ export default function ShipmentFormPage() {
   }
 
   return (
-    <div style={{ padding: '0 0 48px' }}>
+    <div className="theme-2a" style={{ padding: '0 0 48px' }}>
 
       <Form
         form={hook.form}
@@ -208,7 +210,7 @@ export default function ShipmentFormPage() {
               <div style={{
                 minHeight: 32, padding: '4px 11px',
                 border: '1px solid var(--border-strong, #10141f)', borderRadius: 6,
-                background: 'var(--bg-subtle)', fontSize: 14, userSelect: 'text',
+                background: 'var(--bg-card)', fontSize: 14, userSelect: 'text',
                 whiteSpace: 'pre-wrap', lineHeight: 1.5,
                 color: shipment?.notes ? undefined : 'var(--text-3, #bbb)',
               }}>
@@ -243,64 +245,48 @@ export default function ShipmentFormPage() {
               Xác nhận số lượng &amp; tình trạng thực nhận
             </div>
 
-            <Table
-              size="small"
-              pagination={false}
-              rowKey="id"
-              dataSource={shipment?.lines ?? []}
-              columns={[
-                {
-                  title: 'Mã hàng',
-                  render: (_: any, l: any) => (
-                    <span style={{ fontSize: 13, whiteSpace: 'nowrap' }}>{l.item_code} — {l.variant_name}</span>
-                  ),
-                },
-                { title: 'SL dự kiến', width: 100, render: (_: any, l: any) => fmt(l.qty_expected) },
-                {
-                  title: 'SL thực nhận',
-                  width: 130,
-                  render: (_: any, l: any) => (
-                    <InputNumber
-                      min={0}
-                      style={{ width: 100 }}
-                      value={hook.receiveLines[l.id]?.qty_received}
-                      onChange={(v) => hook.setReceiveLines((prev) => ({
-                        ...prev, [l.id]: { ...prev[l.id], qty_received: v ?? 0 },
-                      }))}
-                    />
-                  ),
-                },
-                {
-                  title: 'Tình trạng',
-                  width: 140,
-                  render: (_: any, l: any) => (
-                    <Select
-                      style={{ width: 120 }}
-                      value={hook.receiveLines[l.id]?.condition}
-                      options={[
-                        { value: 'good', label: 'Tốt' },
-                        { value: 'damaged', label: 'Hỏng' },
-                        { value: 'missing', label: 'Thiếu' },
-                      ]}
-                      onChange={(v) => hook.setReceiveLines((prev) => ({
-                        ...prev, [l.id]: { ...prev[l.id], condition: v },
-                      }))}
-                    />
-                  ),
-                },
-                {
-                  title: 'Ghi chú dòng',
-                  render: (_: any, l: any) => (
-                    <Input
-                      placeholder="Ghi chú (tuỳ chọn)"
-                      value={hook.receiveLines[l.id]?.notes}
-                      onChange={(e) => hook.setReceiveLines((prev) => ({
-                        ...prev, [l.id]: { ...prev[l.id], notes: e.target.value },
-                      }))}
-                    />
-                  ),
-                },
+            <LineItemsTable
+              cols={[
+                { key: 'code', label: 'Mã hàng', render: (l: any) => (
+                  <span style={{ whiteSpace: 'nowrap' }}>{l.item_code} — {l.variant_name}</span>
+                ) },
+                { key: 'qty_exp', label: 'SL dự kiến', align: 'right', render: (l: any) => fmt(l.qty_expected) },
+                { key: 'qty_recv', label: 'SL thực nhận', render: (l: any) => (
+                  <InputNumber
+                    min={0}
+                    style={{ width: 100 }}
+                    value={hook.receiveLines[l.id]?.qty_received}
+                    onChange={(v) => hook.setReceiveLines((prev) => ({
+                      ...prev, [l.id]: { ...prev[l.id], qty_received: v ?? 0 },
+                    }))}
+                  />
+                ) },
+                { key: 'condition', label: 'Tình trạng', render: (l: any) => (
+                  <Select
+                    style={{ width: 120 }}
+                    value={hook.receiveLines[l.id]?.condition}
+                    options={[
+                      { value: 'good', label: 'Tốt' },
+                      { value: 'damaged', label: 'Hỏng' },
+                      { value: 'missing', label: 'Thiếu' },
+                    ]}
+                    onChange={(v) => hook.setReceiveLines((prev) => ({
+                      ...prev, [l.id]: { ...prev[l.id], condition: v },
+                    }))}
+                  />
+                ) },
+                { key: 'notes', label: 'Ghi chú dòng', render: (l: any) => (
+                  <Input
+                    placeholder="Ghi chú (tuỳ chọn)"
+                    value={hook.receiveLines[l.id]?.notes}
+                    onChange={(e) => hook.setReceiveLines((prev) => ({
+                      ...prev, [l.id]: { ...prev[l.id], notes: e.target.value },
+                    }))}
+                  />
+                ) },
               ]}
+              rows={shipment?.lines ?? []}
+              rowKey={(l: any) => l.id}
             />
 
             <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
@@ -370,19 +356,31 @@ function CreateLinesTable({ hook }: { hook: ReturnType<typeof useShipmentForm> }
   return (
     <Form.List name="lines">
       {(fields, { add, remove }) => (
-        <>
-          <div style={{ overflowX: 'auto' }}>
-            <Table
-              size="small"
-              pagination={false}
-              dataSource={fields.map((f) => ({ ...f, key: f.key }))}
-              locale={{ emptyText: 'Chưa có dòng hàng' }}
-              columns={[
-                {
-                  title: 'SKU / Tên sản phẩm',
-                  width: 320,
-                  render: (_: any, f: any) =>
-                    hook.poId ? (
+        <div className="overflow-x-auto">
+          <table className="kv-table kv-lines" style={{ tableLayout: 'fixed' }}>
+            <colgroup>
+              <col style={{ width: 30 }} />
+              <col />
+              <col style={{ width: 120 }} />
+              <col style={{ width: 36 }} />
+            </colgroup>
+            <thead>
+              <tr>
+                <th></th>
+                <th className="text-left">SKU / Tên sản phẩm</th>
+                <th className="num">SL dự kiến</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {fields.length === 0 && (
+                <tr><td colSpan={4} className="kv-muted" style={{ textAlign: 'center', padding: '20px 0' }}>Chưa có dòng hàng</td></tr>
+              )}
+              {fields.map((f) => (
+                <tr key={f.key}>
+                  <td className="kv-line-no">{f.name + 1}</td>
+                  <td>
+                    {hook.poId ? (
                       <Form.Item name={[f.name, 'variant_label']} noStyle>
                         <ReadOnlyText />
                       </Form.Item>
@@ -400,63 +398,52 @@ function CreateLinesTable({ hook }: { hook: ReturnType<typeof useShipmentForm> }
                           }))}
                         />
                       </Form.Item>
-                    ),
-                },
-                {
-                  title: 'SL dự kiến',
-                  width: 120,
-                  render: (_: any, f: any) => (
+                    )}
+                    {hook.poId && (
+                      <Form.Item name={[f.name, 'variant_id']} hidden><Input /></Form.Item>
+                    )}
+                    <Form.Item name={[f.name, 'po_line_id']} hidden><Input /></Form.Item>
+                  </td>
+                  <td>
                     <Form.Item name={[f.name, 'qty_expected']} noStyle rules={[{ required: true }]}>
-                      <InputNumber min={1} style={{ width: 100 }} />
+                      <InputNumber min={1} style={{ width: '100%' }} />
                     </Form.Item>
-                  ),
-                },
-                {
-                  title: '',
-                  width: 60,
-                  render: (_: any, f: any) => (
-                    <>
-                      {hook.poId && (
-                        <Form.Item name={[f.name, 'variant_id']} hidden><Input /></Form.Item>
-                      )}
-                      <Form.Item name={[f.name, 'po_line_id']} hidden><Input /></Form.Item>
-                      <AntButton size="small" danger onClick={() => remove(f.name)}>Xóa</AntButton>
-                    </>
-                  ),
-                },
-              ]}
-            />
-          </div>
-          {!hook.poId && (
-            <AntButton style={{ marginTop: 8 }} onClick={() => add({ qty_expected: 1 })}>
-              + Thêm dòng
-            </AntButton>
-          )}
-        </>
+                  </td>
+                  <td className="text-center">
+                    {!hook.poId && (
+                      <button type="button" className="kv-icon-btn kv-row-del" aria-label={`Xoá dòng ${f.name + 1}`} onClick={() => remove(f.name)}>
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+            {!hook.poId && (
+              <tfoot>
+                <tr className="kv-addline">
+                  <td></td>
+                  <td colSpan={3}>
+                    <button type="button" className="kv-btn" onClick={() => add({ qty_expected: 1 })}>
+                      + Thêm dòng
+                    </button>
+                  </td>
+                </tr>
+              </tfoot>
+            )}
+          </table>
+        </div>
       )}
     </Form.List>
   )
 }
 
 function ViewLinesTable({ lines }: { lines: any[] }) {
-  const thStyle: React.CSSProperties = {
-    padding: '8px 10px', textAlign: 'left', fontSize: 13,
-    fontWeight: 500, color: 'var(--text-2, #666)',
-    background: 'var(--bg-subtle)',
-    borderBottom: '1px solid var(--border, #f0f0f0)',
-    whiteSpace: 'nowrap',
-  }
-  const tdStyle: React.CSSProperties = {
-    padding: '8px 10px', fontSize: 14,
-    borderBottom: '1px solid var(--border, #f0f0f0)',
-    whiteSpace: 'nowrap',
-  }
-
-  const cols: { key: string; label: string; render: (l: any) => React.ReactNode }[] = [
+  const cols: LineItemsColumn<any>[] = [
     { key: 'code', label: 'Mã hàng', render: (l) => l.item_code ?? '—' },
     { key: 'name', label: 'Tên', render: (l) => l.variant_name ?? '—' },
-    { key: 'qty_exp', label: 'SL dự kiến', render: (l) => fmt(l.qty_expected) },
-    { key: 'qty_recv', label: 'SL thực nhận', render: (l) => fmt(l.qty_received) },
+    { key: 'qty_exp', label: 'SL dự kiến', align: 'right', render: (l) => fmt(l.qty_expected) },
+    { key: 'qty_recv', label: 'SL thực nhận', align: 'right', render: (l) => fmt(l.qty_received) },
     {
       key: 'condition',
       label: 'Tình trạng',
@@ -469,29 +456,5 @@ function ViewLinesTable({ lines }: { lines: any[] }) {
     { key: 'notes', label: 'Ghi chú', render: (l) => l.notes || '—' },
   ]
 
-  return (
-    <div style={{ overflowX: 'auto' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-        <thead>
-          <tr>
-            {cols.map((c) => <th key={c.key} style={thStyle}>{c.label}</th>)}
-          </tr>
-        </thead>
-        <tbody>
-          {lines.map((l, i) => (
-            <tr key={l.id ?? i}>
-              {cols.map((c) => <td key={c.key} style={tdStyle}>{c.render(l)}</td>)}
-            </tr>
-          ))}
-          {lines.length === 0 && (
-            <tr>
-              <td colSpan={cols.length} style={{ ...tdStyle, textAlign: 'center', color: 'var(--text-3, #bbb)', padding: '20px 0' }}>
-                Không có sản phẩm
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
-    </div>
-  )
+  return <LineItemsTable cols={cols} rows={lines} rowKey={(l, i) => l.id ?? i} />
 }

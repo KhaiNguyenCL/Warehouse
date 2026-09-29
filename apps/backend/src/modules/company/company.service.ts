@@ -31,7 +31,7 @@ export class CompanyService {
     return this.repo.findAll(query)
   }
 
-  listContacts(query: { search?: string; company_id?: string; page?: number; limit?: number }) {
+  listContacts(query: { search?: string; company_id?: string; is_primary?: boolean; page?: number; limit?: number }) {
     return this.repo.findAllContacts(query)
   }
 
@@ -82,7 +82,7 @@ export class CompanyService {
       if (data.is_primary) {
         await this.repo.clearPrimaryContact(companyId, contactId, trx)
       }
-      return this.repo.updateContact(contactId, data, trx)
+      return this.repo.updateContact(contactId, companyId, data, trx)
     })
   }
 

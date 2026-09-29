@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Plus, Trash2, X, Shield } from 'lucide-react'
+import { Trash2, X, Shield } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 
 import { api } from '../lib/api'
@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { cn } from '@/lib/utils'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
+import { usePageHeader } from '@/layout/PageHeaderSlot'
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -44,7 +45,6 @@ function SectionHeader({ title, onAdd }: { title: string; onAdd: () => void }) {
     <div className="flex items-center justify-between">
       <h2 className="text-lg font-semibold tracking-tight text-foreground">{title}</h2>
       <Button size="sm" onClick={onAdd}>
-        <Plus className="h-4 w-4" />
         Tạo mới
       </Button>
     </div>
@@ -53,7 +53,7 @@ function SectionHeader({ title, onAdd }: { title: string; onAdd: () => void }) {
 
 function YesNoBadge({ value }: { value: boolean }) {
   return value ? (
-    <span className="text-sm font-medium text-emerald-700">Có</span>
+    <span className="text-sm font-medium text-[var(--s-completed-color)]">Có</span>
   ) : (
     <span className="text-muted-foreground text-xs">—</span>
   )
@@ -133,7 +133,7 @@ function ImportTypesSection() {
     <div className="flex flex-col gap-4">
       <SectionHeader title="Loại nhập kho" onAdd={openCreate} />
 
-      <div className="overflow-hidden rounded-xl border border-border-md bg-background shadow-sm">
+      <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-md">
         <table className="w-full">
           <thead>
             <tr className="border-b border-border bg-muted/60">
@@ -170,7 +170,7 @@ function ImportTypesSection() {
                 <td className="px-4 py-2.5">
                   <div className="flex justify-center">
                     {r.is_system ? (
-                      <span className="inline-flex items-center gap-1 text-sm font-medium text-blue-700">
+                      <span className="inline-flex items-center gap-1 text-sm font-medium text-[var(--s-approved-color)]">
                         <Shield className="h-3 w-3" /> Hệ thống
                       </span>
                     ) : <span className="text-muted-foreground">—</span>}
@@ -178,12 +178,13 @@ function ImportTypesSection() {
                 </td>
                 <td className="px-4 py-2.5">
                   {!r.is_system && (
-                    <button
+                    <Button
+                      variant="ghost" size="icon-sm"
                       onClick={(e) => { e.stopPropagation(); setDeleteTarget(r) }}
-                      className="hidden rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-red-50 hover:text-red-600 group-hover/row:block"
+                      className="hidden text-muted-foreground hover:text-destructive group-hover/row:inline-flex"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
-                    </button>
+                    </Button>
                   )}
                 </td>
               </tr>
@@ -213,7 +214,7 @@ function ImportTypesSection() {
                 {!editing && (
                   <FormField control={form.control} name="key" render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Key <span className="text-red-500">*</span></FormLabel>
+                      <FormLabel>Key <span className="text-destructive">*</span></FormLabel>
                       <FormControl><Input placeholder="vd: purchase" {...field} /></FormControl>
                       <FormDescription className="text-xs">Không thể sửa sau khi tạo</FormDescription>
                       <FormMessage />
@@ -222,7 +223,7 @@ function ImportTypesSection() {
                 )}
                 <FormField control={form.control} name="label" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Tên hiển thị <span className="text-red-500">*</span></FormLabel>
+                    <FormLabel>Tên hiển thị <span className="text-destructive">*</span></FormLabel>
                     <FormControl><Input placeholder="vd: Mua hàng" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
@@ -285,7 +286,7 @@ function ImportTypesSection() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Huỷ</AlertDialogCancel>
-            <AlertDialogAction className="bg-red-600 hover:bg-red-700"
+            <AlertDialogAction variant="danger"
               onClick={() => { deleteMutation.mutate(deleteTarget.id); setDeleteTarget(null) }}>
               Xoá
             </AlertDialogAction>
@@ -370,7 +371,7 @@ function ExportTypesSection() {
     <div className="flex flex-col gap-4">
       <SectionHeader title="Loại xuất kho" onAdd={openCreate} />
 
-      <div className="overflow-hidden rounded-xl border border-border-md bg-background shadow-sm">
+      <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-md">
         <table className="w-full">
           <thead>
             <tr className="border-b border-border bg-muted/60">
@@ -407,7 +408,7 @@ function ExportTypesSection() {
                 <td className="px-4 py-2.5">
                   <div className="flex justify-center">
                     {r.is_system ? (
-                      <span className="inline-flex items-center gap-1 text-sm font-medium text-blue-700">
+                      <span className="inline-flex items-center gap-1 text-sm font-medium text-[var(--s-approved-color)]">
                         <Shield className="h-3 w-3" /> Hệ thống
                       </span>
                     ) : <span className="text-muted-foreground">—</span>}
@@ -415,12 +416,13 @@ function ExportTypesSection() {
                 </td>
                 <td className="px-4 py-2.5">
                   {!r.is_system && (
-                    <button
+                    <Button
+                      variant="ghost" size="icon-sm"
                       onClick={(e) => { e.stopPropagation(); setDeleteTarget(r) }}
-                      className="hidden rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-red-50 hover:text-red-600 group-hover/row:block"
+                      className="hidden text-muted-foreground hover:text-destructive group-hover/row:inline-flex"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
-                    </button>
+                    </Button>
                   )}
                 </td>
               </tr>
@@ -450,7 +452,7 @@ function ExportTypesSection() {
                 {!editing && (
                   <FormField control={form.control} name="key" render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Key <span className="text-red-500">*</span></FormLabel>
+                      <FormLabel>Key <span className="text-destructive">*</span></FormLabel>
                       <FormControl><Input placeholder="vd: sale" {...field} /></FormControl>
                       <FormDescription className="text-xs">Không thể sửa sau khi tạo</FormDescription>
                       <FormMessage />
@@ -459,7 +461,7 @@ function ExportTypesSection() {
                 )}
                 <FormField control={form.control} name="label" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Tên hiển thị <span className="text-red-500">*</span></FormLabel>
+                    <FormLabel>Tên hiển thị <span className="text-destructive">*</span></FormLabel>
                     <FormControl><Input placeholder="vd: Bán hàng" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
@@ -518,7 +520,7 @@ function ExportTypesSection() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Huỷ</AlertDialogCancel>
-            <AlertDialogAction className="bg-red-600 hover:bg-red-700"
+            <AlertDialogAction variant="danger"
               onClick={() => { deleteMutation.mutate(deleteTarget.id); setDeleteTarget(null) }}>
               Xoá
             </AlertDialogAction>
@@ -532,12 +534,15 @@ function ExportTypesSection() {
 // ── Page ─────────────────────────────────────────────────────────────────────
 
 export default function SettingsTypesPage() {
+  usePageHeader(
+    <h1 className="flex items-baseline gap-2 truncate text-sm font-semibold tracking-tight">
+      Loại nhập / xuất kho
+      <span className="text-xs font-normal text-muted-foreground">Cấu hình các loại phiếu nhập và xuất kho trong hệ thống</span>
+    </h1>,
+  )
+
   return (
     <div className="flex flex-col gap-10">
-      <div className="flex flex-col gap-1">
-        <h1 className="font-serif text-2xl font-semibold tracking-tight">Loại nhập / xuất kho</h1>
-        <p className="text-sm text-muted-foreground">Cấu hình các loại phiếu nhập và xuất kho trong hệ thống</p>
-      </div>
       <ImportTypesSection />
       <ExportTypesSection />
     </div>

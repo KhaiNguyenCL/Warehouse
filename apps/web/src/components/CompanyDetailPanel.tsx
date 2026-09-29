@@ -1,11 +1,8 @@
 import { useRef, useState, useEffect } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { Popconfirm } from 'antd'
-import { Building2, Check, Pencil, Plus, Trash2, X } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { Check, Pencil, Trash2, X } from 'lucide-react'
 import { Input } from '@/components/ui/input'
-import { CodeText } from '@/components/ui/CodeText'
-import { SectionCard, InfoRow } from '@/components/ui/SectionCard'
 import { api } from '../lib/api'
 import { useApiMutation } from '../hooks/useApiMutation'
 import ContactsPanel, { type ContactsPanelRef } from './ContactsPanel'
@@ -13,23 +10,13 @@ import SupplierProductsPanel from './SupplierProductsPanel'
 
 function TypeBadge({ types }: { types: string[] }) {
   return (
-    <div className="flex flex-wrap items-center gap-1.5">
-      {types?.map((t) => {
-        const isCust = t === 'customer'
-        const color = isCust ? 'var(--accent-text)' : 'var(--s-expired-color)'
-        const bg    = isCust ? 'var(--accent-bg)'   : 'var(--s-expired-bg)'
-        return (
-          <span
-            key={t}
-            className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold"
-            style={{ background: bg, color }}
-          >
-            <span className="h-1.5 w-1.5 rounded-full" style={{ background: color }} />
-            {isCust ? 'Khách hàng' : 'NCC'}
-          </span>
-        )
-      })}
-    </div>
+    <>
+      {types?.map((t) => (
+        <span key={t} className={`kv-tag ${t === 'customer' ? 'kv-tag--default' : 'kv-tag--bundle'}`}>
+          {t === 'customer' ? 'Khách hàng' : 'NCC'}
+        </span>
+      ))}
+    </>
   )
 }
 
@@ -99,7 +86,7 @@ function EditableCode({ companyId, initialCode }: { companyId: string; initialCo
 
   return (
     <div className="group flex items-center gap-1.5">
-      <CodeText>{initialCode}</CodeText>
+      <span className="mono">{initialCode}</span>
       <button
         onClick={() => setEditing(true)}
         className="flex h-5 w-5 items-center justify-center rounded text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:bg-muted"
@@ -122,6 +109,9 @@ export default function CompanyDetailPanel({ companyId }: Props) {
     queryKey: ['companies', companyId],
     queryFn: async () => (await api.get(`/companies/${companyId}`)).data,
     enabled: !!companyId,
+    // Giữ dữ liệu công ty trước đó khi đổi companyId — tránh panel "chớp" về skeleton
+    // giữa 2 lần chọn dòng (chỉ mất mượt khi companyId đó chưa từng được cache).
+    placeholderData: keepPreviousData,
   })
 
   const deleteMutation = useApiMutation(
@@ -131,8 +121,8 @@ export default function CompanyDetailPanel({ companyId }: Props) {
 
   if (!companyId) {
     return (
-      <div className="flex min-h-[280px] items-center justify-center rounded-xl border border-dashed border-border-md bg-background/60">
-        <p className="text-sm text-muted-foreground">Chọn 1 đối tác bên trái để xem chi tiết.</p>
+      <div className="flex items-center justify-center" style={{ minHeight: 280 }}>
+        <p className="kv-muted" style={{ fontSize: 13 }}>Chọn 1 đối tác bên trái để xem chi tiết.</p>
       </div>
     )
   }
@@ -140,23 +130,17 @@ export default function CompanyDetailPanel({ companyId }: Props) {
   const isSupplier = company?.types?.includes('supplier')
 
   return (
-    <div className="flex flex-col gap-4">
-
-      {/* Header */}
+    <>
+      {/* Header — port .kv-md-head */}
       {isLoading ? (
         <div className="h-8 w-64 animate-pulse rounded-md bg-muted" />
       ) : (
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-start gap-3 min-w-0">
-            <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-[var(--accent-bg)] text-[var(--accent-text)]">
-              <Building2 className="h-5 w-5" />
-            </span>
-            <div className="flex flex-col gap-1.5 min-w-0">
-              <h2 className="font-serif text-lg font-semibold leading-snug text-foreground">{company?.name}</h2>
-              <div className="flex flex-wrap items-center gap-2">
-                {company?.code && <EditableCode companyId={companyId} initialCode={company.code} />}
-                <TypeBadge types={company?.types ?? []} />
-              </div>
+        <div className="kv-md-head">
+          <div>
+            <h2 className="kv-md-title">{company?.name}</h2>
+            <div className="kv-cell-sub" style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+              {company?.code && <EditableCode companyId={companyId} initialCode={company.code} />}
+              <TypeBadge types={company?.types ?? []} />
             </div>
           </div>
 
@@ -169,20 +153,19 @@ export default function CompanyDetailPanel({ companyId }: Props) {
             cancelText="Huỷ"
             placement="bottomRight"
           >
-            <Button
-              variant="ghost" size="icon"
-              className="h-8 w-8 flex-shrink-0 text-muted-foreground hover:text-destructive"
-              disabled={deleteMutation.isPending}
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
+            <button type="button" className="kv-btn kv-btn--danger" disabled={deleteMutation.isPending}>
+              <Trash2 className="h-3.5 w-3.5" />Xoá
+            </button>
           </Popconfirm>
         </div>
       )}
 
-      <SectionCard title="Thông tin">
+      <div className="kv-md-block">
+        <div className="kv-md-block-head">
+          <h3 className="kv-section-title">Thông tin</h3>
+        </div>
         {isLoading ? (
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4" style={{ marginTop: 12 }}>
             {[...Array(6)].map((_, i) => (
               <div key={i} className="space-y-1.5">
                 <div className="h-3 w-20 animate-pulse rounded bg-muted" />
@@ -191,43 +174,39 @@ export default function CompanyDetailPanel({ companyId }: Props) {
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-x-8 gap-y-4">
-            <InfoRow label="Số điện thoại" value={company?.phone} />
-            <InfoRow label="Email"          value={company?.email} />
-            <InfoRow label="Mã số thuế"     value={company?.tax_code} />
-            <InfoRow label="Quốc gia"       value={company?.country} />
-            {(company?.bank_account || company?.bank_name) && (
-              <>
-                <InfoRow label="Số tài khoản" value={company?.bank_account} />
-                <InfoRow label="Ngân hàng"    value={company?.bank_name} />
-              </>
-            )}
-            {company?.address && <InfoRow label="Địa chỉ" value={company.address} full />}
-            {company?.note    && <InfoRow label="Ghi chú" value={company.note}    full />}
-          </div>
+          <dl className="kv-dl">
+            <div><dt>Số điện thoại</dt><dd>{company?.phone || <span className="kv-empty">Chưa nhập</span>}</dd></div>
+            <div><dt>Email</dt><dd>{company?.email || <span className="kv-empty">Chưa nhập</span>}</dd></div>
+            <div><dt>Mã số thuế</dt><dd>{company?.tax_code || <span className="kv-empty">Chưa nhập</span>}</dd></div>
+            <div><dt>Quốc gia</dt><dd>{company?.country || <span className="kv-empty">Chưa nhập</span>}</dd></div>
+            <div><dt>Số tài khoản</dt><dd>{company?.bank_account || <span className="kv-empty">Chưa nhập</span>}</dd></div>
+            <div><dt>Ngân hàng</dt><dd>{company?.bank_name || <span className="kv-empty">Chưa nhập</span>}</dd></div>
+            <div className="kv-span-2"><dt>Địa chỉ</dt><dd>{company?.address || <span className="kv-empty">Chưa nhập</span>}</dd></div>
+            <div className="kv-span-3"><dt>Ghi chú</dt><dd>{company?.note || <span className="kv-empty">Chưa nhập</span>}</dd></div>
+          </dl>
         )}
-      </SectionCard>
+      </div>
 
-      <SectionCard
-        title="Người liên hệ"
-        actions={
-          <Button
-            size="sm" variant="outline" className="gap-1.5 h-7 text-xs"
-            onClick={() => contactsRef.current?.openCreate()}
-          >
-            <Plus className="h-3.5 w-3.5" />
-            Thêm
-          </Button>
-        }
-      >
-        {!isLoading && <ContactsPanel ref={contactsRef} companyId={companyId} />}
-      </SectionCard>
+      <div className="kv-md-block">
+        <div className="kv-md-block-head">
+          <h3 className="kv-section-title">Người liên hệ</h3>
+          <button type="button" className="kv-btn kv-btn--sm" onClick={() => contactsRef.current?.openCreate()}>Thêm</button>
+        </div>
+        <div style={{ marginTop: 12 }}>
+          {!isLoading && <ContactsPanel ref={contactsRef} companyId={companyId} />}
+        </div>
+      </div>
 
       {isSupplier && (
-        <SectionCard title="Hàng hóa cung cấp">
-          <SupplierProductsPanel companyId={companyId} />
-        </SectionCard>
+        <div className="kv-md-block">
+          <div className="kv-md-block-head">
+            <h3 className="kv-section-title">Hàng hóa cung cấp</h3>
+          </div>
+          <div style={{ marginTop: 12 }}>
+            <SupplierProductsPanel companyId={companyId} />
+          </div>
+        </div>
       )}
-    </div>
+    </>
   )
 }

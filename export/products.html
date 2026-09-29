@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sản phẩm — DNS</title>
+<link rel="stylesheet" href="broadsheet.css">
+<link rel="stylesheet" href="app.css">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/duotone/style.css">
+</head>
+<body>
+<main class="screens">
+    <div class="kv-sheet">
+      <div class="kv-nav">
+        <div class="kv-nav-left">
+          <span class="kv-brand">DNS</span>
+          <nav class="kv-nav-links">
+            <a href="#">Tổng quan</a>
+            <a href="inventory.html">Tồn kho</a>
+            <a href="products.html" aria-current="page">Sản phẩm</a>
+            <a href="import-new.html">Nhập kho</a>
+            <a href="#">Xuất kho</a>
+            <a href="#">Kiểm kê</a>
+            <a href="purchase-new.html">Mua hàng</a>
+            <a href="#">Nhà cung cấp</a>
+            <a href="#" class="kv-nav-more">Giao dịch <i class="ph-duotone ph-caret-down"></i></a>
+            <a href="warehouses.html">Kho hàng</a>
+            <a href="#" class="kv-nav-more">Thêm <i class="ph-duotone ph-caret-down"></i></a>
+          </nav>
+        </div>
+        <div class="kv-nav-right">
+          <div class="kv-nav-search">
+            <i class="ph-duotone ph-magnifying-glass"></i>
+            <input class="kv-input" type="search" placeholder="Tìm nhanh…  Ctrl K">
+          </div>
+          <button type="button" class="kv-icon-btn" aria-label="Thông báo"><i class="ph-duotone ph-bell"></i></button>
+          <span class="kv-avatar">A</span>
+        </div>
+      </div>
+
+      <div class="kv-head">
+        <div>
+          <h1 class="kv-title">Sản phẩm</h1>
+          <p class="kv-sub">248 dòng sản phẩm · 1.284 SKU con · 36 hãng</p>
+        </div>
+        <div class="kv-actions">
+          <button type="button" class="kv-btn kv-btn--primary"><i class="ph-duotone ph-plus"></i>Tạo sản phẩm</button>
+        </div>
+      </div>
+
+      <div class="kv-toolbar">
+        <div class="kv-search">
+          <i class="ph-duotone ph-magnifying-glass"></i>
+          <input class="kv-input" type="search" placeholder="Tìm mã sản phẩm, tên, model…">
+        </div>
+        <select class="kv-select kv-select--auto" aria-label="Danh mục">
+          <option>Danh mục: tất cả</option>
+          <option>Router &amp; Gateway</option>
+          <option>Switch</option>
+          <option>Camera giám sát</option>
+          <option>Access Point</option>
+          <option>Cáp &amp; phụ kiện</option>
+        </select>
+        <select class="kv-select kv-select--auto" aria-label="Hãng">
+          <option>Hãng: tất cả</option>
+          <option>Ubiquiti</option>
+          <option>Cisco</option>
+          <option>Hikvision</option>
+          <option>Commscope</option>
+        </select>
+        <select class="kv-select kv-select--auto" aria-label="Loại sản phẩm">
+          <option>Loại: tất cả</option>
+          <option>Thiết bị</option>
+          <option>Vật tư</option>
+          <option>Dịch vụ</option>
+          <option>Gói sản phẩm</option>
+        </select>
+        <div class="kv-spacer"></div>
+        <button type="button" class="kv-btn"><i class="ph-duotone ph-file-xls"></i>Xuất Excel</button>
+      </div>
+
+      <div class="kv-table-wrap">
+        <table class="kv-table">
+          <thead>
+            <tr>
+              <th style="width: 150px">Mã sản phẩm</th>
+              <th>Tên sản phẩm</th>
+              <th style="width: 160px">Loại</th>
+              <th class="num" style="width: 130px">SKU con</th>
+              <th class="kv-col-action"></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="kv-row-link" onclick="location.href='product-detail.html'">
+              <td class="mono">SP-RT-0142</td>
+              <td>
+                <div class="kv-cell-title">Router doanh nghiệp EdgeRouter X</div>
+                <div class="kv-cell-sub">Ubiquiti · Router &amp; Gateway</div>
+              </td>
+              <td><span class="kv-tag kv-tag--device">Thiết bị</span></td>
+              <td class="num">6</td>
+              <td class="num kv-caret"><i class="ph-duotone ph-caret-right"></i></td>
+            </tr>
+            <tr class="kv-row-link" onclick="location.href='product-detail.html'">
+              <td class="mono">SP-SW-0207</td>
+              <td>
+                <div class="kv-cell-title">Switch PoE 24 port L2</div>
+                <div class="kv-cell-sub">Cisco · Switch</div>
+              </td>
+              <td><span class="kv-tag kv-tag--device">Thiết bị</span></td>
+              <td class="num">4</td>
+              <td class="num kv-caret"><i class="ph-duotone ph-caret-right"></i></td>
+            </tr>
+            <tr class="kv-row-link" onclick="location.href='product-detail.html'">
+              <td class="mono">SP-CM-0311</td>
+              <td>
+                <div class="kv-cell-title">Camera IP Dome 4MP ColorVu</div>
+                <div class="kv-cell-sub">Hikvision · Camera giám sát</div>
+              </td>
+              <td><span class="kv-tag kv-tag--device">Thiết bị</span></td>
+              <td class="num">9</td>
+              <td class="num kv-caret"><i class="ph-duotone ph-caret-right"></i></td>
+            </tr>
+            <tr class="kv-row-link" onclick="location.href='product-detail.html'">
+              <td class="mono">SP-CB-0455</td>
+              <td>
+                <div class="kv-cell-title">Cáp mạng Cat6 UTP 305m</div>
+                <div class="kv-cell-sub">Commscope · Cáp &amp; phụ kiện</div>
+              </td>
+              <td><span class="kv-tag kv-tag--supply">Vật tư</span></td>
+              <td class="num">5</td>
+              <td class="num kv-caret"><i class="ph-duotone ph-caret-right"></i></td>
+            </tr>
+            <tr class="kv-row-link" onclick="location.href='product-detail.html'">
+              <td class="mono">SP-CB-0460</td>
+              <td>
+                <div class="kv-cell-title">Đầu bấm RJ45 Cat6 chống nhiễu</div>
+                <div class="kv-cell-sub">AMP · Cáp &amp; phụ kiện</div>
+              </td>
+              <td><span class="kv-tag kv-tag--supply">Vật tư</span></td>
+              <td class="num">3</td>
+              <td class="num kv-caret"><i class="ph-duotone ph-caret-right"></i></td>
+            </tr>
+            <tr class="kv-row-link" onclick="location.href='product-detail.html'">
+              <td class="mono">SP-AP-0512</td>
+              <td>
+                <div class="kv-cell-title">Access Point WiFi 6 trần U6-Pro</div>
+                <div class="kv-cell-sub">Ubiquiti · Access Point</div>
+              </td>
+              <td><span class="kv-tag kv-tag--device">Thiết bị</span></td>
+              <td class="num">3</td>
+              <td class="num kv-caret"><i class="ph-duotone ph-caret-right"></i></td>
+            </tr>
+            <tr class="kv-row-link" onclick="location.href='product-detail.html'">
+              <td class="mono">SP-SV-0604</td>
+              <td>
+                <div class="kv-cell-title">Dịch vụ thi công hệ thống mạng</div>
+                <div class="kv-cell-sub">Kho Việt · Dịch vụ kỹ thuật</div>
+              </td>
+              <td><span class="kv-tag kv-tag--service">Dịch vụ</span></td>
+              <td class="num">2</td>
+              <td class="num kv-caret"><i class="ph-duotone ph-caret-right"></i></td>
+            </tr>
+            <tr class="kv-row-link" onclick="location.href='product-detail.html'">
+              <td class="mono">SP-SV-0610</td>
+              <td>
+                <div class="kv-cell-title">Gia hạn bảo hành mở rộng 24 tháng</div>
+                <div class="kv-cell-sub">Kho Việt · Dịch vụ kỹ thuật</div>
+              </td>
+              <td><span class="kv-tag kv-tag--service">Dịch vụ</span></td>
+              <td class="num">4</td>
+              <td class="num kv-caret"><i class="ph-duotone ph-caret-right"></i></td>
+            </tr>
+            <tr class="kv-row-link" onclick="location.href='product-detail.html'">
+              <td class="mono">SP-BD-0708</td>
+              <td>
+                <div class="kv-cell-title">Gói lắp đặt camera 8 mắt trọn bộ</div>
+                <div class="kv-cell-sub">Kho Việt · Gói giải pháp</div>
+              </td>
+              <td><span class="kv-tag kv-tag--bundle">Gói sản phẩm</span></td>
+              <td class="num">3</td>
+              <td class="num kv-caret"><i class="ph-duotone ph-caret-right"></i></td>
+            </tr>
+            <tr class="kv-row-link" onclick="location.href='product-detail.html'">
+              <td class="mono">SP-BD-0712</td>
+              <td>
+                <div class="kv-cell-title">Gói mạng văn phòng 50 user</div>
+                <div class="kv-cell-sub">Kho Việt · Gói giải pháp</div>
+              </td>
+              <td><span class="kv-tag kv-tag--bundle">Gói sản phẩm</span></td>
+              <td class="num">5</td>
+              <td class="num kv-caret"><i class="ph-duotone ph-caret-right"></i></td>
+            </tr>
+            <tr class="kv-row-link" onclick="location.href='product-detail.html'">
+              <td class="mono">SP-NV-0803</td>
+              <td>
+                <div class="kv-cell-title">Ổ cứng giám sát Purple 4TB</div>
+                <div class="kv-cell-sub">Western Digital · Lưu trữ</div>
+              </td>
+              <td><span class="kv-tag kv-tag--supply">Vật tư</span></td>
+              <td class="num">2</td>
+              <td class="num kv-caret"><i class="ph-duotone ph-caret-right"></i></td>
+            </tr>
+            <tr class="kv-row-link" onclick="location.href='product-detail.html'">
+              <td class="mono">SP-RC-0890</td>
+              <td>
+                <div class="kv-cell-title">Tủ rack 19" 27U 600mm</div>
+                <div class="kv-cell-sub">Vietrack · Tủ rack &amp; phụ trợ</div>
+              </td>
+              <td><span class="kv-tag kv-tag--supply">Vật tư</span></td>
+              <td class="num">6</td>
+              <td class="num kv-caret"><i class="ph-duotone ph-caret-right"></i></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="kv-pager">
+          <span>Hiển thị 1–12 trong 248 sản phẩm</span>
+          <div class="kv-actions">
+            <select class="kv-select kv-select--auto kv-select--sm" aria-label="Số dòng mỗi trang">
+              <option>50 dòng / trang</option>
+              <option>100 dòng / trang</option>
+            </select>
+            <div class="kv-pages">
+              <a class="kv-page" href="#" aria-label="Trang trước"><i class="ph-duotone ph-caret-left"></i></a>
+              <a class="kv-page" href="#" aria-current="page">1</a>
+              <a class="kv-page" href="#">2</a>
+              <a class="kv-page" href="#">3</a>
+              <a class="kv-page" href="#" aria-label="Trang sau"><i class="ph-duotone ph-caret-right"></i></a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+</main>
+</body>
+</html>

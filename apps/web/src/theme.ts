@@ -4,35 +4,39 @@ import type { ThemeConfig } from 'antd'
 // Import vào main.tsx và bọc app bằng <ConfigProvider theme={antdTheme}>.
 export const antdTheme: ThemeConfig = {
   token: {
-    colorPrimary:          '#29ABE2',
-    colorLink:             '#29ABE2',
-    colorSuccess:          '#059669',
-    colorWarning:          '#d97706',
-    colorError:            '#dc2626',
-    colorInfo:             '#29ABE2',
+    colorPrimary:          '#0b5fae',
+    colorLink:             '#0b5fae',
+    colorSuccess:          '#0e8f45',
+    colorWarning:          '#b4740a',
+    colorError:            '#c22e22',
+    colorInfo:             '#0b5fae',
 
     colorBgBase:           '#ffffff',
     colorBgContainer:      '#ffffff',
     colorBgElevated:       '#ffffff',
     colorBgLayout:         '#ffffff',
 
-    colorBorder:           '#b6ac9c',
-    colorBorderSecondary:  '#ddd6cc',
+    colorBorder:           '#b7c2d6',
+    colorBorderSecondary:  '#d9e0ec',
 
-    colorText:             '#1c1917',
-    colorTextSecondary:    '#57534e',
-    colorTextTertiary:     '#a8a29e',
-    colorTextQuaternary:   '#ddd6cc',
+    colorText:             '#10141f',
+    colorTextSecondary:    '#4b5568',
+    colorTextTertiary:     '#8b96ac',
+    colorTextQuaternary:   '#d9e0ec',
     // AntD mặc định colorTextDisabled rất mờ (rgba(0,0,0,.25)) — dùng cho pattern
     // "form luôn hiện input, disable khi ở chế độ xem" nên cần đủ tương phản để đọc.
-    colorTextDisabled:        '#57534e',
-    colorBgContainerDisabled: '#f2efe9',
+    // Từng thử colorTextSecondary (#4b5568) rồi nền xám đậm dần (#e3e8f4 → #f4f6fb) nhưng
+    // đều bị chê "mờ/tối" — nền càng có tint xám, chữ càng bị lấn át. Chốt: nền trắng thẳng
+    // (giống colorBgContainer, không còn tint riêng cho disabled), chỉ dựa vào border +
+    // con trỏ not-allowed để phân biệt "không sửa được" — chữ đậm đọc rõ như field đang sửa.
+    colorTextDisabled:        '#10141f',
+    colorBgContainerDisabled: '#ffffff',
 
     borderRadius:     6,
     borderRadiusSM:   4,
     borderRadiusLG:   8,
 
-    fontFamily:   '"Inter Variable", -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", sans-serif',
+    fontFamily:   'Tahoma, "Segoe UI", Verdana, -apple-system, BlinkMacSystemFont, "Noto Sans", sans-serif',
     fontSize:     15,
     fontSizeSM:   13,
     fontSizeLG:   17,
@@ -50,52 +54,55 @@ export const antdTheme: ThemeConfig = {
   },
   components: {
     Table: {
-      headerBg:         '#f2efe9',
-      headerColor:      '#1c1917',
+      headerBg:         '#e9edf6',
+      headerColor:      '#10141f',
       headerSplitColor: 'transparent',
-      rowHoverBg:       '#ece8e0',
-      borderColor:      '#ddd6cc',
+      rowHoverBg:       '#dfe4f0',
+      borderColor:      '#d9e0ec',
       cellPaddingBlock:  5,
       cellPaddingInline: 12,
       headerBorderRadius: 0,
       fontSize: 15,
     },
+    // controlHeight 34→32, paddingInline Input 10→8 — bớt khoảng trắng thừa quanh chữ trong
+    // input (bị chê "khoảng cách từ text đến border hơi nhiều"); giảm đồng bộ cả Button để
+    // input+button đặt cạnh nhau (VD Bitrix Deal ID + nút Fetch) vẫn cùng chiều cao, không lệch.
     Button: {
       paddingInline:       16,
-      controlHeight:       34,
+      controlHeight:       32,
       controlHeightSM:     28,
       contentFontSize:     14,
       contentFontSizeSM:   13,
       primaryShadow:       'none',
       defaultShadow:       'none',
-      defaultBorderColor:  '#b6ac9c',
+      defaultBorderColor:  '#b7c2d6',
     },
     Input: {
-      controlHeight:        34,
-      paddingInline:        10,
+      controlHeight:        32,
+      paddingInline:        8,
       fontSize:             14,
-      colorBorder:          '#b6ac9c',
-      colorTextPlaceholder: '#a8a29e',
+      colorBorder:          '#b7c2d6',
+      colorTextPlaceholder: '#8b96ac',
     },
     Select: {
-      controlHeight:   34,
+      controlHeight:   32,
       fontSize:        14,
-      colorBorder:     '#b6ac9c',
+      colorBorder:     '#b7c2d6',
     },
     InputNumber: {
-      controlHeight:   34,
+      controlHeight:   32,
       fontSize:        14,
-      colorBorder:     '#b6ac9c',
+      colorBorder:     '#b7c2d6',
     },
     DatePicker: {
-      controlHeight:   34,
+      controlHeight:   32,
       fontSize:        14,
-      colorBorder:     '#b6ac9c',
+      colorBorder:     '#b7c2d6',
     },
     Form: {
-      labelColor:    '#1c1917',
+      labelColor:    '#10141f',
       labelFontSize: 13,
-      labelRequiredMarkColor: '#dc2626',
+      labelRequiredMarkColor: '#c22e22',
     },
     Modal: {
       borderRadiusLG: 12,

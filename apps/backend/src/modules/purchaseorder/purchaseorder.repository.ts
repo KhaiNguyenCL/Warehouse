@@ -86,8 +86,9 @@ export class PurchaseOrderRepository {
 
     const lines = await this.db('purchase_order_lines as pol')
       .join('variants as v', 'v.id', 'pol.variant_id')
+      .join('products as p', 'p.id', 'v.product_id')
       .where('pol.purchase_order_id', id)
-      .select('pol.*', 'v.sku as variant_sku', 'v.item_code as variant_item_code', 'v.name as variant_name')
+      .select('pol.*', 'v.sku as variant_sku', 'v.item_code as variant_item_code', 'v.name as variant_name', 'v.unit as variant_unit', 'p.product_type')
       .orderBy('pol.line_order')
 
     const lineIds = lines.map((l: any) => l.id)

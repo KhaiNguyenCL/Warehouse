@@ -25,28 +25,35 @@ export class ShipmentService {
     return shipment
   }
 
+  // validatePurchaseOrder() PHẢI chạy TRONG transaction này với forUpdate() lock đúng
+  // dòng purchase_orders — khớp với lockForUpdate() bên purchaseorder.service.ts::
+  // unconfirm()/cancel() (xem receipt.service.ts::validatePurchaseOrder() làm mẫu), để
+  // 1 request tạo Shipment và 1 request unconfirm/cancel PO cùng lúc buộc phải serialize
+  // thay vì cùng đọc status 'confirmed' cũ rồi cùng pass validate.
   async create(data: CreateShipmentBody, userId: string) {
-    // Nếu có po_id: PO phải đang Confirmed
-    if (data.po_id) {
-      const po = await this.db('purchase_orders').where({ id: data.po_id }).first()
-      if (!po) throw { statusCode: 404, message: 'Purchase Order không tồn tại' }
-      if (po.status !== 'confirmed') throw { statusCode: 400, message: 'Purchase Order phải ở trạng thái Confirmed' }
+    return this.db.transaction(async (trx) => {
+      if (data.po_id) {
+        const po = await trx('purchase_orders').where({ id: data.po_id }).forUpdate().first()
+        if (!po) throw { statusCode: 404, message: 'Purchase Order không tồn tại' }
+        if (po.status !== 'confirmed') throw { statusCode: 400, message: 'Purchase Order phải ở trạng thái Confirmed' }
 
-      // Nếu có po_line_id trên lines: validate thuộc đúng PO này
-      const poLineIds = data.lines.filter((l) => l.po_line_id).map((l) => l.po_line_id as string)
-      if (poLineIds.length > 0) {
-        const validLines = await this.db('purchase_order_lines')
-          .whereIn('id', poLineIds)
-          .where('purchase_order_id', data.po_id)
-          .pluck('id')
-        const invalid = poLineIds.filter((id) => !validLines.includes(id))
-        if (invalid.length > 0) {
-          throw { statusCode: 400, message: `Dòng PO không thuộc PO này: ${invalid.join(', ')}` }
+        // Nếu có po_line_id trên lines: validate thuộc đúng PO này
+        const poLineIds = data.lines.filter((l) => l.po_line_id).map((l) => l.po_line_id as string)
+        if (poLineIds.length > 0) {
+          const validLines = await trx('purchase_order_lines')
+            .whereIn('id', poLineIds)
+            .where('purchase_order_id', data.po_id)
+            .forUpdate()
+            .pluck('id')
+          const invalid = poLineIds.filter((id) => !validLines.includes(id))
+          if (invalid.length > 0) {
+            throw { statusCode: 400, message: `Dòng PO không thuộc PO này: ${invalid.join(', ')}` }
+          }
         }
       }
-    }
 
-    return this.db.transaction((trx) => this.repo.create(data, userId, trx))
+      return this.repo.create(data, userId, trx)
+    })
   }
 
   async update(id: string, data: UpdateShipmentBody) {

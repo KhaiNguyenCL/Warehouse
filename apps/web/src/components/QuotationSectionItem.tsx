@@ -82,10 +82,10 @@ function SubSectionBlock({ form, sectionName, name, subIndex, allVariants, remov
 
   return (
     <div style={{
-      border: '1px solid #b0c4e8',
+      border: '1px solid color-mix(in srgb, var(--accent) 35%, transparent)',
       borderRadius: 6,
       marginBottom: 10,
-      background: '#f0f5ff',
+      background: 'var(--accent-bg)',
       overflow: 'hidden',
     }}>
       {/* Sub-section header */}
@@ -127,25 +127,59 @@ function SubSectionBlock({ form, sectionName, name, subIndex, allVariants, remov
       <div style={{ padding: '8px 10px 6px' }}>
         <Form.List name={[name, 'line_items']}>
           {(fields, { add, remove: removeLine }) => (
-            <>
-              {fields.map(({ key, name: lineName }) => (
-                <QuotationLineItem
-                  key={key}
-                  form={form}
-                  parentPath={parentPath}
-                  name={lineName}
-                  productId={filterProductId}
-                  remove={() => removeLine(lineName)}
-                />
-              ))}
-              <Button size="small" style={{ marginTop: 4 }} onClick={() => add()}>
-                + Thêm dòng
-              </Button>
-            </>
+            <div className="overflow-x-auto">
+              <table className="kv-table kv-lines" style={{ minWidth: 1100 }}>
+                <QuotationLineTableHead />
+                <tbody>
+                  {fields.length === 0 && (
+                    <tr><td colSpan={12} className="kv-muted" style={{ textAlign: 'center', padding: '12px 0' }}>Chưa có dòng hàng</td></tr>
+                  )}
+                  {fields.map(({ key, name: lineName }) => (
+                    <QuotationLineItem
+                      key={key}
+                      form={form}
+                      parentPath={parentPath}
+                      name={lineName}
+                      productId={filterProductId}
+                      remove={() => removeLine(lineName)}
+                    />
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="kv-addline">
+                    <td></td>
+                    <td colSpan={11}>
+                      <button type="button" className="kv-btn" onClick={() => add()}>+ Thêm dòng</button>
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
           )}
         </Form.List>
       </div>
     </div>
+  )
+}
+
+function QuotationLineTableHead() {
+  return (
+    <thead>
+      <tr>
+        <th></th>
+        <th className="text-left">Sản phẩm</th>
+        <th className="text-center">ĐVT</th>
+        <th className="num">SL</th>
+        <th className="num">Đơn giá</th>
+        <th className="num">VAT%</th>
+        <th className="num">Thành tiền</th>
+        <th className="num">Tiền VAT</th>
+        <th className="text-left">Bảo hành</th>
+        <th className="text-center">Giữ chỗ</th>
+        <th className="text-left">Ghi chú</th>
+        <th></th>
+      </tr>
+    </thead>
   )
 }
 
@@ -250,15 +284,22 @@ export default function QuotationSectionItem({ form, name, sectionIndex, remove 
                   <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-2)', marginBottom: 4 }}>
                     Dòng tự do (tất cả SKU)
                   </div>
-                  {fields.map(({ key, name: lineName }) => (
-                    <QuotationLineItem
-                      key={key}
-                      form={form}
-                      parentPath={freeParentPath}
-                      name={lineName}
-                      remove={() => removeLine(lineName)}
-                    />
-                  ))}
+                  <div className="overflow-x-auto">
+                    <table className="kv-table kv-lines" style={{ minWidth: 1100, marginBottom: 8 }}>
+                      <QuotationLineTableHead />
+                      <tbody>
+                        {fields.map(({ key, name: lineName }) => (
+                          <QuotationLineItem
+                            key={key}
+                            form={form}
+                            parentPath={freeParentPath}
+                            name={lineName}
+                            remove={() => removeLine(lineName)}
+                          />
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </>
               )}
               <Button size="small" style={{ marginTop: 4 }} onClick={() => add()}>

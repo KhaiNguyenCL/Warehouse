@@ -1,41 +1,41 @@
 import { useState } from 'react'
-import { useParams } from 'react-router-dom'
-import { Table, Button, Popconfirm, Modal, Input, Tag, Divider, Form } from 'antd'
+import { useNavigate, useParams } from 'react-router-dom'
+import { Table, Button as AntButton, Modal, Input, Tag, Divider, Form } from 'antd'
 import type { TableRowSelection } from 'antd/es/table/interface'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowLeftOutlined } from '@ant-design/icons'
+import { ArrowLeft } from 'lucide-react'
 import { useDeliveryOrderDetail } from '../hooks/useDeliveryOrderDetail'
-import { PageHeader } from '../components/ui/PageHeader'
-import { StatusBadge } from '../components/ui/StatusBadge'
+import { StatusBadge } from '@/components/ui/StatusBadge'
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel,
+  AlertDialogContent, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import CustomFieldsPanel from '../components/CustomFieldsPanel'
 import ActivityTimeline from '../components/ActivityTimeline'
+import { LineItemsTable } from '../components/LineItemsTable'
 import { api } from '../lib/api'
 
+// Port .kv-head/.kv-form-grid/.kv-table nguyên bản (đồng bộ ProductDetailPage/ReceiptFormPage/
+// PurchaseOrderCreatePage — "chi tiết SKU") thay cho SectionCard + usePageHeader trước đây.
+// Modal "Complete — chọn Serial Number" (SNPickerTable, rowSelection AntD Table) GIỮ NGUYÊN vì
+// là logic chọn SN phức tạp riêng của trang này, không phải component dùng chung — nhưng vẫn
+// nằm ngoài phạm vi lần đổi UI này (ưu tiên khung trang + bảng chính trước).
 const EXPORT_TYPE_LABEL: Record<string, string> = {
   sale: 'Bán hàng', internal: 'Xuất nội bộ', demo_out: 'Cho mượn demo',
   warranty_out: 'Gửi bảo hành', return_out: 'Trả NCC', dispose: 'Huỷ hàng', adjustment: 'Điều chỉnh',
 }
 
-function SectionCard({ title, extra, children }: { title: string; extra?: React.ReactNode; children: React.ReactNode }) {
+// Luôn wrap xuống dòng (không cắt 1 dòng + title tooltip) — field CHỈ ĐỌC, không phải input
+// cần giữ chiều cao cố định.
+function BBox({ children, title }: { children: React.ReactNode; title?: string }) {
   return (
-    <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--r-lg)', boxShadow: 'var(--shadow-sm)', overflow: 'hidden' }}>
-      <div style={{ padding: '12px 16px', background: 'var(--bg-subtle)', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-1)' }}>{title}</span>
-        {extra}
-      </div>
-      <div style={{ padding: 20 }}>{children}</div>
+    <div title={title} className="kv-input" style={{
+      display: 'flex', alignItems: 'flex-start', whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+      height: 'auto', minHeight: 30, padding: '5px 9px', background: 'var(--bg-card)', color: 'var(--text-1)',
+    }}>
+      {children}
     </div>
   )
-}
-
-const labelStyle: React.CSSProperties = { fontSize: 11, fontWeight: 600, color: 'var(--text-2)', marginBottom: 4 }
-const valueStyle: React.CSSProperties = {
-  fontSize: 14, color: 'var(--text-1)', minHeight: 32, display: 'flex', alignItems: 'center',
-  padding: '0 11px', border: '1px solid var(--border)', borderRadius: 6, background: 'var(--bg-subtle)',
-}
-
-function Field({ label, span = 4, children }: { label: string; span?: number; children: React.ReactNode }) {
-  return <div style={{ gridColumn: `span ${span}` }}><div style={labelStyle}>{label}</div><div style={valueStyle}>{children}</div></div>
 }
 function Val({ v }: { v?: React.ReactNode }) {
   return v != null && v !== '' ? <>{v}</> : <span style={{ color: 'var(--text-3)' }}>—</span>
@@ -53,7 +53,7 @@ function WarehouseBreakdown({ variantId, productType }: { variantId: string; pro
     queryFn: async () => (await api.get('/inventory/by-variant', { params: { limit: 100 } })).data,
     enabled: productType !== 'service',
   })
-  if (productType === 'service') return <span style={{ color: 'var(--text-3)', fontSize: 12 }}>Dịch vụ</span>
+  if (productType === 'service') return <span className="kv-muted" style={{ fontSize: 12 }}>Dịch vụ</span>
   const row = data?.data?.find((r: any) => r.variant_id === variantId)
   const breakdown: { name: string; qty: number }[] = row?.warehouse_breakdown ?? []
   if (!breakdown.length) return <span style={{ color: 'var(--s-cancelled-color)', fontSize: 12 }}>Hết hàng</span>
@@ -61,7 +61,7 @@ function WarehouseBreakdown({ variantId, productType }: { variantId: string; pro
     <span style={{ fontSize: 12 }}>
       {breakdown.map((w) => (
         <span key={w.name} style={{ marginRight: 8, whiteSpace: 'nowrap' }}>
-          {w.name}<span style={{ color: 'var(--text-3)', marginLeft: 2 }}>({w.qty})</span>
+          {w.name}<span className="kv-muted" style={{ marginLeft: 2 }}>({w.qty})</span>
         </span>
       ))}
     </span>
@@ -90,9 +90,9 @@ function SNPickerTable({ lineId, quantity, sns, loading, selected, onSelect }: {
       <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap', alignItems: 'center' }}>
         <Input.Search placeholder="Lọc SN, lô, PO, MAC..." allowClear size="small" style={{ width: 240 }}
           onChange={(e) => setFilter(e.target.value)} />
-        <Button size="small" disabled={!sns.length} onClick={() => onSelect(sns.slice(0, quantity).map((s) => s.serial_no))}>Auto FIFO</Button>
-        <Button size="small" disabled={!sns.length} onClick={() => onSelect([...sns].reverse().slice(0, quantity).map((s) => s.serial_no))}>Auto LIFO</Button>
-        {selected.length > 0 && <Button size="small" danger onClick={() => onSelect([])}>Xóa hết</Button>}
+        <AntButton size="small" disabled={!sns.length} onClick={() => onSelect(sns.slice(0, quantity).map((s) => s.serial_no))}>Auto FIFO</AntButton>
+        <AntButton size="small" disabled={!sns.length} onClick={() => onSelect([...sns].reverse().slice(0, quantity).map((s) => s.serial_no))}>Auto LIFO</AntButton>
+        {selected.length > 0 && <AntButton size="small" danger onClick={() => onSelect([])}>Xóa hết</AntButton>}
         <span style={{ fontSize: 13, color: remaining <= 0 ? 'var(--s-completed-color)' : '#ff4d4f' }}>
           {selected.length}/{quantity} SN đã chọn
         </span>
@@ -116,15 +116,18 @@ function SNPickerTable({ lineId, quantity, sns, loading, selected, onSelect }: {
 
 export default function DeliveryOrderDetailPage() {
   const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
   const hook = useDeliveryOrderDetail(id!)
   const [noteForm] = Form.useForm()
   const [editingNote, setEditingNote] = useState(false)
-
-  if (hook.isLoading || !hook.data) return null
+  const [cancelOpen, setCancelOpen] = useState(false)
 
   const d = hook.data
+
+  if (hook.isLoading || !d) return null
+
   const isDraft = d.status === 'draft'
-  const isClosed = ['completed', 'cancelled'].includes(d.status)
+  const isClosed = ['completed', 'cancelled'].includes(d.status ?? '')
   const storableLines = (d.lines as any[]).filter((l) => l.product_type === 'storable')
 
   function startEditNote() {
@@ -137,94 +140,135 @@ export default function DeliveryOrderDetailPage() {
   }
 
   return (
-    <div style={{ padding: '10px 20px 40px', display: 'flex', flexDirection: 'column', gap: 24 }}>
-      <PageHeader
-        title={
-          <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            {d.code}
-            <StatusBadge status={d.status} />
-          </span>
-        }
-        meta={
-          <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => window.history.back()} style={{ padding: '0 4px' }}>
-            Phiếu xuất kho
-          </Button>
-        }
-        actions={
-          <div style={{ display: 'flex', gap: 8 }}>
-            {isDraft && (
-              <Button type="primary" onClick={hook.openComplete}>Complete</Button>
-            )}
-            {!isClosed && (
-              <Popconfirm title="Huỷ phiếu này?" onConfirm={() => hook.cancelMutation.mutate()}>
-                <Button danger loading={hook.cancelMutation.isPending}>Huỷ</Button>
-              </Popconfirm>
-            )}
-          </div>
-        }
-      />
+    <div className="theme-2a -m-6 flex flex-col gap-4 bg-background p-6">
 
-      <SectionCard title="Thông tin chung">
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: '16px 28px' }}>
-          <Field label="Loại xuất" span={3}><Val v={EXPORT_TYPE_LABEL[d.export_type] ?? d.export_type} /></Field>
-          <Field label="Kho xuất" span={3}><Val v={d.warehouse_name} /></Field>
-          <Field label="Lý do" span={3}><Val v={d.reason} /></Field>
-          <Field label="Ngày tạo" span={3}>
-            <Val v={d.created_at ? new Date(d.created_at).toLocaleDateString('vi-VN') : undefined} />
-          </Field>
-          <Field label="Khách hàng / NCC" span={6}><Val v={d.company_name} /></Field>
-          <Field label="Người liên hệ" span={6}><Val v={d.contact_name} /></Field>
-          <Field label="Ghi chú" span={12}>
+      <AlertDialog open={cancelOpen} onOpenChange={setCancelOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Huỷ phiếu này?</AlertDialogTitle>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Đóng</AlertDialogCancel>
+            <AlertDialogAction
+              variant="danger"
+              onClick={() => { hook.cancelMutation.mutate(); setCancelOpen(false) }}
+            >
+              Huỷ phiếu
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Header — port .kv-head.kv-head--divided/.kv-crumb/.kv-title--sm nguyên bản */}
+      <div className="kv-head kv-head--divided">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <button type="button" className="kv-btn kv-btn--ghost" onClick={() => navigate(-1)} style={{ padding: 0, width: 30, flexShrink: 0 }} aria-label="Quay lại">
+            <ArrowLeft className="h-4 w-4" />
+          </button>
+          <div>
+            <div className="kv-crumb">
+              <button onClick={() => navigate('/deliveries')} style={{ background: 'none', border: 'none', padding: 0, font: 'inherit', cursor: 'pointer' }}>
+                Phiếu xuất kho
+              </button>
+              {' / '}{d.code}
+            </div>
+            <h1 className="kv-title kv-title--sm" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span className="mono">{d.code}</span>
+              <StatusBadge status={d.status} />
+            </h1>
+          </div>
+        </div>
+        <div className="kv-actions">
+          {isDraft && (
+            <button type="button" className="kv-btn kv-btn--primary" onClick={hook.openComplete}>Complete</button>
+          )}
+          {!isClosed && (
+            <button type="button" className="kv-btn kv-btn--danger" onClick={() => setCancelOpen(true)} disabled={hook.cancelMutation.isPending}>
+              Huỷ
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Thông tin chung — port .kv-form-grid/.kv-group-label/.kv-field nguyên bản */}
+      <div className="kv-form-grid">
+        <div className="kv-group-label">Thông tin chung</div>
+        <div className="kv-group-body kv-stack" style={{ maxWidth: 640 }}>
+          <div className="kv-2col">
+            <div className="kv-field"><label>Loại xuất</label><BBox><Val v={EXPORT_TYPE_LABEL[d.export_type] ?? d.export_type} /></BBox></div>
+            <div className="kv-field"><label>Kho xuất</label><BBox><Val v={d.warehouse_name} /></BBox></div>
+            <div className="kv-field"><label>Lý do</label><BBox><Val v={d.reason} /></BBox></div>
+            <div className="kv-field">
+              <label>Ngày tạo</label>
+              <BBox><Val v={d.created_at ? new Date(d.created_at).toLocaleDateString('vi-VN') : undefined} /></BBox>
+            </div>
+          </div>
+          <div className="kv-2col">
+            <div className="kv-field"><label>Khách hàng / NCC</label><BBox title={d.company_name ?? ''}><Val v={d.company_name} /></BBox></div>
+            <div className="kv-field"><label>Người liên hệ</label><BBox><Val v={d.contact_name} /></BBox></div>
+          </div>
+          <div className="kv-field">
+            <label>Ghi chú</label>
             {editingNote ? (
-              <Form form={noteForm} style={{ width: '100%' }}>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', width: '100%' }}>
+              <Form form={noteForm}>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
                   <Form.Item name="note" noStyle>
-                    <Input.TextArea rows={2} autoFocus style={{ flex: 1 }} />
+                    <textarea className="kv-input" rows={2} autoFocus style={{ flex: 1, resize: 'vertical' }} />
                   </Form.Item>
-                  <Button size="small" type="primary" onClick={saveNote} loading={hook.updateMutation.isPending}>Lưu</Button>
-                  <Button size="small" onClick={() => setEditingNote(false)}>Huỷ</Button>
+                  <button type="button" className="kv-btn kv-btn--primary kv-btn--sm" onClick={saveNote} disabled={hook.updateMutation.isPending}>Lưu</button>
+                  <button type="button" className="kv-btn kv-btn--sm" onClick={() => setEditingNote(false)}>Huỷ</button>
                 </div>
               </Form>
             ) : (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%' }}>
-                <Val v={d.note} />
-                {isDraft && <Button type="link" size="small" onClick={startEditNote} style={{ padding: 0, height: 'auto' }}>Sửa</Button>}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <BBox><Val v={d.note} /></BBox>
+                {isDraft && <button type="button" className="kv-btn kv-btn--ghost kv-btn--sm" onClick={startEditNote} style={{ flexShrink: 0 }}>Sửa</button>}
               </div>
             )}
-          </Field>
+          </div>
         </div>
-      </SectionCard>
-
-      <SectionCard title="Danh sách sản phẩm">
-        <Table
-          rowKey="id"
-          size="small"
-          dataSource={d.lines}
-          pagination={false}
-          scroll={{ x: 'max-content' }}
-          columns={[
-            { title: 'STT', width: 52, align: 'center' as const, render: (_: any, __: any, i: number) => i + 1 },
-            { title: 'Mã hàng', dataIndex: 'item_code', width: 130 },
-            { title: 'Tên sản phẩm', dataIndex: 'variant_name' },
-            { title: 'Loại', dataIndex: 'product_type', width: 90 },
-            { title: 'Số lượng', dataIndex: 'quantity', width: 80, align: 'right' as const },
-            {
-              title: 'Tồn kho theo kho',
-              render: (_: any, r: any) => <WarehouseBreakdown variantId={r.variant_id} productType={r.product_type} />,
-            },
-            { title: 'Ghi chú dòng', dataIndex: 'note', render: (v: string) => v || '—' },
-          ]}
-        />
-      </SectionCard>
-
-      <CustomFieldsPanel objectType="delivery_order" objectId={id!} />
-
-      <div style={{ marginTop: 24, padding: '16px 20px', border: '1px solid var(--border)', borderRadius: 8 }}>
-        <div style={{ fontWeight: 600, marginBottom: 12 }}>Lịch sử hoạt động</div>
-        <ActivityTimeline objectType="delivery_order" objectId={id!} />
       </div>
 
-      {/* Modal chọn Serial Number khi Complete */}
+      {/* Danh sách sản phẩm — port .kv-section-head/.kv-table nguyên bản */}
+      <div className="kv-section-head">
+        <div>
+          <div className="kv-eyebrow">Dòng hàng</div>
+          <h2 className="kv-section-title">Danh sách sản phẩm</h2>
+        </div>
+      </div>
+      <LineItemsTable
+        cols={[
+          { key: 'no', label: '#', align: 'center', width: '5%', render: (_l, i) => <span className="kv-muted">{i + 1}</span> },
+          { key: 'code', label: 'Mã hàng', width: '13%', render: (l) => <span className="mono truncate" title={l.item_code ?? ''}>{l.item_code}</span> },
+          { key: 'name', label: 'Tên sản phẩm', render: (l) => <span className="truncate" title={l.variant_name ?? ''}>{l.variant_name}</span> },
+          { key: 'type', label: 'Loại', width: '10%', render: (l) => l.product_type },
+          { key: 'qty', label: 'SL', align: 'right', width: '9%', render: (l) => l.quantity },
+          { key: 'wh', label: 'Tồn kho theo kho', width: '22%', render: (l) => <WarehouseBreakdown variantId={l.variant_id} productType={l.product_type} /> },
+          { key: 'note', label: 'Ghi chú dòng', width: '16%', render: (l) => <span className="kv-muted truncate" title={l.note ?? ''}>{l.note || '—'}</span> },
+        ]}
+        rows={d.lines as any[]}
+        rowKey={(l) => l.id}
+        fixedLayout
+        minWidth={900}
+      />
+
+      <div className="kv-section-head">
+        <div>
+          <div className="kv-eyebrow">Thông tin bổ sung</div>
+          <h2 className="kv-section-title">Trường tùy chỉnh</h2>
+        </div>
+      </div>
+      <CustomFieldsPanel objectType="delivery_order" objectId={id!} />
+
+      <div className="kv-section-head">
+        <div>
+          <div className="kv-eyebrow">Nhật ký</div>
+          <h2 className="kv-section-title">Lịch sử hoạt động</h2>
+        </div>
+      </div>
+      <ActivityTimeline objectType="delivery_order" objectId={id!} />
+
+      {/* Modal chọn Serial Number khi Complete — giữ nguyên AntD, xem ghi chú đầu file */}
       <Modal
         title="Complete — chọn Serial Number"
         open={hook.completeOpen}

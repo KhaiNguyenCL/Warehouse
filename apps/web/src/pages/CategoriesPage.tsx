@@ -1,12 +1,10 @@
-import React, { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { ChevronRight, ChevronDown, Plus, Pencil, Trash2, Search, X } from 'lucide-react'
+import { ChevronRight, ChevronDown, ChevronLeft, Pencil, Trash2, Search, X } from 'lucide-react'
 
 import { useCategories } from '@/hooks/useCategories'
-import { PageHeader } from '@/components/ui/PageHeader'
-import { TableCard } from '@/components/ui/TableCard'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -22,9 +20,9 @@ import {
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { cn } from '@/lib/utils'
-import { CodeText } from '@/components/ui/CodeText'
-import { ActiveBadge } from '@/components/ui/ActiveBadge'
+import { StatusToggle } from '@/components/ui/StatusToggle'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
+import { usePageNoPadding } from '@/layout/PageHeaderSlot'
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -88,16 +86,18 @@ type CategoryForm = z.infer<typeof schema>
 // ── Component ──────────────────────────────────────────────────────────────
 
 export default function CategoriesPage() {
+  usePageNoPadding()
   const { data, isLoading, createMutation, updateMutation, deleteMutation, buildParentOptions } =
     useCategories()
 
   const [dialogOpen, setDialogOpen]     = useState(false)
   const [editing, setEditing]           = useState<any | null>(null)
-  const [isViewing, setIsViewing]       = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null)
   const [search, setSearch]             = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all')
   const [expandedIds, setExpandedIds]   = useState<Set<string>>(new Set())
+  const [selectedId, setSelectedId]     = useState<string | null>(null)
+  const [mobileDetail, setMobileDetail] = useState(false)
 
   // Auto-expand all categories on first load
   useEffect(() => {
@@ -123,14 +123,12 @@ export default function CategoriesPage() {
 
   function openCreate() {
     setEditing(null)
-    setIsViewing(false)
     form.reset({ name: '', short_code: '', parent_id: '', is_active: true })
     setDialogOpen(true)
   }
 
   function openEdit(record: any) {
     setEditing(record)
-    setIsViewing(true)
     form.reset({
       name:       record.name,
       short_code: record.short_code ?? '',
@@ -178,323 +176,249 @@ export default function CategoriesPage() {
     : buildFlatRows(filteredFlat, expandedIds)
 
   const parentOptions = buildParentOptions(flat, editing?.id)
+  const selected = flat.find((c: any) => c.id === selectedId) ?? null
+  const selectedParentName = selected?.parent_id
+    ? flat.find((c: any) => c.id === selected.parent_id)?.name
+    : null
+
+  useEffect(() => {
+    if (flatRows.length === 0) { setSelectedId(null); return }
+    if (!selectedId || !flatRows.some((r) => r.item.id === selectedId)) setSelectedId(flatRows[0].item.id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [flatRows])
 
   // ── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="theme-2a flex h-full min-h-0 flex-col bg-background p-6">
 
-      <PageHeader
-        title="Danh mục sản phẩm"
-        meta="Quản lý danh mục và phân loại sản phẩm"
-        actions={
-          <Button onClick={openCreate}>
-            <Plus className="mr-2 h-4 w-4" />
-            Tạo mới
-          </Button>
-        }
-      />
+      <div className="kv-head">
+        <div>
+          <h1 className="kv-title">Danh mục sản phẩm</h1>
+          <p className="kv-sub">{flat.length.toLocaleString('vi-VN')} danh mục và phân loại sản phẩm</p>
+        </div>
+        <div className="kv-actions">
+          <button type="button" className="kv-btn kv-btn--primary" onClick={openCreate}>Tạo mới</button>
+        </div>
+      </div>
 
-      <TableCard
-        toolbar={
-          <div className="flex items-center gap-2">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Tìm tên, mã viết tắt…"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="h-9 w-64 rounded-lg border-border pl-9 text-sm shadow-none focus-visible:ring-1"
-              />
+      <div className={cn('kv-md', mobileDetail && 'kv-md--detail-open')}>
+
+        {/* Roster */}
+        <div className="kv-md-list">
+          <div className="kv-md-tools">
+            <div className="kv-search">
+              <Search className="h-4 w-4" />
+              <input className="kv-input" placeholder="Tìm tên, mã viết tắt…" value={search} onChange={(e) => setSearch(e.target.value)} />
             </div>
-            <div className="flex items-center gap-1 rounded-lg border border-border-md bg-muted/40 p-0.5">
-              {(['all', 'active', 'inactive'] as const).map((f) => (
-                <button
-                  key={f}
-                  onClick={() => setStatusFilter(f)}
-                  className={cn(
-                    'rounded-md px-2.5 py-1 text-xs font-medium transition-colors',
-                    statusFilter === f
-                      ? 'bg-background text-foreground shadow-sm'
-                      : 'text-muted-foreground hover:text-foreground',
-                  )}
-                >
-                  {f === 'all' ? 'Tất cả' : f === 'active' ? 'Hoạt động' : 'Ngừng'}
-                  {f !== 'all' && (
-                    <span className="ml-1 tabular-nums text-muted-foreground">
-                      {flat.filter((c: any) => f === 'active' ? c.is_active : !c.is_active).length}
-                    </span>
-                  )}
-                </button>
-              ))}
+            <div className="kv-seg" role="tablist" aria-label="Lọc trạng thái">
+              <button type="button" aria-current={statusFilter === 'all'} onClick={() => setStatusFilter('all')}>Tất cả</button>
+              <button type="button" aria-current={statusFilter === 'active'} onClick={() => setStatusFilter('active')}>Hoạt động</button>
+              <button type="button" aria-current={statusFilter === 'inactive'} onClick={() => setStatusFilter('inactive')}>Ngừng</button>
             </div>
           </div>
-        }
-        actions={
-          <span className="text-sm text-muted-foreground">{flatRows.length} kết quả</span>
-        }
-      >
-        <table className="w-full table-fixed">
-          <colgroup>
-            <col style={{ width: '32%' }} />
-            <col style={{ width: '12%' }} />
-            <col style={{ width: '12%' }} />
-            <col style={{ width: '12%' }} />
-            <col style={{ width: '20%' }} />
-            <col style={{ width: '12%' }} />
-          </colgroup>
-          <thead>
-            <tr className="border-b border-border bg-muted/60">
-              <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">
-                Tên
-              </th>
-              <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">
-                Mã viết tắt
-              </th>
-              <th className="px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground">
-                Trạng thái
-              </th>
-              <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">
-                Ngày tạo
-              </th>
-              <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">
-                Người tạo
-              </th>
-              <th />
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
+
+          <ul className="kv-md-items">
             {isLoading ? (
-              <tr>
-                <td colSpan={6} className="px-4 py-12 text-center text-xs text-muted-foreground">
-                  Đang tải…
-                </td>
-              </tr>
+              <li className="kv-muted" style={{ padding: '32px 14px', textAlign: 'center', fontSize: 12 }}>Đang tải…</li>
             ) : flatRows.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="px-4 py-12 text-center text-xs text-muted-foreground">
-                  {search ? 'Không tìm thấy kết quả.' : 'Chưa có danh mục nào.'}
-                </td>
-              </tr>
+              <li className="kv-muted" style={{ padding: '32px 14px', textAlign: 'center', fontSize: 12 }}>
+                {search ? 'Không tìm thấy kết quả.' : 'Chưa có danh mục nào.'}
+              </li>
             ) : (
               flatRows.map(({ item, depth, hasChildren }) => (
-                <tr
-                  key={item.id}
-                  onClick={() => openEdit(item)}
-                  className={cn(
-                    'group/row cursor-pointer transition-colors hover:bg-muted/30',
-                    !item.is_active && 'opacity-50',
-                  )}
-                >
-                  {/* Name — indented by depth */}
-                  <td className="px-4 py-2">
-                    <div
-                      className="flex items-center gap-1"
-                      style={{ paddingLeft: depth * 24 }}
-                    >
+                <li key={item.id}>
+                  <a
+                    className="kv-md-item"
+                    aria-current={item.id === selectedId}
+                    style={{ opacity: item.is_active ? undefined : 0.5, paddingLeft: 14 + depth * 20 }}
+                    onClick={() => { setSelectedId(item.id); setMobileDetail(true) }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
                       {hasChildren ? (
-                        <button
+                        <span
+                          role="button"
                           onClick={(e) => { e.stopPropagation(); toggleExpand(item.id) }}
-                          className="flex-shrink-0 rounded p-0.5 text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+                          style={{ display: 'flex', flexShrink: 0, borderRadius: 4, padding: 1, color: 'var(--text-2)' }}
                         >
                           {expandedIds.has(item.id)
-                            ? <ChevronDown className="h-4 w-4" />
-                            : <ChevronRight className="h-4 w-4" />}
-                        </button>
+                            ? <ChevronDown className="h-3.5 w-3.5" />
+                            : <ChevronRight className="h-3.5 w-3.5" />}
+                        </span>
                       ) : (
-                        <span className="w-5 flex-shrink-0" />
+                        <span style={{ width: 14, flexShrink: 0 }} />
                       )}
-                      <span className="font-medium text-foreground">{item.name}</span>
+                      <div style={{ minWidth: 0 }}>
+                        <div className="kv-cell-title truncate">{item.name}</div>
+                        <div className="kv-cell-sub mono" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                          {item.short_code}
+                          {!item.is_active && <span>· Ngừng</span>}
+                        </div>
+                      </div>
                     </div>
-                  </td>
-
-                  {/* Short code */}
-                  <td className="px-4 py-2">
-                    {item.short_code ? (
-                      <CodeText>{item.short_code}</CodeText>
-                    ) : (
-                      <span className="text-muted-foreground">—</span>
-                    )}
-                  </td>
-
-                  {/* Status switch */}
-                  <td className="px-4 py-2">
-                    <div className="flex justify-center" onClick={(e) => e.stopPropagation()}>
-                      <Switch
-                        checked={item.is_active}
-                        onCheckedChange={(checked) => updateMutation.mutate({ id: item.id, is_active: checked })}
-                      />
-                    </div>
-                  </td>
-
-                  {/* Created at */}
-                  <td className="px-4 py-2 text-xs text-muted-foreground">
-                    {item.created_at
-                      ? new Date(item.created_at).toLocaleDateString('vi-VN')
-                      : '—'}
-                  </td>
-
-                  {/* Created by */}
-                  <td className="px-4 py-2 text-xs text-muted-foreground">
-                    {item.created_by_name ?? '—'}
-                  </td>
-
-                  {/* Actions — hover reveal */}
-                  <td className="px-4 py-2">
-                    <div className="flex items-center justify-end gap-1 opacity-0 transition-opacity group-hover/row:opacity-100">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); openEdit(item) }}
-                        className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                      </button>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setDeleteTarget(item) }}
-                        className="rounded-md p-1.5 text-muted-foreground hover:bg-red-50 hover:text-red-600 transition-colors"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
+                  </a>
+                </li>
               ))
             )}
-          </tbody>
-        </table>
+          </ul>
 
-        {flatRows.length > 0 && (
-          <div className="border-t border-border px-4 py-2.5">
-            <span className="text-xs text-muted-foreground">{flat.length} danh mục</span>
+          <div className="kv-md-foot">{flat.length} danh mục</div>
+        </div>
+
+        {/* Detail */}
+        {!selected ? (
+          <div className="kv-md-detail flex items-center justify-center">
+            <p className="kv-muted" style={{ fontSize: 13 }}>Chọn 1 danh mục bên trái để xem chi tiết.</p>
+          </div>
+        ) : (
+          <div className="kv-md-detail">
+
+            <button
+              onClick={() => setMobileDetail(false)}
+              className="mb-2.5 flex items-center gap-1.5 border-none bg-transparent text-sm font-medium md:hidden"
+              style={{ color: 'var(--text-2)', cursor: 'pointer' }}
+            >
+              <ChevronLeft className="h-4 w-4" />
+              Quay lại danh sách
+            </button>
+
+            <div className="kv-md-head">
+              <div>
+                <h2 className="kv-md-title">{selected.name}</h2>
+                {selected.short_code && <div className="kv-cell-sub mono" style={{ marginTop: 4 }}>{selected.short_code}</div>}
+              </div>
+              <div className="kv-actions">
+                <button type="button" className="kv-btn" onClick={() => openEdit(selected)}>
+                  <Pencil className="h-3.5 w-3.5" />Sửa
+                </button>
+                <button type="button" className="kv-btn kv-btn--danger" onClick={() => setDeleteTarget(selected)}>
+                  <Trash2 className="h-3.5 w-3.5" />Xoá
+                </button>
+              </div>
+            </div>
+
+            <div className="kv-md-block">
+              <div className="kv-md-block-head">
+                <h3 className="kv-section-title">Thông tin</h3>
+              </div>
+              <dl className="kv-dl">
+                <div><dt>Danh mục cha</dt><dd>{selectedParentName ?? <span className="kv-empty">Không có (danh mục gốc)</span>}</dd></div>
+                <div>
+                  <dt>Trạng thái</dt>
+                  <dd>
+                    <StatusToggle
+                      active={selected.is_active}
+                      onChange={(v) => updateMutation.mutate({ id: selected.id, is_active: v })}
+                    />
+                  </dd>
+                </div>
+                <div><dt>Ngày tạo</dt><dd>{selected.created_at ? new Date(selected.created_at).toLocaleDateString('vi-VN') : <span className="kv-empty">Chưa nhập</span>}</dd></div>
+                <div><dt>Người tạo</dt><dd>{selected.created_by_name || <span className="kv-empty">Chưa nhập</span>}</dd></div>
+              </dl>
+            </div>
           </div>
         )}
-      </TableCard>
+      </div>
 
-      {/* ── View / Create / Edit Sheet ───────────────────────────────────── */}
+      {/* ── Create / Edit Sheet ───────────────────────────────────── */}
       <Sheet open={dialogOpen} onOpenChange={(o) => !o && setDialogOpen(false)}>
-        <SheetContent side="right" className="w-96 flex flex-col gap-0" showCloseButton={false}>
-        {/* header */}
+        <SheetContent side="right" className="theme-2a w-96 flex flex-col gap-0" showCloseButton={false}>
         <div className="flex shrink-0 items-center justify-between border-b border-border px-5 py-4">
           <h2 className="text-base font-semibold text-foreground">
             {editing ? editing.name : 'Tạo danh mục mới'}
           </h2>
-          <div className="flex items-center gap-1">
-            {isViewing && (
-              <Button size="sm" variant="outline" onClick={() => setIsViewing(false)}>
-                <Pencil className="mr-1.5 h-3.5 w-3.5" />Chỉnh sửa
-              </Button>
-            )}
-            <button
-              onClick={() => setDialogOpen(false)}
-              className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
+          <button
+            onClick={() => setDialogOpen(false)}
+            className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+          >
+            <X className="h-4 w-4" />
+          </button>
         </div>
 
-        {isViewing && editing ? (
-          /* ── View mode ── */
-          <div className="flex-1 overflow-y-auto px-5 py-5">
-            <div className="flex flex-col gap-5">
-              <SheetField label="Tên danh mục">{editing.name}</SheetField>
-              <SheetField label="Mã viết tắt"><CodeText>{editing.short_code || '—'}</CodeText></SheetField>
-              <SheetField label="Danh mục cha">
-                {editing.parent_id
-                  ? (parentOptions.find((o: any) => o.value === editing.parent_id)?.label ?? '—')
-                  : <span className="text-muted-foreground">Không có (danh mục gốc)</span>}
-              </SheetField>
-              <SheetField label="Trạng thái">
-                <ActiveBadge active={editing.is_active} />
-              </SheetField>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="flex min-h-0 flex-1 flex-col">
+            <div className="flex-1 overflow-y-auto px-5 py-5">
+              <div className="flex flex-col gap-4">
+                <FormField control={form.control} name="name" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tên danh mục</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="VD: Switch"
+                        {...field}
+                        onChange={(e) => {
+                          const v = e.target.value
+                          field.onChange(v.charAt(0).toUpperCase() + v.slice(1))
+                        }}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <FormField control={form.control} name="short_code" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Mã viết tắt</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="VD: SW"
+                        className="font-mono"
+                        {...field}
+                        onChange={(e) => field.onChange(e.target.value.toUpperCase())}
+                      />
+                    </FormControl>
+                    <FormDescription>Tự sinh từ tên, có thể sửa. Dùng để gợi ý mã sản phẩm.</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <FormField control={form.control} name="parent_id" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Danh mục cha (tuỳ chọn)</FormLabel>
+                    <Select value={field.value ?? ''} onValueChange={field.onChange}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Không có (danh mục gốc)">
+                            {field.value
+                              ? (parentOptions.find(o => o.value === field.value)?.label ?? '—')
+                              : 'Không có (danh mục gốc)'}
+                          </SelectValue>
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent className="theme-2a">
+                        <SelectItem value="">Không có (danh mục gốc)</SelectItem>
+                        {parentOptions.map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                {editing && (
+                  <FormField control={form.control} name="is_active" render={({ field }) => (
+                    <FormItem className="flex items-center justify-between rounded-lg border border-border p-3">
+                      <FormLabel className="cursor-pointer text-sm font-normal">Hoạt động</FormLabel>
+                      <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                    </FormItem>
+                  )} />
+                )}
+              </div>
             </div>
-          </div>
-        ) : (
-          /* ── Create / Edit mode ── */
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="flex min-h-0 flex-1 flex-col">
-              <div className="flex-1 overflow-y-auto px-5 py-5">
-                <div className="flex flex-col gap-4">
-                  <FormField control={form.control} name="name" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Tên danh mục</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="VD: Switch"
-                          {...field}
-                          onChange={(e) => {
-                            const v = e.target.value
-                            field.onChange(v.charAt(0).toUpperCase() + v.slice(1))
-                          }}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )} />
-                  <FormField control={form.control} name="short_code" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Mã viết tắt</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="VD: SW"
-                          className="font-mono"
-                          {...field}
-                          onChange={(e) => field.onChange(e.target.value.toUpperCase())}
-                        />
-                      </FormControl>
-                      <FormDescription>Tự sinh từ tên, có thể sửa. Dùng để gợi ý mã sản phẩm.</FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )} />
-                  <FormField control={form.control} name="parent_id" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Danh mục cha (tuỳ chọn)</FormLabel>
-                      <Select value={field.value ?? ''} onValueChange={field.onChange}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Không có (danh mục gốc)">
-                              {field.value
-                                ? (parentOptions.find(o => o.value === field.value)?.label ?? '—')
-                                : 'Không có (danh mục gốc)'}
-                            </SelectValue>
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="">Không có (danh mục gốc)</SelectItem>
-                          {parentOptions.map((opt) => (
-                            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )} />
-                  {editing && (
-                    <FormField control={form.control} name="is_active" render={({ field }) => (
-                      <FormItem className="flex items-center justify-between rounded-lg border border-border p-3">
-                        <FormLabel className="cursor-pointer text-sm font-normal">Hoạt động</FormLabel>
-                        <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
-                      </FormItem>
-                    )} />
-                  )}
-                </div>
-              </div>
-              <div className="flex shrink-0 items-center justify-end gap-2 border-t border-border px-5 py-4">
-                <Button type="button" variant="outline" onClick={() => editing ? setIsViewing(true) : setDialogOpen(false)}>
-                  Huỷ
-                </Button>
-                <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending}>
-                  {editing ? 'Lưu thay đổi' : 'Tạo mới'}
-                </Button>
-              </div>
-            </form>
-          </Form>
-        )}
+            <div className="flex shrink-0 items-center justify-end gap-2 border-t border-border px-5 py-4">
+              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
+                Huỷ
+              </Button>
+              <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending}>
+                {editing ? 'Lưu thay đổi' : 'Tạo mới'}
+              </Button>
+            </div>
+          </form>
+        </Form>
         </SheetContent>
       </Sheet>
 
       {/* ── Delete confirmation ──────────────────────────────────────────── */}
       <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
-        <AlertDialogContent>
+        <AlertDialogContent className="theme-2a">
           <AlertDialogHeader>
             <AlertDialogTitle>Xoá danh mục?</AlertDialogTitle>
             <AlertDialogDescription>
@@ -506,7 +430,7 @@ export default function CategoriesPage() {
           <AlertDialogFooter>
             <AlertDialogCancel>Huỷ</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+              variant="danger"
               onClick={() => { deleteMutation.mutate(deleteTarget.id); setDeleteTarget(null) }}
             >
               Xoá
@@ -514,15 +438,6 @@ export default function CategoriesPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
-  )
-}
-
-function SheetField({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <div className="text-xs font-semibold text-muted-foreground">{label}</div>
-      <div className="mt-1 text-sm text-foreground">{children}</div>
     </div>
   )
 }

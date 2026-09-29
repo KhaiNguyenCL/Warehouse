@@ -1,210 +1,32 @@
 import { useState } from 'react'
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Table, Tag, Button, Drawer, Descriptions, Divider, Form, Input, message } from 'antd'
-import type { ColumnType } from 'antd/es/table'
-import { ArrowLeftOutlined } from '@ant-design/icons'
-import { Search } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
+import { ArrowLeft, Search, ChevronLeft, ChevronRight } from 'lucide-react'
 import { api } from '../lib/api'
-import { PageHeader } from '../components/ui/PageHeader'
-import { TableCard } from '../components/ui/TableCard'
-import { StatusBadge } from '../components/ui/StatusBadge'
-import { Input as ShadInput } from '@/components/ui/input'
+import { fmt, fmtReceipt } from '../lib/snFormat'
+import { SnDetailSheet } from '../components/SnDetailSheet'
+import { StatusBadge } from '@/components/ui/StatusBadge'
 
-const REF_DOCUMENT_PATH: Record<string, string> = {
-  receipt: '/receipts',
-  delivery_order: '/deliveries',
-  transfer_order: '/transfers',
-}
-const REF_DOCUMENT_LABEL: Record<string, string> = {
-  receipt: 'Phiếu nhập',
-  delivery_order: 'Phiếu xuất',
-  transfer_order: 'Phiếu chuyển',
+const PAGE_SIZE = 50
+
+function warrantyMonthsLabel(v: number | null) {
+  if (v == null) return '—'
+  if (v === 0) return 'Không BH'
+  return `${v} tháng`
 }
 
-function fmt(d: string | null) {
-  if (!d) return '—'
-  return new Date(d).toLocaleDateString('vi-VN')
-}
-
-function fmtReceipt(code: string | null, completedAt: string | null) {
-  if (!code) return '—'
-  if (!completedAt) return code
-  return `${code} · ${fmt(completedAt)}`
-}
-
-function SnDetailDrawer({
-  sn,
-  onClose,
-  listQueryKey,
-}: {
-  sn: any | null
-  onClose: () => void
-  listQueryKey: unknown[]
-}) {
-  const navigate = useNavigate()
-  const qc = useQueryClient()
-  const [editOpen, setEditOpen] = useState(false)
-  const [form] = Form.useForm()
-  const [saving, setSaving] = useState(false)
-
-  const { data: movements, isLoading: movLoading } = useQuery({
-    queryKey: ['inventory', 'serials', sn?.id, 'movements'],
-    queryFn: async () => (await api.get(`/inventory/serials/${sn!.id}/movements`)).data,
-    enabled: !!sn,
-  })
-
-  async function onSave() {
-    const values = form.getFieldsValue()
-    setSaving(true)
-    try {
-      await api.patch(`/inventory/serials/${sn!.id}`, {
-        serial_no:   values.serial_no,
-        mac_address: values.mac_address || null,
-        note:        values.note || null,
-      })
-      message.success('Đã cập nhật')
-      qc.invalidateQueries({ queryKey: listQueryKey })
-      setEditOpen(false)
-      onClose()
-    } catch {
-      message.error('Lưu thất bại')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  return (
-    <Drawer
-      title={sn?.serial_no ?? ''}
-      open={!!sn}
-      onClose={() => { setEditOpen(false); onClose() }}
-      width={520}
-      extra={<Button onClick={() => setEditOpen((v) => !v)}>{editOpen ? 'Huỷ sửa' : 'Sửa'}</Button>}
-    >
-      {sn && (
-        <>
-          <div>
-            {[
-              { label: 'Trạng thái', value: <StatusBadge status={sn.status} /> },
-              { label: 'Kho', value: sn.warehouse_name ?? '—' },
-              { label: 'MAC', value: sn.mac_address ?? '—' },
-              { label: 'Phiếu nhập · Ngày', value: <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{fmtReceipt(sn.receipt_code, sn.completed_at)}</span> },
-              { label: 'BH hãng', value: sn.manufacturer_warranty_months == null ? '—' : sn.manufacturer_warranty_months === 0 ? 'Không BH' : `${sn.manufacturer_warranty_months} tháng` },
-              { label: 'BH công ty', value: sn.customer_warranty_months == null ? '—' : sn.customer_warranty_months === 0 ? 'Không BH' : `${sn.customer_warranty_months} tháng` },
-              { label: 'Hết BH hãng', value: fmt(sn.manufacturer_warranty_end) },
-              { label: 'Hết BH cty', value: fmt(sn.customer_warranty_end) },
-            ].map(({ label, value }) => (
-              <div key={label} style={{ display: 'grid', gridTemplateColumns: '140px 1fr', padding: '6px 0' }}>
-                <div style={{ fontSize: 13, color: 'var(--text-2)', fontWeight: 500 }}>{label}</div>
-                <div style={{ fontSize: 13 }}>{value}</div>
-              </div>
-            ))}
-          </div>
-
-          {editOpen && (
-            <>
-              <Divider />
-              <Form
-                form={form}
-                layout="vertical"
-                initialValues={{ serial_no: sn.serial_no, mac_address: sn.mac_address ?? '', note: sn.note ?? '' }}
-              >
-                <Form.Item name="serial_no" label="Serial No" rules={[{ required: true }]}>
-                  <Input />
-                </Form.Item>
-                <Form.Item name="mac_address" label="MAC Address">
-                  <Input placeholder="AA:BB:CC:DD:EE:FF" allowClear />
-                </Form.Item>
-                <Form.Item name="note" label="Ghi chú">
-                  <Input.TextArea rows={2} allowClear />
-                </Form.Item>
-                <Button type="primary" loading={saving} onClick={onSave}>Lưu</Button>
-              </Form>
-            </>
-          )}
-
-          <Divider>Lịch sử di chuyển</Divider>
-          <Table
-            rowKey="id"
-            loading={movLoading}
-            dataSource={movements}
-            pagination={false}
-            size="small"
-            locale={{ emptyText: 'Chưa có lịch sử' }}
-            columns={[
-              {
-                title: 'Loại',
-                dataIndex: 'movement_type',
-                width: 60,
-                render: (v: string) => (
-                  <Tag color={v === 'in' ? 'green' : 'red'}>{v === 'in' ? 'Nhập' : 'Xuất'}</Tag>
-                ),
-              },
-              { title: 'Kho', dataIndex: 'warehouse_name' },
-              { title: 'Thời gian', dataIndex: 'created_at', render: (d) => new Date(d).toLocaleString('vi-VN') },
-              {
-                title: 'Phiếu',
-                render: (_: any, r: any) =>
-                  REF_DOCUMENT_PATH[r.ref_document_type] ? (
-                    <a onClick={() => navigate(`${REF_DOCUMENT_PATH[r.ref_document_type]}/${r.ref_document_id}`)}>
-                      {REF_DOCUMENT_LABEL[r.ref_document_type]}
-                    </a>
-                  ) : '—',
-              },
-            ]}
-          />
-        </>
-      )}
-    </Drawer>
-  )
-}
-
-const INITIAL_COLS: ColumnType<any>[] = [
-  { title: '#', width: 52, align: 'center', render: (_: any, __: any, i: number) => i + 1 },
-  { title: 'Serial No', dataIndex: 'serial_no', width: 200 },
-  { title: 'Trạng thái', dataIndex: 'status', width: 110, render: (s: string) => <StatusBadge status={s} /> },
-  { title: 'Kho', dataIndex: 'warehouse_name', width: 180 },
-  { title: 'MAC', dataIndex: 'mac_address', width: 160, render: (v: string | null) => v ?? <span style={{ color: 'var(--text-3)' }}>—</span> },
-  {
-    title: 'Phiếu nhập · Ngày',
-    width: 200,
-    render: (_: any, r: any) => (
-      <span style={{ fontFamily: 'monospace', fontSize: 12 }}>
-        {fmtReceipt(r.receipt_code, r.completed_at)}
-      </span>
-    ),
-  },
-  {
-    title: 'BH hãng',
-    dataIndex: 'manufacturer_warranty_months',
-    width: 100,
-    align: 'center',
-    render: (v: number | null) =>
-      v == null ? <span style={{ color: 'var(--text-3)' }}>—</span>
-        : v === 0 ? <span style={{ color: 'var(--text-3)' }}>Không BH</span>
-        : `${v} tháng`,
-  },
-  {
-    title: 'BH công ty',
-    dataIndex: 'customer_warranty_months',
-    width: 100,
-    align: 'center',
-    render: (v: number | null) =>
-      v == null ? <span style={{ color: 'var(--text-3)' }}>—</span>
-        : v === 0 ? <span style={{ color: 'var(--text-3)' }}>Không BH</span>
-        : `${v} tháng`,
-  },
-  { title: 'Hết BH hãng', dataIndex: 'manufacturer_warranty_end', width: 120, render: fmt },
-  { title: 'Hết BH cty',  dataIndex: 'customer_warranty_end',      width: 120, render: fmt },
-]
-
+// Port class kv-* từ export/app.css (kv.css) — cùng công thức đã áp cho InventoryPage.
+// Trước đây trang này còn nguyên Ant Design (Table/Drawer/Form) — đổi hết sang kv-table +
+// SnDetailSheet dùng chung với InventoryPage để đồng bộ UI, đồng thời thêm checkbox chọn
+// dòng + bulk "Xuất Excel" giống các trang danh sách khác.
 export default function InventorySerialsPage() {
   const { variantId } = useParams<{ variantId: string }>()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
-  const [selected, setSelected] = useState<any>(null)
+  const [selectedSn, setSelectedSn] = useState<any>(null)
   const [snFilter, setSnFilter] = useState('')
+  const [page, setPage] = useState(1)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
 
   const itemCode = searchParams.get('code') ?? ''
   const variantName = searchParams.get('name') ?? ''
@@ -216,57 +38,185 @@ export default function InventorySerialsPage() {
     enabled: !!variantId,
   })
 
-  const filteredData = snFilter.trim()
-    ? (data ?? []).filter((r: any) =>
+  const allRows: any[] = data ?? []
+  const filteredRows = snFilter.trim()
+    ? allRows.filter((r) =>
         r.serial_no?.toLowerCase().includes(snFilter.toLowerCase()) ||
         r.mac_address?.toLowerCase().includes(snFilter.toLowerCase()),
       )
-    : data
+    : allRows
 
-  const columns = INITIAL_COLS
+  const total = filteredRows.length
+  const from = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1
+  const to = Math.min(page * PAGE_SIZE, total)
+  const rows = filteredRows.slice(from - 1, to)
+
+  function toggleSelected(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+  }
+
+  function exportSelectedCsv() {
+    const list = filteredRows.filter((r) => selected.has(r.id))
+    const header = ['Serial No', 'Trạng thái', 'Kho', 'MAC', 'Phiếu nhập', 'Ngày nhập', 'BH hãng (tháng)', 'BH công ty (tháng)', 'Hết BH hãng', 'Hết BH cty']
+    const lines = list.map((r) => [
+      r.serial_no, r.status ?? '', r.warehouse_name ?? '', r.mac_address ?? '', r.receipt_code ?? '',
+      r.completed_at ? new Date(r.completed_at).toLocaleDateString('vi-VN') : '',
+      r.manufacturer_warranty_months ?? '', r.customer_warranty_months ?? '',
+      fmt(r.manufacturer_warranty_end), fmt(r.customer_warranty_end),
+    ].join(','))
+    const csv = [header.join(','), ...lines].join('\n')
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `serial-${itemCode || variantId}-${Date.now()}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      <PageHeader
-        title={
-          <span>
-            <Button
-              type="text"
-              icon={<ArrowLeftOutlined />}
-              onClick={() => navigate('/inventory')}
-              style={{ marginRight: 8, padding: '0 4px' }}
-            />
-            Serial Numbers — {itemCode}{variantName ? ` · ${variantName}` : ''}
-          </span>
-        }
-        meta={data ? `${data.length} serial` : undefined}
-        actions={
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <ShadInput
+    <div className="theme-2a -m-6 flex flex-col gap-4 bg-background p-6">
+
+      {/* Header — port .kv-head.kv-head--divided/.kv-crumb/.kv-title--sm nguyên bản, đồng bộ
+          với ProductDetailPage/VariantDetailPage thay vì PageHeader antd cũ. */}
+      <div className="kv-head kv-head--divided">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <button type="button" className="kv-btn kv-btn--ghost" onClick={() => navigate(-1)} style={{ padding: 0, width: 30, flexShrink: 0 }} aria-label="Quay lại">
+            <ArrowLeft className="h-4 w-4" />
+          </button>
+          <div>
+            <div className="kv-crumb">
+              <button onClick={() => navigate('/inventory')} style={{ background: 'none', border: 'none', padding: 0, font: 'inherit', cursor: 'pointer' }}>
+                Tồn kho
+              </button>
+              {' / '}{itemCode}
+            </div>
+            <h1 className="kv-title kv-title--sm">
+              Serial Numbers — {itemCode}{variantName ? ` · ${variantName}` : ''}
+            </h1>
+          </div>
+        </div>
+        <div className="kv-actions">
+          <div className="kv-search" style={{ width: 240 }}>
+            <Search className="h-4 w-4" />
+            <input
+              className="kv-input"
+              type="search"
               placeholder="Tìm serial / MAC…"
               value={snFilter}
-              onChange={(e) => setSnFilter(e.target.value)}
-              className="h-9 w-56 pl-9 text-sm shadow-none focus-visible:ring-1"
+              onChange={(e) => { setSnFilter(e.target.value); setPage(1) }}
             />
           </div>
-        }
-      />
+        </div>
+      </div>
 
-      <TableCard>
-        <Table
-          rowKey="id"
-          size="small"
-          loading={isLoading}
-          dataSource={filteredData}
-          pagination={{ pageSize: 50, showSizeChanger: false, hideOnSinglePage: true, showTotal: (t, [from, to]) => `${from}–${to} / ${t}` }}
-          locale={{ emptyText: 'Không có serial nào' }}
-          onRow={(r) => ({ onClick: () => setSelected(r), style: { cursor: 'pointer' } })}
-          columns={columns}
-        />
-      </TableCard>
+      <div className="kv-table-wrap">
 
-      <SnDetailDrawer sn={selected} onClose={() => setSelected(null)} listQueryKey={queryKey} />
+        {selected.size > 0 && (
+          <div className="kv-bulk">
+            <span className="kv-strong">Đã chọn {selected.size} dòng</span>
+            <span className="kv-bulk-sep" />
+            <button type="button" onClick={exportSelectedCsv}>Xuất Excel</button>
+            <div className="kv-spacer" />
+            <button type="button" style={{ color: 'var(--text-2)' }} onClick={() => setSelected(new Set())}>Bỏ chọn</button>
+          </div>
+        )}
+
+        <div className="overflow-x-auto">
+        <table className="kv-table" style={{ minWidth: 1100, tableLayout: 'fixed' }}>
+          <colgroup>
+            <col style={{ width: 34 }} />
+            <col style={{ width: '5%' }} />
+            <col style={{ width: '15%' }} />
+            <col style={{ width: '10%' }} />
+            <col style={{ width: '12%' }} />
+            <col style={{ width: '9%' }} />
+            <col style={{ width: '15%' }} />
+            <col style={{ width: '9%' }} />
+            <col style={{ width: '9%' }} />
+            <col style={{ width: '9%' }} />
+            <col style={{ width: '9%' }} />
+          </colgroup>
+          <thead>
+            <tr>
+              <th className="text-center">
+                <input
+                  type="checkbox"
+                  checked={rows.length > 0 && rows.every((r) => selected.has(r.id))}
+                  onChange={(e) => setSelected((prev) => {
+                    const next = new Set(prev)
+                    rows.forEach((r) => (e.target.checked ? next.add(r.id) : next.delete(r.id)))
+                    return next
+                  })}
+                />
+              </th>
+              <th className="text-center">#</th>
+              <th className="text-left">Serial No</th>
+              <th className="text-center">Trạng thái</th>
+              <th className="text-left">Kho</th>
+              <th className="text-left">MAC</th>
+              <th className="text-left">Phiếu nhập · Ngày</th>
+              <th className="text-center">BH hãng</th>
+              <th className="text-center">BH công ty</th>
+              <th className="text-left">Hết BH hãng</th>
+              <th className="text-left">Hết BH cty</th>
+            </tr>
+          </thead>
+          <tbody>
+            {isLoading ? (
+              <tr><td colSpan={11} className="kv-muted" style={{ padding: '32px 10px', textAlign: 'center' }}>Đang tải…</td></tr>
+            ) : rows.length === 0 ? (
+              <tr>
+                <td colSpan={11} className="kv-muted" style={{ padding: '32px 10px', textAlign: 'center' }}>
+                  {snFilter ? 'Không tìm thấy serial nào khớp' : 'Không có serial nào'}
+                </td>
+              </tr>
+            ) : rows.map((r, i) => (
+              <tr key={r.id} onClick={() => setSelectedSn(r)} className="kv-row-link">
+                <td className="text-center" onClick={(e) => e.stopPropagation()}>
+                  <input type="checkbox" checked={selected.has(r.id)} onChange={() => toggleSelected(r.id)} />
+                </td>
+                <td className="text-center kv-muted">{from + i}</td>
+                <td className="mono kv-cell-title">{r.serial_no}</td>
+                <td className="text-center"><StatusBadge status={r.status} /></td>
+                <td className="truncate" title={r.warehouse_name}>{r.warehouse_name ?? '—'}</td>
+                <td className="mono kv-muted">{r.mac_address ?? '—'}</td>
+                <td className="mono kv-muted">{fmtReceipt(r.receipt_code, r.completed_at)}</td>
+                <td className="text-center kv-muted">{warrantyMonthsLabel(r.manufacturer_warranty_months)}</td>
+                <td className="text-center kv-muted">{warrantyMonthsLabel(r.customer_warranty_months)}</td>
+                <td className="kv-muted">{fmt(r.manufacturer_warranty_end)}</td>
+                <td className="kv-muted">{fmt(r.customer_warranty_end)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        </div>
+
+        {total > 0 && (
+          <div className="kv-pager">
+            <div className="kv-actions">
+              <span>{from}–{to} / {total} serial</span>
+            </div>
+            {total > PAGE_SIZE && (
+              <div className="kv-pages">
+                <button type="button" className="kv-page" aria-label="Trang trước" disabled={page <= 1} onClick={() => setPage(page - 1)}>
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                <span style={{ minWidth: 48, textAlign: 'center' }}>{page} / {Math.max(1, Math.ceil(total / PAGE_SIZE))}</span>
+                <button type="button" className="kv-page" aria-label="Trang sau" disabled={to >= total} onClick={() => setPage(page + 1)}>
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      <SnDetailSheet sn={selectedSn} onClose={() => setSelectedSn(null)} listQueryKey={queryKey} />
     </div>
   )
 }

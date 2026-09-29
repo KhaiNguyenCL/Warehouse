@@ -1,10 +1,17 @@
 import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Form, Select, Button, Typography, Space, Input, Table, Tag, Alert, Badge } from 'antd'
-import { MinusCircleOutlined, PlusOutlined, SearchOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons'
+import { useForm, useFieldArray } from 'react-hook-form'
+import { X, CheckCircle2, XCircle, Loader2 } from 'lucide-react'
 import { api } from '../lib/api'
 import { useApiMutation } from '../hooks/useApiMutation'
-import { PageHeader } from '../components/ui/PageHeader'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select'
+import { SectionCard } from '@/components/ui/SectionCard'
+import { CodeText } from '@/components/ui/CodeText'
+import { usePageHeader } from '@/layout/PageHeaderSlot'
 
 const QUOTATION_FIELD_OPTIONS = [
   { value: 'company_id',        label: 'Khách hàng' },
@@ -27,23 +34,6 @@ const BITRIX_OBJECT_OPTIONS = [
   { value: 'contact', label: 'Contact' },
 ]
 
-function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div style={{
-      background: 'var(--bg-card)',
-      border: '1px solid var(--border)',
-      borderRadius: 'var(--r-lg)',
-      boxShadow: 'var(--shadow-sm)',
-      overflow: 'hidden',
-    }}>
-      <div style={{ padding: '12px 16px', background: 'var(--bg-subtle)', borderBottom: '1px solid var(--border)', fontSize: 15, fontWeight: 700, color: 'var(--text-1)' }}>
-        {title}
-      </div>
-      <div style={{ padding: 16 }}>{children}</div>
-    </div>
-  )
-}
-
 // Chuyển raw deal object thành list rows để hiển thị + làm options cho Select
 function dealToRows(obj: Record<string, unknown>, prefix = ''): { key: string; value: string; label: string }[] {
   return Object.entries(obj)
@@ -57,64 +47,62 @@ function PreviewSyncTable({ dealId }: { dealId: string }) {
     queryFn: async () => (await api.get(`/bitrix/deals/${dealId}/preview-sync`)).data,
     retry: false,
   })
-  if (isFetching) return <Typography.Text type="secondary">Đang tính toán...</Typography.Text>
-  if (error) return <Alert type="error" message={(error as any)?.response?.data?.message ?? 'Lỗi preview'} />
+  if (isFetching) return <p className="text-sm text-muted-foreground">Đang tính toán...</p>
+  if (error) {
+    return (
+      <div className="rounded-md border border-[var(--s-cancelled-bg)] bg-[var(--s-cancelled-bg)] px-3 py-2 text-sm text-[var(--s-cancelled-color)]">
+        {(error as any)?.response?.data?.message ?? 'Lỗi preview'}
+      </div>
+    )
+  }
   if (!data) return null
   return (
     <>
-      <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>
-        Deal: <b>{data.deal_title || data.deal_id}</b>
-      </Typography.Text>
-      <Table
-        rowKey="quotation_field"
-        dataSource={data.rows}
-        pagination={false}
-        size="small"
-        columns={[
-          {
-            title: 'Field báo giá',
-            dataIndex: 'quotation_field',
-            width: 180,
-            render: (v: string) => <Tag style={{ fontFamily: 'monospace' }}>{v}</Tag>,
-          },
-          {
-            title: 'Bitrix Field',
-            dataIndex: 'bitrix_field',
-            width: 200,
-            render: (v: string) => <Tag color="blue" style={{ fontFamily: 'monospace', fontSize: 11 }}>{v}</Tag>,
-          },
-          {
-            title: 'Giá trị thô (Bitrix)',
-            dataIndex: 'raw_value',
-            width: 200,
-            render: (v: any) => v == null
-              ? <span style={{ color: 'var(--text-3)', fontSize: 12 }}>null — field trống hoặc không tồn tại trong deal này</span>
-              : <span style={{ fontSize: 12, color: 'var(--text-2)', wordBreak: 'break-all' }}>
-                  {String(v)} <Tag style={{ fontSize: 10, marginLeft: 4 }}>{typeof v}</Tag>
-                </span>,
-          },
-          {
-            title: 'Giá trị sau resolve',
-            dataIndex: 'resolved_value',
-            render: (v: any) => <span style={{ fontSize: 13, color: 'var(--text-1)', fontWeight: 600 }}>{v == null ? '—' : String(v)}</span>,
-          },
-          {
-            title: 'Trạng thái',
-            dataIndex: 'skipped',
-            width: 160,
-            render: (skipped: boolean, row: any) => skipped
-              ? <span style={{ color: 'var(--s-cancelled-color)', fontSize: 12 }}><CloseCircleOutlined /> {row.reason}</span>
-              : <span style={{ color: 'var(--s-completed-color)', fontSize: 12 }}><CheckCircleOutlined /> Sẽ được điền</span>,
-          },
-        ]}
-      />
+      <p className="mb-2 text-sm text-muted-foreground">
+        Deal: <strong className="text-foreground">{data.deal_title || data.deal_id}</strong>
+      </p>
+      <div className="overflow-hidden rounded-lg border border-border-md">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-border bg-muted/60">
+              <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground">Field báo giá</th>
+              <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground">Bitrix Field</th>
+              <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground">Giá trị thô (Bitrix)</th>
+              <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground">Giá trị sau resolve</th>
+              <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground">Trạng thái</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {(data.rows as any[]).map((row) => (
+              <tr key={row.quotation_field}>
+                <td className="px-3 py-2"><CodeText>{row.quotation_field}</CodeText></td>
+                <td className="px-3 py-2"><CodeText>{row.bitrix_field}</CodeText></td>
+                <td className="px-3 py-2 text-xs">
+                  {row.raw_value == null
+                    ? <span className="text-muted-foreground">null — field trống hoặc không tồn tại trong deal này</span>
+                    : <span className="break-all text-foreground">{String(row.raw_value)} <span className="ml-1 rounded bg-muted px-1 text-[10px]">{typeof row.raw_value}</span></span>}
+                </td>
+                <td className="px-3 py-2 text-sm font-semibold text-foreground">{row.resolved_value == null ? '—' : String(row.resolved_value)}</td>
+                <td className="px-3 py-2 text-xs">
+                  {row.skipped ? (
+                    <span className="inline-flex items-center gap-1 text-[var(--s-cancelled-color)]"><XCircle className="h-3.5 w-3.5" />{row.reason}</span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-[var(--s-completed-color)]"><CheckCircle2 className="h-3.5 w-3.5" />Sẽ được điền</span>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </>
   )
 }
 
-export default function SettingsBitrixPage() {
-  const [form] = Form.useForm()
+interface MappingRow { quotation_field: string; bitrix_object: string; bitrix_field: string }
+interface MappingForm { mappings: MappingRow[] }
 
+export default function SettingsBitrixPage() {
   // ── Preview Deal state ──────────────────────────────────────────────────
   const [previewDealId, setPreviewDealId] = useState('')
   const [fetchDealId, setFetchDealId] = useState<string | undefined>()
@@ -150,80 +138,76 @@ export default function SettingsBitrixPage() {
     queryFn: async () => (await api.get('/bitrix/mappings')).data,
   })
 
+  const form = useForm<MappingForm>({ defaultValues: { mappings: [] } })
+  const { fields, append, remove } = useFieldArray({ control: form.control, name: 'mappings' })
+
   useEffect(() => {
-    if (mappings) form.setFieldsValue({ mappings })
+    if (mappings) form.reset({ mappings })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mappings])
 
   const saveMutation = useApiMutation(
-    (rows: any[]) => api.put('/bitrix/mappings', { mappings: rows }),
+    (rows: MappingRow[]) => api.put('/bitrix/mappings', { mappings: rows }),
     { successMessage: 'Lưu mapping thành công', invalidateKey: ['bitrix', 'mappings'] },
+  )
+
+  usePageHeader(
+    <h1 className="truncate text-sm font-semibold tracking-tight">Đồng bộ Bitrix</h1>,
   )
 
   if (isLoading) return null
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <PageHeader title="Đồng bộ Bitrix" />
-
+    <div className="flex flex-col gap-4">
       {/* ── Preview Deal Fields ── */}
       <SectionCard title="Xem fields của Deal Bitrix">
-        <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
-          Nhập bất kỳ Deal ID nào để xem danh sách field + giá trị thật — dùng làm tham chiếu khi cấu hình mapping bên dưới.
-        </Typography.Text>
-        <Space style={{ marginBottom: 12 }}>
-          <Input
-            placeholder="Nhập Bitrix Deal ID"
-            style={{ width: 220 }}
-            value={previewDealId}
-            onChange={(e) => setPreviewDealId(e.target.value)}
-            onPressEnter={() => setFetchDealId(previewDealId)}
-          />
-          <Button
-            icon={<SearchOutlined />}
-            loading={dealLoading}
-            onClick={() => setFetchDealId(previewDealId)}
-            disabled={!previewDealId}
-          >
-            Fetch fields
-          </Button>
-        </Space>
+        <div className="flex flex-col gap-3">
+          <p className="text-sm text-muted-foreground">
+            Nhập bất kỳ Deal ID nào để xem danh sách field + giá trị thật — dùng làm tham chiếu khi cấu hình mapping bên dưới.
+          </p>
+          <div className="flex items-center gap-2">
+            <Input
+              placeholder="Nhập Bitrix Deal ID"
+              className="w-56"
+              value={previewDealId}
+              onChange={(e) => setPreviewDealId(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') setFetchDealId(previewDealId) }}
+            />
+            <Button variant="outline" disabled={!previewDealId || dealLoading} onClick={() => setFetchDealId(previewDealId)}>
+              {dealLoading && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
+              Fetch fields
+            </Button>
+          </div>
 
-        {dealError && (
-          <Alert type="error" message={(dealError as any)?.response?.data?.message ?? 'Không fetch được Deal'} style={{ marginBottom: 12 }} />
-        )}
+          {dealError && (
+            <div className="rounded-md border border-[var(--s-cancelled-bg)] bg-[var(--s-cancelled-bg)] px-3 py-2 text-sm text-[var(--s-cancelled-color)]">
+              {(dealError as any)?.response?.data?.message ?? 'Không fetch được Deal'}
+            </div>
+          )}
 
-        {dealRows.length > 0 && (
-          <Table
-            rowKey="key"
-            dataSource={dealRows}
-            pagination={false}
-            size="small"
-            scroll={{ y: 320 }}
-            columns={[
-              {
-                title: 'Label',
-                dataIndex: 'label',
-                width: 220,
-                render: (l: string) => <span style={{ fontSize: 13, color: 'var(--text-1)' }}>{l || <span style={{ color: 'var(--text-3)' }}>—</span>}</span>,
-              },
-              {
-                title: 'Field Key',
-                dataIndex: 'key',
-                width: 240,
-                render: (k: string) => <Tag style={{ fontFamily: 'monospace', fontSize: 12 }}>{k}</Tag>,
-              },
-              {
-                title: 'Giá trị',
-                dataIndex: 'value',
-                render: (v: string) => (
-                  <span style={{ fontSize: 13, color: 'var(--text-1)', wordBreak: 'break-all' }}>
-                    {v.length > 120 ? v.slice(0, 120) + '…' : v}
-                  </span>
-                ),
-              },
-            ]}
-          />
-        )}
+          {dealRows.length > 0 && (
+            <div className="max-h-80 overflow-y-auto overflow-x-auto rounded-lg border border-border-md">
+              <table className="w-full text-sm">
+                <thead className="sticky top-0">
+                  <tr className="border-b border-border bg-muted/60">
+                    <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground">Label</th>
+                    <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground">Field Key</th>
+                    <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground">Giá trị</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {dealRows.map((r) => (
+                    <tr key={r.key}>
+                      <td className="px-3 py-2 text-foreground">{r.label || <span className="text-muted-foreground">—</span>}</td>
+                      <td className="px-3 py-2"><CodeText>{r.key}</CodeText></td>
+                      <td className="px-3 py-2 break-all text-foreground">{r.value.length > 120 ? r.value.slice(0, 120) + '…' : r.value}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </SectionCard>
 
       {/* ── Preview Sync ── */}
@@ -235,92 +219,86 @@ export default function SettingsBitrixPage() {
 
       {/* ── Field Mapping ── */}
       <SectionCard title="Cấu hình mapping">
-        <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
+        <p className="mb-3 text-sm text-muted-foreground">
           Chọn field báo giá sẽ được tự động điền khi sync từ Bitrix Deal.
           {dealFieldOptions.length > 0
             ? ' Dropdown Bitrix Field đã được điền từ Deal vừa fetch.'
             : ' Fetch 1 Deal mẫu ở trên để chọn từ dropdown, hoặc nhập tay tên field.'}
-          {' '}Lưu ý: <b>Khách hàng</b> và <b>Người liên hệ</b> được resolve tự động từ
+          {' '}Lưu ý: <strong className="text-foreground">Khách hàng</strong> và <strong className="text-foreground">Người liên hệ</strong> được resolve tự động từ
           COMPANY_ID / CONTACT_ID của Deal — chỉ cần chọn đúng field đó là đủ.
           Field dạng list/enum (UF_CRM_*) sẽ tự tra ID → label khi sync.
-        </Typography.Text>
+        </p>
 
-        <Form form={form} onFinish={(v) => saveMutation.mutate(v.mappings ?? [])}>
-          <Form.List name="mappings">
-            {(fields, { add, remove }) => (
-              <>
-                {fields.map(({ key, name, ...restField }) => (
-                  <Space key={key} align="baseline" style={{ display: 'flex', marginBottom: 8, flexWrap: 'wrap' }}>
-                    <Form.Item
-                      {...restField}
-                      name={[name, 'quotation_field']}
-                      rules={[{ required: true, message: 'Bắt buộc' }]}
-                    >
-                      <Select
-                        placeholder="Field báo giá"
-                        style={{ width: 280 }}
-                        options={QUOTATION_FIELD_OPTIONS}
-                      />
-                    </Form.Item>
+        <form onSubmit={form.handleSubmit((v) => saveMutation.mutate(v.mappings))} className="flex flex-col gap-3">
+          {fields.map((field, index) => (
+            <div key={field.id} className="flex flex-wrap items-center gap-2">
+              <Select
+                value={form.watch(`mappings.${index}.quotation_field`)}
+                onValueChange={(v) => form.setValue(`mappings.${index}.quotation_field`, v)}
+              >
+                <SelectTrigger className="w-64"><SelectValue placeholder="Field báo giá" /></SelectTrigger>
+                <SelectContent>
+                  {QUOTATION_FIELD_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
 
-                    <span style={{ color: 'var(--text-2)', padding: '0 4px' }}>←</span>
+              <span className="px-1 text-muted-foreground">←</span>
 
-                    <Form.Item
-                      {...restField}
-                      name={[name, 'bitrix_object']}
-                      rules={[{ required: true, message: 'Bắt buộc' }]}
-                      initialValue="deal"
-                    >
-                      <Select style={{ width: 110 }} options={BITRIX_OBJECT_OPTIONS} />
-                    </Form.Item>
+              <Select
+                value={form.watch(`mappings.${index}.bitrix_object`)}
+                onValueChange={(v) => form.setValue(`mappings.${index}.bitrix_object`, v)}
+              >
+                <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {BITRIX_OBJECT_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
 
-                    <Form.Item
-                      {...restField}
-                      name={[name, 'bitrix_field']}
-                      rules={[{ required: true, message: 'Bắt buộc' }]}
-                    >
-                      {dealFieldOptions.length > 0 ? (
-                        <Select
-                          showSearch
-                          placeholder="Chọn Bitrix field"
-                          style={{ width: 340 }}
-                          options={dealFieldOptions}
-                          optionFilterProp="label"
-                          allowClear
-                        />
-                      ) : (
-                        <Input
-                          placeholder="VD: TITLE, UF_CRM_..."
-                          style={{ width: 260 }}
-                        />
-                      )}
-                    </Form.Item>
-
-                    <MinusCircleOutlined
-                      style={{ color: 'var(--text-3)', cursor: 'pointer' }}
-                      onClick={() => remove(name)}
-                    />
-                  </Space>
-                ))}
-
-                <Button
-                  type="dashed"
-                  icon={<PlusOutlined />}
-                  onClick={() => add({ bitrix_object: 'deal' })}
-                  style={{ marginBottom: 16 }}
+              {dealFieldOptions.length > 0 ? (
+                <Select
+                  value={form.watch(`mappings.${index}.bitrix_field`)}
+                  onValueChange={(v) => form.setValue(`mappings.${index}.bitrix_field`, v)}
                 >
-                  Thêm mapping
-                </Button>
-              </>
-            )}
-          </Form.List>
+                  <SelectTrigger className="w-72"><SelectValue placeholder="Chọn Bitrix field" /></SelectTrigger>
+                  <SelectContent>
+                    {dealFieldOptions.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Input
+                  placeholder="VD: TITLE, UF_CRM_..."
+                  className="w-56"
+                  value={form.watch(`mappings.${index}.bitrix_field`) ?? ''}
+                  onChange={(e) => form.setValue(`mappings.${index}.bitrix_field`, e.target.value)}
+                />
+              )}
 
-          <div style={{ marginTop: 8 }}>
-            <Button type="primary" htmlType="submit" loading={saveMutation.isPending}>
+              <button
+                type="button"
+                onClick={() => remove(index)}
+                className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          ))}
+
+          <Button
+            type="button"
+            variant="outline"
+            className="w-fit"
+            onClick={() => append({ quotation_field: '', bitrix_object: 'deal', bitrix_field: '' })}
+          >
+            Thêm mapping
+          </Button>
+
+          <div className="mt-2">
+            <Button type="submit" disabled={saveMutation.isPending}>
+              {saveMutation.isPending && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
               Lưu mapping
             </Button>
           </div>
-        </Form>
+        </form>
       </SectionCard>
     </div>
   )

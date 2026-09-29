@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Form } from 'antd'
+import { toast } from 'sonner'
 import dayjs from 'dayjs'
 import { api } from '../lib/api'
 import { useApiMutation } from './useApiMutation'
@@ -28,9 +29,15 @@ export function useReceiptForm(options?: { onUpdateSuccess?: () => void }) {
   // create-mode: DO selector state — dùng khi Loại nhập = "return_in"
   const [returnDoId, setReturnDoId] = useState<string | undefined>()
 
-  // complete mode: inline SN entry section
+  // complete mode: inline SN entry section (trang Sửa — receipt đã tồn tại, có line.id thật)
   const [completeMode, setCompleteMode] = useState(false)
   const [serialsRows, setSerialsRows] = useState<Record<string, SnRow[]>>({})
+
+  // create mode: nhập serial ngay lúc tạo (mockup import-new.html) — key theo INDEX vì dòng
+  // chưa có id thật cho tới khi submit. serialDrawerLine = index dòng đang mở drawer, hoặc
+  // null khi đóng.
+  const [createSerialsRows, setCreateSerialsRows] = useState<Record<number, SnRow[]>>({})
+  const [serialDrawerLine, setSerialDrawerLine] = useState<number | null>(null)
 
   // SN view state (for completed receipts)
   const [serialsFor, setSerialsFor] = useState<{ line_id: string; label: string } | null>(null)
@@ -144,25 +151,49 @@ export function useReceiptForm(options?: { onUpdateSuccess?: () => void }) {
     })
   }, [poDetail])
 
-  // When BOTH shipment and PO detail are loaded → merge warranty/cost from PO into lines.
-  // The shipment effect (below) fills lines from shipment qty/condition but has no warranty
-  // data; the PO lines carry warranty_months and unit_price, matched by po_line_id.
+  // When BOTH shipment and PO detail are loaded → merge warranty/cost from PO into lines,
+  // và LOẠI BỎ dòng nào PO đã nhận đủ (received_qty >= quantity) — effect điền dòng từ
+  // Shipment (bên dưới) chỉ lọc theo condition của Shipment, không đối chiếu tiến độ PO nên
+  // 1 SKU trong Shipment có po_line_id đã bị Receipt khác nhận đủ trước đó vẫn lọt vào form,
+  // user nhập SN xong mới bị backend chặn lúc submit ("đã nhận đủ số lượng"). Chỗ này là nơi
+  // DUY NHẤT có đủ cả shipmentDetail lẫn poDetail để đối chiếu, nên lọc luôn ở đây.
+  //
+  // Cố ý dùng `received_qty >= quantity` (đã COMPLETE nhận đủ), KHÔNG dùng `remaining_qty`
+  // (= quantity - received - pending - shipment_qty) — shipment_qty đã trừ luôn phần đang
+  // "treo" ở CHÍNH shipment đang tạo receipt này, nên remaining_qty của 1 dòng hợp lệ (chưa
+  // receipt lần nào, chỉ đang chờ ở shipment này) vẫn ra 0, lọc nhầm mất dòng đúng lẽ ra phải
+  // giữ lại (bug thật gặp lúc test: NH-2026-0035 có 3 dòng, remaining_qty trả về 0 cho CẢ 3 dù
+  // chỉ 2 dòng thật sự đã nhận đủ).
   useEffect(() => {
     if (!poDetail || !shipmentDetail || id) return
     const poLineMap = new Map<string, any>(poDetail.lines.map((l: any) => [l.id, l]))
     const currentLines: any[] = form.getFieldValue('lines') ?? []
     if (!currentLines.length) return
-    const updated = currentLines.map((line: any) => {
-      if (!line.po_line_id) return line
-      const poLine = poLineMap.get(line.po_line_id)
-      if (!poLine) return line
-      return {
-        ...line,
-        cost_price: poLine.unit_price,
-        manufacturer_warranty_months: poLine.manufacturer_warranty_months ?? undefined,
-        customer_warranty_months: poLine.customer_warranty_months ?? undefined,
-      }
-    })
+    const dropped: string[] = []
+    const updated = currentLines
+      .filter((line: any) => {
+        if (!line.po_line_id) return true
+        const poLine = poLineMap.get(line.po_line_id)
+        if (poLine && poLine.received_qty >= poLine.quantity) {
+          dropped.push(line.variant_label ?? line.variant_id)
+          return false
+        }
+        return true
+      })
+      .map((line: any) => {
+        if (!line.po_line_id) return line
+        const poLine = poLineMap.get(line.po_line_id)
+        if (!poLine) return line
+        return {
+          ...line,
+          cost_price: poLine.unit_price,
+          manufacturer_warranty_months: poLine.manufacturer_warranty_months ?? undefined,
+          customer_warranty_months: poLine.customer_warranty_months ?? undefined,
+        }
+      })
+    if (dropped.length) {
+      toast.warning(`Đã bỏ ${dropped.length} dòng vì Purchase Order đã nhận đủ số lượng: ${dropped.join(', ')}`)
+    }
     form.setFieldsValue({ lines: updated })
   }, [poDetail, shipmentDetail])
 
@@ -220,7 +251,7 @@ export function useReceiptForm(options?: { onUpdateSuccess?: () => void }) {
         ref_document_type: undefined,
         ref_document_id:   undefined,
         company_id:        undefined,
-        lines:             [{}],
+        lines: [],
       })
     }
   }, [returnDoId])
@@ -230,7 +261,7 @@ export function useReceiptForm(options?: { onUpdateSuccess?: () => void }) {
   useEffect(() => {
     if (!shipmentId) {
       setPoId(undefined)
-      form.setFieldsValue({ shipment_id: undefined, po_id: undefined, company_id: undefined, lines: [{}] })
+      form.setFieldsValue({ shipment_id: undefined, po_id: undefined, company_id: undefined, lines: [] })
     }
   }, [shipmentId])
 
@@ -274,9 +305,15 @@ export function useReceiptForm(options?: { onUpdateSuccess?: () => void }) {
 
   const createMutation = useApiMutation(
     (values: any) => {
-      const lines = (values.lines ?? []).map(transformLineForCreate)
-      const received_date = values.received_date ? dayjs(values.received_date).format('YYYY-MM-DD') : undefined
-      return api.post('/receipts', { ...values, received_date, lines })
+      const { __complete, ...rest } = values
+      const lines = (rest.lines ?? []).map((l: any, i: number) => ({
+        ...transformLineForCreate(l),
+        serials: __complete
+          ? (createSerialsRows[i] ?? []).filter((r) => r.serial_no.trim() || r.mac_address.trim())
+          : undefined,
+      }))
+      const received_date = rest.received_date ? dayjs(rest.received_date).format('YYYY-MM-DD') : undefined
+      return api.post('/receipts', { ...rest, received_date, lines, complete: __complete || undefined })
     },
     {
       successMessage: 'Tạo Receipt thành công',
@@ -352,12 +389,17 @@ export function useReceiptForm(options?: { onUpdateSuccess?: () => void }) {
     // queries
     warehouses,
     importTypes,
-    // complete-mode
+    // complete-mode (trang Sửa)
     completeMode,
     setCompleteMode,
     serialsRows,
     setSerialsRows,
     submitComplete,
+    // create-mode: nhập serial ngay lúc tạo
+    createSerialsRows,
+    setCreateSerialsRows,
+    serialDrawerLine,
+    setSerialDrawerLine,
     // SN view
     serialsFor,
     setSerialsFor,

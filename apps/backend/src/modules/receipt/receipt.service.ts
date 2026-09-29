@@ -40,16 +40,79 @@ export class ReceiptService {
   // CÙNG 1 po_line có thể cùng đọc remaining_qty cũ, cùng pass validate, rồi cùng insert
   // → tổng nhận vượt số PO đã đặt (race condition — phát hiện qua review kỹ lại sau khi
   // hỏi "workflow đã chuẩn chưa", không phải qua test, vì test chạy tuần tự không lộ race).
+  // complete=true (mockup import-new.html "Tạo phiếu nhập" — khác "Lưu nháp") → tạo VÀ
+  // hoàn thành trong CÙNG 1 transaction, tái dùng đúng logic applyLineCompletion() mà
+  // complete() dùng, để 2 đường (tạo-rồi-complete-sau vs complete-ngay-lúc-tạo) không
+  // bao giờ lệch nhau (fix 1 chỗ là cả 2 đường cùng đúng).
   async create(data: CreateReceiptBody, userId: string) {
     const importType = await this.resolveActiveImportType(data.import_type)
     await this.validateRefDocument(data, importType.requires_ref_document)
+
+    // product_type cần cho cả validate (storable mới bắt serial) LẪN applyLineCompletion()
+    // (repo.create() trả raw receipt_lines, không join variants/products) — fetch 1 lần,
+    // dùng lại ở cả 2 chỗ thay vì query lại trong transaction.
+    let productTypeByVariant = new Map<string, string>()
+    if (data.complete) {
+      const variantIds = [...new Set(data.lines.map((l) => l.variant_id))]
+      const variants = await this.db('variants as v')
+        .join('products as p', 'p.id', 'v.product_id')
+        .whereIn('v.id', variantIds)
+        .select('v.id', 'v.item_code', 'v.sku', 'p.product_type')
+      const labelByVariant = new Map(variants.map((v) => [v.id, v.item_code ?? v.sku]))
+      productTypeByVariant = new Map(variants.map((v) => [v.id, v.product_type]))
+      // Validate serials TRƯỚC khi mở transaction — fail nhanh, giống complete().
+      await this.validateSerialsBatch(
+        data.lines.map((l, i) => ({
+          key: String(i), label: labelByVariant.get(l.variant_id) ?? l.variant_id,
+          product_type: productTypeByVariant.get(l.variant_id) ?? 'storable', quantity: l.quantity,
+        })),
+        new Map(data.lines.map((l, i) => [String(i), l.serials ?? []])),
+        data.import_type,
+      )
+    }
+
     const receipt = await this.db.transaction(async (trx) => {
       await this.validateShipment(data, trx)
       await this.validatePurchaseOrder(data, trx)
-      return this.repo.create(data, userId, trx)
+      const created = await this.repo.create(data, userId, trx)
+
+      if (data.complete) {
+        for (let i = 0; i < created.lines.length; i++) {
+          const line = created.lines[i]
+          await this.applyLineCompletion(trx, {
+            receiptId: created.id,
+            warehouseId: created.warehouse_id,
+            importType: data.import_type,
+            userId,
+            line: { ...line, product_type: productTypeByVariant.get(line.variant_id) ?? 'storable' },
+            serials: data.lines[i].serials ?? [],
+          })
+        }
+        const completed = await this.repo.updateStatus(created.id, 'draft', 'completed', { completed_at: trx.fn.now() }, trx)
+        if (!completed) throw { statusCode: 500, message: 'Không thể hoàn thành phiếu vừa tạo' }
+      }
+
+      return created
+    }).catch((err: any) => {
+      if (err.code === '23505' && err.constraint?.includes('serial')) {
+        throw { statusCode: 400, message: 'Một hoặc nhiều serial number đã tồn tại trong hệ thống (phiếu khác vừa nhập trùng)' }
+      }
+      throw err
     })
+
     const actorName = await resolveActorName(this.db, userId)
     await logActivity({ db: this.db, objectType: 'receipt', objectId: receipt.id, objectCode: receipt.code, action: 'created', actorId: userId, actorName })
+    if (data.complete) {
+      await logActivity({ db: this.db, objectType: 'receipt', objectId: receipt.id, objectCode: receipt.code, action: 'completed', actorId: userId, actorName })
+      try {
+        await getNotificationService(this.db).notifyByPermission(
+          this.db, 'report.inventory',
+          { type: 'receipt_completed', title: `Phiếu nhập kho ${receipt.code} đã hoàn thành`, body: 'Tồn kho đã được cập nhật.', link: `/receipts/${receipt.id}` },
+          userId,
+        )
+      } catch (_) { /* không chặn luồng chính */ }
+      return this.repo.findById(receipt.id)
+    }
     return receipt
   }
 
@@ -224,6 +287,192 @@ export class ReceiptService {
     throw { statusCode: 400, message }
   }
 
+  // Validate serial/MAC cho MỘT LÔ dòng hàng — dùng chung cho complete() (key=line.id,
+  // đọc product_type/variant_name có sẵn trong receipt.lines) và create({complete:true})
+  // (key=index vì dòng chưa có id, phải tự fetch product_type/label trước — xem create()).
+  // Tách riêng để 2 đường "complete sau" và "complete ngay lúc tạo" luôn validate giống hệt
+  // nhau — sửa quy tắc 1 chỗ, không sợ lệch.
+  private async validateSerialsBatch(
+    lines: Array<{ key: string; label: string; product_type: string; quantity: number }>,
+    serialsByKey: Map<string, SerialInput[]>,
+    importType: string,
+  ) {
+    for (const line of lines) {
+      if (line.product_type !== 'storable') continue
+      const serials = serialsByKey.get(line.key) ?? []
+      if (serials.length !== line.quantity) {
+        throw {
+          statusCode: 400,
+          message: `Dòng hàng ${line.label} (storable) cần đúng ${line.quantity} serial/MAC, nhận được ${serials.length}`,
+        }
+      }
+      // Mỗi entry phải có ít nhất serial_no hoặc mac_address
+      const missingId = serials.findIndex((s) => !s.serial_no?.trim() && !s.mac_address?.trim())
+      if (missingId >= 0) {
+        throw { statusCode: 400, message: `Dòng hàng ${line.label}: mục #${missingId + 1} phải có Serial Number hoặc MAC Address` }
+      }
+      // Kiểm tra trùng trong batch: theo serial_no (nếu có) và mac_address (nếu có)
+      const sns  = serials.map((s) => s.serial_no).filter(Boolean) as string[]
+      const macs = serials.map((s) => s.mac_address).filter(Boolean) as string[]
+      if (new Set(sns).size !== sns.length) {
+        throw { statusCode: 400, message: `Danh sách serial cho ${line.label} có Serial Number trùng nhau` }
+      }
+      if (new Set(macs).size !== macs.length) {
+        throw { statusCode: 400, message: `Danh sách serial cho ${line.label} có MAC Address trùng nhau` }
+      }
+      if (importType === 'return_in') {
+        // return_in chỉ khớp theo serial_no (MAC có thể thay đổi sau khi sửa thiết bị)
+        if (sns.length > 0) {
+          const soldRows = await this.db('serial_numbers')
+            .whereIn('serial_no', sns).where({ status: 'sold' }).pluck('serial_no')
+          const notSold = sns.filter((s) => !soldRows.includes(s))
+          if (notSold.length > 0) {
+            throw { statusCode: 400, message: `Serial không hợp lệ cho return_in (chưa bán hoặc không tồn tại): ${notSold.join(', ')}` }
+          }
+        }
+      } else {
+        if (sns.length > 0) {
+          const existing = await this.db('serial_numbers').whereIn('serial_no', sns).pluck('serial_no')
+          if (existing.length > 0) {
+            throw { statusCode: 400, message: `Serial đã tồn tại trong hệ thống: ${existing.join(', ')}` }
+          }
+        }
+        if (macs.length > 0) {
+          const existingMac = await this.db('serial_numbers').whereIn('mac_address', macs).pluck('mac_address')
+          if (existingMac.length > 0) {
+            throw { statusCode: 400, message: `MAC Address đã tồn tại trong hệ thống: ${existingMac.join(', ')}` }
+          }
+        }
+      }
+    }
+  }
+
+  // Áp dụng "hoàn thành" cho MỘT dòng hàng — cập nhật inventory (upsert avg_cost), set
+  // qty_remaining (lô mới), tạo serial_numbers (storable) và stock_movements audit. Dùng
+  // chung cho complete() và create({complete:true}) — PHẢI chạy trong transaction của caller.
+  private async applyLineCompletion(trx: Knex.Transaction, args: {
+    receiptId: string
+    warehouseId: string
+    importType: string
+    userId: string
+    line: {
+      id: string; variant_id: string; product_type: string; quantity: number; cost_price: number
+      manufacturer_warranty_months?: number | null; manufacturer_warranty_start?: string | null
+      customer_warranty_months?: number | null
+    }
+    serials: SerialInput[]
+  }) {
+    const { receiptId, warehouseId, importType, userId, line, serials } = args
+
+    // Upsert inventory — công thức avg_cost đúng CLAUDE.md mục 16: avg_cost mới =
+    // (tồn cũ*giá cũ + nhập mới*giá mới) / tổng tồn mới. Cast rõ ::int/::numeric — để 2
+    // placeholder nhân nhau không cast, Postgres không suy được type ("operator is not unique").
+    await trx.raw(
+      `INSERT INTO inventory (variant_id, warehouse_id, qty_on_hand, avg_cost, last_updated)
+       VALUES (:variant_id, :warehouse_id, :qty::int, :cost::numeric, now())
+       ON CONFLICT (variant_id, warehouse_id) DO UPDATE SET
+         qty_on_hand  = inventory.qty_on_hand + :qty::int,
+         avg_cost     = (inventory.qty_on_hand * inventory.avg_cost + :qty::int * :cost::numeric)
+                        / (inventory.qty_on_hand + :qty::int),
+         last_updated = now()`,
+      { variant_id: line.variant_id, warehouse_id: warehouseId, qty: line.quantity, cost: line.cost_price },
+    )
+
+    // receipt_line CHÍNH LÀ 1 lô nhập — set qty_remaining = quantity ngay lúc này (trước
+    // đó NULL vì hàng chưa thật vào kho). Delivery FIFO sẽ trừ dần field này.
+    await trx('receipt_lines').where({ id: line.id }).update({ qty_remaining: line.quantity })
+
+    // storable → mỗi serial 1 dòng riêng trong serial_numbers, status active, warehouse_id
+    // = kho vừa nhập, gắn receipt_line_id để khi xuất biết đúng lô cần trừ. Insert TRƯỚC
+    // stock_movements để lấy id vừa sinh gắn vào đúng dòng movement tương ứng.
+    let newSerialIds: string[] = []
+    if (line.product_type === 'storable') {
+      const serialNos = serials.map((s) => s.serial_no).filter(Boolean) as string[]
+      if (importType === 'return_in') {
+        // return_in: serial đang status='sold' → UPDATE về active tại kho này, gắn lại
+        // receipt_line_id của lô nhập trả hàng này.
+        const returnedRows = await trx('serial_numbers')
+          .whereIn('serial_no', serialNos)
+          .update({
+            status:          'active',
+            warehouse_id:    warehouseId,
+            receipt_line_id: line.id,
+            delivery_line_id: null,
+            updated_at:      trx.fn.now(),
+          })
+          .returning('id')
+        newSerialIds = returnedRows.map((s: { id: string }) => s.id)
+        for (const s of serials) {
+          if (s.mac_address || s.note) {
+            await trx('serial_numbers').where({ serial_no: s.serial_no }).update({
+              ...(s.mac_address !== undefined && { mac_address: s.mac_address || null }),
+              ...(s.note !== undefined && { note: s.note || null }),
+            })
+          }
+        }
+      } else {
+        // != null check (không dùng truthy) vì 0 là giá trị hợp lệ ("không bảo hành"
+        // tường minh) — CLAUDE.md §19.
+        const mfgWarrantyExpr =
+          line.manufacturer_warranty_months != null
+            ? trx.raw(
+                "?::timestamptz + (?::int * interval '1 month')",
+                [line.manufacturer_warranty_start ?? trx.raw('now()'), line.manufacturer_warranty_months],
+              )
+            : null
+        const custWarrantyExpr =
+          line.customer_warranty_months != null
+            ? trx.raw("now() + (?::int * interval '1 month')", [line.customer_warranty_months])
+            : null
+        const insertedSerials = await trx('serial_numbers')
+          .insert(
+            serials.map((s) => ({
+              serial_no:                 s.serial_no?.trim() || null,
+              mac_address:               s.mac_address?.trim() || null,
+              note:                      s.note || null,
+              variant_id:                line.variant_id,
+              warehouse_id:              warehouseId,
+              status:                    'active',
+              receipt_line_id:           line.id,
+              manufacturer_warranty_end: mfgWarrantyExpr,
+              customer_warranty_end:     custWarrantyExpr,
+            })),
+          )
+          .returning('id')
+        newSerialIds = insertedSerials.map((s) => s.id)
+      }
+    }
+
+    // Audit trail — stock_movements không bao giờ update/xoá, chỉ insert thêm. storable →
+    // 1 dòng RIÊNG cho từng serial (quantity=1); consumable → 1 dòng tổng (serial_id=null).
+    if (newSerialIds.length > 0) {
+      await trx('stock_movements').insert(
+        newSerialIds.map((serialId) => ({
+          variant_id:        line.variant_id,
+          warehouse_id:      warehouseId,
+          serial_id:         serialId,
+          movement_type:     'in',
+          quantity:          1,
+          unit_cost:         line.cost_price,
+          ref_document_type: 'receipt',
+          ref_document_id:   receiptId,
+          created_by:        userId,
+        })),
+      )
+    } else {
+      await trx('stock_movements').insert({
+        variant_id:        line.variant_id,
+        warehouse_id:      warehouseId,
+        movement_type:     'in',
+        quantity:          line.quantity,
+        unit_cost:         line.cost_price,
+        ref_document_type: 'receipt',
+        ref_document_id:   receiptId,
+        created_by:        userId,
+      })
+    }
+  }
+
   // draft → completed. Đây là bước QUAN TRỌNG NHẤT — lúc này tồn kho thật sự thay đổi.
   // Trước khi Complete, hàng "chưa tồn tại" trong kho — chỉ là dữ liệu trên giấy.
   async complete(id: string, userId: string, body: CompleteReceiptBody = {}) {
@@ -234,65 +483,20 @@ export class ReceiptService {
     // Map line_id -> danh sách serial client gửi lên (chỉ cần cho dòng storable)
     const serialsByLine = new Map((body.lines ?? []).map((l) => [l.line_id, l.serials ?? []]))
 
-    // Validate TRƯỚC khi mở transaction — fail nhanh, không mở transaction chỉ để
-    // rollback ngay vì thiếu serial. Storable bắt buộc có ít nhất serial_no HOẶC
-    // mac_address — linh hoạt vì một số thiết bị chỉ có MAC, không có SN in trên vỏ.
-    for (const line of receipt.lines) {
-      if (line.product_type === 'storable') {
-        const serials = serialsByLine.get(line.id) ?? []
-        if (serials.length !== line.quantity) {
-          throw {
-            statusCode: 400,
-            message: `Dòng hàng ${line.variant_name} (storable) cần đúng ${line.quantity} serial/MAC, nhận được ${serials.length}`,
-          }
-        }
-        // Mỗi entry phải có ít nhất serial_no hoặc mac_address
-        const missingId = serials.findIndex((s) => !s.serial_no?.trim() && !s.mac_address?.trim())
-        if (missingId >= 0) {
-          throw { statusCode: 400, message: `Dòng hàng ${line.variant_name}: mục #${missingId + 1} phải có Serial Number hoặc MAC Address` }
-        }
-        // Kiểm tra trùng trong batch: theo serial_no (nếu có) và mac_address (nếu có)
-        const sns  = serials.map((s) => s.serial_no).filter(Boolean) as string[]
-        const macs = serials.map((s) => s.mac_address).filter(Boolean) as string[]
-        if (new Set(sns).size !== sns.length) {
-          throw { statusCode: 400, message: `Danh sách serial cho ${line.variant_name} có Serial Number trùng nhau` }
-        }
-        if (new Set(macs).size !== macs.length) {
-          throw { statusCode: 400, message: `Danh sách serial cho ${line.variant_name} có MAC Address trùng nhau` }
-        }
-        if (receipt.import_type === 'return_in') {
-          // return_in chỉ khớp theo serial_no (MAC có thể thay đổi sau khi sửa thiết bị)
-          if (sns.length > 0) {
-            const soldRows = await this.db('serial_numbers')
-              .whereIn('serial_no', sns).where({ status: 'sold' }).pluck('serial_no')
-            const notSold = sns.filter((s) => !soldRows.includes(s))
-            if (notSold.length > 0) {
-              throw { statusCode: 400, message: `Serial không hợp lệ cho return_in (chưa bán hoặc không tồn tại): ${notSold.join(', ')}` }
-            }
-          }
-        } else {
-          if (sns.length > 0) {
-            const existing = await this.db('serial_numbers').whereIn('serial_no', sns).pluck('serial_no')
-            if (existing.length > 0) {
-              throw { statusCode: 400, message: `Serial đã tồn tại trong hệ thống: ${existing.join(', ')}` }
-            }
-          }
-          if (macs.length > 0) {
-            const existingMac = await this.db('serial_numbers').whereIn('mac_address', macs).pluck('mac_address')
-            if (existingMac.length > 0) {
-              throw { statusCode: 400, message: `MAC Address đã tồn tại trong hệ thống: ${existingMac.join(', ')}` }
-            }
-          }
-        }
-      }
-    }
+    // Validate TRƯỚC khi mở transaction — fail nhanh, không mở transaction chỉ để rollback
+    // ngay vì thiếu serial. Storable bắt buộc có ít nhất serial_no HOẶC mac_address.
+    await this.validateSerialsBatch(
+      receipt.lines.map((l: any) => ({ key: l.id, label: l.variant_name, product_type: l.product_type, quantity: l.quantity })),
+      serialsByLine,
+      receipt.import_type,
+    )
 
     // TOÀN BỘ logic dưới đây nằm trong 1 transaction — nếu 1 trong N dòng cập nhật
     // inventory thất bại (ví dụ lỗi DB giữa đường), Postgres rollback hết, không để
     // tồn kho bị cập nhật "nửa chừng" (ví dụ 3/5 dòng hàng đã cộng kho, 2 dòng chưa).
     await this.db.transaction(async (trx) => {
       // Guard THẬT chống race condition: chỉ chuyển trạng thái nếu ĐÚNG LÚC NÀY (không
-      // phải lúc đọc receipt ở trên — đã có thể stale) vẫn đang approved. Nếu 1 request
+      // phải lúc đọc receipt ở trên — đã có thể stale) vẫn đang draft. Nếu 1 request
       // complete/cancel khác đã xử lý xong trước khi tới lượt transaction này, update
       // dưới đây khớp 0 dòng, completed = undefined → dừng ngay, không đụng vào inventory.
       const completed = await this.repo.updateStatus(
@@ -302,133 +506,11 @@ export class ReceiptService {
         throw { statusCode: 400, message: 'Phiếu đã được xử lý bởi 1 yêu cầu khác — vui lòng tải lại' }
       }
 
-      // Cập nhật inventory + stock_movements cho từng line
       for (const line of receipt.lines) {
-        // Upsert inventory — đây là công thức avg_cost (giá vốn trung bình) đúng như
-        // CLAUDE.md mục 16: avg_cost mới = (tồn cũ*giá cũ + nhập mới*giá mới) / tổng tồn mới.
-        // ON CONFLICT DO UPDATE = "upsert": nếu (variant_id, warehouse_id) đã có dòng trong
-        // inventory thì UPDATE, chưa có thì INSERT — không cần SELECT trước để biết tồn tại hay chưa.
-        // Phải cast rõ ::int / ::numeric — nếu để 2 placeholder nhân nhau (:qty * :cost)
-        // mà không cast, Postgres không suy được type của "unknown * unknown" và lỗi
-        // "operator is not unique" (phát hiện qua test, không lộ trong code review).
-        await trx.raw(
-          `INSERT INTO inventory (variant_id, warehouse_id, qty_on_hand, avg_cost, last_updated)
-           VALUES (:variant_id, :warehouse_id, :qty::int, :cost::numeric, now())
-           ON CONFLICT (variant_id, warehouse_id) DO UPDATE SET
-             qty_on_hand  = inventory.qty_on_hand + :qty::int,
-             avg_cost     = (inventory.qty_on_hand * inventory.avg_cost + :qty::int * :cost::numeric)
-                            / (inventory.qty_on_hand + :qty::int),
-             last_updated = now()`,
-          { variant_id: line.variant_id, warehouse_id: receipt.warehouse_id, qty: line.quantity, cost: line.cost_price },
-        )
-
-        // receipt_line CHÍNH LÀ 1 lô nhập (1 SKU trong 1 lần nhập) — set qty_remaining =
-        // quantity ngay lúc này (trước đó NULL vì hàng chưa thật vào kho). Delivery xuất
-        // theo FIFO sẽ trừ dần field này (mặc định, CLAUDE.md mục 19). Áp dụng cho cả
-        // storable và consumable, không cần bảng stock_batches riêng (xem schema SQL).
-        await trx('receipt_lines').where({ id: line.id }).update({ qty_remaining: line.quantity })
-
-        // storable → mỗi serial 1 dòng riêng trong serial_numbers, status active,
-        // warehouse_id = kho vừa nhập, gắn receipt_line_id để khi xuất biết đúng lô cần trừ.
-        // warranty_end = completed_at + warranty_months của LÔ này (không phải variant
-        // default) — tính ngay trong SQL để cùng mốc thời gian với completed_at ở trên.
-        //
-        // Insert serial_numbers TRƯỚC stock_movements (đảo thứ tự so với trước) để lấy
-        // được id vừa sinh ra qua .returning('id') — cần id đó để gắn serial_id vào đúng
-        // dòng stock_movements tương ứng (xem ghi chú stock_movements.serial_id phía dưới).
-        let newSerialIds: string[] = []
-        if (line.product_type === 'storable') {
-          const serials = serialsByLine.get(line.id) ?? []
-          const serialNos = serials.map((s) => s.serial_no).filter(Boolean) as string[]
-          if (receipt.import_type === 'return_in') {
-            // return_in: serial đang status='sold' → UPDATE về active tại kho này,
-            // gắn lại receipt_line_id của lô nhập trả hàng này.
-            const returnedRows = await trx('serial_numbers')
-              .whereIn('serial_no', serialNos)
-              .update({
-                status:          'active',
-                warehouse_id:    receipt.warehouse_id,
-                receipt_line_id: line.id,
-                delivery_line_id: null,
-                updated_at:      trx.fn.now(),
-              })
-              .returning('id')
-            newSerialIds = returnedRows.map((s: { id: string }) => s.id)
-            // Patch mac_address / note cho từng SN nếu có
-            for (const s of serials) {
-              if (s.mac_address || s.note) {
-                await trx('serial_numbers').where({ serial_no: s.serial_no }).update({
-                  ...(s.mac_address !== undefined && { mac_address: s.mac_address || null }),
-                  ...(s.note !== undefined && { note: s.note || null }),
-                })
-              }
-            }
-          } else {
-            // != null check (không dùng truthy) vì 0 là giá trị hợp lệ ("không bảo hành"
-            // tường minh) — 0 bị falsy sẽ bị coi là null nếu dùng `?` operator (CLAUDE.md §19).
-            // manufacturer_warranty_start: ngày hãng bắt đầu tính BH (tuỳ chọn) — nếu null
-            // thì dùng now() (= completed_at, vì expr này chạy trong cùng transaction).
-            const mfgWarrantyExpr =
-              line.manufacturer_warranty_months != null
-                ? trx.raw(
-                    "?::timestamptz + (?::int * interval '1 month')",
-                    [line.manufacturer_warranty_start ?? trx.raw('now()'), line.manufacturer_warranty_months],
-                  )
-                : null
-            const custWarrantyExpr =
-              line.customer_warranty_months != null
-                ? trx.raw("now() + (?::int * interval '1 month')", [line.customer_warranty_months])
-                : null
-            const insertedSerials = await trx('serial_numbers')
-              .insert(
-                serials.map((s) => ({
-                  serial_no:                 s.serial_no?.trim() || null,
-                  mac_address:               s.mac_address?.trim() || null,
-                  note:                      s.note || null,
-                  variant_id:                line.variant_id,
-                  warehouse_id:              receipt.warehouse_id,
-                  status:                    'active',
-                  receipt_line_id:           line.id,
-                  manufacturer_warranty_end: mfgWarrantyExpr,
-                  customer_warranty_end:     custWarrantyExpr,
-                })),
-              )
-              .returning('id')
-            newSerialIds = insertedSerials.map((s) => s.id)
-          }
-        }
-
-        // Ghi lại LỊCH SỬ thay đổi kho (audit trail) — bảng stock_movements không bao giờ
-        // bị update/xoá, chỉ insert thêm, nên luôn truy được "ai, lúc nào, từ phiếu nào"
-        // đã làm tồn kho thay đổi. storable → 1 dòng RIÊNG cho từng serial (quantity=1,
-        // serial_id gắn đúng SN đó) để có lịch sử di chuyển theo từng SN; consumable
-        // (không có serial) → giữ 1 dòng tổng như cũ (serial_id = null).
-        if (newSerialIds.length > 0) {
-          await trx('stock_movements').insert(
-            newSerialIds.map((serialId) => ({
-              variant_id:        line.variant_id,
-              warehouse_id:      receipt.warehouse_id,
-              serial_id:         serialId,
-              movement_type:     'in',
-              quantity:          1,
-              unit_cost:         line.cost_price,
-              ref_document_type: 'receipt',
-              ref_document_id:   id,
-              created_by:        userId,
-            })),
-          )
-        } else {
-          await trx('stock_movements').insert({
-            variant_id:        line.variant_id,
-            warehouse_id:      receipt.warehouse_id,
-            movement_type:     'in',   // receipt luôn là nhập kho → movement_type = 'in'
-            quantity:          line.quantity,
-            unit_cost:         line.cost_price,
-            ref_document_type: 'receipt',   // polymorphic reference — xem CLAUDE.md mục 19
-            ref_document_id:   id,
-            created_by:        userId,
-          })
-        }
+        await this.applyLineCompletion(trx, {
+          receiptId: id, warehouseId: receipt.warehouse_id, importType: receipt.import_type, userId,
+          line, serials: serialsByLine.get(line.id) ?? [],
+        })
       }
 
       return completed

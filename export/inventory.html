@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tồn kho — DNS</title>
+<link rel="stylesheet" href="broadsheet.css">
+<link rel="stylesheet" href="app.css">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/duotone/style.css">
+</head>
+<body>
+<main class="screens">
+    <div class="kv-sheet">
+      <div class="kv-nav">
+        <div class="kv-nav-left">
+          <span class="kv-brand">DNS</span>
+          <nav class="kv-nav-links">
+            <a href="#">Tổng quan</a>
+            <a href="inventory.html" aria-current="page">Tồn kho</a>
+            <a href="products.html">Sản phẩm</a>
+            <a href="import-new.html">Nhập kho</a>
+            <a href="#">Xuất kho</a>
+            <a href="#">Kiểm kê</a>
+            <a href="purchase-new.html">Mua hàng</a>
+            <a href="#">Nhà cung cấp</a>
+            <a href="#" class="kv-nav-more">Giao dịch <i class="ph-duotone ph-caret-down"></i></a>
+            <a href="warehouses.html">Kho hàng</a>
+            <a href="#" class="kv-nav-more">Thêm <i class="ph-duotone ph-caret-down"></i></a>
+          </nav>
+        </div>
+        <div class="kv-nav-right">
+          <div class="kv-nav-search">
+            <i class="ph-duotone ph-magnifying-glass"></i>
+            <input class="kv-input" type="search" placeholder="Tìm nhanh…  Ctrl K">
+          </div>
+          <button type="button" class="kv-icon-btn" aria-label="Thông báo"><i class="ph-duotone ph-bell"></i></button>
+          <span class="kv-avatar">A</span>
+        </div>
+      </div>
+
+      <div class="kv-head">
+        <div>
+          <h1 class="kv-title">Tồn kho</h1>
+          <p class="kv-sub">Giá trị tồn 121,99 triệu ₫ · cập nhật 15:22 hôm nay</p>
+        </div>
+        <div class="kv-actions">
+          <button type="button" class="kv-btn"><i class="ph-duotone ph-barcode"></i>Quét mã</button>
+          <button type="button" class="kv-btn"><i class="ph-duotone ph-tray-arrow-down"></i>Nhập kho</button>
+          <button type="button" class="kv-btn"><i class="ph-duotone ph-tray-arrow-up"></i>Xuất kho</button>
+          <button type="button" class="kv-btn kv-btn--primary"><i class="ph-duotone ph-plus"></i>Thêm mã hàng</button>
+        </div>
+      </div>
+
+      <div class="kv-tabs">
+        <a href="#" class="kv-tab" aria-current="page">Theo SKU</a>
+        <a href="#" class="kv-tab">Tra cứu Serial No</a>
+      </div>
+
+      <div class="kv-toolbar">
+        <div class="kv-search">
+          <i class="ph-duotone ph-magnifying-glass"></i>
+          <input class="kv-input" type="search" placeholder="Tìm mã SKU, tên hàng, số lô…">
+        </div>
+        <select class="kv-select kv-select--auto" aria-label="Kho"><option>Kho: tất cả</option><option>Kho HCM</option><option>Kho HN</option></select>
+        <select class="kv-select kv-select--auto" aria-label="Loại"><option>Loại: tất cả</option><option>Thiết bị</option><option>Vật tư</option></select>
+        <select class="kv-select kv-select--auto" aria-label="Danh mục"><option>Danh mục: tất cả</option><option>Access Point / WiFi</option><option>Camera &amp; Giám sát</option><option>Cáp &amp; Kết nối</option></select>
+        <select class="kv-select kv-select--auto" aria-label="Hãng"><option>Hãng: tất cả</option><option>Ubiquiti</option><option>Hikvision</option><option>Commscope</option></select>
+        <select class="kv-select kv-select--auto" aria-label="Trạng thái"><option>Trạng thái: tất cả</option><option>Sắp hết</option><option>Hết hàng</option><option>Cận hạn</option></select>
+        <div class="kv-spacer"></div>
+        <button type="button" class="kv-btn kv-btn--ghost"><i class="ph-duotone ph-columns"></i>Cột</button>
+        <button type="button" class="kv-btn kv-btn--ghost"><i class="ph-duotone ph-file-xls"></i>Xuất Excel</button>
+      </div>
+
+      <div class="kv-bulk">
+        <span class="kv-strong">Đã chọn 3 dòng</span>
+        <span class="kv-bulk-sep"></span>
+        <a href="#">Nhập nhanh</a>
+        <a href="#">Xuất nhanh</a>
+        <a href="#">In tem</a>
+        <a href="#">Chuyển kho</a>
+        <div class="kv-spacer"></div>
+        <a href="#" class="kv-bulk-clear">Bỏ chọn</a>
+      </div>
+
+      <div class="kv-table-wrap">
+        <table class="kv-table">
+          <thead>
+            <tr>
+              <th class="kv-col-check"><input type="checkbox" aria-label="Chọn tất cả"></th>
+              <th style="width: 200px">Mã SKU</th>
+              <th>Tên hàng</th>
+              <th style="width: 170px">Danh mục</th>
+              <th class="num" style="width: 130px">Tồn / tối thiểu</th>
+              <th class="num" style="width: 110px">Giá nhập</th>
+              <th class="num" style="width: 130px">Giá trị tồn</th>
+              <th style="width: 150px">Lô / hạn dùng</th>
+              <th style="width: 100px">Trạng thái</th>
+              <th class="kv-col-action"></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="kv-row-link">
+              <td><input type="checkbox" aria-label="Chọn ADAPTER-24V"></td>
+              <td class="mono">ADAPTER-24V</td>
+              <td>
+                <div class="kv-cell-title">Adapter 24V-2.5A</div>
+                <div class="kv-cell-sub">Kho HCM · Cái</div>
+              </td>
+              <td>Nguồn điện &amp; UPS</td>
+              <td class="num"><span class="kv-strong">7</span><span class="kv-muted"> / 5</span></td>
+              <td class="num">150.000</td>
+              <td class="num kv-strong">1.050.000</td>
+              <td><span class="kv-muted">Không theo lô</span></td>
+              <td><span class="kv-tag kv-tag--ok">Đủ tồn</span></td>
+              <td class="num kv-caret"><i class="ph-duotone ph-caret-right"></i></td>
+            </tr>
+            <tr class="kv-row-link">
+              <td><input type="checkbox" aria-label="Chọn AP-UBI-U6-LITE"></td>
+              <td class="mono">AP-UBI-U6-LITE</td>
+              <td>
+                <div class="kv-cell-title">Access Point U6-Lite</div>
+                <div class="kv-cell-sub">Kho HCM · Cái</div>
+              </td>
+              <td>Access Point / WiFi</td>
+              <td class="num"><span class="kv-strong">8</span><span class="kv-muted"> / 4</span></td>
+              <td class="num">1.850.000</td>
+              <td class="num kv-strong">14.800.000</td>
+              <td><span class="kv-muted">Không theo lô</span></td>
+              <td><span class="kv-tag kv-tag--ok">Đủ tồn</span></td>
+              <td class="num kv-caret"><i class="ph-duotone ph-caret-right"></i></td>
+            </tr>
+            <tr class="kv-row-link">
+              <td><input type="checkbox" aria-label="Chọn AP-UBI-U6-LR"></td>
+              <td class="mono">AP-UBI-U6-LR</td>
+              <td>
+                <div class="kv-cell-title">Access Point U6-LR</div>
+                <div class="kv-cell-sub">Kho HCM · Cái</div>
+              </td>
+              <td>Access Point / WiFi</td>
+              <td class="num"><span class="kv-strong">6</span><span class="kv-muted"> / 4</span></td>
+              <td class="num">2.750.000</td>
+              <td class="num kv-strong">16.500.000</td>
+              <td><span class="kv-muted">Không theo lô</span></td>
+              <td><span class="kv-tag kv-tag--ok">Đủ tồn</span></td>
+              <td class="num kv-caret"><i class="ph-duotone ph-caret-right"></i></td>
+            </tr>
+            <tr class="kv-row-link kv-row--alert">
+              <td><input type="checkbox" aria-label="Chọn AP-UBI-U6-MESH" checked></td>
+              <td class="mono">AP-UBI-U6-MESH</td>
+              <td>
+                <div class="kv-cell-title">Access Point U6-Mesh</div>
+                <div class="kv-cell-sub">Kho HCM · Cái</div>
+              </td>
+              <td>Access Point / WiFi</td>
+              <td class="num"><span class="kv-strong">2</span><span class="kv-muted"> / 4</span></td>
+              <td class="num">3.200.000</td>
+              <td class="num kv-strong">6.400.000</td>
+              <td><div class="mono">NK-2026-0062</div><div class="kv-cell-sub mono">HSD 21.09.2029</div></td>
+              <td><span class="kv-tag kv-tag--low">Sắp hết</span></td>
+              <td class="num kv-caret"><i class="ph-duotone ph-caret-right"></i></td>
+            </tr>
+            <tr class="kv-row-link">
+              <td><input type="checkbox" aria-label="Chọn AP-UBI-U6-PRO" checked></td>
+              <td class="mono">AP-UBI-U6-PRO</td>
+              <td>
+                <div class="kv-cell-title">Access Point U6-Pro</div>
+                <div class="kv-cell-sub">Kho HCM · Cái</div>
+              </td>
+              <td>Access Point / WiFi</td>
+              <td class="num"><span class="kv-strong">4</span><span class="kv-muted"> / 3</span></td>
+              <td class="num">3.900.000</td>
+              <td class="num kv-strong">15.600.000</td>
+              <td><span class="kv-muted">Không theo lô</span></td>
+              <td><span class="kv-tag kv-tag--ok">Đủ tồn</span></td>
+              <td class="num kv-caret"><i class="ph-duotone ph-caret-right"></i></td>
+            </tr>
+            <tr class="kv-row-link">
+              <td><input type="checkbox" aria-label="Chọn CAM-HIK-2CD2143G2-I" checked></td>
+              <td class="mono">CAM-HIK-2CD2143G2-I</td>
+              <td>
+                <div class="kv-cell-title">Camera Dome DS-2CD2143G2-I</div>
+                <div class="kv-cell-sub">Kho HCM · Cái</div>
+              </td>
+              <td>Camera &amp; Giám sát</td>
+              <td class="num"><span class="kv-strong">10</span><span class="kv-muted"> / 6</span></td>
+              <td class="num">1.200.000</td>
+              <td class="num kv-strong">12.000.000</td>
+              <td><span class="kv-muted">Không theo lô</span></td>
+              <td><span class="kv-tag kv-tag--ok">Đủ tồn</span></td>
+              <td class="num kv-caret"><i class="ph-duotone ph-caret-right"></i></td>
+            </tr>
+            <tr class="kv-row-link kv-row--alert">
+              <td><input type="checkbox" aria-label="Chọn CAM-HIK-2CD2T47G2-L"></td>
+              <td class="mono">CAM-HIK-2CD2T47G2-L</td>
+              <td>
+                <div class="kv-cell-title">Camera Bullet DS-2CD2T47G2-L</div>
+                <div class="kv-cell-sub">Kho HCM · Cái</div>
+              </td>
+              <td>Camera &amp; Giám sát</td>
+              <td class="num"><span class="kv-strong">0</span><span class="kv-muted"> / 4</span></td>
+              <td class="num">1.950.000</td>
+              <td class="num kv-strong">0</td>
+              <td><span class="kv-muted">Không theo lô</span></td>
+              <td><span class="kv-tag kv-tag--out">Hết hàng</span></td>
+              <td class="num kv-caret"><i class="ph-duotone ph-caret-right"></i></td>
+            </tr>
+            <tr class="kv-row-link">
+              <td><input type="checkbox" aria-label="Chọn CAM-HIK-DS-7608NXI"></td>
+              <td class="mono">CAM-HIK-DS-7608NXI</td>
+              <td>
+                <div class="kv-cell-title">Đầu ghi DS-7608NXI-K2/8P</div>
+                <div class="kv-cell-sub">Kho HCM · Cái</div>
+              </td>
+              <td>Camera &amp; Giám sát</td>
+              <td class="num"><span class="kv-strong">3</span><span class="kv-muted"> / 2</span></td>
+              <td class="num">5.500.000</td>
+              <td class="num kv-strong">16.500.000</td>
+              <td><span class="kv-muted">Không theo lô</span></td>
+              <td><span class="kv-tag kv-tag--ok">Đủ tồn</span></td>
+              <td class="num kv-caret"><i class="ph-duotone ph-caret-right"></i></td>
+            </tr>
+            <tr class="kv-row-link">
+              <td><input type="checkbox" aria-label="Chọn CAP-CMS-CAT6-1M"></td>
+              <td class="mono">CAP-CMS-CAT6-1M</td>
+              <td>
+                <div class="kv-cell-title">Dây patch Cat6 1m</div>
+                <div class="kv-cell-sub">Kho HCM · Dây</div>
+              </td>
+              <td>Cáp &amp; Kết nối</td>
+              <td class="num"><span class="kv-strong">50</span><span class="kv-muted"> / 30</span></td>
+              <td class="num">18.000</td>
+              <td class="num kv-strong">900.000</td>
+              <td><span class="kv-muted">Không theo lô</span></td>
+              <td><span class="kv-tag kv-tag--ok">Đủ tồn</span></td>
+              <td class="num kv-caret"><i class="ph-duotone ph-caret-right"></i></td>
+            </tr>
+            <tr class="kv-row-link">
+              <td><input type="checkbox" aria-label="Chọn CAP-CMS-CAT6-2M"></td>
+              <td class="mono">CAP-CMS-CAT6-2M</td>
+              <td>
+                <div class="kv-cell-title">Dây patch Cat6 2m</div>
+                <div class="kv-cell-sub">Kho HCM · Dây</div>
+              </td>
+              <td>Cáp &amp; Kết nối</td>
+              <td class="num"><span class="kv-strong">50</span><span class="kv-muted"> / 30</span></td>
+              <td class="num">22.000</td>
+              <td class="num kv-strong">1.100.000</td>
+              <td><span class="kv-muted">Không theo lô</span></td>
+              <td><span class="kv-tag kv-tag--ok">Đủ tồn</span></td>
+              <td class="num kv-caret"><i class="ph-duotone ph-caret-right"></i></td>
+            </tr>
+            <tr class="kv-row-link">
+              <td><input type="checkbox" aria-label="Chọn CAP-CMS-CAT6-305"></td>
+              <td class="mono">CAP-CMS-CAT6-305</td>
+              <td>
+                <div class="kv-cell-title">Cáp Cat6 UTP 305m/cuộn</div>
+                <div class="kv-cell-sub">Kho HCM · Cuộn</div>
+              </td>
+              <td>Cáp &amp; Kết nối</td>
+              <td class="num"><span class="kv-strong">20</span><span class="kv-muted"> / 8</span></td>
+              <td class="num">850.000</td>
+              <td class="num kv-strong">17.000.000</td>
+              <td><span class="kv-muted">Không theo lô</span></td>
+              <td><span class="kv-tag kv-tag--ok">Đủ tồn</span></td>
+              <td class="num kv-caret"><i class="ph-duotone ph-caret-right"></i></td>
+            </tr>
+            <tr class="kv-row-link">
+              <td><input type="checkbox" aria-label="Chọn CAP-CMS-CAT6-3M"></td>
+              <td class="mono">CAP-CMS-CAT6-3M</td>
+              <td>
+                <div class="kv-cell-title">Dây patch Cat6 3m</div>
+                <div class="kv-cell-sub">Kho HCM · Dây</div>
+              </td>
+              <td>Cáp &amp; Kết nối</td>
+              <td class="num"><span class="kv-strong">60</span><span class="kv-muted"> / 30</span></td>
+              <td class="num">69.056</td>
+              <td class="num kv-strong">4.143.360</td>
+              <td><div class="mono">NK-2026-0061</div><div class="kv-cell-sub mono">HSD 30.11.2026</div></td>
+              <td><span class="kv-tag kv-tag--exp">Cận hạn</span></td>
+              <td class="num kv-caret"><i class="ph-duotone ph-caret-right"></i></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="kv-pager">
+          <span>Hiển thị 1–12 trong 27 SKU</span>
+          <div class="kv-actions">
+            <select class="kv-select kv-select--auto kv-select--sm" aria-label="Số dòng mỗi trang"><option>50 dòng / trang</option><option>100 dòng / trang</option></select>
+            <div class="kv-pages">
+              <a class="kv-page" href="#" aria-label="Trang trước"><i class="ph-duotone ph-caret-left"></i></a>
+              <a class="kv-page" href="#" aria-current="page">1</a>
+              <a class="kv-page" href="#">2</a>
+              <a class="kv-page" href="#">3</a>
+              <a class="kv-page" href="#" aria-label="Trang sau"><i class="ph-duotone ph-caret-right"></i></a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+</main>
+</body>
+</html>

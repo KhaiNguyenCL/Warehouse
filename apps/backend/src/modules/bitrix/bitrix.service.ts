@@ -353,7 +353,7 @@ export class BitrixService {
       .first()
     await this.app.db.transaction(async (trx) => {
       if (primary) {
-        await this.companyRepo.updateContact(primary.id, compact({ full_name: fullName, position }), trx)
+        await this.companyRepo.updateContact(primary.id, companyId, compact({ full_name: fullName, position }), trx)
       } else {
         await this.companyRepo.addContact(companyId, compact({ full_name: fullName, position, is_primary: true }) as any, trx)
       }
@@ -363,6 +363,9 @@ export class BitrixService {
   // Cần company nội bộ để gắn contact vào (contacts.company_id NOT NULL) — ưu tiên
   // company_id truyền vào, nếu không có thì tự resolve qua deal.COMPANY_ID -> bitrix_company_id
   // (yêu cầu company đó đã được import trước bằng importCompany()).
+  // Phần "upsert contact + link vào mọi company Bitrix đã có trong WMS" bên dưới lặp lại
+  // gần như y hệt trong syncAllContacts() (vòng lặp bulk sync) — 2 nơi cùng làm 1 việc, có
+  // thể gộp thành 1 private helper nếu cần sửa logic này trong tương lai.
   async importContact(bitrixContactId: string, companyIdOverride?: string) {
     const bxContact = await this.app.bitrix.getContact(bitrixContactId)
 
@@ -388,7 +391,7 @@ export class BitrixService {
     let contactId: string
     if (existing) {
       await this.app.db.transaction((trx) =>
-        this.companyRepo.updateContact(existing.id, compact({ full_name, phone, email, position }), trx),
+        this.companyRepo.updateContact(existing.id, companyId!, compact({ full_name, phone, email, position }), trx),
       )
       contactId = existing.id
     } else {
@@ -432,8 +435,10 @@ export class BitrixService {
 
   // ─── Sync companies from Bitrix ──────────────────────────────────────────
 
-  // mapBxFields: tái sử dụng cùng logic field mapping với importCompany, để preview
-  // và apply đều ra kết quả nhất quán.
+  // CHÚ Ý: logic map field UF_CRM_* ở đây bị DUPLICATE thủ công với phần "── Map fields ──"
+  // trong importCompany() (không gọi lại hàm này) — 2 nơi định nghĩa cùng 1 bộ UF_CRM_*
+  // field code. Sửa mapping ở 1 chỗ (VD đổi UF_CRM_* id khi Bitrix đổi field) mà quên sửa
+  // chỗ còn lại sẽ làm preview (dùng hàm này) và apply (dùng importCompany) lệch kết quả.
   private mapBxCompany(bx: any) {
     const str = (f: string) => ((bx[f] as string | undefined) ?? '').trim() || undefined
     const name       = str('UF_CRM_1666348132682') ?? bx.TITLE?.trim() ?? `BX-${bx.ID}`
@@ -560,7 +565,7 @@ export class BitrixService {
         let contactId: string
         if (existing) {
           await this.app.db.transaction((trx) =>
-            this.companyRepo.updateContact(existing.id, compact({ full_name, phone, email, position }), trx),
+            this.companyRepo.updateContact(existing.id, primaryCompanyId, compact({ full_name, phone, email, position }), trx),
           )
           contactId = existing.id
         } else {

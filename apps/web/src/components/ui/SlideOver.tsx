@@ -1,5 +1,5 @@
-import { Drawer } from 'antd'
 import type { ReactNode } from 'react'
+import { Sheet, SheetContent } from './sheet'
 import { StatusBadge } from './StatusBadge'
 import type { WmsStatus } from './StatusBadge'
 
@@ -24,18 +24,13 @@ export function SlideOver({
   children,
 }: Props) {
   return (
-    <Drawer
-      open={open}
-      onClose={onClose}
-      placement="right"
-      width={width}
-      closable={false}
-      styles={{
-        body: { padding: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' },
-        wrapper: { boxShadow: 'var(--shadow-lg)' },
-      }}
-      style={{ background: 'var(--bg-card)' }}
-    >
+    <Sheet open={open} onOpenChange={(o) => { if (!o) onClose() }}>
+      <SheetContent
+        side="right"
+        showCloseButton={false}
+        className="flex flex-col overflow-hidden p-0 shadow-lg"
+        style={{ width, maxWidth: '100%' }}
+      >
       {/* Header */}
       <div
         style={{
@@ -141,7 +136,8 @@ export function SlideOver({
           {footer}
         </div>
       )}
-    </Drawer>
+      </SheetContent>
+    </Sheet>
   )
 }
 

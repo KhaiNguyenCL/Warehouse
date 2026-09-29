@@ -21,6 +21,11 @@ export const createReceiptSchema = {
       ref_document_id:   { type: 'string', format: 'uuid' },
       received_date:     { type: 'string', format: 'date' },
       note:              { type: 'string' },
+      // complete=true — tạo VÀ hoàn thành phiếu trong 1 lần gọi (mockup import-new.html:
+      // nút "Tạo phiếu nhập" đi thẳng tới Completed khi đã biết đủ serial ngay lúc tạo,
+      // khác "Lưu nháp" — vẫn tạo Draft như cũ, không cần serials). Khi true, mỗi dòng
+      // storable BẮT BUỘC có đủ `serials` (xem service.validateSerialsBatch).
+      complete:          { type: 'boolean' },
       // lines = mảng các dòng hàng nhập — mỗi receipt phải có ÍT NHẤT 1 dòng (minItems: 1)
       lines: {
         type: 'array',
@@ -43,6 +48,19 @@ export const createReceiptSchema = {
             customer_warranty_months:     { type: 'integer', minimum: 0 },
             line_order:      { type: 'integer' },
             note:            { type: 'string' },
+            // Chỉ dùng khi `complete=true` — cùng cấu trúc serials của PATCH .../complete,
+            // nhưng gắn thẳng vào dòng (lúc tạo chưa có line_id để key theo như bên kia).
+            serials: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  serial_no:   { type: 'string', minLength: 1 },
+                  mac_address: { type: 'string', minLength: 1 },
+                  note:        { type: 'string' },
+                },
+              },
+            },
           },
         },
       },
@@ -129,6 +147,7 @@ export interface CreateReceiptBody {
   ref_document_id?: string
   received_date?: string
   note?: string
+  complete?: boolean
   lines: Array<{
     variant_id: string
     quantity: number
@@ -139,6 +158,7 @@ export interface CreateReceiptBody {
     customer_warranty_months?: number
     line_order?: number
     note?: string
+    serials?: SerialInput[]
   }>
 }
 

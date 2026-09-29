@@ -9,17 +9,17 @@ export function SegmentedControl<T extends string>({ value, onChange, options }:
   options: readonly { value: T; label: string }[]
 }) {
   return (
-    <div className="inline-flex items-center gap-0.5 rounded-lg border border-border-md bg-muted/40 p-0.5">
+    <div className="inline-flex items-center gap-0.5 rounded-full border border-border-md bg-muted/40 p-0.5">
       {options.map((opt) => (
         <button
           key={opt.value}
           type="button"
           onClick={() => onChange(opt.value)}
           className={cn(
-            'rounded-md px-2.5 py-1 text-xs font-medium transition-all',
+            'rounded-full px-2.5 py-1 text-xs font-semibold transition-colors',
             value === opt.value
-              ? 'bg-background text-foreground shadow-sm'
-              : 'text-muted-foreground hover:text-foreground',
+              ? 'bg-primary text-primary-foreground shadow-sm'
+              : 'text-muted-foreground hover:bg-background hover:text-foreground',
           )}
         >
           {opt.label}

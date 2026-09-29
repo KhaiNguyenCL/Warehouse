@@ -1,11 +1,17 @@
 import { useParams } from 'react-router-dom'
-import { Table, Button, Popconfirm, Modal, Input, Form } from 'antd'
-import { ArrowLeftOutlined } from '@ant-design/icons'
+import { Button as AntButton, Modal, Input, Form } from 'antd'
+import { ArrowLeft } from 'lucide-react'
 import { useTransferOrderDetail } from '../hooks/useTransferOrderDetail'
-import { PageHeader } from '../components/ui/PageHeader'
 import { StatusBadge } from '../components/ui/StatusBadge'
+import { Button } from '@/components/ui/button'
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel,
+  AlertDialogContent, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { usePageHeader } from '@/layout/PageHeaderSlot'
 import CustomFieldsPanel from '../components/CustomFieldsPanel'
 import ActivityTimeline from '../components/ActivityTimeline'
+import { LineItemsTable } from '../components/LineItemsTable'
 import { useState } from 'react'
 
 const TRANSFER_TYPE_LABEL: Record<string, string> = {
@@ -26,9 +32,12 @@ function SectionCard({ title, extra, children }: { title: string; extra?: React.
 }
 
 const labelStyle: React.CSSProperties = { fontSize: 11, fontWeight: 600, color: 'var(--text-2)', marginBottom: 4 }
+// Luôn wrap xuống dòng (không cắt 1 dòng) — field CHỈ ĐỌC, không phải input cần giữ chiều cao
+// cố định.
 const valueStyle: React.CSSProperties = {
-  fontSize: 14, color: 'var(--text-1)', minHeight: 32, display: 'flex', alignItems: 'center',
-  padding: '0 11px', border: '1px solid var(--border)', borderRadius: 6, background: 'var(--bg-subtle)',
+  fontSize: 14, color: 'var(--text-1)', minHeight: 32, display: 'flex', alignItems: 'flex-start',
+  padding: '5px 11px', border: '1px solid var(--border)', borderRadius: 6, background: 'var(--bg-card)',
+  whiteSpace: 'pre-wrap', wordBreak: 'break-word',
 }
 
 function Field({ label, children, style }: { label: string; children: React.ReactNode; style?: React.CSSProperties }) {
@@ -43,44 +52,65 @@ export default function TransferOrderDetailPage() {
   const hook = useTransferOrderDetail(id!)
   const [noteForm] = Form.useForm()
   const [editingNote, setEditingNote] = useState(false)
-
-  if (hook.isLoading || !hook.data) return null
+  const [cancelOpen, setCancelOpen] = useState(false)
 
   const d = hook.data
-  const isDraft = d.status === 'draft'
-  const isClosed = ['completed', 'cancelled'].includes(d.status)
+  const isDraft = d?.status === 'draft'
+  const isClosed = ['completed', 'cancelled'].includes(d?.status ?? '')
+
+  // usePageHeader là hook — PHẢI gọi vô điều kiện trước early return bên dưới (xem CLAUDE.md mục 22).
+  usePageHeader(
+    <div className="flex items-center justify-between gap-4">
+      <div className="flex min-w-0 items-center gap-2">
+        <Button variant="ghost" size="icon-sm" onClick={() => window.history.back()}>
+          <ArrowLeft className="h-4 w-4" />
+        </Button>
+        <h1 className="flex min-w-0 items-baseline gap-2 truncate text-sm font-semibold tracking-tight">
+          <span className="text-muted-foreground">Phiếu chuyển kho</span>
+          <span className="text-muted-foreground">/</span>
+          <span className="truncate text-foreground">{d?.code}</span>
+        </h1>
+        {d?.status && <StatusBadge status={d.status} />}
+      </div>
+
+      <div className="flex flex-shrink-0 items-center gap-2">
+        {isDraft && (
+          <Button size="sm" variant="success" onClick={() => hook.setCompleteOpen(true)}>Complete</Button>
+        )}
+        {!isClosed && (
+          <Button size="sm" variant="danger" onClick={() => setCancelOpen(true)} disabled={hook.cancelMutation.isPending}>
+            Huỷ
+          </Button>
+        )}
+      </div>
+    </div>,
+  )
+
+  if (hook.isLoading || !d) return null
+
   const storableLines = (d.lines as any[]).filter((l: any) => l.product_type === 'storable')
 
   function startEditNote() { noteForm.setFieldsValue({ note: d.note }); setEditingNote(true) }
   function saveNote() { hook.updateMutation.mutate(noteForm.getFieldsValue()); setEditingNote(false) }
 
   return (
-    <div style={{ padding: '10px 20px 40px', display: 'flex', flexDirection: 'column', gap: 24 }}>
-      <PageHeader
-        title={
-          <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            {d.code}
-            <StatusBadge status={d.status} />
-          </span>
-        }
-        meta={
-          <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => window.history.back()} style={{ padding: '0 4px' }}>
-            Phiếu chuyển kho
-          </Button>
-        }
-        actions={
-          <div style={{ display: 'flex', gap: 8 }}>
-            {isDraft && (
-              <Button type="primary" onClick={() => hook.setCompleteOpen(true)}>Complete</Button>
-            )}
-            {!isClosed && (
-              <Popconfirm title="Huỷ phiếu này?" onConfirm={() => hook.cancelMutation.mutate()}>
-                <Button danger loading={hook.cancelMutation.isPending}>Huỷ</Button>
-              </Popconfirm>
-            )}
-          </div>
-        }
-      />
+    <div className="theme-2a" style={{ padding: '10px 20px 40px', display: 'flex', flexDirection: 'column', gap: 24 }}>
+      <AlertDialog open={cancelOpen} onOpenChange={setCancelOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Huỷ phiếu này?</AlertDialogTitle>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Đóng</AlertDialogCancel>
+            <AlertDialogAction
+              variant="danger"
+              onClick={() => { hook.cancelMutation.mutate(); setCancelOpen(false) }}
+            >
+              Huỷ phiếu
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <SectionCard title="Thông tin chung">
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: '16px 28px' }}>
@@ -97,14 +127,14 @@ export default function TransferOrderDetailPage() {
                   <Form.Item name="note" noStyle>
                     <Input.TextArea rows={2} autoFocus style={{ flex: 1 }} />
                   </Form.Item>
-                  <Button size="small" type="primary" onClick={saveNote} loading={hook.updateMutation.isPending}>Lưu</Button>
-                  <Button size="small" onClick={() => setEditingNote(false)}>Huỷ</Button>
+                  <AntButton size="small" type="primary" onClick={saveNote} loading={hook.updateMutation.isPending}>Lưu</AntButton>
+                  <AntButton size="small" onClick={() => setEditingNote(false)}>Huỷ</AntButton>
                 </div>
               </Form>
             ) : (
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Val v={d.note} />
-                {isDraft && <Button type="link" size="small" onClick={startEditNote} style={{ padding: 0, height: 'auto' }}>Sửa</Button>}
+                {isDraft && <AntButton type="link" size="small" onClick={startEditNote} style={{ padding: 0, height: 'auto' }}>Sửa</AntButton>}
               </div>
             )}
           </Field>
@@ -112,20 +142,17 @@ export default function TransferOrderDetailPage() {
       </SectionCard>
 
       <SectionCard title="Danh sách sản phẩm">
-        <Table
-          rowKey="id"
-          size="small"
-          dataSource={d.lines}
-          pagination={false}
-          scroll={{ x: 'max-content' }}
-          columns={[
-            { title: 'STT', width: 52, align: 'center' as const, render: (_: any, __: any, i: number) => i + 1 },
-            { title: 'Mã hàng', dataIndex: 'item_code', width: 130 },
-            { title: 'Tên sản phẩm', dataIndex: 'variant_name' },
-            { title: 'Loại', dataIndex: 'product_type', width: 90 },
-            { title: 'Số lượng', dataIndex: 'quantity', width: 80, align: 'right' as const },
-            { title: 'Ghi chú dòng', dataIndex: 'note', render: (v: string) => v || '—' },
+        <LineItemsTable
+          cols={[
+            { key: 'no', label: 'STT', align: 'center', width: 52, render: (_l, i) => i + 1 },
+            { key: 'code', label: 'Mã hàng', width: 130, render: (l) => l.item_code },
+            { key: 'name', label: 'Tên sản phẩm', render: (l) => l.variant_name },
+            { key: 'type', label: 'Loại', width: 90, render: (l) => l.product_type },
+            { key: 'qty', label: 'Số lượng', align: 'right', width: 80, render: (l) => l.quantity },
+            { key: 'note', label: 'Ghi chú dòng', render: (l) => l.note || '—' },
           ]}
+          rows={d.lines as any[]}
+          rowKey={(l) => l.id}
         />
       </SectionCard>
 

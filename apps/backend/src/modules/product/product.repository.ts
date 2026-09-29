@@ -271,6 +271,10 @@ export class ProductRepository {
     return this.db('variants').where({ item_code }).first()
   }
 
+  // variants.sku KHÔNG phải mã SKU user thấy trên UI (đó là item_code, free-text, gợi ý
+  // theo Category+Brand+model — CLAUDE.md mục 5) — sku ở đây chỉ là số thứ tự nội bộ, sinh
+  // tự động từ sequence Postgres `variant_sku_seq`, dùng làm định danh phụ ổn định không
+  // bao giờ đổi (khác item_code có thể sửa tay bất cứ lúc nào).
   async createVariantImport(data: {
     product_id: string; name: string; item_code?: string
     model?: string; part_number?: string; unit?: string; currency?: string

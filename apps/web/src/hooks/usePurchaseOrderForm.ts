@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Form, message } from 'antd'
+import { Form } from 'antd'
+import { toast } from 'sonner'
 import dayjs from 'dayjs'
 import { api } from '../lib/api'
 import { useApiMutation } from './useApiMutation'
@@ -41,6 +42,9 @@ export function usePurchaseOrderForm(options?: { onUpdateSuccess?: () => void })
       note:        po.note,
       lines: (po.lines ?? []).map((l: any) => ({
         variant_id:                   l.variant_id,
+        variant_name:                 l.variant_name,
+        variant_code:                 l.variant_item_code ?? l.variant_sku,
+        variant_unit:                 l.variant_unit,
         quantity:                     l.quantity    != null ? Number(l.quantity)    : undefined,
         unit_price:                   l.unit_price  != null ? Number(l.unit_price)  : undefined,
         vat_percent:                  l.vat_percent != null ? Number(l.vat_percent) : undefined,
@@ -108,16 +112,16 @@ export function usePurchaseOrderForm(options?: { onUpdateSuccess?: () => void })
 
       if (Object.keys(updates).length) {
         form.setFieldsValue(updates)
-        message.success(notes.join(' · '))
+        toast.success(notes.join(' · '))
       } else {
-        message.warning(
+        toast.warning(
           resolved.bitrix_company_id
             ? 'NCC từ deal này chưa được import vào WMS'
             : 'Deal không có thông tin công ty',
         )
       }
     } catch {
-      message.error('Không thể fetch deal từ Bitrix')
+      toast.error('Không thể fetch deal từ Bitrix')
     } finally {
       setDealResolving(false)
     }

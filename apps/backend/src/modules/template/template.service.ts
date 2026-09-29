@@ -51,7 +51,11 @@ export function detectHtmlVariables(fileBuffer: Buffer): string[] {
 export function renderHtml(htmlTemplate: string, data: Record<string, unknown>): string {
   let html = htmlTemplate
 
-  // Expand array rows: tìm <tr>...</tr> chứa {d.arrayName[i].field}, nhân bản theo array
+  // Expand array rows: tìm <tr>...</tr> chứa {d.arrayName[i].field}, nhân bản theo array.
+  // Giới hạn: giả định TOÀN BỘ marker "[i]." của 1 dòng item nằm gọn trong ĐÚNG 1 cặp
+  // <tr>...</tr> (không dàn trải qua nhiều <tr> hay nằm ngoài <tr>) — nếu file HTML export
+  // từ Word/Excel chèn thêm thẻ <tr> ẩn giữa marker và field, regex sẽ không match và dòng
+  // đó bị render y nguyên literal "{d.xxx[i].yyy}" thay vì lặp theo mảng.
   html = html.replace(/<tr(?:[^>]*)>[\s\S]*?\{d\.(\w+)\[i\]\.[\w.]+\}[\s\S]*?<\/tr>/gm, (rowTpl) => {
     const nameMatch = rowTpl.match(/\{d\.(\w+)\[i\]/)
     if (!nameMatch) return rowTpl

@@ -49,8 +49,15 @@ export default function CustomerDescriptionsPanel({ productId, variantId }: Prop
         size="small"
         onRow={(record: any) => ({ onClick: () => openEdit(record), style: { cursor: 'pointer' } })}
         columns={[
-          { title: 'Khách hàng', dataIndex: 'company_name', width: 200 },
-          { title: 'Mô tả', dataIndex: 'description', ellipsis: true },
+          { title: 'Khách hàng', dataIndex: 'company_name', width: 320 },
+          {
+            // `ellipsis: true` ép white-space: nowrap lên ô — xuống dòng (Enter) trong mô
+            // tả bị nuốt luôn thành khoảng trắng khi hiển thị (dữ liệu lưu đúng, chỉ hiển
+            // thị sai). Bỏ ellipsis, tự render với pre-wrap để giữ đúng xuống dòng.
+            title: 'Mô tả',
+            dataIndex: 'description',
+            render: (text: string) => <div style={{ whiteSpace: 'pre-wrap' }}>{text}</div>,
+          },
           {
             title: '',
             width: 70,
@@ -76,27 +83,35 @@ export default function CustomerDescriptionsPanel({ productId, variantId }: Prop
         style={{ marginTop: 12 }}
         onFinish={(v) => (editing ? updateMutation.mutate(v) : createMutation.mutate(v))}
       >
-        <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+          {/* width: '100%' trong hàng flex-wrap sẽ tự đẩy xuống dòng riêng — tên công ty
+              tiếng Việt thường dài, nhét vào 1 ô 240px vừa cắt cụt giá trị đã chọn vừa làm
+              dropdown option cũng bị cắt theo (AntD mặc định canh độ rộng dropdown theo
+              select). Full-width thì cả 2 chỗ đều đọc được trọn tên. */}
           {!editing && (
-            <Form.Item name="company_id" label="Khách hàng" rules={[{ required: true, message: 'Bắt buộc' }]} style={{ flex: '0 0 240px', marginBottom: 0 }}>
+            <Form.Item name="company_id" label="Khách hàng" rules={[{ required: true, message: 'Bắt buộc' }]} style={{ width: '100%', marginBottom: 0 }}>
               <Select
                 placeholder="Chọn khách hàng"
                 showSearch
                 optionFilterProp="label"
+                style={{ width: '100%' }}
                 options={companies?.data.map((c: any) => ({ value: c.id, label: c.name }))}
               />
             </Form.Item>
           )}
           <Form.Item name="description" label="Mô tả" rules={[{ required: true, message: 'Bắt buộc' }]} style={{ flex: '1 1 300px', marginBottom: 0 }}>
-            <Input.TextArea autoSize={{ minRows: 1, maxRows: 4 }} placeholder="Mô tả hiển thị trên báo giá cho khách này" />
+            <Input.TextArea autoSize={{ minRows: 3, maxRows: 8 }} placeholder="Mô tả hiển thị trên báo giá cho khách này" />
           </Form.Item>
-          <Form.Item style={{ marginBottom: 0 }}>
+          {/* label=" " (khoảng trắng) để giữ chỗ đúng bằng chiều cao hàng label các field
+              bên cạnh — nếu không, nút sẽ trồi lên sát mép trên hàng do không có label,
+              trong khi giờ ô Mô tả đã cao 3 dòng chứ không còn bằng 1 hàng input nữa. */}
+          <Form.Item label=" " style={{ marginBottom: 0 }}>
             <Button type="primary" htmlType="submit" loading={createMutation.isPending || updateMutation.isPending}>
               {editing ? 'Lưu' : '+ Thêm'}
             </Button>
           </Form.Item>
           {editing && (
-            <Form.Item style={{ marginBottom: 0 }}>
+            <Form.Item label=" " style={{ marginBottom: 0 }}>
               <Button onClick={() => openCreate()}>Huỷ sửa</Button>
             </Form.Item>
           )}

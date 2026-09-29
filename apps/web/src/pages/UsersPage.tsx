@@ -1,9 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useQueryClient } from '@tanstack/react-query'
-import { Plus, Search, X, Trash2 } from 'lucide-react'
+import { Search, X, Trash2, Pencil, ChevronLeft } from 'lucide-react'
 
 import { useUsers } from '@/hooks/useUsers'
 import { api } from '@/lib/api'
@@ -15,6 +15,8 @@ import {
 import { Switch } from '@/components/ui/switch'
 import { cn } from '@/lib/utils'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
+import { StatusToggle } from '@/components/ui/StatusToggle'
+import { usePageNoPadding } from '@/layout/PageHeaderSlot'
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
   AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
@@ -36,6 +38,7 @@ type UserForm = z.infer<typeof schema>
 // ── Component ────────────────────────────────────────────────────────────────
 
 export default function UsersPage() {
+  usePageNoPadding()
   const { data, isLoading, groups, createMutation, updateMutation, deleteMutation } = useUsers()
   const qc = useQueryClient()
 
@@ -43,6 +46,9 @@ export default function UsersPage() {
   const [editing, setEditing]       = useState<any | null>(null)
   const [search, setSearch]         = useState('')
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [mobileDetail, setMobileDetail] = useState(false)
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all')
 
   const form = useForm<UserForm>({
     resolver: zodResolver(schema),
@@ -72,7 +78,6 @@ export default function UsersPage() {
     const { group_ids, ...userValues } = values
 
     if (!editing) {
-      // Extra validation for create-only required fields
       let hasError = false
       if (!userValues.email) {
         form.setError('email', { message: 'Nhập email' })
@@ -113,6 +118,8 @@ export default function UsersPage() {
 
   const users: any[] = data?.data ?? data ?? []
   const filtered = users.filter((r) => {
+    if (statusFilter === 'active' && !r.is_active) return false
+    if (statusFilter === 'inactive' && r.is_active) return false
     if (!search) return true
     const q = search.toLowerCase()
     return (
@@ -121,121 +128,134 @@ export default function UsersPage() {
       (r.groups ?? []).some((g: any) => g.name?.toLowerCase().includes(q))
     )
   })
+  const selected = filtered.find((r) => r.id === selectedId) ?? null
+
+  useEffect(() => {
+    if (filtered.length === 0) { setSelectedId(null); return }
+    if (!selectedId || !filtered.some((r) => r.id === selectedId)) setSelectedId(filtered[0].id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtered])
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="theme-2a flex h-full min-h-0 flex-col bg-background p-6">
 
-      {/* Page header */}
-      <div className="flex items-center justify-between">
+      <div className="kv-head">
         <div>
-          <h1 className="font-serif text-2xl font-semibold tracking-tight">Người dùng</h1>
-          <p className="mt-0.5 text-sm text-muted-foreground">
-            Quản lý tài khoản và phân quyền truy cập
-          </p>
+          <h1 className="kv-title">Người dùng</h1>
+          <p className="kv-sub">{users.length.toLocaleString('vi-VN')} tài khoản truy cập hệ thống</p>
         </div>
-        <Button onClick={openCreate}>
-          <Plus className="mr-2 h-4 w-4" />
-          Tạo user
-        </Button>
+        <div className="kv-actions">
+          <button type="button" className="kv-btn kv-btn--primary" onClick={openCreate}>Tạo user</button>
+        </div>
       </div>
 
-      {/* Table card */}
-      <div className="overflow-hidden rounded-xl border border-border-md bg-background shadow-sm">
+      <div className={cn('kv-md', mobileDetail && 'kv-md--detail-open')}>
 
-        {/* Toolbar */}
-        <div className="flex items-center justify-between border-b border-border px-4 py-3">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Tìm tên, email, nhóm…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="h-9 w-64 pl-9 text-sm shadow-none focus-visible:ring-1"
-            />
+        {/* Roster */}
+        <div className="kv-md-list">
+          <div className="kv-md-tools">
+            <div className="kv-search">
+              <Search className="h-4 w-4" />
+              <input className="kv-input" placeholder="Tìm tên, email, nhóm…" value={search} onChange={(e) => setSearch(e.target.value)} />
+            </div>
+            <div className="kv-seg" role="tablist" aria-label="Lọc trạng thái">
+              <button type="button" aria-current={statusFilter === 'all'} onClick={() => setStatusFilter('all')}>Tất cả</button>
+              <button type="button" aria-current={statusFilter === 'active'} onClick={() => setStatusFilter('active')}>Hoạt động</button>
+              <button type="button" aria-current={statusFilter === 'inactive'} onClick={() => setStatusFilter('inactive')}>Ngừng</button>
+            </div>
           </div>
-          <span className="text-sm text-muted-foreground">{filtered.length} kết quả</span>
-        </div>
 
-        {/* Table */}
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-border bg-muted/60">
-              <th className="w-12 px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">#</th>
-              <th className="w-56 px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Họ tên</th>
-              <th className="min-w-[220px] px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Email</th>
-              <th className="w-32 px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">SĐT</th>
-              <th className="w-48 px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Nhóm</th>
-              <th className="w-40 px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground">Trạng thái</th>
-              <th className="w-8 px-2 py-2.5" />
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
+          <ul className="kv-md-items">
             {isLoading ? (
-              <tr>
-                <td colSpan={7} className="px-4 py-12 text-center text-xs text-muted-foreground">
-                  Đang tải…
-                </td>
-              </tr>
+              <li className="kv-muted" style={{ padding: '32px 14px', textAlign: 'center', fontSize: 12 }}>Đang tải…</li>
             ) : filtered.length === 0 ? (
-              <tr>
-                <td colSpan={7} className="px-4 py-12 text-center text-xs text-muted-foreground">
-                  {search ? 'Không tìm thấy kết quả.' : 'Chưa có người dùng nào.'}
-                </td>
-              </tr>
+              <li className="kv-muted" style={{ padding: '32px 14px', textAlign: 'center', fontSize: 12 }}>
+                {search ? 'Không tìm thấy kết quả.' : 'Chưa có người dùng nào.'}
+              </li>
             ) : (
-              filtered.map((r, i) => (
-                <tr
-                  key={r.id}
-                  onClick={() => openEdit(r)}
-                  className="group/row cursor-pointer transition-colors hover:bg-muted/30"
-                >
-                  <td className="px-4 py-2 text-muted-foreground">{i + 1}</td>
-                  <td className="w-56 truncate px-4 py-2 font-medium text-foreground" title={r.full_name}>{r.full_name}</td>
-                  <td className="max-w-0 truncate px-4 py-2 text-foreground" title={r.email}>{r.email}</td>
-                  <td className="px-4 py-2 text-foreground">{r.phone ?? <span className="text-muted-foreground">—</span>}</td>
-                  <td className="px-4 py-2 text-foreground">
-                    {(r.groups ?? []).length > 0
-                      ? (r.groups ?? []).map((g: any) => g.name).join(', ')
-                      : <span className="text-muted-foreground">—</span>}
-                  </td>
-                  <td className="px-4 py-2">
-                    <div className="flex justify-center" onClick={(e) => e.stopPropagation()}>
-                      <Switch
-                        checked={r.is_active}
-                        onCheckedChange={(checked) => updateMutation.mutate({ id: r.id, is_active: checked })}
-                      />
+              filtered.map((r) => (
+                <li key={r.id}>
+                  <a
+                    className="kv-md-item"
+                    aria-current={r.id === selectedId}
+                    style={{ opacity: r.is_active ? undefined : 0.5 }}
+                    onClick={() => { setSelectedId(r.id); setMobileDetail(true) }}
+                  >
+                    <div style={{ minWidth: 0 }}>
+                      <div className="kv-cell-title truncate">{r.full_name}</div>
+                      <div className="kv-cell-sub truncate">{r.email}</div>
+                      {(r.groups ?? []).length > 0 && (
+                        <div className="kv-cell-sub truncate">{(r.groups ?? []).map((g: any) => g.name).join(', ')}</div>
+                      )}
                     </div>
-                  </td>
-                  <td className="px-2 py-2">
-                    <div className="flex items-center justify-end opacity-0 transition-opacity group-hover/row:opacity-100">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setDeleteTarget(r) }}
-                        className="flex h-7 w-7 items-center justify-center rounded text-muted-foreground hover:bg-red-50 hover:text-red-600 transition-colors"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
+                  </a>
+                </li>
               ))
             )}
-          </tbody>
-        </table>
+          </ul>
 
-        {/* Footer */}
-        {filtered.length > 0 && (
-          <div className="border-t border-border px-4 py-2.5">
-            <span className="text-xs text-muted-foreground">{filtered.length} người dùng</span>
+          <div className="kv-md-foot">{filtered.length} người dùng</div>
+        </div>
+
+        {/* Detail */}
+        {!selected ? (
+          <div className="kv-md-detail flex items-center justify-center">
+            <p className="kv-muted" style={{ fontSize: 13 }}>Chọn 1 người dùng bên trái để xem chi tiết.</p>
+          </div>
+        ) : (
+          <div className="kv-md-detail">
+
+            <button
+              onClick={() => setMobileDetail(false)}
+              className="mb-2.5 flex items-center gap-1.5 border-none bg-transparent text-sm font-medium md:hidden"
+              style={{ color: 'var(--text-2)', cursor: 'pointer' }}
+            >
+              <ChevronLeft className="h-4 w-4" />
+              Quay lại danh sách
+            </button>
+
+            <div className="kv-md-head">
+              <div>
+                <h2 className="kv-md-title">{selected.full_name}</h2>
+                <div className="kv-cell-sub" style={{ marginTop: 4 }}>{selected.email}</div>
+              </div>
+              <div className="kv-actions">
+                <button type="button" className="kv-btn" onClick={() => openEdit(selected)}>
+                  <Pencil className="h-3.5 w-3.5" />Sửa
+                </button>
+                <button type="button" className="kv-btn kv-btn--danger" onClick={() => setDeleteTarget(selected)}>
+                  <Trash2 className="h-3.5 w-3.5" />Xoá
+                </button>
+              </div>
+            </div>
+
+            <div className="kv-md-block">
+              <div className="kv-md-block-head">
+                <h3 className="kv-section-title">Thông tin</h3>
+              </div>
+              <dl className="kv-dl">
+                <div><dt>Số điện thoại</dt><dd>{selected.phone || <span className="kv-empty">Chưa nhập</span>}</dd></div>
+                <div><dt>Nhóm</dt><dd>{(selected.groups ?? []).length > 0 ? (selected.groups ?? []).map((g: any) => g.name).join(', ') : <span className="kv-empty">Chưa có</span>}</dd></div>
+                <div>
+                  <dt>Trạng thái</dt>
+                  <dd>
+                    <StatusToggle
+                      active={selected.is_active}
+                      onChange={(v) => updateMutation.mutate({ id: selected.id, is_active: v })}
+                    />
+                  </dd>
+                </div>
+              </dl>
+            </div>
           </div>
         )}
       </div>
 
       {/* Create / Edit Sheet */}
       <Sheet open={dialogOpen} onOpenChange={(o) => !o && setDialogOpen(false)}>
-        <SheetContent side="right" className="w-[480px] flex flex-col gap-0" showCloseButton={false}>
-        {/* header */}
+        <SheetContent side="right" className="theme-2a w-[480px] flex flex-col gap-0" showCloseButton={false}>
         <div className="flex shrink-0 items-center justify-between border-b border-border px-5 py-4">
           <h2 className="text-base font-semibold text-foreground">
             {editing ? `Sửa user "${editing.full_name}"` : 'Tạo user mới'}
@@ -248,7 +268,6 @@ export default function UsersPage() {
           </button>
         </div>
 
-        {/* scrollable body + footer */}
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="flex min-h-0 flex-1 flex-col">
             <div className="flex-1 overflow-y-auto px-5 py-5">
@@ -256,7 +275,7 @@ export default function UsersPage() {
 
                 <FormField control={form.control} name="full_name" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Họ tên <span className="text-red-500">*</span></FormLabel>
+                    <FormLabel>Họ tên <span className="text-destructive">*</span></FormLabel>
                     <FormControl>
                       <Input placeholder="Nguyễn Văn A" {...field} />
                     </FormControl>
@@ -267,7 +286,7 @@ export default function UsersPage() {
                 {!editing && (
                   <FormField control={form.control} name="email" render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Email <span className="text-red-500">*</span></FormLabel>
+                      <FormLabel>Email <span className="text-destructive">*</span></FormLabel>
                       <FormControl>
                         <Input type="email" placeholder="user@company.com" {...field} />
                       </FormControl>
@@ -320,7 +339,7 @@ export default function UsersPage() {
                   <FormItem>
                     <FormLabel>
                       {editing ? 'Đổi password' : 'Password'}
-                      {!editing && <span className="text-red-500"> *</span>}
+                      {!editing && <span className="text-destructive"> *</span>}
                       {editing && <span className="ml-1 text-xs font-normal text-muted-foreground">(để trống nếu không đổi)</span>}
                     </FormLabel>
                     <FormControl>
@@ -344,7 +363,6 @@ export default function UsersPage() {
               </div>
             </div>
 
-            {/* footer */}
             <div className="flex shrink-0 items-center justify-end gap-2 border-t border-border px-5 py-4">
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
                 Huỷ
@@ -360,7 +378,7 @@ export default function UsersPage() {
 
       {/* Delete user dialog */}
       <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
-        <AlertDialogContent>
+        <AlertDialogContent className="theme-2a">
           <AlertDialogHeader>
             <AlertDialogTitle>Xoá hẳn user?</AlertDialogTitle>
             <AlertDialogDescription>
@@ -372,7 +390,7 @@ export default function UsersPage() {
           <AlertDialogFooter>
             <AlertDialogCancel>Huỷ</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+              variant="danger"
               onClick={() => { deleteMutation.mutate(deleteTarget.id); setDeleteTarget(null) }}
             >
               Xoá hẳn

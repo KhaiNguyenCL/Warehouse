@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/select'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
+import { usePageHeader } from '@/layout/PageHeaderSlot'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -52,7 +53,7 @@ function SectionTitle({ children, icon: Icon }: { children: React.ReactNode; ico
 function Card({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
     <div className={cn(
-      'overflow-hidden rounded-xl border border-border-md bg-background shadow-sm transition-shadow duration-200 hover:shadow-md',
+      'overflow-hidden rounded-2xl border border-border bg-card shadow-md transition-shadow duration-200 hover:shadow-md',
       className,
     )}>
       {children}
@@ -99,7 +100,7 @@ function DateRangeBar({
 function ChartTooltip({ active, payload, label, groupBy }: any) {
   if (!active || !payload?.length) return null
   return (
-    <div className="rounded-xl border border-border bg-background px-3 py-2 shadow-lg text-xs">
+    <div className="rounded-xl border border-border bg-card px-3 py-2 shadow-lg text-xs">
       <p className="mb-1.5 font-semibold text-foreground">{fmtDate(String(label), groupBy)}</p>
       {payload.map((p: any) => (
         <p key={p.dataKey} className="flex items-center gap-1.5" style={{ color: p.color }}>
@@ -229,14 +230,15 @@ export default function ReportsPage() {
   const reservedPct   = invSum && invSum.total_qty_on_hand > 0
     ? Math.round((invSum.total_qty_reserved / invSum.total_qty_on_hand) * 100) : 0
 
+  usePageHeader(
+    <h1 className="flex items-baseline gap-2 truncate text-sm font-semibold tracking-tight">
+      Báo cáo
+      <span className="text-xs font-normal text-muted-foreground">Phân tích số liệu kinh doanh</span>
+    </h1>,
+  )
+
   return (
     <div className="flex flex-col gap-5 pb-8">
-
-      {/* Page header */}
-      <div>
-        <h1 className="font-serif text-3xl font-semibold tracking-tight text-foreground">Báo cáo</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Phân tích số liệu kinh doanh</p>
-      </div>
 
       {/* ── KPI band ─────────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
@@ -378,7 +380,7 @@ export default function ReportsPage() {
                             <button
                               key={q.quotation_id}
                               onClick={() => { setBacklogOpen(false); navigate(`/quotations/${q.quotation_id}`) }}
-                              className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left transition-colors hover:bg-muted/50"
+                              className="flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left transition-colors hover:bg-muted/50"
                             >
                               <span className="min-w-0">
                                 <span className="block font-mono text-xs font-semibold text-foreground">{q.quotation_code}</span>

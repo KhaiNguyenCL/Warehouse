@@ -58,7 +58,12 @@ export class SettingsService {
 
     const payload: Record<string, unknown> = {}
     if (data.description !== undefined) payload.description = data.description
-    if (data.name !== undefined) {
+    // Chỉ chặn khi tên THỰC SỰ đổi giá trị — không chỉ vì field `name` có mặt trong body.
+    // Client (RolesPage.tsx) luôn gửi kèm `name` dù input bị disable (react-hook-form vẫn
+    // submit giá trị field đã disable), nên nếu chặn ngay khi thấy field `name` xuất hiện,
+    // sửa quyền/mô tả của role hệ thống sẽ báo lỗi nhầm "không thể đổi tên" dù user không
+    // đổi gì cả.
+    if (data.name !== undefined && data.name !== role.name) {
       if (role.is_system) throw { statusCode: 400, message: 'Không thể đổi tên role hệ thống' }
       payload.name = data.name
     }

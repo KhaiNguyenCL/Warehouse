@@ -1,0 +1,355 @@
+/* ── "kv-*" component classes — port từ export/app.css (mockup Tồn kho v2) ──
+   Khác với cách làm trước đây (approximate bằng Tailwind utility + arbitrary value trên
+   Button/Input/Select của shadcn), ở đây port NGUYÊN cấu trúc class thật của mockup, chỉ đổi
+   giá trị màu/font/bo-góc cứng sang var() của tokens.css (--accent/--text-1/--border/...) để
+   vẫn ăn theo hệ token + dark mode của app, không hard-code lại hex. Mọi selector scope trong
+   `.theme-2a` để không ảnh hưởng các trang chưa lên theme-2a.
+
+   LƯU Ý cỡ chữ: KHÔNG dùng nguyên số px của file .html gốc (34px tiêu đề, 14px body...) — bị
+   phản hồi "mọi thứ còn to" so với mật độ dày mà app đang theo (mục 22 CLAUDE.md, ưu tiên
+   nhiều dữ liệu/màn hình). Toàn bộ số trong file này đã được co lại ~70-75% so với mockup gốc
+   (giữ đúng tỷ lệ tương đối giữa các cấp: title > section-title > group-label > body > caption)
+   — khi cần đối chiếu lại "đúng mockup", xem số gốc trong export/app.css, không copy thẳng vào
+   đây nữa.
+
+   Dùng cho MỌI trang bảng full-width (InventoryPage, ProductsPage, ProductDetailPage, và các
+   trang Nhập/Xuất/Chuyển kho, Phiếu mua hàng, Báo giá, Kiểm kê, Phiếu nhận hàng...) — nút, ô
+   nhập/select, tab, toolbar, bulk bar, bảng, tag trạng thái, pager. JSX dùng thẳng class này
+   (kv-btn, kv-input, kv-select, kv-table, kv-tag, kv-pager...) thay vì Button/Input/Select của
+   shadcn, để mọi trang cùng 1 hệ số đo duy nhất thay vì mỗi trang tự đoán 1 kiểu. */
+
+.theme-2a .kv-head {
+  display: flex; align-items: flex-end; justify-content: space-between; gap: 16px;
+}
+.theme-2a .kv-head--divided { padding-bottom: 14px; border-bottom: 1px solid var(--border-md); align-items: center; }
+.theme-2a .kv-title { margin: 0; font-family: var(--font-display); font-weight: 700; font-size: 24px; letter-spacing: -0.015em; color: var(--text-1); }
+.theme-2a .kv-title--sm { font-size: 19px; margin: 3px 0 0; }
+.theme-2a .kv-sub { margin: 4px 0 0; font-size: 12px; color: var(--text-2); }
+.theme-2a .kv-crumb { font-size: 12px; color: var(--text-2); }
+.theme-2a .kv-crumb a { color: var(--accent-text); }
+.theme-2a .kv-actions { display: flex; align-items: center; gap: 8px; }
+
+.theme-2a .kv-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  height: 30px; padding: 0 12px; font-family: var(--font-display); font-weight: 600;
+  font-size: 13px; line-height: 1; color: var(--text-1); background: transparent;
+  border: 1px solid var(--border-md); border-radius: var(--radius-md); cursor: pointer;
+  white-space: nowrap; flex-shrink: 0;
+}
+.theme-2a .kv-btn svg { width: 14px; height: 14px; }
+.theme-2a .kv-btn:hover { background: color-mix(in srgb, var(--text-1) 7%, transparent); }
+.theme-2a .kv-btn--primary { padding: 0 14px; background: var(--accent); color: #ffffff; border-color: transparent; }
+.theme-2a .kv-btn--primary:hover { background: var(--accent-hover); }
+.theme-2a .kv-btn--ghost { color: var(--accent-text); border-color: transparent; padding: 0 10px; }
+.theme-2a .kv-btn--ghost:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.theme-2a .kv-btn--danger { color: var(--accent-2-text); }
+.theme-2a .kv-btn--danger:hover { background: color-mix(in srgb, var(--accent-2) 10%, transparent); }
+.theme-2a .kv-btn--sm { height: 26px; font-size: 12px; padding: 0 10px; }
+.theme-2a .kv-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* form: nhóm-nhãn-bên-trái (kv-form-grid), dùng ở ProductDetailPage/panel Thêm SKU */
+.theme-2a .kv-form-grid { display: grid; grid-template-columns: 130px minmax(0, 1fr); gap: 12px 20px; align-items: start; }
+.theme-2a .kv-group-label { font-family: var(--font-display); font-weight: 600; font-size: 13px; padding-top: 5px; color: var(--text-1); }
+.theme-2a .kv-group-body { max-width: 480px; }
+.theme-2a .kv-stack { display: flex; flex-direction: column; gap: 10px; }
+.theme-2a .kv-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.theme-2a .kv-field label {
+  display: block; font-size: 11px; margin-bottom: 4px; font-weight: 500; color: #333333;
+}
+.theme-2a .kv-field .kv-hint { margin-top: 4px; font-size: 11px; color: var(--text-2); }
+/* Hint đứng độc lập (không bọc trong .kv-field) — VD dòng hướng dẫn đầu khối "Deal Bitrix" ở
+   PurchaseOrderCreatePage.tsx, khác .kv-field .kv-hint chỉ áp khi có ancestor .kv-field. */
+.theme-2a .kv-hint { font-size: 11px; color: var(--text-2); }
+.theme-2a .kv-req { color: var(--accent-2-text); }
+
+/* ── Phiếu mua hàng — deal Bitrix (purchase-new.html) ────────────────────── */
+.theme-2a .kv-fetch { display: flex; align-items: flex-end; gap: 8px; }
+.theme-2a .kv-fetch .kv-field { width: 240px; }
+.theme-2a .kv-fetch-status { display: inline-flex; align-items: center; gap: 6px; height: 30px; font-size: 12px; color: var(--accent-text); }
+.theme-2a .kv-deal { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+.theme-2a .kv-deal-title { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; font-size: 16px; font-weight: 600; line-height: 1.35; color: var(--text-1); }
+.theme-2a .kv-deal-title a { font-size: 12px; font-weight: 500; white-space: nowrap; }
+.theme-2a .kv-dl { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 20px; margin: 12px 0 0; }
+.theme-2a .kv-dl dt { font-size: 11px; color: var(--text-2); margin: 0; }
+.theme-2a .kv-dl dd { margin: 2px 0 0; font-size: 13px; font-weight: 500; color: var(--text-1); }
+.theme-2a .kv-dl .kv-span-2 { grid-column: span 2; }
+.theme-2a .kv-dl .kv-span-3 { grid-column: 1 / -1; }
+.theme-2a .kv-empty { color: var(--text-3); font-weight: 400; font-style: italic; }
+.theme-2a .kv-lock { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: var(--text-3); }
+
+/* Nút icon ghi chú dòng hàng (bấm mở popover) — xám khi rỗng, teal khi đã có nội dung. */
+.theme-2a .kv-note-btn { color: var(--text-3); }
+.theme-2a .kv-note-btn--has { color: var(--accent-text); }
+
+/* Dòng tổng trong bảng dòng hàng (Trước thuế / VAT / Tổng thanh toán) — thay khối tổng riêng
+   bên dưới bảng cũ. */
+.theme-2a .kv-total--sub td { border-top: 1px solid var(--border-md); font-weight: 400; color: var(--text-2); padding-top: 12px; padding-bottom: 4px; }
+.theme-2a .kv-total--sub + .kv-total--sub td { border-top: none; padding-top: 4px; }
+.theme-2a .kv-total--grand td { border-bottom: none; font-weight: 700; font-size: 15px; padding-top: 8px; }
+
+/* section head trong 1 trang (vd "SKU con" phía trên bảng SKU) */
+.theme-2a .kv-section-head {
+  display: flex; align-items: flex-end; justify-content: space-between; gap: 16px;
+}
+.theme-2a .kv-section-title { margin: 0; font-family: var(--font-display); font-weight: 600; font-size: 17px; color: var(--text-1); }
+.theme-2a .kv-eyebrow {
+  font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-2);
+}
+
+/* dòng thêm SKU mới ngay trong bảng */
+.theme-2a .kv-newrow td { background: var(--bg-subtle); padding: 6px 8px; }
+.theme-2a .kv-newrow .kv-input, .theme-2a .kv-newrow .kv-select { height: 26px; font-size: 12px; }
+
+/* tabs (Theo SKU / Tra cứu Serial No) */
+.theme-2a .kv-tabs { display: flex; gap: 22px; font-size: 13px; }
+.theme-2a .kv-tab {
+  padding-bottom: 6px; color: var(--text-2); background: none; border: none; cursor: pointer;
+  font-family: var(--font-display); font-size: 13px;
+}
+.theme-2a .kv-tab:hover { color: var(--text-1); }
+.theme-2a .kv-tab[aria-current="page"] { font-weight: 600; color: var(--text-1); box-shadow: inset 0 -2px 0 var(--accent); }
+
+/* toolbar (search + filter selects) */
+.theme-2a .kv-toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.theme-2a .kv-search { position: relative; width: 260px; flex-shrink: 0; }
+.theme-2a .kv-search i, .theme-2a .kv-search svg {
+  position: absolute; left: 9px; top: 50%; transform: translateY(-50%);
+  color: var(--text-3); pointer-events: none; width: 14px; height: 14px;
+}
+.theme-2a .kv-search input { padding-left: 30px; }
+.theme-2a .kv-spacer { flex: 1; }
+
+.theme-2a .kv-input, .theme-2a .kv-select {
+  height: 30px; padding: 4px 9px; font-size: 13px; color: var(--text-1);
+  font-family: var(--font-display); background: var(--bg-card);
+  border: 1px solid var(--border-md); border-radius: var(--radius-md);
+  box-sizing: border-box; width: 100%;
+}
+.theme-2a .kv-select { padding: 0 9px; appearance: auto; }
+.theme-2a .kv-input:hover, .theme-2a .kv-select:hover { border-color: color-mix(in srgb, var(--text-1) 45%, transparent); }
+.theme-2a .kv-input:focus-visible, .theme-2a .kv-select:focus-visible { outline: 2px solid var(--accent); outline-offset: 0; }
+/* Field disabled (chế độ xem, chưa bấm Sửa) — nền xám --bg-subtle để phân biệt rõ với field
+   đang sửa được (nền trắng --bg-card ở rule trên). Áp qua :disabled thay vì phải tự thêm class
+   ở từng nơi — mọi <input>/<select> dùng kv-input/kv-select với `disabled={!isEditing}` tự động
+   đổi màu đúng theo trạng thái, không cần sửa từng trang. */
+/* VariantSelect.tsx (chọn SKU trong mọi bảng dòng hàng) là AntD Select — CSS-in-JS riêng của
+   AntD (border/height/bo góc mặc định) khác hẳn .kv-input xung quanh nó trong cùng 1 hàng, nên
+   phải nhắm thẳng .ant-select-selector (khối thật sự vẽ khung, không phải .ant-select ngoài
+   cùng) + !important để thắng specificity CSS-in-JS. */
+.theme-2a .kv-variant-select .ant-select-selector {
+  height: 32px !important; border: 1px solid var(--border-md) !important;
+  border-radius: var(--radius-md) !important; background: var(--bg-card) !important;
+  box-shadow: none !important; align-items: center; padding: 0 9px !important;
+}
+.theme-2a .kv-variant-select:hover .ant-select-selector {
+  border-color: color-mix(in srgb, var(--text-1) 45%, transparent) !important;
+}
+.theme-2a .kv-variant-select.ant-select-focused .ant-select-selector {
+  border-color: var(--accent) !important; box-shadow: 0 0 0 2px var(--accent-bg) !important;
+}
+.theme-2a .kv-variant-select .ant-select-selection-search-input {
+  height: 30px !important;
+}
+.theme-2a .kv-variant-select .ant-select-selection-item,
+.theme-2a .kv-variant-select .ant-select-selection-placeholder {
+  line-height: 30px !important; font-size: 13px;
+}
+.theme-2a .kv-variant-select.ant-select-disabled .ant-select-selector {
+  background: var(--bg-subtle) !important; color: var(--text-2);
+}
+
+.theme-2a .kv-input:disabled, .theme-2a .kv-select:disabled {
+  background: var(--bg-subtle); color: var(--text-2); cursor: not-allowed;
+}
+.theme-2a .kv-select--auto { width: auto; flex-shrink: 0; }
+.theme-2a .kv-input--num { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* bulk-select bar */
+.theme-2a .kv-bulk {
+  display: flex; align-items: center; gap: 16px;
+  padding: 8px 12px; background: var(--accent-bg); border-radius: var(--radius-md); font-size: 13px;
+}
+.theme-2a .kv-bulk a, .theme-2a .kv-bulk button {
+  color: var(--accent-text); font-weight: 500; background: none; border: none; cursor: pointer;
+  font-family: var(--font-display); font-size: 13px; padding: 0;
+}
+.theme-2a .kv-bulk a:hover, .theme-2a .kv-bulk button:hover { text-decoration: underline; }
+.theme-2a .kv-bulk-sep { width: 1px; height: 16px; background: color-mix(in srgb, var(--text-1) 18%, transparent); }
+.theme-2a .kv-strong { font-weight: 600; color: var(--text-1); }
+
+/* table */
+.theme-2a .kv-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.theme-2a .kv-table th {
+  text-align: left; font-family: var(--font-display); font-size: 11px; font-weight: 600;
+  letter-spacing: 0.04em; text-transform: uppercase; color: #333333;
+  padding: 8px; border-bottom: 1px solid var(--border-md); white-space: nowrap;
+}
+.theme-2a .kv-table td { padding: 8px; border-bottom: 1px solid var(--border); vertical-align: middle; color: var(--text-1); font-size: 13px; }
+.theme-2a .kv-table tbody tr:hover { background: var(--accent-bg); }
+/* .kv-table th mặc định text-align:left ở trên có specificity (2 class + 1 element) cao hơn
+   utility Tailwind .text-center/.text-right (1 class) — nếu không có 2 rule dưới đây thì mọi
+   <th className="text-center"> sẽ ÂM THẦM bị ép về left dù <td> tương ứng vẫn center, gây lệch
+   header-vs-value (đã gặp thực tế ở cột "#"/"Trạng thái" mọi trang dùng kv-table). */
+.theme-2a .kv-table th.text-center { text-align: center; }
+.theme-2a .kv-table th.num { text-align: right; }
+.theme-2a .kv-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+/* Từng dùng var(--font-mono) (SF Mono/Cascadia...) cho số liệu — bỏ, vì vi phạm quy tắc "1 họ
+   font Tahoma duy nhất toàn app" (mục 22 CLAUDE.md): number vẫn canh cột thẳng hàng nhờ
+   font-variant-numeric: tabular-nums (đã có ở rule .num phía trên), không cần đổi cả font. */
+.theme-2a .kv-table .mono { font-variant-numeric: tabular-nums; letter-spacing: 0.01em; }
+.theme-2a .kv-table input[type="checkbox"] { accent-color: var(--accent); margin: 0; }
+.theme-2a .kv-row-link { cursor: pointer; }
+.theme-2a .kv-cell-title { font-weight: 600; color: var(--text-1); }
+.theme-2a .kv-cell-sub { font-size: 11px; color: var(--text-2); margin-top: 1px; }
+.theme-2a .kv-caret { color: var(--text-3); }
+.theme-2a .kv-muted { color: var(--text-2); }
+.theme-2a .kv-row--alert td:first-child { box-shadow: inset 2px 0 0 var(--accent-2); }
+
+/* status tags */
+.theme-2a .kv-tag {
+  display: inline-flex; align-items: center; font-size: 12px; letter-spacing: 0.02em;
+  padding: 2px 8px; border-radius: 1.5px; white-space: nowrap; border: 1px solid transparent;
+}
+.theme-2a .kv-tag--ok { background: transparent; color: var(--text-2); padding-left: 0; }
+.theme-2a .kv-tag--low { background: var(--accent-2-bg); color: var(--accent-2-text); }
+.theme-2a .kv-tag--out { background: var(--accent-2); color: #ffffff; }
+.theme-2a .kv-tag--exp { background: transparent; color: var(--accent-2-text); border-color: var(--accent-2-border); }
+
+/* tag phân loại sản phẩm (ProductsPage/ProductDetailPage) — port từ products.html, 4 màu:
+   Thiết bị (teal nhạt) · Vật tư (trung tính) · Dịch vụ (viền teal) · Gói sản phẩm (magenta nhạt) */
+.theme-2a .kv-tag--device  { background: var(--accent-bg); color: var(--accent-text); }
+.theme-2a .kv-tag--supply  { background: var(--bg-subtle); color: var(--text-1); }
+.theme-2a .kv-tag--service { background: transparent; color: var(--accent-text); border-color: var(--accent); }
+.theme-2a .kv-tag--bundle  { background: var(--accent-2-bg); color: var(--accent-2-text); }
+
+/* pager */
+.theme-2a .kv-pager { display: flex; align-items: center; justify-content: space-between; margin-top: 14px; font-size: 12px; color: var(--text-2); }
+.theme-2a .kv-pages { display: flex; gap: 4px; }
+.theme-2a .kv-page {
+  display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px;
+  border: 1px solid var(--border-md); border-radius: var(--radius-md); color: var(--text-1);
+  background: none; cursor: pointer; text-decoration: none;
+}
+.theme-2a .kv-page svg { width: 14px; height: 14px; }
+.theme-2a .kv-page:hover { background: color-mix(in srgb, var(--text-1) 6%, transparent); }
+.theme-2a .kv-page[aria-current="page"] { background: var(--accent); border-color: var(--accent); color: #ffffff; }
+.theme-2a .kv-page:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.theme-2a .kv-table-wrap { display: flex; flex-direction: column; gap: 14px; }
+
+/* ── Port từ export/import-new.html — trang Tạo phiếu nhập kho ──
+   Cùng công thức co ~70-75% như phần trên (xem ghi chú đầu file), map var(--color-accent-*)
+   của mockup sang đúng token đã có trong tokens.css (--accent/--accent-bg/--accent-text,
+   --accent-2/--accent-2-bg/--accent-2-text/--accent-2-border — xem chú thích ánh xạ ngay
+   tại nơi khai báo các biến đó). */
+
+.theme-2a .kv-icon-btn {
+  display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px;
+  color: var(--text-2); background: transparent; border: none; border-radius: var(--radius-md); cursor: pointer;
+}
+.theme-2a .kv-icon-btn svg { width: 15px; height: 15px; }
+.theme-2a .kv-icon-btn:hover { background: color-mix(in srgb, var(--text-1) 7%, transparent); }
+
+/* Segmented control (Loại nhập) — 1 hàng lựa chọn loại trừ nhau, khác .kv-tabs (điều hướng
+   giữa các tab nội dung) ở chỗ đây là 1 FIELD trong form, không đổi nội dung trang. */
+.theme-2a .kv-seg { display: inline-flex; border: 1px solid var(--border-md); border-radius: var(--radius-md); overflow: hidden; }
+.theme-2a .kv-seg button {
+  display: inline-flex; align-items: center; height: 28px; padding: 0 12px; font-size: 13px;
+  font-family: var(--font-display); color: var(--text-2); background: var(--bg-card); border: none;
+  white-space: nowrap; cursor: pointer;
+}
+.theme-2a .kv-seg button + button { border-left: 1px solid var(--border-md); }
+.theme-2a .kv-seg button:hover { background: var(--bg-subtle); }
+.theme-2a .kv-seg button[aria-current="true"] { background: var(--accent); color: #ffffff; font-weight: 600; }
+
+/* Bảng dòng hàng — cột mã dòng, nút xoá chỉ hiện khi hover dòng, nút chọn serial */
+.theme-2a .kv-lines .kv-line-no { color: var(--text-3); font-variant-numeric: tabular-nums; }
+.theme-2a .kv-row-del { opacity: 0; }
+.theme-2a .kv-lines tbody tr:hover .kv-row-del, .theme-2a .kv-row-del:focus-visible { opacity: 1; }
+.theme-2a .kv-row-del:hover { color: var(--accent-2-text); background: var(--accent-2-bg); }
+.theme-2a .kv-serial-btn {
+  display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 9px; font-size: 12px;
+  font-weight: 500; white-space: nowrap; color: var(--accent-text); background: transparent;
+  border: 1px solid var(--accent); border-radius: var(--radius-md); cursor: pointer; font-family: var(--font-display);
+}
+.theme-2a .kv-serial-btn svg { width: 13px; height: 13px; }
+.theme-2a .kv-serial-btn:hover { background: var(--accent-bg); }
+.theme-2a .kv-serial-btn--missing { color: var(--accent-2-text); border-color: var(--accent-2-border); }
+.theme-2a .kv-serial-btn--missing:hover { background: var(--accent-2-bg); }
+.theme-2a .kv-serial-btn--done { color: var(--text-2); border-color: var(--border-md); }
+.theme-2a .kv-na { color: var(--text-3); font-size: 12px; }
+
+/* Dòng "Quét mã / tìm hàng" cuối bảng — thay cho nút "+ Thêm dòng" full-width */
+.theme-2a .kv-addline td { border-bottom: none; padding-top: 10px; }
+.theme-2a .kv-addline .kv-search { width: 420px; }
+.theme-2a .kv-kbd {
+  display: inline-flex; align-items: center; height: 18px; padding: 0 6px; font-size: 10px;
+  color: var(--text-3); border: 1px solid var(--border-md); border-radius: var(--radius-md);
+}
+
+/* Thanh sticky đáy — số dòng/tổng SL/tổng tiền/cảnh báo thiếu serial + hành động */
+.theme-2a .kv-footer-bar {
+  position: sticky; bottom: 0; z-index: 5; display: flex; align-items: center; gap: 24px;
+  height: 52px; padding: 0 4px; background: var(--bg-card); border-top: 1px solid var(--border-md);
+  margin-top: 4px;
+}
+.theme-2a .kv-footer-stat { display: flex; flex-direction: column; gap: 1px; }
+.theme-2a .kv-footer-stat .kv-fact-label { font-size: 10px; color: var(--text-2); text-transform: uppercase; letter-spacing: 0.04em; }
+.theme-2a .kv-footer-stat .kv-fact-value { font-size: 14px; font-weight: 700; color: var(--text-1); font-variant-numeric: tabular-nums; }
+.theme-2a .kv-footer-warn { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--accent-2-text); }
+.theme-2a .kv-footer-warn svg { width: 14px; height: 14px; }
+
+/* Drawer nhập serial (dùng trong shadcn Sheet) */
+.theme-2a .kv-progress { height: 4px; background: var(--bg-subtle); border-radius: 2px; overflow: hidden; }
+.theme-2a .kv-progress > span { display: block; height: 100%; background: var(--accent); }
+.theme-2a .kv-serial-list { display: flex; flex-direction: column; gap: 6px; list-style: none; margin: 0; padding: 0; }
+.theme-2a .kv-serial-list li {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 6px 10px; border: 1px solid var(--border-md); border-radius: var(--radius-md); font-size: 13px;
+}
+
+/* ── Master-detail v2 (export/warehouses.html, 29/9) — thay pattern Tailwind cũ
+   (grid-cols-[380px_1fr] rounded-2xl shadow-md) cho các trang áp UI mới: WarehousesPage,
+   CompaniesPage. Trang chưa đụng tới (Categories/Brands/Users/Roles/Groups) vẫn giữ pattern
+   cũ, KHÔNG đổi hàng loạt. */
+.theme-2a .kv-md {
+  display: grid; grid-template-columns: 300px minmax(0, 1fr); min-height: 0; flex: 1;
+  border-top: 1px solid var(--border-md); overflow: hidden;
+}
+.theme-2a .kv-md-list { border-right: 1px solid var(--border-md); display: flex; flex-direction: column; min-height: 0; }
+.theme-2a .kv-md-tools { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px 10px; flex-shrink: 0; }
+.theme-2a .kv-md-tools .kv-search { width: 100%; }
+.theme-2a .kv-md-items { list-style: none; margin: 0; padding: 0; flex: 1; min-height: 0; overflow-y: auto; }
+.theme-2a .kv-md-item {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 9px 14px; border-bottom: 1px solid var(--border); color: var(--text-1); cursor: pointer;
+}
+.theme-2a .kv-md-item:hover { background: var(--accent-bg); text-decoration: none; color: var(--text-1); }
+.theme-2a .kv-md-item[aria-current="true"] { background: var(--accent-bg); box-shadow: inset 3px 0 0 var(--accent); }
+.theme-2a .kv-md-item .kv-tags { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+.theme-2a .kv-md-foot { padding: 8px 14px; font-size: 12px; color: var(--text-2); border-top: 1px solid var(--border); flex-shrink: 0; }
+.theme-2a .kv-md-detail { padding: 14px 20px 24px; overflow-y: auto; min-height: 0; }
+.theme-2a .kv-md-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.theme-2a .kv-md-title { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 17px; font-weight: 700; letter-spacing: -0.01em; color: var(--text-1); }
+.theme-2a .kv-md-block { margin-top: 20px; }
+.theme-2a .kv-md-block .kv-dl { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.theme-2a .kv-md-block-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding-bottom: 6px; border-bottom: 1px solid var(--border-md); }
+
+/* Responsive list↔detail toggle cho .kv-md trên mobile — dùng modifier class
+   (.kv-md--detail-open) thay vì Tailwind max-md:hidden, vì các rule display/
+   grid-template-columns ở trên đều scope 2 class (.theme-2a .kv-md*, specificity
+   0,2,0) nên luôn thắng 1 class .max-md\:hidden (0,1,0) của Tailwind bất kể media
+   query — bug cascade y hệt đã gặp ở kv-btn/md:hidden trước đó. Selector 4-class
+   dưới đây (0,4,0) thắng chắc chắn. */
+@media (max-width: 767px) {
+  .theme-2a .kv-md { grid-template-columns: minmax(0, 1fr); }
+  .theme-2a .kv-md:not(.kv-md--detail-open) .kv-md-detail { display: none; }
+  .theme-2a .kv-md.kv-md--detail-open .kv-md-list { display: none; }
+}
+
+.theme-2a .kv-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 5px; vertical-align: 1px; flex-shrink: 0; }
+.theme-2a .kv-dot--on { background: var(--accent); }
+.theme-2a .kv-dot--off { background: var(--border-md); }
+.theme-2a .kv-tag--default { background: var(--accent-bg); color: var(--accent-text); }
+.theme-2a .kv-tag--virtual { color: var(--text-2); border-color: var(--border-md); }
+.theme-2a .kv-serial-list .kv-dup { color: var(--accent-2-text); font-size: 11px; }

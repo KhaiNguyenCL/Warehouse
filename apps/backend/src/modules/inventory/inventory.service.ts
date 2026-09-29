@@ -1,6 +1,6 @@
 import { Knex } from 'knex'
 import { InventoryRepository } from './inventory.repository'
-import { ListInventoryQuery, ListLowStockQuery, ListLotsQuery, ListSerialsQuery } from './inventory.schema'
+import { ListInventoryQuery, ListLowStockQuery, ListLotsQuery, ListSerialsQuery, ListSoldSerialsQuery } from './inventory.schema'
 
 export class InventoryService {
   private repo: InventoryRepository
@@ -28,6 +28,10 @@ export class InventoryService {
     return this.repo.findSerials(query)
   }
 
+  soldSerials(query: ListSoldSerialsQuery) {
+    return this.repo.findSoldSerials(query)
+  }
+
   async updateSerial(id: string, data: { serial_no?: string; mac_address?: string | null; note?: string | null }) {
     const sn = await this.repo.findSerialById(id)
     if (!sn) throw { statusCode: 404, message: 'Serial number không tồn tại' }
@@ -36,6 +40,10 @@ export class InventoryService {
 
   serialMovements(serialId: string) {
     return this.repo.findMovementsBySerial(serialId)
+  }
+
+  recentMovements(variantId: string) {
+    return this.repo.findRecentMovementsByVariant(variantId)
   }
 
   reservedByVariant(variantId: string) {

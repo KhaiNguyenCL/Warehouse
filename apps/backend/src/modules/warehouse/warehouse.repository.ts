@@ -26,6 +26,7 @@ export class WarehouseRepository {
 
   async createWarehouse(data: CreateWarehouseBody) {
     return this.db.transaction(async (trx) => {
+      // Chỉ 1 kho được là default — nếu tạo kho mới với is_default=true thì bỏ cờ của kho cũ.
       if (data.is_default) {
         await trx('warehouses').where('is_default', true).update({ is_default: false })
       }
@@ -48,6 +49,8 @@ export class WarehouseRepository {
     })
   }
 
+  // Soft delete — chỉ set is_active=false, không xoá hẳn row (kho đã dùng có thể có
+  // lịch sử stock_movements/receipt/delivery tham chiếu warehouse_id, xoá cứng sẽ vỡ FK).
   deleteWarehouse(id: string) {
     return this.db('warehouses').where({ id }).update({ is_active: false, updated_at: this.db.fn.now() })
   }

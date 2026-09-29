@@ -73,6 +73,25 @@ export interface ListSerialsQuery {
   warehouse_id?: string
 }
 
+// Tab "Hàng đã bán" ở InventoryPage — danh sách từng Serial Number đã xuất bán
+// (serial_numbers.status = 'sold'), kèm thông tin phiếu xuất/khách hàng để tra cứu hậu mãi.
+export const listSoldSerialsSchema = {
+  querystring: {
+    type: 'object',
+    properties: {
+      search: { type: 'string' },
+      page:   { type: 'integer', minimum: 1, default: 1 },
+      limit:  { type: 'integer', minimum: 1, maximum: 100, default: 20 },
+    },
+  },
+}
+
+export interface ListSoldSerialsQuery {
+  search?: string
+  page?: number
+  limit?: number
+}
+
 export const listLowStockSchema = {
   querystring: {
     type: 'object',

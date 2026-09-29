@@ -1,5 +1,5 @@
 import { Knex } from 'knex'
-import { ListInventoryQuery, ListLowStockQuery, ListLotsQuery, ListSerialsQuery } from './inventory.schema'
+import { ListInventoryQuery, ListLowStockQuery, ListLotsQuery, ListSerialsQuery, ListSoldSerialsQuery } from './inventory.schema'
 
 export class InventoryRepository {
   constructor(private db: Knex) {}
@@ -96,49 +96,82 @@ export class InventoryRepository {
   // Tồn kho tổng hợp theo variant (gộp tất cả kho) — dùng cho tab Tồn kho SKU-level.
   // 1 dòng/SKU thay vì 1 dòng/SKU+kho như findAll() để user không phải xổ 2 tầng mới thấy SN.
   async findByVariant(query: ListInventoryQuery) {
-    const { variant_id, warehouse_id, product_id, product_type, search, page = 1, limit = 20 } = query
+    const { variant_id, warehouse_id, product_id, product_type, category_id, brand_id, search, page = 1, limit = 20 } = query
     const offset = (page - 1) * limit
 
-    const base = this.db('inventory as i')
-      .join('variants as v', 'v.id', 'i.variant_id')
-      .join('products as p', 'p.id', 'v.product_id')
-      .groupBy('i.variant_id', 'v.sku', 'v.item_code', 'v.name', 'v.unit', 'v.model', 'v.part_number', 'p.product_type')
-      .select(
-        'i.variant_id',
-        'v.sku',
-        'v.item_code',
-        'v.name as variant_name',
-        'v.unit',
-        'v.model',
-        'v.part_number',
-        'p.product_type',
-        this.db.raw('SUM(i.qty_on_hand)::int as qty_on_hand'),
-        this.db.raw('SUM(i.qty_reserved)::int as qty_reserved'),
-        this.db.raw('(SUM(i.qty_on_hand) - SUM(i.qty_reserved))::int as qty_available'),
-        this.db.raw('ROUND(AVG(i.avg_cost)::numeric, 0) as avg_cost'),
-        // Danh sách kho có hàng dạng [{name, qty_on_hand}] — hiển thị trực tiếp trên dòng SKU
-        this.db.raw(`
-          (SELECT json_agg(json_build_object('name', w.name, 'qty', i2.qty_on_hand) ORDER BY w.name)
-           FROM inventory i2
-           JOIN warehouses w ON w.id = i2.warehouse_id
-           WHERE i2.variant_id = i.variant_id AND i2.qty_on_hand > 0
-          ) as warehouse_breakdown
-        `),
-      )
+    const filtered = () => {
+      const qb = this.db('inventory as i')
+        .join('variants as v', 'v.id', 'i.variant_id')
+        .join('products as p', 'p.id', 'v.product_id')
+        .leftJoin('categories as cat', 'cat.id', 'p.category_id')
 
-    if (variant_id) base.where('i.variant_id', variant_id)
-    if (warehouse_id) base.where('i.warehouse_id', warehouse_id)
-    if (product_id) base.where('v.product_id', product_id)
-    if (product_type) base.where('p.product_type', product_type)
-    if (search) {
-      base.where((qb) => {
-        qb.whereILike('v.name', `%${search}%`).orWhereILike('v.sku', `%${search}%`).orWhereILike('v.item_code', `%${search}%`)
-      })
+      if (variant_id) qb.where('i.variant_id', variant_id)
+      if (warehouse_id) qb.where('i.warehouse_id', warehouse_id)
+      if (product_id) qb.where('v.product_id', product_id)
+      if (product_type) qb.where('p.product_type', product_type)
+      if (category_id) qb.where('p.category_id', category_id)
+      if (brand_id) qb.where('p.brand_id', brand_id)
+      if (search) {
+        qb.where((sub) => {
+          sub.whereILike('v.name', `%${search}%`).orWhereILike('v.sku', `%${search}%`).orWhereILike('v.item_code', `%${search}%`)
+        })
+      }
+      return qb
     }
 
+    // groupBy/having tách riêng thành factory (giống findLowStock()) — KHÔNG được áp
+    // groupBy lên 1 query rồi mới .clone().clearSelect() để đếm, vì clearSelect() không
+    // xoá GROUP BY: count() lúc đó vẫn trả về 1 dòng/nhóm thay vì tổng số nhóm.
+    const grouped = () =>
+      filtered()
+        .groupBy('i.variant_id', 'v.sku', 'v.item_code', 'v.name', 'v.unit', 'v.model', 'v.part_number', 'v.reorder_point', 'p.product_type', 'cat.name')
+        .havingRaw('SUM(i.qty_on_hand) > 0')
+
     const [rows, countResult] = await Promise.all([
-      base.clone().having(this.db.raw('SUM(i.qty_on_hand) > 0')).orderBy('v.item_code').limit(limit).offset(offset),
-      base.clone().clearSelect().count(this.db.raw('DISTINCT i.variant_id') as any).first(),
+      grouped()
+        .select(
+          'i.variant_id',
+          'v.sku',
+          'v.item_code',
+          'v.name as variant_name',
+          'v.unit',
+          'v.model',
+          'v.part_number',
+          'v.reorder_point',
+          'p.product_type',
+          'cat.name as category_name',
+          this.db.raw('SUM(i.qty_on_hand)::int as qty_on_hand'),
+          this.db.raw('SUM(i.qty_reserved)::int as qty_reserved'),
+          this.db.raw('(SUM(i.qty_on_hand) - SUM(i.qty_reserved))::int as qty_available'),
+          this.db.raw('ROUND(AVG(i.avg_cost)::numeric, 0) as avg_cost'),
+          // Danh sách kho có hàng dạng [{name, qty_on_hand}] — hiển thị trực tiếp trên dòng SKU
+          this.db.raw(`
+            (SELECT json_agg(json_build_object('name', w.name, 'qty', i2.qty_on_hand) ORDER BY w.name)
+             FROM inventory i2
+             JOIN warehouses w ON w.id = i2.warehouse_id
+             WHERE i2.variant_id = i.variant_id AND i2.qty_on_hand > 0
+            ) as warehouse_breakdown
+          `),
+          // Lô gần hết hạn nhất còn tồn (qty_remaining > 0) — dùng đúng công thức warranty_end
+          // = completed_at + customer_warranty_months (mục 17 CLAUDE.md), tính ngay ở lô thay
+          // vì receipt_lines không lưu sẵn ngày tuyệt đối (chỉ serial_numbers có, mà consumable
+          // không có serial_numbers). Không phải "hạn dùng hoá chất" đúng nghĩa, chỉ là hạn bảo
+          // hành/hạn dùng suy ra từ lô nhập — không có field nào khác để lấy con số này.
+          this.db.raw(`
+            (SELECT json_build_object('receipt_code', r.code, 'expires_at', r.completed_at + (rl.customer_warranty_months || ' months')::interval)
+             FROM receipt_lines rl
+             JOIN receipts r ON r.id = rl.receipt_id
+             WHERE rl.variant_id = i.variant_id AND r.status = 'completed'
+               AND rl.qty_remaining > 0 AND rl.customer_warranty_months > 0
+             ORDER BY (r.completed_at + (rl.customer_warranty_months || ' months')::interval) ASC
+             LIMIT 1
+            ) as nearest_lot
+          `),
+        )
+        .orderBy('v.item_code')
+        .limit(limit)
+        .offset(offset),
+      this.db.from(grouped().select('i.variant_id').as('by_variant')).count('* as count').first(),
     ])
 
     return { data: rows, total: Number(countResult?.count ?? 0), page, limit }
@@ -268,6 +301,62 @@ export class InventoryRepository {
       .orderBy(this.db.raw("COALESCE(q.code, dord.code)"))
   }
 
+  // Tab "Hàng đã bán" — danh sách từng SN đã xuất bán (status='sold'), kèm phiếu xuất/khách
+  // hàng để tra cứu hậu mãi. Chỉ storable mới có SN nên tab này chỉ liệt kê storable đã bán —
+  // consumable xuất bán chỉ trừ qty, không có record theo từng cái nên không lên được đây.
+  // export_type không lọc cứng 'sale' — internal/demo_out/warranty_out cũng set status='sold'
+  // (transfer_type demo_in/warranty_in mới đưa về active) nên vẫn hiện đủ, cột "Loại xuất"
+  // trên UI tự phân biệt để không đánh đồng "đã bán" với "xuất nội bộ".
+  async findSoldSerials(query: ListSoldSerialsQuery) {
+    const { search, page = 1, limit = 20 } = query
+    const offset = (page - 1) * limit
+
+    const base = () => {
+      const q = this.db('serial_numbers as sn')
+        .join('variants as v', 'v.id', 'sn.variant_id')
+        .leftJoin('delivery_order_lines as dol', 'dol.id', 'sn.delivery_line_id')
+        .leftJoin('delivery_orders as dord', 'dord.id', 'dol.delivery_order_id')
+        .leftJoin('companies as c', 'c.id', 'dord.company_id')
+        .where('sn.status', 'sold')
+      if (search) {
+        q.where((qb) => {
+          qb.whereILike('sn.serial_no', `%${search}%`)
+            .orWhereILike('v.item_code', `%${search}%`)
+            .orWhereILike('v.name', `%${search}%`)
+            .orWhereILike('c.name', `%${search}%`)
+            .orWhereILike('dord.code', `%${search}%`)
+        })
+      }
+      return q
+    }
+
+    const [rows, countResult] = await Promise.all([
+      base()
+        .select(
+          'sn.id',
+          'sn.serial_no',
+          'v.item_code',
+          'v.name as variant_name',
+          'sn.mac_address',
+          'sn.manufacturer_warranty_end',
+          'sn.customer_warranty_end',
+          'dord.code as delivery_code',
+          'dord.export_type',
+          'dord.completed_at as sold_at',
+          'c.name as company_name',
+        )
+        .orderBy([
+          { column: 'dord.completed_at', order: 'desc' },
+          { column: 'sn.serial_no', order: 'asc' },
+        ])
+        .limit(limit)
+        .offset(offset),
+      base().clearSelect().count('sn.id as count').first(),
+    ])
+
+    return { data: rows, total: Number(countResult?.count ?? 0), page, limit }
+  }
+
   findSerialById(id: string) {
     return this.db('serial_numbers').where({ id }).first()
   }
@@ -278,6 +367,33 @@ export class InventoryRepository {
       .update({ ...data, updated_at: this.db.fn.now() })
       .returning('*')
       .then((rows) => rows[0])
+  }
+
+  // Hoạt động gần đây của 1 SKU (gộp tất cả kho, cả storable lẫn consumable — khác
+  // findMovementsBySerial chỉ theo đúng 1 SN) — dùng cho cột phải "Hoạt động gần đây" ở
+  // VariantDetailPage. Mã chứng từ lấy qua COALESCE 3 LEFT JOIN vì ref_document_type là
+  // quan hệ đa hình (receipt/delivery_order/transfer_order), không join thẳng 1 bảng được.
+  findRecentMovementsByVariant(variantId: string, limit = 3) {
+    const db = this.db
+    return db('stock_movements as sm')
+      .leftJoin('receipts as r', function () {
+        this.on('r.id', 'sm.ref_document_id').andOn(db.raw("sm.ref_document_type = 'receipt'"))
+      })
+      .leftJoin('delivery_orders as d', function () {
+        this.on('d.id', 'sm.ref_document_id').andOn(db.raw("sm.ref_document_type = 'delivery_order'"))
+      })
+      .leftJoin('transfer_orders as t', function () {
+        this.on('t.id', 'sm.ref_document_id').andOn(db.raw("sm.ref_document_type = 'transfer_order'"))
+      })
+      .where('sm.variant_id', variantId)
+      .select(
+        'sm.movement_type',
+        'sm.quantity',
+        'sm.created_at',
+        this.db.raw('COALESCE(r.code, d.code, t.code) as doc_code'),
+      )
+      .orderBy('sm.created_at', 'desc')
+      .limit(limit)
   }
 
   // Lịch sử di chuyển (nhập/xuất/chuyển kho) của ĐÚNG 1 SN — stock_movements.serial_id

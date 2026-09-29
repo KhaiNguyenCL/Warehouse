@@ -1,8 +1,8 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Plus, Pencil, Trash2, Search, X } from 'lucide-react'
+import { Pencil, Trash2, Search, X, ChevronLeft } from 'lucide-react'
 
 import { useWarehouses } from '@/hooks/useWarehouses'
 import { Button } from '@/components/ui/button'
@@ -21,9 +21,9 @@ import {
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
-import { CodeText } from '@/components/ui/CodeText'
-import { ActiveBadge } from '@/components/ui/ActiveBadge'
+import { StatusToggle } from '@/components/ui/StatusToggle'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
+import { usePageNoPadding } from '@/layout/PageHeaderSlot'
 
 // ── Schema ─────────────────────────────────────────────────────────────────
 
@@ -39,33 +39,37 @@ const schema = z.object({
 })
 type WarehouseForm = z.infer<typeof schema>
 
+const DEFAULT_VALUES: WarehouseForm = {
+  code: '', name: '', type: 'physical', address: '', description: '', manager_id: '', is_default: false, is_active: true,
+}
+
 // ── Component ──────────────────────────────────────────────────────────────
 
 export default function WarehousesPage() {
+  usePageNoPadding()
   const { data, isLoading, users, createMutation, updateMutation, deleteMutation } = useWarehouses()
 
   const [dialogOpen, setDialogOpen]     = useState(false)
   const [editing, setEditing]           = useState<any | null>(null)
-  const [isViewing, setIsViewing]       = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null)
   const [search, setSearch]             = useState('')
   const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'inactive'>('all')
+  const [selectedId, setSelectedId]     = useState<string | null>(null)
+  const [mobileDetail, setMobileDetail] = useState(false)
 
   const form = useForm<WarehouseForm>({
     resolver: zodResolver(schema),
-    defaultValues: { code: '', name: '', type: 'physical', address: '', description: '', manager_id: '', is_default: false, is_active: true },
+    defaultValues: DEFAULT_VALUES,
   })
 
   function openCreate() {
     setEditing(null)
-    setIsViewing(false)
-    form.reset({ code: '', name: '', type: 'physical', address: '', description: '', manager_id: '', is_default: false, is_active: true })
+    form.reset(DEFAULT_VALUES)
     setDialogOpen(true)
   }
 
   function openEdit(record: any) {
     setEditing(record)
-    setIsViewing(true)
     form.reset({
       code:        record.code        ?? '',
       name:        record.name        ?? '',
@@ -80,7 +84,6 @@ export default function WarehousesPage() {
   }
 
   function onSubmit(values: WarehouseForm) {
-    // Strip empty optional strings so API doesn't receive empty ""
     const payload: any = { ...values }
     if (!payload.address)     delete payload.address
     if (!payload.description) delete payload.description
@@ -102,162 +105,156 @@ export default function WarehousesPage() {
   })
 
   const userList: any[] = users?.data ?? []
+  const selected = filtered.find((r) => r.id === selectedId) ?? null
+
+  // Giữ lựa chọn hiện tại nếu vẫn còn trong danh sách sau khi lọc/tìm kiếm; nếu không thì
+  // tự chọn dòng đầu tiên để panel bên phải luôn có nội dung — cùng pattern với CompaniesPage.
+  useEffect(() => {
+    if (filtered.length === 0) { setSelectedId(null); return }
+    if (!selectedId || !filtered.some((r) => r.id === selectedId)) setSelectedId(filtered[0].id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtered])
 
   // ── Render ───────────────────────────────────────────────────────────────
 
-  return (
-    <div className="flex flex-col gap-6">
+  const physicalCount = warehouses.filter((w) => w.type === 'physical').length
+  const virtualCount = warehouses.length - physicalCount
 
-      {/* Page header */}
-      <div className="flex items-center justify-between">
+  return (
+    <div className="theme-2a flex h-full min-h-0 flex-col bg-background p-6">
+
+      <div className="kv-head">
         <div>
-          <h1 className="font-serif text-2xl font-semibold tracking-tight">Kho hàng</h1>
-          <p className="mt-0.5 text-sm text-muted-foreground">
-            Quản lý danh sách kho vật lý và kho ảo
-          </p>
+          <h1 className="kv-title">Kho hàng</h1>
+          <p className="kv-sub">{warehouses.length} kho · {physicalCount} kho vật lý, {virtualCount} kho ảo</p>
         </div>
-        <Button onClick={openCreate}>
-          <Plus className="mr-2 h-4 w-4" />
-          Tạo kho
-        </Button>
+        <div className="kv-actions">
+          <button type="button" className="kv-btn kv-btn--primary" onClick={openCreate}>Tạo kho</button>
+        </div>
       </div>
 
-      {/* Table card */}
-      <div className="overflow-hidden rounded-xl border border-border-md bg-background shadow-sm">
+      <div className={cn('kv-md', mobileDetail && 'kv-md--detail-open')}>
 
-        {/* Toolbar */}
-        <div className="flex items-center justify-between border-b border-border px-4 py-3">
-          <div className="flex items-center gap-2">
-            {(['all', 'active', 'inactive'] as const).map((f) => (
-              <button key={f}
-                onClick={() => setActiveFilter(f)}
-                className={cn('rounded-md px-3 py-1.5 text-xs font-medium transition-colors', activeFilter === f ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground')}
-              >{{ all: 'Tất cả', active: 'Hoạt động', inactive: 'Ngừng' }[f]}</button>
-            ))}
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Tìm tên, mã kho…"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="h-9 w-64 rounded-lg border-border pl-9 text-sm shadow-none focus-visible:ring-1"
-              />
+        {/* Roster */}
+        <div className="kv-md-list">
+          <div className="kv-md-tools">
+            <div className="kv-search">
+              <Search className="h-4 w-4" />
+              <input className="kv-input" placeholder="Tìm tên, mã kho…" value={search} onChange={(e) => setSearch(e.target.value)} />
             </div>
-            <span className="text-sm text-muted-foreground">{filtered.length} kết quả</span>
+            <div className="kv-seg" role="tablist" aria-label="Lọc trạng thái">
+              <button type="button" aria-current={activeFilter === 'all'} onClick={() => setActiveFilter('all')}>Tất cả</button>
+              <button type="button" aria-current={activeFilter === 'active'} onClick={() => setActiveFilter('active')}>Hoạt động</button>
+              <button type="button" aria-current={activeFilter === 'inactive'} onClick={() => setActiveFilter('inactive')}>Ngừng</button>
+            </div>
           </div>
-        </div>
 
-        {/* Table */}
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-border bg-muted/60">
-              <th className="w-12 px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground">#</th>
-              <th className="w-28 px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Mã</th>
-              <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Tên</th>
-              <th className="w-28 px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground">Loại</th>
-              <th className="w-48 px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground">Mặc định</th>
-              <th className="w-56 px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground">Trạng thái</th>
-              <th className="w-40 px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Quản lý</th>
-              <th className="w-20 px-4 py-2.5" />
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
+          <ul className="kv-md-items">
             {isLoading ? (
-              <tr>
-                <td colSpan={8} className="px-4 py-12 text-center text-xs text-muted-foreground">
-                  Đang tải…
-                </td>
-              </tr>
+              <li className="kv-muted" style={{ padding: '32px 14px', textAlign: 'center', fontSize: 12 }}>Đang tải…</li>
             ) : filtered.length === 0 ? (
-              <tr>
-                <td colSpan={8} className="px-4 py-12 text-center text-xs text-muted-foreground">
-                  {search ? 'Không tìm thấy kết quả.' : 'Chưa có kho nào.'}
-                </td>
-              </tr>
+              <li className="kv-muted" style={{ padding: '32px 14px', textAlign: 'center', fontSize: 12 }}>
+                {search ? 'Không tìm thấy kết quả.' : 'Chưa có kho nào.'}
+              </li>
             ) : (
-              filtered.map((row, i) => (
-                <tr
-                  key={row.id}
-                  onClick={() => openEdit(row)}
-                  className="group/row cursor-pointer transition-colors hover:bg-muted/30"
-                >
-                  <td className="px-4 py-2 text-center text-xs text-muted-foreground">{i + 1}</td>
-                  <td className="px-4 py-2">
-                    <CodeText>{row.code}</CodeText>
-                  </td>
-                  <td className="px-4 py-2 font-medium text-foreground">{row.name}</td>
-                  <td className="px-4 py-2">
-                    <div className="flex justify-center">
-                      <TypeBadge type={row.type} />
+              filtered.map((r) => (
+                <li key={r.id}>
+                  <a
+                    className="kv-md-item"
+                    aria-current={r.id === selectedId}
+                    onClick={() => { setSelectedId(r.id); setMobileDetail(true) }}
+                  >
+                    <div style={{ minWidth: 0 }}>
+                      <div className="kv-cell-title" style={{ display: 'flex', alignItems: 'center' }}>
+                        <span className={cn('kv-dot', r.is_active ? 'kv-dot--on' : 'kv-dot--off')} />
+                        <span className="truncate">{r.name}</span>
+                      </div>
+                      <div className="kv-cell-sub mono">{r.code}</div>
                     </div>
-                  </td>
-                  <td className="px-4 py-2">
-                    <div className="flex justify-center">
-                      {row.is_default && (
-                        <span className="inline-flex items-center gap-1.5 text-sm font-medium text-emerald-700">
-                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                          Mặc định
-                        </span>
-                      )}
+                    <div className="kv-tags">
+                      {r.is_default && <span className="kv-tag kv-tag--default">Mặc định</span>}
+                      {r.type === 'virtual' && <span className="kv-tag kv-tag--virtual">Ảo</span>}
                     </div>
-                  </td>
-                  <td className="px-4 py-2">
-                    <div className="flex justify-center" onClick={(e) => e.stopPropagation()}>
-                      <Switch
-                        checked={row.is_active}
-                        onCheckedChange={(checked) => updateMutation.mutate({ id: row.id, is_active: checked })}
-                      />
-                    </div>
-                  </td>
-                  <td className="px-4 py-2 text-muted-foreground">
-                    {userList.find((u) => u.id === row.manager_id)?.full_name ?? '—'}
-                  </td>
-                  <td className="px-4 py-2">
-                    <div className="flex items-center justify-end gap-1 opacity-0 transition-opacity group-hover/row:opacity-100">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); openEdit(row) }}
-                        className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                      </button>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setDeleteTarget(row) }}
-                        className="rounded-md p-1.5 text-muted-foreground hover:bg-red-50 hover:text-red-600 transition-colors"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
+                  </a>
+                </li>
               ))
             )}
-          </tbody>
-        </table>
+          </ul>
 
-        {/* Footer */}
-        {filtered.length > 0 && (
-          <div className="border-t border-border px-4 py-2.5">
-            <span className="text-xs text-muted-foreground">{filtered.length} kho</span>
+          {filtered.length > 0 && <div className="kv-md-foot">{filtered.length} kho</div>}
+        </div>
+
+        {/* Detail */}
+        {!selected ? (
+          <div className="kv-md-detail flex items-center justify-center">
+            <p className="kv-muted" style={{ fontSize: 13 }}>Chọn 1 kho bên trái để xem chi tiết.</p>
+          </div>
+        ) : (
+          <div className="kv-md-detail">
+
+            <button
+              onClick={() => setMobileDetail(false)}
+              className="mb-2.5 flex items-center gap-1.5 border-none bg-transparent text-sm font-medium md:hidden"
+              style={{ color: 'var(--text-2)', cursor: 'pointer' }}
+            >
+              <ChevronLeft className="h-4 w-4" />
+              Quay lại danh sách
+            </button>
+
+            <div className="kv-md-head">
+              <div>
+                <h2 className="kv-md-title">
+                  {selected.name}
+                  {selected.is_default && <span className="kv-tag kv-tag--default">Mặc định</span>}
+                </h2>
+                <div className="kv-cell-sub"><span className="mono">{selected.code}</span> · {selected.type === 'physical' ? 'Kho vật lý' : 'Kho ảo'}</div>
+              </div>
+              <div className="kv-actions">
+                <button type="button" className="kv-btn kv-btn--danger" onClick={() => setDeleteTarget(selected)}>
+                  <Trash2 className="h-3.5 w-3.5" />Xoá
+                </button>
+                <button type="button" className="kv-btn" onClick={() => openEdit(selected)}>
+                  <Pencil className="h-3.5 w-3.5" />Sửa
+                </button>
+              </div>
+            </div>
+
+            <div className="kv-md-block">
+              <div className="kv-md-block-head">
+                <h3 className="kv-section-title">Thông tin</h3>
+              </div>
+              <dl className="kv-dl">
+                <div><dt>Mã kho</dt><dd className="mono">{selected.code}</dd></div>
+                <div><dt>Loại kho</dt><dd>{selected.type === 'physical' ? 'Vật lý' : 'Ảo'}</dd></div>
+                <div>
+                  <dt>Trạng thái</dt>
+                  <dd>
+                    <StatusToggle
+                      active={selected.is_active}
+                      onChange={(v) => updateMutation.mutate({ id: selected.id, is_active: v })}
+                    />
+                  </dd>
+                </div>
+                <div>
+                  <dt>Người quản lý</dt>
+                  <dd>{userList.find((u) => u.id === selected.manager_id)?.full_name || <span className="kv-empty">Chưa chỉ định</span>}</dd>
+                </div>
+                <div className="kv-span-2"><dt>Địa chỉ</dt><dd>{selected.address || <span className="kv-empty">Chưa nhập</span>}</dd></div>
+                <div className="kv-span-3"><dt>Mô tả</dt><dd>{selected.description || <span className="kv-empty">Chưa nhập</span>}</dd></div>
+              </dl>
+            </div>
           </div>
         )}
       </div>
 
       {/* Create / Edit Sheet */}
       <Sheet open={dialogOpen} onOpenChange={(o) => !o && setDialogOpen(false)}>
-        <SheetContent side="right" className="w-96 flex flex-col gap-0" showCloseButton={false}>
-        {/* header */}
-        <div className="flex shrink-0 items-center justify-between border-b border-border px-5 py-4">
-          <h2 className="text-base font-semibold text-foreground">
-            {editing ? editing.name : 'Tạo kho mới'}
-          </h2>
-          <div className="flex items-center gap-1">
-            {isViewing && (
-              <Button size="sm" variant="outline" onClick={() => setIsViewing(false)}>
-                <Pencil className="mr-1.5 h-3.5 w-3.5" />Chỉnh sửa
-              </Button>
-            )}
+        <SheetContent side="right" className="theme-2a w-96 flex flex-col gap-0" showCloseButton={false}>
+          {/* header */}
+          <div className="flex shrink-0 items-center justify-between border-b border-border px-5 py-4">
+            <h2 className="text-base font-semibold text-foreground">
+              {editing ? editing.name : 'Tạo kho mới'}
+            </h2>
             <button
               onClick={() => setDialogOpen(false)}
               className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
@@ -265,171 +262,147 @@ export default function WarehousesPage() {
               <X className="h-4 w-4" />
             </button>
           </div>
-        </div>
 
-        {isViewing && editing ? (
-          /* ── View mode ── */
-          <div className="flex-1 overflow-y-auto px-5 py-5">
-            <div className="flex flex-col gap-5">
-              <SheetField label="Mã kho"><CodeText>{editing.code}</CodeText></SheetField>
-              <SheetField label="Tên kho">{editing.name}</SheetField>
-              <SheetField label="Loại kho">{editing.type === 'virtual' ? 'Ảo (Demo / Bảo hành / Chờ QC…)' : 'Vật lý'}</SheetField>
-              {editing.address && <SheetField label="Địa chỉ">{editing.address}</SheetField>}
-              {editing.description && <SheetField label="Mô tả">{editing.description}</SheetField>}
-              <SheetField label="Người quản lý">
-                {userList.find((u: any) => u.id === editing.manager_id)?.full_name ?? <span className="text-muted-foreground">Không chỉ định</span>}
-              </SheetField>
-              <SheetField label="Trạng thái">
-                <ActiveBadge active={editing.is_active} />
-              </SheetField>
-              {editing.is_default && (
-                <SheetField label="Kho mặc định"><span className="text-emerald-700 text-xs font-medium">Đây là kho mặc định</span></SheetField>
-              )}
-            </div>
-          </div>
-        ) : (
-        /* ── Create / Edit mode ── */
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="flex min-h-0 flex-1 flex-col">
-            <div className="flex-1 overflow-y-auto px-5 py-5">
-              <div className="flex flex-col gap-4">
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="flex min-h-0 flex-1 flex-col">
+              <div className="flex-1 overflow-y-auto px-5 py-5">
+                <div className="flex flex-col gap-4">
 
-                {/* Code */}
-                <FormField control={form.control} name="code" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Mã kho</FormLabel>
-                    <FormControl>
-                      <Input placeholder="VD: WH-01" className="font-mono" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-
-                {/* Name */}
-                <FormField control={form.control} name="name" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Tên kho</FormLabel>
-                    <FormControl>
-                      <Input placeholder="VD: Kho chính Hà Nội" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-
-                {/* Type */}
-                <FormField control={form.control} name="type" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Loại kho</FormLabel>
-                    <Select value={field.value} onValueChange={field.onChange}>
+                  {/* Code */}
+                  <FormField control={form.control} name="code" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Mã kho</FormLabel>
                       <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Chọn loại kho" />
-                        </SelectTrigger>
+                        <Input placeholder="VD: WH-01" className="font-mono" {...field} />
                       </FormControl>
-                      <SelectContent>
-                        <SelectItem value="physical">Vật lý</SelectItem>
-                        <SelectItem value="virtual">Ảo (Demo / Bảo hành / Chờ QC…)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )} />
+                      <FormMessage />
+                    </FormItem>
+                  )} />
 
-                {/* Address */}
-                <FormField control={form.control} name="address" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Địa chỉ</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Địa chỉ kho" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-
-                {/* Description */}
-                <FormField control={form.control} name="description" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Mô tả</FormLabel>
-                    <FormControl>
-                      <Textarea placeholder="Mô tả thêm về kho…" rows={2} {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-
-                {/* Manager */}
-                <FormField control={form.control} name="manager_id" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Người quản lý</FormLabel>
-                    <Select value={field.value ?? ''} onValueChange={(v) => field.onChange(v === '__none__' ? '' : v)}>
+                  {/* Name */}
+                  <FormField control={form.control} name="name" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Tên kho</FormLabel>
                       <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Không chỉ định" />
-                        </SelectTrigger>
+                        <Input placeholder="VD: Kho chính Hà Nội" {...field} />
                       </FormControl>
-                      <SelectContent>
-                        <SelectItem value="__none__">Không chỉ định</SelectItem>
-                        {userList.map((u) => (
-                          <SelectItem key={u.id} value={u.id}>{u.full_name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )} />
+                      <FormMessage />
+                    </FormItem>
+                  )} />
 
-                {/* is_default */}
-                <FormField control={form.control} name="is_default" render={({ field }) => (
-                  <FormItem className="flex items-center justify-between rounded-lg border border-border p-3">
-                    <div>
-                      <FormLabel className="cursor-pointer text-sm font-normal">
-                        Kho mặc định
-                      </FormLabel>
-                      <FormDescription className="mt-0.5 text-xs">
-                        Tự động chọn khi tạo phiếu
-                      </FormDescription>
-                    </div>
-                    <FormControl>
-                      <Switch checked={field.value} onCheckedChange={field.onChange} />
-                    </FormControl>
-                  </FormItem>
-                )} />
+                  {/* Type */}
+                  <FormField control={form.control} name="type" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Loại kho</FormLabel>
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Chọn loại kho" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent className="theme-2a">
+                          <SelectItem value="physical">Vật lý</SelectItem>
+                          <SelectItem value="virtual">Ảo (Demo / Bảo hành / Chờ QC…)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
 
-                {/* is_active — only when editing */}
-                {editing && (
-                  <FormField control={form.control} name="is_active" render={({ field }) => (
+                  {/* Address */}
+                  <FormField control={form.control} name="address" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Địa chỉ</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Địa chỉ kho" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+
+                  {/* Description */}
+                  <FormField control={form.control} name="description" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Mô tả</FormLabel>
+                      <FormControl>
+                        <Textarea placeholder="Mô tả thêm về kho…" rows={2} {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+
+                  {/* Manager */}
+                  <FormField control={form.control} name="manager_id" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Người quản lý</FormLabel>
+                      <Select value={field.value ?? ''} onValueChange={(v) => field.onChange(v === '__none__' ? '' : v)}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Không chỉ định" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent className="theme-2a">
+                          <SelectItem value="__none__">Không chỉ định</SelectItem>
+                          {userList.map((u) => (
+                            <SelectItem key={u.id} value={u.id}>{u.full_name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+
+                  {/* is_default */}
+                  <FormField control={form.control} name="is_default" render={({ field }) => (
                     <FormItem className="flex items-center justify-between rounded-lg border border-border p-3">
-                      <FormLabel className="cursor-pointer text-sm font-normal">
-                        Hoạt động
-                      </FormLabel>
+                      <div>
+                        <FormLabel className="cursor-pointer text-sm font-normal">
+                          Kho mặc định
+                        </FormLabel>
+                        <FormDescription className="mt-0.5 text-xs">
+                          Tự động chọn khi tạo phiếu
+                        </FormDescription>
+                      </div>
                       <FormControl>
                         <Switch checked={field.value} onCheckedChange={field.onChange} />
                       </FormControl>
                     </FormItem>
                   )} />
-                )}
 
+                  {/* is_active — only when editing */}
+                  {editing && (
+                    <FormField control={form.control} name="is_active" render={({ field }) => (
+                      <FormItem className="flex items-center justify-between rounded-lg border border-border p-3">
+                        <FormLabel className="cursor-pointer text-sm font-normal">
+                          Hoạt động
+                        </FormLabel>
+                        <FormControl>
+                          <Switch checked={field.value} onCheckedChange={field.onChange} />
+                        </FormControl>
+                      </FormItem>
+                    )} />
+                  )}
+
+                </div>
               </div>
-            </div>
 
-            {/* footer */}
-            <div className="flex shrink-0 items-center justify-end gap-2 border-t border-border px-5 py-4">
-              <Button type="button" variant="outline" onClick={() => editing ? setIsViewing(true) : setDialogOpen(false)}>
-                Huỷ
-              </Button>
-              <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending}>
-                {editing ? 'Lưu thay đổi' : 'Tạo kho'}
-              </Button>
-            </div>
-          </form>
-        </Form>
-        )}
+              {/* footer */}
+              <div className="flex shrink-0 items-center justify-end gap-2 border-t border-border px-5 py-4">
+                <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
+                  Huỷ
+                </Button>
+                <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending}>
+                  {editing ? 'Lưu thay đổi' : 'Tạo kho'}
+                </Button>
+              </div>
+            </form>
+          </Form>
         </SheetContent>
       </Sheet>
 
       {/* Delete confirmation */}
       <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
-        <AlertDialogContent>
+        <AlertDialogContent className="theme-2a">
           <AlertDialogHeader>
             <AlertDialogTitle>Xoá kho?</AlertDialogTitle>
             <AlertDialogDescription>
@@ -440,7 +413,7 @@ export default function WarehousesPage() {
           <AlertDialogFooter>
             <AlertDialogCancel>Huỷ</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+              variant="danger"
               onClick={() => { deleteMutation.mutate(deleteTarget.id); setDeleteTarget(null) }}
             >
               Xoá
@@ -449,29 +422,5 @@ export default function WarehousesPage() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
-  )
-}
-
-// ── Sheet view-mode field ────────────────────────────────────────────────────
-
-function SheetField({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <div className="text-xs font-semibold text-muted-foreground">{label}</div>
-      <div className="mt-1 text-sm text-foreground">{children}</div>
-    </div>
-  )
-}
-
-// ── Type badge ─────────────────────────────────────────────────────────────
-
-function TypeBadge({ type }: { type: string }) {
-  return (
-    <span className={cn(
-      'text-sm font-medium',
-      type === 'physical' ? 'text-blue-700' : 'text-amber-700',
-    )}>
-      {type === 'physical' ? 'Vật lý' : 'Ảo'}
-    </span>
   )
 }

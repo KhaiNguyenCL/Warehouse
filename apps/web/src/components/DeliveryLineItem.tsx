@@ -1,9 +1,14 @@
-// 1 dòng trong Form.List "lines" của DO create — export_type không xuất phát từ Quotation
-// (internal/demo_out/warranty_out/return_out/dispose/adjustment). Dùng VariantSelect thay
-// cho 2-step Product→SKU; khi chọn variant hiện breakdown tồn kho theo từng kho.
+// 1 dòng <tr> trong bảng .kv-table.kv-lines của Form.List "lines" — dùng chung cho
+// DeliveryOrderCreatePage (export_type không xuất phát từ Quotation) VÀ TransferOrderCreatePage.
+// Dùng VariantSelect thay cho 2-step Product→SKU; khi chọn variant hiện breakdown tồn kho theo
+// từng kho (cột riêng, khớp cột "Tồn kho theo kho" ở DeliveryOrderDetailPage view mode).
+//
+// `extraCell` — cột phụ do trang gọi tự chèn (VD "Kho nguồn dòng" chỉ Transfer mới có), tránh
+// phải tách 2 bản component gần giống hệt nhau.
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Form, InputNumber, Input, Button, DatePicker } from 'antd'
+import { Form, InputNumber, Input, DatePicker } from 'antd'
+import { X } from 'lucide-react'
 import { api } from '../lib/api'
 import VariantSelect, { type VariantData } from './VariantSelect'
 
@@ -11,11 +16,12 @@ interface Props {
   name: number
   remove: () => void
   exportType?: string
+  extraCell?: React.ReactNode
 }
 
 const NO_STOCK_FILTER = ['adjustment']
 
-export default function DeliveryLineItem({ name, remove, exportType }: Props) {
+export default function DeliveryLineItem({ name, remove, exportType, extraCell }: Props) {
   const inStockOnly = !!exportType && !NO_STOCK_FILTER.includes(exportType)
   const [variantId, setVariantId] = useState<string | undefined>()
   const [isService, setIsService] = useState(false)
@@ -36,34 +42,52 @@ export default function DeliveryLineItem({ name, remove, exportType }: Props) {
   }
 
   return (
-    <div style={{ display: 'flex', gap: 12, marginBottom: 4, alignItems: 'flex-end', flexWrap: 'nowrap' }}>
-      <Form.Item name={[name, 'variant_id']} label="Mã hàng / SKU" rules={[{ required: true }]} style={{ flex: '0 0 360px', marginBottom: 0 }}>
-        <VariantSelect onSelectVariant={onSelectVariant} style={{ width: '100%' }} inStockOnly={inStockOnly} />
-      </Form.Item>
-      {variantId && !isService && (
-        <div style={{ fontSize: 12, color: 'var(--text-2)', flex: '0 0 160px', paddingBottom: 4 }}>
-          {breakdown.length === 0
+    <tr className="kv-line-hover">
+      <td className="kv-line-no">{name + 1}</td>
+
+      <td>
+        <Form.Item name={[name, 'variant_id']} noStyle rules={[{ required: true }]}>
+          <VariantSelect onSelectVariant={onSelectVariant} style={{ width: '100%' }} inStockOnly={inStockOnly} />
+        </Form.Item>
+      </td>
+
+      <td className="kv-muted" style={{ fontSize: 12 }}>
+        {variantId && !isService && (
+          breakdown.length === 0
             ? <span style={{ color: 'var(--s-cancelled-color)' }}>Hết hàng</span>
             : breakdown.map((w) => (
                 <span key={w.name} style={{ display: 'block', whiteSpace: 'nowrap' }}>
                   {w.name}: <b>{w.qty}</b>
                 </span>
               ))
-          }
-        </div>
-      )}
-      <Form.Item name={[name, 'quantity']} label="Số lượng" rules={[{ required: true }]} style={{ flex: '0 0 110px', marginBottom: 0 }}>
-        <InputNumber min={1} style={{ width: '100%' }} />
-      </Form.Item>
-      <Form.Item name={[name, 'customer_warranty_start']} label="Ngày BĐ bảo hành" style={{ flex: '0 0 160px', marginBottom: 0 }}>
-        <DatePicker style={{ width: '100%' }} placeholder="Tuỳ chọn" format="DD/MM/YYYY" />
-      </Form.Item>
-      <Form.Item name={[name, 'note']} label="Ghi chú" style={{ flex: '1 1 160px', marginBottom: 0 }}>
-        <Input />
-      </Form.Item>
-      <Button danger onClick={remove} style={{ flexShrink: 0, marginBottom: 0 }}>
-        Xoá
-      </Button>
-    </div>
+        )}
+      </td>
+
+      <td>
+        <Form.Item name={[name, 'quantity']} noStyle rules={[{ required: true }]}>
+          <InputNumber min={1} style={{ width: '100%' }} />
+        </Form.Item>
+      </td>
+
+      <td>
+        <Form.Item name={[name, 'customer_warranty_start']} noStyle>
+          <DatePicker style={{ width: '100%' }} placeholder="Tuỳ chọn" format="DD/MM/YYYY" />
+        </Form.Item>
+      </td>
+
+      <td>
+        <Form.Item name={[name, 'note']} noStyle>
+          <Input placeholder="Ghi chú..." style={{ width: '100%' }} />
+        </Form.Item>
+      </td>
+
+      {extraCell != null && <td>{extraCell}</td>}
+
+      <td className="text-center">
+        <button type="button" className="kv-icon-btn kv-row-del" aria-label={`Xoá dòng ${name + 1}`} onClick={remove}>
+          <X className="h-4 w-4" />
+        </button>
+      </td>
+    </tr>
   )
 }

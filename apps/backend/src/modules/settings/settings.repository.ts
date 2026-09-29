@@ -113,6 +113,10 @@ export class SettingsRepository {
 
   // ─── Users ─────────────────────────────────────────────────────────────────
 
+  // .distinct()/.countDistinct() cần thiết vì filter group_id JOIN thẳng vào
+  // user_group_members — nếu sau này thêm điều kiện lọc theo nhiều group cùng lúc
+  // (whereIn thay vì where 1 group_id), 1 user thuộc nhiều group khớp điều kiện sẽ bị
+  // nhân dòng nếu bỏ distinct.
   async findUsers(query: ListUserQuery) {
     const { group_id, is_active, page = 1, limit = 20 } = query
     const offset = (page - 1) * limit
@@ -270,13 +274,18 @@ export class SettingsRepository {
     return this.db('variant_attribute_defs').where({ id }).update(data)
   }
 
+  // Bọc transaction: nếu del() thành công nhưng insert() lỗi giữa chừng (vd product_id
+  // không tồn tại, vi phạm FK) mà không có transaction, def sẽ bị mất trắng danh sách
+  // sản phẩm áp dụng thay vì giữ nguyên trạng thái cũ.
   async setVariantAttributeDefProducts(defId: string, productIds: string[]) {
-    await this.db('variant_attribute_def_products').where({ attribute_def_id: defId }).del()
-    if (productIds.length) {
-      await this.db('variant_attribute_def_products').insert(
-        productIds.map((product_id) => ({ attribute_def_id: defId, product_id })),
-      )
-    }
+    await this.db.transaction(async (trx) => {
+      await trx('variant_attribute_def_products').where({ attribute_def_id: defId }).del()
+      if (productIds.length) {
+        await trx('variant_attribute_def_products').insert(
+          productIds.map((product_id) => ({ attribute_def_id: defId, product_id })),
+        )
+      }
+    })
   }
 
   deleteVariantAttributeDef(id: string) {

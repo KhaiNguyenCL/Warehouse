@@ -1,7 +1,8 @@
-import { Form, Input, Select, Button, Table, Tooltip, DatePicker } from 'antd'
-import { ArrowLeftOutlined } from '@ant-design/icons'
+import { Form, Input, Select, Tooltip, DatePicker } from 'antd'
+import { ArrowLeft } from 'lucide-react'
 import { useDeliveryOrderCreate } from '../hooks/useDeliveryOrderCreate'
-import { PageHeader } from '../components/ui/PageHeader'
+import { Button } from '@/components/ui/button'
+import { usePageHeader } from '@/layout/PageHeaderSlot'
 import DeliveryLineItem from '../components/DeliveryLineItem'
 
 function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
@@ -18,29 +19,40 @@ function SectionCard({ title, children }: { title: string; children: React.React
 export default function DeliveryOrderCreatePage() {
   const hook = useDeliveryOrderCreate()
 
-  return (
-    <div style={{ padding: '10px 20px 40px', display: 'flex', flexDirection: 'column', gap: 24 }}>
-      <PageHeader
-        title="Tạo phiếu xuất kho"
-        meta={
-          <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => hook.navigate('/deliveries')} style={{ padding: '0 4px' }}>
+  usePageHeader(
+    <div className="flex items-center justify-between gap-4">
+      <div className="flex min-w-0 items-center gap-2">
+        <Button variant="ghost" size="icon-sm" onClick={() => hook.navigate('/deliveries')}>
+          <ArrowLeft className="h-4 w-4" />
+        </Button>
+        <h1 className="flex min-w-0 items-baseline gap-2 truncate text-sm font-semibold tracking-tight">
+          <button
+            onClick={() => hook.navigate('/deliveries')}
+            className="text-muted-foreground transition-colors hover:text-foreground"
+          >
             Phiếu xuất kho
+          </button>
+          <span className="text-muted-foreground">/</span>
+          <span className="truncate text-foreground">Tạo mới</span>
+        </h1>
+      </div>
+
+      <div className="flex flex-shrink-0 items-center gap-2">
+        <Button size="sm" variant="outline" onClick={() => hook.navigate('/deliveries')}>Huỷ</Button>
+        <Tooltip title="Tạo xong chuyển thẳng đến trang để Complete">
+          <Button size="sm" variant="outline" onClick={hook.submitAndComplete} disabled={hook.createMutation.isPending}>
+            Tạo & Complete
           </Button>
-        }
-        actions={
-          <div style={{ display: 'flex', gap: 8 }}>
-            <Button onClick={() => hook.navigate('/deliveries')}>Huỷ</Button>
-            <Tooltip title="Tạo xong chuyển thẳng đến trang để Complete">
-              <Button onClick={hook.submitAndComplete} loading={hook.createMutation.isPending}>
-                Tạo & Complete
-              </Button>
-            </Tooltip>
-            <Button type="primary" onClick={hook.submit} loading={hook.createMutation.isPending}>
-              Lưu nháp
-            </Button>
-          </div>
-        }
-      />
+        </Tooltip>
+        <Button size="sm" onClick={hook.submit} disabled={hook.createMutation.isPending}>
+          Lưu nháp
+        </Button>
+      </div>
+    </div>,
+  )
+
+  return (
+    <div className="theme-2a" style={{ padding: '10px 20px 40px', display: 'flex', flexDirection: 'column', gap: 24 }}>
 
       <Form form={hook.form} layout="vertical" onFinish={(v) => hook.createMutation.mutate(v)}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -131,40 +143,46 @@ export default function DeliveryOrderCreatePage() {
             {hook.requiresQuotation ? (
               <Form.List name="lines">
                 {(fields) => (
-                  <Table
-                    size="small"
-                    pagination={false}
-                    dataSource={fields.map((f) => ({ ...f, key: f.key }))}
-                    columns={[
-                      {
-                        title: 'SKU / Sản phẩm', render: (_: any, f: any) => (
-                          <Form.Item name={[f.name, 'variant_label']} noStyle><Input disabled /></Form.Item>
-                        ),
-                      },
-                      {
-                        title: 'Số lượng xuất', width: 140, render: (_: any, f: any) => (
-                          <Form.Item name={[f.name, 'quantity']} noStyle rules={[{ required: true }]}>
-                            <Input type="number" style={{ width: 100 }} />
-                          </Form.Item>
-                        ),
-                      },
-                      {
-                        title: 'Ngày bắt đầu BH', width: 160, render: (_: any, f: any) => (
-                          <Form.Item name={[f.name, 'customer_warranty_start']} noStyle>
-                            <DatePicker style={{ width: '100%' }} placeholder="Tuỳ chọn" format="DD/MM/YYYY" />
-                          </Form.Item>
-                        ),
-                      },
-                      {
-                        title: '', width: 1, render: (_: any, f: any) => (
-                          <>
-                            <Form.Item name={[f.name, 'variant_id']} hidden><Input /></Form.Item>
-                            <Form.Item name={[f.name, 'quotation_line_item_id']} hidden><Input /></Form.Item>
-                          </>
-                        ),
-                      },
-                    ]}
-                  />
+                  <div className="overflow-x-auto">
+                    <table className="kv-table kv-lines" style={{ tableLayout: 'fixed' }}>
+                      <colgroup>
+                        <col style={{ width: 30 }} />
+                        <col />
+                        <col style={{ width: 140 }} />
+                        <col style={{ width: 160 }} />
+                      </colgroup>
+                      <thead>
+                        <tr>
+                          <th></th>
+                          <th className="text-left">SKU / Sản phẩm</th>
+                          <th className="num">Số lượng xuất</th>
+                          <th className="text-left">Ngày bắt đầu BH</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {fields.map((f) => (
+                          <tr key={f.key}>
+                            <td className="kv-line-no">{f.name + 1}</td>
+                            <td>
+                              <Form.Item name={[f.name, 'variant_label']} noStyle><Input disabled style={{ width: '100%' }} /></Form.Item>
+                              <Form.Item name={[f.name, 'variant_id']} hidden><Input /></Form.Item>
+                              <Form.Item name={[f.name, 'quotation_line_item_id']} hidden><Input /></Form.Item>
+                            </td>
+                            <td>
+                              <Form.Item name={[f.name, 'quantity']} noStyle rules={[{ required: true }]}>
+                                <Input type="number" style={{ width: '100%' }} />
+                              </Form.Item>
+                            </td>
+                            <td>
+                              <Form.Item name={[f.name, 'customer_warranty_start']} noStyle>
+                                <DatePicker style={{ width: '100%' }} placeholder="Tuỳ chọn" format="DD/MM/YYYY" />
+                              </Form.Item>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 )}
               </Form.List>
             ) : (
@@ -172,11 +190,45 @@ export default function DeliveryOrderCreatePage() {
                 {({ getFieldValue }) => (
               <Form.List name="lines">
                 {(fields, { add, remove }) => (
-                  <div>
-                    {fields.map(({ key, name }) => (
-                      <DeliveryLineItem key={key} name={name} remove={() => remove(name)} exportType={getFieldValue('export_type')} />
-                    ))}
-                    <Button onClick={() => add()} style={{ marginTop: 4 }}>+ Thêm dòng</Button>
+                  <div className="overflow-x-auto">
+                    <table className="kv-table kv-lines" style={{ tableLayout: 'fixed' }}>
+                      <colgroup>
+                        <col style={{ width: 30 }} />
+                        <col />
+                        <col style={{ width: 140 }} />
+                        <col style={{ width: 110 }} />
+                        <col style={{ width: 160 }} />
+                        <col />
+                        <col style={{ width: 36 }} />
+                      </colgroup>
+                      <thead>
+                        <tr>
+                          <th></th>
+                          <th className="text-left">Mã hàng / SKU</th>
+                          <th className="text-left">Tồn kho</th>
+                          <th className="num">Số lượng</th>
+                          <th className="text-left">Ngày BĐ bảo hành</th>
+                          <th className="text-left">Ghi chú</th>
+                          <th></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {fields.length === 0 && (
+                          <tr><td colSpan={7} className="kv-muted" style={{ textAlign: 'center', padding: '20px 0' }}>Chưa có dòng hàng</td></tr>
+                        )}
+                        {fields.map(({ key, name }) => (
+                          <DeliveryLineItem key={key} name={name} remove={() => remove(name)} exportType={getFieldValue('export_type')} />
+                        ))}
+                      </tbody>
+                      <tfoot>
+                        <tr className="kv-addline">
+                          <td></td>
+                          <td colSpan={6}>
+                            <button type="button" className="kv-btn" onClick={() => add()}>+ Thêm dòng</button>
+                          </td>
+                        </tr>
+                      </tfoot>
+                    </table>
                   </div>
                 )}
               </Form.List>

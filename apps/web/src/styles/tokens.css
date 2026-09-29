@@ -37,9 +37,9 @@ html, body, #root {
   background: var(--accent-bg) !important;
 }
 .row-actions .ant-btn-dangerous:hover {
-  color: #ef4444 !important;
-  border-color: #fca5a5 !important;
-  background: #fee2e2 !important;
+  color: var(--s-cancelled-color) !important;
+  border-color: var(--s-cancelled-color) !important;
+  background: var(--s-cancelled-bg) !important;
 }
 
 /* ── Table header ───────────────────────────────────────── */
@@ -72,35 +72,44 @@ td.cell-numeric {
 }
 
 :root {
-  /* ── Backgrounds — trắng để rõ ràng, dùng border + tint nhạt để phân tách khối ── */
-  --bg-page:    #ffffff;   /* nền trang */
+  /* ── Backgrounds — nền xám-xanh lạnh, dùng border + tint nhạt để phân tách khối ── */
+  --bg-page:    #f2f4f9;   /* nền trang */
   --bg-card:    #ffffff;   /* nền card / table / modal */
-  --bg-subtle:  #f2efe9;   /* nền thead, footer, row hover nhạt */
-  --bg-hover:   #ece8e0;   /* hover state của row / item */
+  --bg-subtle:  #e9edf6;   /* nền thead, footer, row hover nhạt */
+  --bg-hover:   #dfe4f0;   /* hover state của row / item */
 
   /* ── Borders ── */
-  --border:     #ddd6cc;   /* border dùng chung — card, table, divider */
-  --border-md:  #b6ac9c;   /* border đậm hơn — button secondary */
+  --border:        #d9e0ec;   /* border dùng chung — card, table, divider */
+  --border-md:     #b7c2d6;   /* border đậm hơn — button secondary */
+  --border-strong: #10141f;   /* border đậm nhất (gần đen) — ô readonly/disabled cần viền rõ
+                                  ràng thay vì mờ nhạt, VD field "PO liên kết" ShipmentFormPage */
 
   /* ── Text ── */
-  --text-1:     #1c1917;   /* primary text */
-  --text-2:     #57534e;   /* secondary text */
-  --text-3:     #a8a29e;   /* placeholder / caption / label */
+  --text-1:     #10141f;   /* primary text */
+  --text-2:     #4b5568;   /* secondary text */
+  --text-3:     #8b96ac;   /* placeholder / caption / label */
 
-  /* ── Brand accent — DNS sky blue ── */
-  --accent:      #29ABE2;
-  --accent-hover:#1a91c9;
-  --accent-bg:   #e8f7fd;
-  --accent-text: #0d6e96;
+  /* ── Brand accent — xanh dương đậm, chắc tay hơn sky-blue nhạt trước đây ── */
+  --accent:      #0b5fae;
+  --accent-hover:#094a87;
+  --accent-bg:   #e4eef9;
+  --accent-text: #0b4a82;
 
-  /* ── Status colors ── */
-  --s-draft-color:     #475569;  --s-draft-bg:     #e2e8f0;
-  --s-pending-color:   #92400e;  --s-pending-bg:   #fde68a;
-  --s-approved-color:  #1d4ed8;  --s-approved-bg:  #bfdbfe;
-  --s-completed-color: #15803d;  --s-completed-bg: #bbf7d0;
-  --s-cancelled-color: #b91c1c;  --s-cancelled-bg: #fca5a5;
-  --s-confirmed-color: #15803d;  --s-confirmed-bg: #bbf7d0;
-  --s-expired-color:   #6d28d9;  --s-expired-bg:   #ddd6fe;
+  /* ── Status colors — quy về đúng 3 màu đèn giao thông (xanh lá/vàng/đỏ), không dùng thêm
+     hue nào khác (trước đây mỗi status 1 màu riêng: xám/vàng/xanh dương/xanh lá/đỏ/tím — quá
+     nhiều hue làm người dùng phải nhớ nghĩa từng màu). Quy tắc:
+       - VÀNG = đang xử lý/chờ hành động, chưa xong (draft, pending_approval, approved)
+       - XANH LÁ = đã xong/trạng thái tốt cuối cùng (completed, confirmed)
+       - ĐỎ = trạng thái xấu/dừng lại (cancelled, expired)
+     Giữ nguyên TÊN biến cũ (--s-draft/-pending/...) để không phải sửa StatusBadge.tsx hay bất
+     kỳ nơi nào đang tham chiếu — chỉ đổi giá trị màu bên trong từng biến. */
+  --s-draft-color:     #7a4e00;  --s-draft-bg:     #ffe8a3;  /* vàng — bg đậm hơn để pill nổi rõ trên nền trắng, không bị mờ nhạt */
+  --s-pending-color:   #7a4e00;  --s-pending-bg:   #ffe8a3;  /* vàng */
+  --s-approved-color:  #7a4e00;  --s-approved-bg:  #ffe8a3;  /* vàng */
+  --s-completed-color: #0a5c2c;  --s-completed-bg: #b8ecc9;  /* xanh lá */
+  --s-cancelled-color: #8f1810;  --s-cancelled-bg: #fecdc7;  /* đỏ */
+  --s-confirmed-color: #0a5c2c;  --s-confirmed-bg: #b8ecc9;  /* xanh lá */
+  --s-expired-color:   #8f1810;  --s-expired-bg:   #fecdc7;  /* đỏ */
 
   /* ── Shadows ── */
   --shadow-sm: 0 1px 2px rgba(0,0,0,0.06);
@@ -157,30 +166,204 @@ td.cell-numeric {
 
   /* ── Font family ── */
   --font-mono: 'SF Mono', 'Cascadia Code', 'Fira Code', Consolas, monospace;
-  --font-serif: 'Lora Variable', Georgia, 'Times New Roman', serif;
+  /* 1 font duy nhất cho toàn app (heading + body) — Tahoma, ưu tiên gọn/rõ ở size nhỏ cho
+     app nhiều bảng dữ liệu (xem index.css). heading/body chỉ khác nhau bằng size/weight. */
+  --font-serif: Tahoma, 'Segoe UI', Verdana, ui-sans-serif, system-ui, sans-serif;
+}
+
+/* ── Theme preview "2A" (thử nghiệm, chỉ áp cho InventoryPage/VariantDetailPage) ──
+   Lấy ĐÚNG từ file export thật của artifact (export/broadsheet.css + app.css do user cung
+   cấp) — KHÔNG phải suy đoán từ ảnh chụp nữa. Bảng màu/font/bo góc bên dưới copy nguyên giá
+   trị từ đó, quy đổi tên biến sang hệ token của app (--bg-page/--text-1/--s-*-color...).
+   Scope theo class .theme-2a để không ảnh hưởng các trang khác. */
+.theme-2a, .theme-2a * {
+  /* Từng đổi sang 'Be Vietnam Pro' (web font KHÔNG hề được load ở đâu trong app — không có
+     <link>/@import/@fontsource nào cho nó — nên trình duyệt âm thầm fallback sang 1 font hệ
+     thống bất kỳ, ngẫu nhiên khác Tahoma) → vi phạm đúng quy tắc "1 họ font Tahoma duy nhất
+     toàn app" đã chốt (mục 22 CLAUDE.md) và gây lệch font rõ giữa .theme-2a với phần còn lại
+     của trang (topbar/sidebar vẫn Tahoma). Đặt lại var(--font-serif) = Tahoma, vẫn giữ khai
+     báo trực tiếp `font-family` (không dùng inherit) để tiếp tục đè được AntD CSS-in-JS như
+     comment gốc giải thích. */
+  font-family: var(--font-serif);
+
+  /* --bg-page và --bg-card TỪNG dùng chung 1 giá trị (đúng file mockup gốc — "không có card
+     nổi khối riêng") → đổi tách ra 2 giá trị khác nhau (trang trắng, card màu xám be nhạt của
+     mockup) để phân biệt ranh giới → nhưng bị phản hồi tiếp là card vẫn "xám" nhìn không đẹp.
+     Chốt lại: CẢ 2 cùng trắng — ranh giới bảng/card dựa hẳn vào border + shadow (table-shell
+     ở index.css) thay vì đổ màu nền khác nhau, giống pattern App gốc (:root --bg-card cũng là
+     trắng, chỉ --bg-page mới xám nhạt). --bg-subtle vẫn giữ xám be để phân biệt input/select/
+     table header/hover với card trắng bao quanh. */
+  --bg-page:   #ffffff;
+  --bg-card:   #ffffff;
+  --bg-subtle: #eae9e9;  /* --color-surface — nền input/select/table header */
+  --bg-hover:  #e2e0e0;  /* xấp xỉ color-mix(text 4%, transparent) trên nền --color-bg */
+  --border:        rgba(32, 30, 29, 0.16);  /* --color-divider */
+  --border-md:     rgba(32, 30, 29, 0.32);
+  /* v2: chữ chính đen đặc #111111 (không phải #201e1d be-xám cũ) + chữ phụ xám đậm #4a4a4a
+     (đạt ~7:1 trên nền trắng, theo đúng bảng "Giá trị cuối cùng" trong HANDOFF.md) — bản cũ
+     dùng color-mix từ --color-text be-xám nên chữ phụ nhạt hơn, đúng thứ bị chê "mờ nhạt". */
+  --text-1:    #111111;  /* --color-text */
+  --text-2:    #4a4a4a;  /* chữ phụ: subtext, nav, tab, pager, hint, "Đủ tồn" */
+  --text-3:    #5c5c5c;  /* icon phụ, caret */
+
+  /* Accent thật của file gốc là XANH NGỌC #0088b0 (--color-accent), KHÔNG phải xanh dương
+     #0b5fae của app — đổi luôn để nút primary/link/focus-ring khớp đúng màu mockup. */
+  --accent:      #0088b0;
+  --accent-hover:#1186ac;  /* --color-accent-600 */
+  --accent-bg:   #e9f8ff;  /* --color-accent-100 */
+  --accent-text: #006786;  /* --color-accent-700 */
+
+  /* Accent phụ (--color-accent-2 magenta trong mockup gốc) — dùng riêng cho cảnh báo mức tồn
+     kho (Sắp hết/Hết hàng/Cận hạn ở InventoryPage), KHÔNG dùng cho ý nghĩa trạng thái quy
+     trình (--s-* ở trên đã dành cho vàng/xanh lá/đỏ). Tách token riêng để kv.css tham chiếu
+     qua var() thay vì hard-code hex rải rác nhiều nơi. */
+  --accent-2:        #d82071;  /* --color-accent-2-600, nền đặc cho "Hết hàng" */
+  --accent-2-bg:     #fff1f4;  /* --color-accent-2-100, nền nhạt cho "Sắp hết" */
+  --accent-2-text:   #aa0b56;  /* --color-accent-2-700, chữ trên nền nhạt/viền */
+  --accent-2-border: #ff458e;  /* --color-accent-2-500, viền "Cận hạn" */
+
+  /* Status colors — quy về đúng 3 màu đèn giao thông (xanh lá/vàng/đỏ), khớp với bảng
+     :root phía trên (không dùng riêng bảng magenta/teal của mockup nữa cho Ý NGHĨA trạng
+     thái, dù accent chính của theme-2a vẫn là teal). Áp dụng cho StatusBadge (PurchaseOrders/
+     Receipts/Quotations/...) VÀ các pill tồn kho tự vẽ tay trong InventoryPage/ProductsPage
+     (Sắp hết/Cận hạn → vàng qua --s-pending, Hết hàng → đỏ qua --s-cancelled) — 2 nhóm ý
+     nghĩa này tình cờ khớp đúng ngữ nghĩa vàng/đỏ nên dùng chung không sai lệch. RIÊNG
+     --s-draft KHÔNG còn dùng cho tag phân loại "Vật tư" (consumable) ở TYPE_STYLES nữa vì đó
+     là phân loại, không phải trạng thái — xem ProductsPage.tsx/ProductDetailPage.tsx đã đổi
+     sang màu trung tính riêng. */
+  --s-draft-color:     #7a4e00;  --s-draft-bg:     #ffe8a3;  /* vàng — bg đậm hơn để pill nổi rõ trên nền trắng, không bị mờ nhạt */
+  --s-pending-color:   #7a4e00;  --s-pending-bg:   #ffe8a3;  /* vàng — Sắp hết & viền Cận hạn */
+  --s-approved-color:  #7a4e00;  --s-approved-bg:  #ffe8a3;  /* vàng */
+  --s-completed-color: #0a5c2c;  --s-completed-bg: #b8ecc9;  /* xanh lá */
+  --s-cancelled-color: #8f1810;  --s-cancelled-bg: #fecdc7;  /* đỏ — Hết hàng */
+  --s-confirmed-color: #0a5c2c;  --s-confirmed-bg: #b8ecc9;  /* xanh lá */
+  --s-expired-color:   #8f1810;  --s-expired-bg:   #fecdc7;  /* đỏ */
+
+  /* Đồng bộ về đúng Tahoma (mục 22 CLAUDE.md) — xem lý do ở rule font-family phía trên. */
+  --font-display: Tahoma, 'Segoe UI', Verdana, ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-display);
+
+  /* Bo góc gần như vuông (--radius-md: 2px trong file gốc) — khác hẳn shadcn mặc định
+     (rounded-lg = 8px). Override thẳng các biến --radius-* mà @theme inline (index.css) map
+     sang class rounded-sm/md/lg/xl/2xl, để Button/Input/SectionCard tự vuông lại mà không
+     phải sửa từng component. rounded-full (pill tag) không đọc từ --radius-* nên không bị
+     ảnh hưởng — pill trạng thái tự đổi riêng bằng class rounded-sm trong stockStatus(). */
+  --radius-sm: 1px;
+  --radius-md: 2px;
+  --radius-lg: 2px;
+  --radius-xl: 4px;
+  --radius-2xl: 4px;
+  --radius-4xl: 6px;
+
+  /* QUAN TRỌNG: --background/--card/--muted-foreground... (index.css) được khai báo dạng
+     var(--bg-page)/var(--bg-card)... NGAY TẠI :root — custom property chỉ substitute var()
+     MỘT LẦN tại đúng element khai báo, giá trị đã resolve xong mới inherit xuống con, con
+     đổi lại --bg-page KHÔNG làm --background (đã resolve ở :root) đổi theo. Nên phải khai
+     báo lại đúng các biến cấp 2 này ở NGAY TRONG .theme-2a (cùng 1 rule với --bg-page ở trên)
+     thì var() mới resolve lại tại chính .theme-2a — đây là lý do bản trước theme không lên
+     dù --bg-page/--text-1... "đúng cú pháp". Danh sách mirror y hệt phần :root trong index.css.
+     Xem CLAUDE.md phần token trước khi đổi lại. */
+  --background:             var(--bg-page);
+  --foreground:             var(--text-1);
+  --card:                   var(--bg-card);
+  --card-foreground:        var(--text-1);
+  --popover:                var(--bg-card);
+  --popover-foreground:     var(--text-1);
+  --primary:                var(--accent);
+  --primary-foreground:     var(--bg-page);
+  --secondary:              var(--bg-subtle);
+  --secondary-foreground:   var(--text-1);
+  --muted:                  var(--bg-subtle);
+  --muted-foreground:       var(--text-2);
+  --tw-accent-tint:            var(--bg-hover);
+  --tw-accent-tint-foreground: var(--text-1);
+  --input:                  var(--border);
+  --ring:                   var(--accent);
+
+  /* ── Type scale riêng cho theme-2a (dày/nhỏ — ưu tiên density theo mục 22 CLAUDE.md) ──
+     Trước đây mỗi trang (Inventory/Products/ProductDetail/VariantDetail) tự chọn số px rời
+     rạc theo cảm giác từng lần chỉnh → lệch nhau (label chỗ 11px chỗ 12px chỗ 17px cho cùng
+     vai trò). Từ giờ MỌI trang theme-2a phải dùng đúng 6 biến này, không viết số px tay:
+       --t2-caption 11px  — eyebrow uppercase, table header uppercase, helper text rất nhỏ
+       --t2-label   12px  — field label, text phụ/muted, badge, breadcrumb
+       --t2-body    13px  — text mặc định: table cell, input, nội dung chính
+       --t2-strong  14px  — nhãn nhóm (GroupRow), tab đang chọn, nav item, SectionCard title
+       --t2-title   17px  — section title (kv-section-title, "N biến thể...")
+       --t2-heading 22px  — h1 trang chi tiết (breadcrumb + tiêu đề)
+     Số nổi bật kiểu "28px điểm đặt lại gợi ý" là ngoại lệ cố ý (không phải text thường) nên
+     không nằm trong scale — giữ nguyên số tay ở đúng chỗ đó. */
+  --t2-caption: 11px;
+  --t2-label:   12px;
+  --t2-body:    13px;
+  --t2-strong:  14px;
+  --t2-title:   17px;
+  --t2-heading: 22px;
+}
+/* v2: Be Vietnam Pro ở weight 400 đã đủ đậm/rõ (khác Source Serif 4 mảnh trước đây cần đôn
+   lên 500 toàn cục) — bỏ hẳn rule bump weight, dùng đúng weight mặc định của mockup (400 cho
+   body, 600-700 cho heading/nút/label bảng — set riêng ở từng nơi như app.css gốc). */
+/* AntD (VariantDetailPage) tự set font-weight cho input/label qua CSS-in-JS (giống font-family
+   Tahoma trước đây) nên không kế thừa được từ .theme-2a — nhắm thẳng class .ant-* nhưng chỉ
+   những chỗ thật sự là text thường (không phải nút, đã có rule font-weight:600 riêng ở dưới). */
+.theme-2a .ant-input,
+.theme-2a .ant-input-number-input,
+.theme-2a .ant-select-selection-item,
+.theme-2a .ant-select-selection-placeholder,
+.theme-2a label {
+  font-weight: 500;
+}
+/* Nút trong mockup weight 600 (font-heading), đậm hơn font-medium mặc định của Button. */
+.theme-2a button {
+  font-weight: 600;
+}
+.theme-2a .font-display {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+.theme-2a .wordmark {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+/* v2: mockup KHÔNG có card nổi khối cho bảng ("Không card nổi khối — bảng/form nằm phẳng
+   trên nền trắng, không box-shadow, không khung bo góc bao ngoài" — HANDOFF.md mục layout).
+   Trước đây .table-shell (index.css, dùng chung toàn app) có border+shadow+bo góc; đè lại
+   thành phẳng CHỈ trong .theme-2a để 9 trang bảng full-width (Inventory/Products/PurchaseOrders/
+   Receipts/...) khớp mockup, không ảnh hưởng các trang chưa lên theme-2a. */
+.theme-2a .table-shell {
+  border: none;
+  box-shadow: none;
+  border-radius: 0;
 }
 
 /* ── Dark mode ──────────────────────────────────────────── */
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg-page:   #1a1815;
-    --bg-card:   #221f1b;
-    --bg-subtle: #29251f;
-    --bg-hover:  #322d26;
-    --border:    #3d372e;
-    --border-md: #554d40;
-    --text-1:    #f5f3ef;
-    --text-2:    #a39c93;
-    --text-3:    #756e64;
-    --accent-bg:   rgba(41,171,226,0.15);
-    --accent-text: #7dd3f5;
+    --bg-page:   #0a0d14;
+    --bg-card:   #12151f;
+    --bg-subtle: #191d29;
+    --bg-hover:  #222839;
+    --border:        #262c3b;
+    --border-md:     #3a4256;
+    --border-strong: #eef1f7;
+    --text-1:    #eef1f7;
+    --text-2:    #a7b0c4;
+    --text-3:    #6b7488;
+    --accent:      #4e9eef;
+    --accent-hover:#6fb2f5;
+    --accent-bg:   rgba(78,158,239,0.16);
+    --accent-text: #8fc2fa;
 
-    --s-draft-color:     #94a3b8;  --s-draft-bg:     rgba(148,163,184,0.18);
-    --s-pending-color:   #fbbf24;  --s-pending-bg:   rgba(251,191,36,0.15);
-    --s-approved-color:  #60a5fa;  --s-approved-bg:  rgba(96,165,250,0.15);
-    --s-completed-color: #34d399;  --s-completed-bg: rgba(52,211,153,0.15);
-    --s-cancelled-color: #f87171;  --s-cancelled-bg: rgba(248,113,113,0.15);
-    --s-confirmed-color: #34d399;  --s-confirmed-bg: rgba(52,211,153,0.15);
-    --s-expired-color:   #a78bfa;  --s-expired-bg:   rgba(167,139,250,0.15);
+    /* Cùng quy tắc 3 màu đèn giao thông như light mode (xem comment ở khối --s-* phía trên
+       trong :root) — vàng/xanh lá/đỏ, không còn xám/xanh dương/tím riêng cho từng status. */
+    --s-draft-color:     #f0a733;  --s-draft-bg:     rgba(240,167,51,0.14);  /* vàng */
+    --s-pending-color:   #f0a733;  --s-pending-bg:   rgba(240,167,51,0.14);  /* vàng */
+    --s-approved-color:  #f0a733;  --s-approved-bg:  rgba(240,167,51,0.14);  /* vàng */
+    --s-completed-color: #33d077;  --s-completed-bg: rgba(51,208,119,0.14);  /* xanh lá */
+    --s-cancelled-color: #ff6b62;  --s-cancelled-bg: rgba(255,107,98,0.14);  /* đỏ */
+    --s-confirmed-color: #33d077;  --s-confirmed-bg: rgba(51,208,119,0.14);  /* xanh lá */
+    --s-expired-color:   #ff6b62;  --s-expired-bg:   rgba(255,107,98,0.14);  /* đỏ */
   }
 }

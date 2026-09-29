@@ -1,21 +1,15 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
-import {
-  Form as AntForm, Input as AntInput, Select as AntSelect,
-  TreeSelect, Switch as AntSwitch, InputNumber,
-} from 'antd'
-import {
-  ArrowLeft, Plus, Pencil, X, ChevronRight,
-  Layers, Package,
-} from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import { api } from '../lib/api'
 import { useApiMutation } from '../hooks/useApiMutation'
-import { moneyProps } from '../lib/utils'
 import { Button } from '@/components/ui/button'
-import { ColumnToggle, useColumnVisibility } from '@/components/ui/ColumnToggle'
-import { cn } from '@/lib/utils'
-import { CodeText } from '@/components/ui/CodeText'
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -26,75 +20,65 @@ const PRODUCT_TYPES = [
   { value: 'bundle',     label: 'Gói sản phẩm' },
 ]
 const UNITS = ['Cái', 'Chiếc', 'Bộ', 'Hộp', 'Cuộn', 'Mét', 'Cổng', 'License', 'Gói', 'Dây', 'Lần', 'Giờ', 'Ngày']
-const TYPE_STYLES: Record<string, string> = {
-  storable:   'text-blue-700',
-  consumable: 'text-amber-700',
-  service:    'text-purple-700',
-  bundle:     'text-teal-700',
-}
-const TYPE_LABEL: Record<string, string> = {
-  storable: 'Thiết bị', consumable: 'Vật tư', service: 'Dịch vụ', bundle: 'Gói SP',
-}
-const SKU_COLUMNS = [
-  { key: 'sku',         label: 'Mã hàng',    fixed: true },
-  { key: 'name',        label: 'Tên SKU',    fixed: true },
-  { key: 'model',       label: 'Model' },
-  { key: 'part_number', label: 'Part Number' },
-  { key: 'unit',        label: 'Đơn vị' },
-  { key: 'cost_price',  label: 'Giá vốn' },
-  { key: 'sale_price',  label: 'Giá bán' },
-  { key: 'vat_percent', label: 'VAT%' },
-  { key: 'weight_kg',   label: 'Trọng lượng' },
-  { key: 'qty',         label: 'Tồn kho' },
-  { key: 'avail',       label: 'Khả dụng' },
-  { key: 'warehouse',   label: 'Phân bổ kho' },
-]
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function buildCategoryTree(flat: any[]): any[] {
-  const map: Record<string, any> = {}
-  flat.forEach((c) => (map[c.id] = { value: c.id, title: c.name }))
-  const roots: any[] = []
+// Danh mục có phân cấp (parent_id) — mockup (product-detail.html) dùng <select> phẳng, không
+// phải TreeSelect — làm phẳng cây thành list có độ sâu, thụt lề bằng dấu "—" để vẫn thấy phân
+// cấp trong 1 <select> thường.
+function flattenCategories(flat: any[]): { id: string; name: string; depth: number }[] {
+  const byParent: Record<string, any[]> = {}
   flat.forEach((c) => {
-    if (c.parent_id && map[c.parent_id]) {
-      map[c.parent_id].children = [...(map[c.parent_id].children ?? []), map[c.id]]
-    } else {
-      roots.push(map[c.id])
-    }
+    const key = c.parent_id ?? '__root__'
+    ;(byParent[key] ??= []).push(c)
   })
-  return roots
+  const result: { id: string; name: string; depth: number }[] = []
+  function walk(parentKey: string, depth: number) {
+    for (const c of byParent[parentKey] ?? []) {
+      result.push({ id: c.id, name: c.name, depth })
+      walk(c.id, depth + 1)
+    }
+  }
+  walk('__root__', 0)
+  return result
 }
 
-function fmtMoney(v: number | null | undefined) {
-  return v == null ? '—' : Number(v).toLocaleString('en-US')
+function fmtMoney(v: number | string | null | undefined) {
+  return v == null || v === '' ? '—' : Number(v).toLocaleString('en-US')
 }
 
-const labelStyle: React.CSSProperties = {
-  fontSize: 12, color: 'var(--text-2)', fontWeight: 600,
-  marginBottom: 4,
+type QuickAddForm = {
+  item_code: string; name: string; model: string; part_number: string
+  unit: string; cost_price: string; sale_price: string
 }
 
-function Field({ label, span = 2, children }: { label: string; span?: number; children: React.ReactNode }) {
-  return (
-    <div style={{ gridColumn: `span ${span}` }}>
-      <div style={labelStyle}>{label}</div>
-      {children}
-    </div>
-  )
+function emptyQuickAdd(prefix: string): QuickAddForm {
+  return { item_code: prefix, name: '', model: '', part_number: '', unit: 'Cái', cost_price: '', sale_price: '' }
+}
+
+type ProductFormData = {
+  name: string; code: string; name_en: string; model_number: string
+  category_id: string; brand_id: string; product_type: string
+  description: string; is_active: boolean
+}
+function emptyProductForm(): ProductFormData {
+  return { name: '', code: '', name_en: '', model_number: '', category_id: '', brand_id: '', product_type: 'storable', description: '', is_active: true }
 }
 
 // ─── Main page ────────────────────────────────────────────────────────────────
+// Port trực tiếp class kv-* từ export/product-detail.html (kv.css) — thay AntForm/TreeSelect/
+// AntSwitch bằng <input>/<select> thường (kv-form-grid/kv-group-label/kv-field), đúng cấu trúc
+// HTML thật của mockup thay vì giữ AntD rồi chỉ đổi màu/font.
 
 export default function ProductDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const qc = useQueryClient()
 
   const [isEditing, setIsEditing] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [formData, setFormData] = useState<ProductFormData>(emptyProductForm())
 
-  const skuCols = useColumnVisibility('products-sku', SKU_COLUMNS)
-  const [editForm] = AntForm.useForm()
+  const [quickAdd, setQuickAdd] = useState<QuickAddForm>(emptyQuickAdd(''))
 
   // ── Queries ──────────────────────────────────────────────────────────────
 
@@ -127,46 +111,69 @@ export default function ProductDetailPage() {
     onSuccess: () => setIsEditing(false),
   })
 
-  // ── Edit form setup ───────────────────────────────────────────────────────
+  const deleteProduct = useApiMutation(() => api.delete(`/products/${id}`), {
+    successMessage: 'Đã xoá sản phẩm',
+    onSuccess: () => navigate('/products'),
+  })
 
-  // Form luôn hiển thị input (kể cả ở chế độ xem, disabled) nên phải đồng bộ
-  // giá trị mỗi khi product thay đổi — không chỉ lúc bấm Sửa.
+  const createVariant = useApiMutation(
+    (values: any) => api.post(`/products/${id}/variants`, values),
+    {
+      successMessage: 'Đã thêm SKU',
+      invalidateKey: ['product-detail', id],
+      onSuccess: () => {
+        setQuickAdd(emptyQuickAdd(product?.code ? `${product.code}-` : ''))
+      },
+    },
+  )
+
+  // ── Form sync ──────────────────────────────────────────────────────────────
+
+  function syncFormFromProduct(p: any) {
+    setFormData({
+      name: p.name ?? '', code: p.code ?? '', name_en: p.name_en ?? '', model_number: p.model_number ?? '',
+      category_id: p.category_id ?? '', brand_id: p.brand_id ?? '', product_type: p.product_type ?? 'storable',
+      description: p.description ?? '', is_active: p.is_active ?? true,
+    })
+  }
+
   useEffect(() => {
-    if (product) {
-      editForm.setFieldsValue({
-        category_id:  product.category_id,
-        brand_id:     product.brand_id,
-        model_number: product.model_number,
-        code:         product.code,
-        name:         product.name,
-        name_en:      product.name_en,
-        product_type: product.product_type,
-        description:  product.description,
-        is_active:    product.is_active ?? true,
-      })
-    }
-  }, [product, editForm])
+    if (!product) return
+    if (!isEditing) syncFormFromProduct(product)
+    // Mã hàng SKU mới luôn gợi ý bắt đầu bằng mã sản phẩm — chỉ set khi form đang trống
+    // (tránh ghi đè lúc user đang gõ dở sau khi product refetch nền).
+    setQuickAdd((prev) => (prev.item_code === '' ? emptyQuickAdd(`${product.code}-`) : prev))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product])
 
-  function cancelProductEdit() {
-    if (product) {
-      editForm.setFieldsValue({
-        category_id:  product.category_id,
-        brand_id:     product.brand_id,
-        model_number: product.model_number,
-        code:         product.code,
-        name:         product.name,
-        name_en:      product.name_en,
-        product_type: product.product_type,
-        description:  product.description,
-        is_active:    product.is_active ?? true,
-      })
-    }
+  function cancelEdit() {
+    if (product) syncFormFromProduct(product)
     setIsEditing(false)
   }
 
-  async function saveProductEdit() {
-    const values = await editForm.validateFields()
-    updateProduct.mutate(values)
+  function saveEdit() {
+    if (!formData.name.trim() || !formData.code.trim() || !formData.category_id || !formData.product_type) {
+      toast.error('Nhập đủ Tên, Mã sản phẩm, Danh mục và Loại sản phẩm')
+      return
+    }
+    updateProduct.mutate(formData)
+  }
+
+  function submitQuickAdd() {
+    if (!quickAdd.item_code.trim() || !quickAdd.name.trim()) {
+      toast.error('Nhập đủ Mã hàng và Tên SKU')
+      return
+    }
+    const payload: any = {
+      item_code: quickAdd.item_code.trim(),
+      name: quickAdd.name.trim(),
+      unit: quickAdd.unit || undefined,
+    }
+    if (quickAdd.model.trim()) payload.model = quickAdd.model.trim()
+    if (quickAdd.part_number.trim()) payload.part_number = quickAdd.part_number.trim()
+    if (quickAdd.cost_price) payload.cost_price = Number(quickAdd.cost_price)
+    if (quickAdd.sale_price) payload.sale_price = Number(quickAdd.sale_price)
+    createVariant.mutate(payload)
   }
 
   // ── Derived data ──────────────────────────────────────────────────────────
@@ -176,27 +183,26 @@ export default function ProductDetailPage() {
 
   const variantsWithStock: any[] = (product?.variants ?? []).map((v: any) => ({
     ...v,
-    ...(inventoryMap.get(v.id) ?? { qty_on_hand: 0, qty_reserved: 0, qty_available: 0, warehouse_breakdown: [] }),
+    ...(inventoryMap.get(v.id) ?? { qty_on_hand: 0, qty_reserved: 0, qty_available: 0 }),
   }))
 
-  const categoryTree = buildCategoryTree(categories ?? [])
+  const flatCategories = flattenCategories(categories ?? [])
 
   // ── Loading / not found ───────────────────────────────────────────────────
 
   if (isLoading) {
     return (
-      <div className="flex flex-col gap-5">
+      <div className="theme-2a -m-6 flex flex-col gap-5 bg-background p-6">
         <div className="h-6 w-48 animate-pulse rounded bg-muted" />
-        <div className="h-44 animate-pulse rounded-xl bg-muted" />
-        <div className="h-64 animate-pulse rounded-xl bg-muted" />
+        <div className="h-44 animate-pulse rounded bg-muted" />
+        <div className="h-64 animate-pulse rounded bg-muted" />
       </div>
     )
   }
   if (!product) {
     return (
-      <div className="flex flex-col items-center justify-center gap-3 py-24 text-muted-foreground">
-        <Package className="h-10 w-10 opacity-20" />
-        <p className="text-sm">Không tìm thấy sản phẩm</p>
+      <div className="theme-2a -m-6 flex flex-col items-center justify-center gap-3 bg-background p-6 py-24 text-muted-foreground">
+        <p className="text-base">Không tìm thấy sản phẩm</p>
         <Button variant="outline" size="sm" onClick={() => navigate('/products')}>Quay lại</Button>
       </div>
     )
@@ -205,209 +211,211 @@ export default function ProductDetailPage() {
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="theme-2a -m-6 bg-background" style={{ padding: '16px 24px 32px', display: 'flex', flexDirection: 'column', gap: 20 }}>
 
-      {/* Breadcrumb */}
-      <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-        <button onClick={() => navigate('/products')} className="flex items-center gap-1 rounded px-1 py-0.5 hover:text-foreground transition-colors">
-          <ArrowLeft className="h-3.5 w-3.5" />
-          <span>Sản phẩm</span>
-        </button>
-        <ChevronRight className="h-3.5 w-3.5 opacity-40" />
-        <span className="font-medium text-foreground truncate max-w-xs" title={product.name}>{product.name}</span>
-      </div>
-
-      {/* Product info card */}
-      <div className="overflow-hidden rounded-xl border border-border-md bg-background shadow-sm">
-        {/* Card header */}
-        <div className="flex items-start justify-between gap-4 border-b border-border bg-muted/60 px-5 py-4">
-          <div className="flex flex-col gap-1.5 min-w-0">
-            <h2 className="text-base font-semibold text-foreground leading-snug truncate" title={product.name}>{product.name}</h2>
-            <div className="flex items-center gap-2 flex-wrap">
-              <CodeText>{product.code}</CodeText>
-              {product.product_type && (
-                <span className={cn('text-sm font-medium', TYPE_STYLES[product.product_type] ?? 'text-muted-foreground')}>
-                  {TYPE_LABEL[product.product_type] ?? product.product_type}
-                </span>
-              )}
-              {product.is_active === false && (
-                <span className="inline-flex items-center rounded-md bg-muted px-2 py-0.5 text-xs text-muted-foreground">Inactive</span>
-              )}
+      {/* Header — port .kv-head.kv-head--divided/.kv-crumb/.kv-title--sm nguyên bản */}
+      <div className="kv-head kv-head--divided">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <button type="button" className="kv-btn kv-btn--ghost" onClick={() => navigate(-1)} style={{ padding: 0, width: 30, flexShrink: 0 }} aria-label="Quay lại">
+            <ArrowLeft className="h-4 w-4" />
+          </button>
+          <div>
+            <div className="kv-crumb">
+              <button onClick={() => navigate('/products')} style={{ background: 'none', border: 'none', padding: 0, font: 'inherit', cursor: 'pointer' }}>
+                Sản phẩm
+              </button>
+              {' / '}{product.name}
             </div>
-          </div>
-          <div className="flex shrink-0 items-center gap-2">
-            {isEditing ? (
-              <>
-                <Button variant="ghost" size="sm" onClick={cancelProductEdit}>
-                  <X className="mr-1.5 h-3.5 w-3.5" />Huỷ
-                </Button>
-                <Button size="sm" onClick={saveProductEdit} disabled={updateProduct.isPending}>
-                  {updateProduct.isPending ? 'Đang lưu…' : 'Lưu'}
-                </Button>
-              </>
-            ) : (
-              <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
-                <Pencil className="mr-1.5 h-3.5 w-3.5" />Sửa
-              </Button>
-            )}
+            <h1 className="kv-title kv-title--sm">{product.name}</h1>
           </div>
         </div>
-
-        {/* Card body */}
-        <div className="px-5 py-5">
-          <AntForm form={editForm} layout="vertical">
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '22px 28px' }}>
-              <Field label="Danh mục *">
-                <AntForm.Item name="category_id" noStyle rules={[{ required: true, message: 'Bắt buộc' }]}>
-                  <TreeSelect treeData={categoryTree} showSearch treeNodeFilterProp="title" treeDefaultExpandAll style={{ width: '100%' }} allowClear disabled={!isEditing} />
-                </AntForm.Item>
-              </Field>
-              <Field label="Hãng">
-                <AntForm.Item name="brand_id" noStyle>
-                  <AntSelect showSearch optionFilterProp="label" options={(brands ?? []).map((b: any) => ({ value: b.id, label: b.name }))} allowClear style={{ width: '100%' }} disabled={!isEditing} />
-                </AntForm.Item>
-              </Field>
-              <Field label="Loại sản phẩm *">
-                <AntForm.Item name="product_type" noStyle rules={[{ required: true, message: 'Bắt buộc' }]}>
-                  <AntSelect options={PRODUCT_TYPES} style={{ width: '100%' }} disabled={!isEditing} />
-                </AntForm.Item>
-              </Field>
-              <Field label="Mã dòng sản phẩm">
-                <AntForm.Item name="model_number" noStyle>
-                  <AntInput placeholder="VD: SG110" style={{ width: '100%' }} disabled={!isEditing} />
-                </AntForm.Item>
-              </Field>
-              <Field label="Mã sản phẩm *">
-                <AntForm.Item name="code" noStyle rules={[{ required: true, message: 'Bắt buộc' }]}>
-                  <AntInput style={{ width: '100%' }} disabled={!isEditing} />
-                </AntForm.Item>
-              </Field>
-              <Field label="Trạng thái">
-                <div style={{ paddingTop: 4 }}>
-                  <AntForm.Item name="is_active" noStyle valuePropName="checked">
-                    <AntSwitch checkedChildren="Active" unCheckedChildren="Inactive" disabled={!isEditing} />
-                  </AntForm.Item>
-                </div>
-              </Field>
-              <Field label="Tên *" span={3}>
-                <AntForm.Item name="name" noStyle rules={[{ required: true, message: 'Bắt buộc' }]}>
-                  <AntInput style={{ width: '100%' }} disabled={!isEditing} />
-                </AntForm.Item>
-              </Field>
-              <Field label="Tên (English)" span={3}>
-                <AntForm.Item name="name_en" noStyle>
-                  <AntInput style={{ width: '100%' }} disabled={!isEditing} />
-                </AntForm.Item>
-              </Field>
-              <Field label="Mô tả" span={6}>
-                <AntForm.Item name="description" noStyle>
-                  <AntInput.TextArea rows={3} style={{ width: '100%' }} disabled={!isEditing} />
-                </AntForm.Item>
-              </Field>
-            </div>
-          </AntForm>
+        <div className="kv-actions">
+          {isEditing ? (
+            <>
+              <button type="button" className="kv-btn" onClick={cancelEdit}>Huỷ</button>
+              <button type="button" className="kv-btn kv-btn--primary" onClick={saveEdit} disabled={updateProduct.isPending}>
+                {updateProduct.isPending ? 'Đang lưu…' : 'Lưu'}
+              </button>
+            </>
+          ) : (
+            <>
+              <button type="button" className="kv-btn kv-btn--danger" onClick={() => setDeleteOpen(true)}>Xoá</button>
+              <button type="button" className="kv-btn kv-btn--primary" onClick={() => setIsEditing(true)}>Sửa</button>
+            </>
+          )}
         </div>
       </div>
 
-      {/* SKU table */}
-      <div className="overflow-hidden rounded-xl border border-border-md bg-background shadow-sm">
-        <div className="flex items-center justify-between border-b border-border bg-muted/60 px-4 py-2.5">
-          <div className="flex items-center gap-2">
-            <Layers className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm font-medium">Danh sách SKU</span>
-            <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">{variantsWithStock.length}</span>
+      {/* Form thông tin sản phẩm — port .kv-form-grid/.kv-group-label/.kv-field nguyên bản */}
+      <div className="kv-form-grid">
+        <div className="kv-group-label">Nhận diện</div>
+        <div className="kv-group-body kv-stack">
+          <div className="kv-field">
+            <label>Tên sản phẩm <span className="kv-req">*</span></label>
+            <input className="kv-input" value={formData.name} disabled={!isEditing} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
           </div>
-          <div className="flex items-center gap-2">
-            <ColumnToggle tableId="products-sku" columns={SKU_COLUMNS} visible={skuCols.visible} onToggle={skuCols.toggle} />
-            {product.product_type !== 'service' && (
-              <Button size="sm" onClick={() => navigate(`/products/${id}/variants/create`)}><Plus className="mr-1.5 h-3.5 w-3.5" />Thêm SKU</Button>
-            )}
+          <div className="kv-2col">
+            <div className="kv-field">
+              <label>Mã sản phẩm <span className="kv-req">*</span></label>
+              <input className="kv-input mono" value={formData.code} disabled={!isEditing} onChange={(e) => setFormData({ ...formData, code: e.target.value })} />
+              <div className="kv-hint">Mã dùng chung cho mọi SKU con của dòng sản phẩm này.</div>
+            </div>
+            <div className="kv-field">
+              <label>Mã dòng sản phẩm</label>
+              <input className="kv-input" placeholder="VD: SG110" value={formData.model_number} disabled={!isEditing} onChange={(e) => setFormData({ ...formData, model_number: e.target.value })} />
+            </div>
+          </div>
+          <div className="kv-field">
+            <label>Tên (English)</label>
+            <input className="kv-input" value={formData.name_en} disabled={!isEditing} onChange={(e) => setFormData({ ...formData, name_en: e.target.value })} />
+          </div>
+          <div className="kv-field">
+            <label>Mô tả</label>
+            <textarea className="kv-input" rows={2} style={{ resize: 'vertical', minHeight: 36 }} value={formData.description} disabled={!isEditing} onChange={(e) => setFormData({ ...formData, description: e.target.value })} />
           </div>
         </div>
 
-        {variantsWithStock.length === 0 ? (
-          <div className="flex flex-col items-center justify-center gap-3 py-16 text-muted-foreground">
-            <p className="text-sm">Chưa có SKU nào</p>
-            {product.product_type !== 'service' && (
-              <Button size="sm" variant="outline" onClick={() => navigate(`/products/${id}/variants/create`)}><Plus className="mr-1.5 h-3.5 w-3.5" />Tạo SKU đầu tiên</Button>
-            )}
+        <div className="kv-group-label">Phân loại</div>
+        <div className="kv-group-body kv-stack">
+          <div className="kv-field">
+            <label>Danh mục <span className="kv-req">*</span></label>
+            <select className="kv-select" value={formData.category_id} disabled={!isEditing} onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}>
+              <option value="">— Chọn danh mục —</option>
+              {flatCategories.map((c) => (
+                <option key={c.id} value={c.id}>{c.depth > 0 ? `${'—'.repeat(c.depth)} ` : ''}{c.name}</option>
+              ))}
+            </select>
           </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-border bg-muted/60">
-                  <th className="w-32 px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Mã hàng</th>
-                  <th className="min-w-[220px] px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Tên SKU</th>
-                  {skuCols.isVisible('model')       && <th className="w-20 px-3 py-2.5 text-left   text-xs font-semibold text-muted-foreground">Model</th>}
-                  {skuCols.isVisible('part_number') && <th className="w-36 px-3 py-2.5 text-left   text-xs font-semibold text-muted-foreground">Part Number</th>}
-                  {skuCols.isVisible('unit')        && <th className="w-16 px-3 py-2.5 text-center text-xs font-semibold text-muted-foreground">ĐV</th>}
-                  {skuCols.isVisible('cost_price')  && <th className="w-24 px-3 py-2.5 text-right  text-xs font-semibold text-muted-foreground">Giá vốn</th>}
-                  {skuCols.isVisible('sale_price')  && <th className="w-28 px-3 py-2.5 text-right  text-xs font-semibold text-muted-foreground">Giá bán</th>}
-                  {skuCols.isVisible('vat_percent') && <th className="w-16 px-3 py-2.5 text-right  text-xs font-semibold text-muted-foreground">VAT%</th>}
-                  {skuCols.isVisible('weight_kg')   && <th className="w-20 px-3 py-2.5 text-right  text-xs font-semibold text-muted-foreground">KL (kg)</th>}
-                  {skuCols.isVisible('qty')         && <th className="w-20 px-3 py-2.5 text-right  text-xs font-semibold text-muted-foreground">Tồn kho</th>}
-                  {skuCols.isVisible('avail')       && <th className="w-24 px-3 py-2.5 text-right  text-xs font-semibold text-muted-foreground">Khả dụng</th>}
-                  {skuCols.isVisible('warehouse')   && <th className="px-4 py-2.5 text-left        text-xs font-semibold text-muted-foreground">Phân bổ kho</th>}
-                  <th className="w-10 px-2 py-2.5" />
+          <div className="kv-field">
+            <label>Hãng</label>
+            <select className="kv-select" value={formData.brand_id} disabled={!isEditing} onChange={(e) => setFormData({ ...formData, brand_id: e.target.value })}>
+              <option value="">Không chọn</option>
+              {(brands ?? []).map((b: any) => <option key={b.id} value={b.id}>{b.name}</option>)}
+            </select>
+          </div>
+          <div className="kv-field">
+            <label>Loại sản phẩm <span className="kv-req">*</span></label>
+            <select className="kv-select" value={formData.product_type} disabled={!isEditing} onChange={(e) => setFormData({ ...formData, product_type: e.target.value })}>
+              {PRODUCT_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+            </select>
+            <div className="kv-hint">Loại quyết định SKU con có theo tồn kho hay không.</div>
+          </div>
+          {/* Trạng thái active/inactive — không có trong mockup gốc (chỉ có 3 field Danh mục/
+              Hãng/Loại) nhưng là field thật của app, thêm theo đúng convention kv-field. */}
+          <div className="kv-field">
+            <label>Trạng thái</label>
+            <select className="kv-select" value={formData.is_active ? '1' : '0'} disabled={!isEditing} onChange={(e) => setFormData({ ...formData, is_active: e.target.value === '1' })}>
+              <option value="1">Active</option>
+              <option value="0">Inactive</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* Section head SKU con — port .kv-section-head/.kv-eyebrow/.kv-section-title nguyên bản */}
+      <div className="kv-section-head">
+        <div>
+          <div className="kv-eyebrow">SKU con</div>
+          <h2 className="kv-section-title">{variantsWithStock.length} biến thể có thể nhập / xuất riêng</h2>
+        </div>
+      </div>
+
+      {/* Bảng SKU — port .kv-table nguyên bản, có dòng "thêm nhanh" (.kv-newrow) ngay dưới cùng */}
+      <div className="overflow-x-auto">
+        <table className="kv-table" style={{ tableLayout: 'fixed' }}>
+          <thead>
+            <tr>
+              <th style={{ width: 160 }}>Mã hàng</th>
+              <th style={{ width: 220 }}>Tên SKU</th>
+              <th style={{ width: 130 }}>Model</th>
+              <th style={{ width: 160 }}>Part Number</th>
+              <th style={{ width: 80 }}>Đơn vị</th>
+              <th className="num" style={{ width: 130 }}>Giá vốn</th>
+              <th className="num" style={{ width: 130 }}>Giá bán</th>
+              <th className="num" style={{ width: 90 }}>Tồn kho</th>
+              <th className="num" style={{ width: 90 }}>Khả dụng</th>
+              <th style={{ width: 40 }} />
+            </tr>
+          </thead>
+          <tbody>
+            {variantsWithStock.length === 0 && (
+              <tr>
+                <td colSpan={10} className="kv-muted" style={{ padding: '24px 10px', textAlign: 'center' }}>Chưa có SKU nào</td>
+              </tr>
+            )}
+            {variantsWithStock.map((v: any) => {
+              const qtyOnHand = v.qty_on_hand ?? 0
+              const qtyAvail = v.qty_available ?? 0
+              const reorderPoint = v.reorder_point ?? 0
+              const isLow = reorderPoint > 0 && qtyOnHand <= reorderPoint
+              return (
+                <tr key={v.id} className="kv-row-link" onClick={() => navigate(`/products/${id}/variants/${v.id}`)}>
+                  <td className="mono truncate" title={v.item_code || v.sku || ''}>{v.item_code || v.sku || '—'}</td>
+                  <td className="kv-cell-title truncate" title={v.name ?? ''}>{v.name ?? '—'}</td>
+                  <td className="mono truncate" title={v.model ?? ''}>{v.model ?? '—'}</td>
+                  <td className="mono truncate" title={v.part_number ?? ''}>{v.part_number ?? '—'}</td>
+                  <td>{v.unit ?? '—'}</td>
+                  <td className="num">{fmtMoney(v.cost_price)}</td>
+                  <td className="num">{fmtMoney(v.sale_price)}</td>
+                  <td className="num">
+                    {isLow ? (
+                      <span className={`kv-tag ${qtyOnHand === 0 ? 'kv-tag--out' : 'kv-tag--low'}`}>{qtyOnHand}</span>
+                    ) : qtyOnHand}
+                  </td>
+                  <td className="num">{qtyAvail}</td>
+                  <td className="num kv-caret">›</td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {variantsWithStock.map((v: any) => {
-                  const breakdown: any[] = v.warehouse_breakdown ?? []
-                  const qtyOnHand = v.qty_on_hand ?? 0
-                  const qtyAvail  = v.qty_available ?? 0
-                  return (
-                    <tr key={v.id} onClick={() => navigate(`/products/${id}/variants/${v.id}`)} className="group/row cursor-pointer transition-colors hover:bg-muted/30">
-                      <td className="w-32 truncate px-4 py-2.5" title={v.item_code || v.sku || ''}>
-                        <CodeText>{v.item_code || v.sku || '—'}</CodeText>
-                      </td>
-                      <td className="max-w-0 px-4 py-2.5"><span className="block truncate text-sm text-foreground" title={v.name}>{v.name ?? '—'}</span></td>
-                      {skuCols.isVisible('model')       && <td className="w-20 truncate px-3 py-2.5 font-mono text-sm text-foreground" title={v.model ?? ''}>{v.model ?? '—'}</td>}
-                      {skuCols.isVisible('part_number') && <td className="w-36 truncate px-3 py-2.5 font-mono text-sm text-foreground" title={v.part_number ?? ''}>{v.part_number ?? '—'}</td>}
-                      {skuCols.isVisible('unit')        && <td className="px-3 py-2.5 text-center text-sm text-foreground">{v.unit ?? '—'}</td>}
-                      {skuCols.isVisible('cost_price')  && <td className="px-3 py-2.5 text-right text-sm tabular-nums text-muted-foreground">{fmtMoney(v.cost_price)}</td>}
-                      {skuCols.isVisible('sale_price')  && <td className="px-3 py-2.5 text-right text-sm tabular-nums text-muted-foreground">{fmtMoney(v.sale_price)}</td>}
-                      {skuCols.isVisible('vat_percent') && <td className="px-3 py-2.5 text-right text-sm tabular-nums text-muted-foreground">{v.vat_percent != null ? `${Number(v.vat_percent)}%` : '—'}</td>}
-                      {skuCols.isVisible('weight_kg')   && <td className="px-3 py-2.5 text-right text-sm tabular-nums text-muted-foreground">{v.weight_kg != null ? Number(v.weight_kg) : '—'}</td>}
-                      {skuCols.isVisible('qty')         && (
-                        <td className="px-3 py-2.5 text-right">
-                          <span className={cn('tabular-nums text-sm font-medium', qtyOnHand > 0 ? 'text-foreground' : 'text-muted-foreground')}>{qtyOnHand.toLocaleString('vi-VN')}</span>
-                        </td>
-                      )}
-                      {skuCols.isVisible('avail')       && (
-                        <td className="px-3 py-2.5 text-right">
-                          <span className={cn('tabular-nums text-sm font-semibold', qtyAvail > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground')}>{qtyAvail.toLocaleString('vi-VN')}</span>
-                        </td>
-                      )}
-                      {skuCols.isVisible('warehouse')   && (
-                        <td className="px-4 py-2.5">
-                          {breakdown.length > 0 ? (
-                            <div className="flex flex-wrap gap-1">
-                              {breakdown.map((wh: any) => (
-                                <span key={wh.name} className="inline-flex max-w-[10rem] items-center gap-1 rounded-full border border-border bg-muted/50 px-2 py-0.5 text-xs" title={wh.name}>
-                                  <span className="truncate text-muted-foreground">{wh.name}</span>
-                                  <span className="shrink-0 font-medium text-foreground">{wh.qty}</span>
-                                </span>
-                              ))}
-                            </div>
-                          ) : <span className="text-xs text-muted-foreground">—</span>}
-                        </td>
-                      )}
-                      <td className="px-2 py-2.5">
-                        <div className="flex justify-end opacity-0 transition-opacity group-hover/row:opacity-100">
-                          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
-                        </div>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
+              )
+            })}
+
+            <tr className="kv-newrow">
+              <td><input className="kv-input mono" value={quickAdd.item_code} onChange={(e) => setQuickAdd({ ...quickAdd, item_code: e.target.value })} aria-label="Mã hàng" /></td>
+              <td><input className="kv-input" placeholder="Tên SKU mới" value={quickAdd.name} onChange={(e) => setQuickAdd({ ...quickAdd, name: e.target.value })} aria-label="Tên SKU" /></td>
+              <td><input className="kv-input mono" placeholder="Model" value={quickAdd.model} onChange={(e) => setQuickAdd({ ...quickAdd, model: e.target.value })} aria-label="Model" /></td>
+              <td><input className="kv-input mono" placeholder="Part number" value={quickAdd.part_number} onChange={(e) => setQuickAdd({ ...quickAdd, part_number: e.target.value })} aria-label="Part number" /></td>
+              <td>
+                <select className="kv-select" value={quickAdd.unit} onChange={(e) => setQuickAdd({ ...quickAdd, unit: e.target.value })} aria-label="Đơn vị">
+                  {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
+                </select>
+              </td>
+              <td><input className="kv-input kv-input--num" placeholder="0" value={quickAdd.cost_price} onChange={(e) => setQuickAdd({ ...quickAdd, cost_price: e.target.value.replace(/[^0-9]/g, '') })} aria-label="Giá vốn" /></td>
+              <td><input className="kv-input kv-input--num" placeholder="0" value={quickAdd.sale_price} onChange={(e) => setQuickAdd({ ...quickAdd, sale_price: e.target.value.replace(/[^0-9]/g, '') })} aria-label="Giá bán" /></td>
+              <td colSpan={3} style={{ textAlign: 'right' }}>
+                <div className="kv-actions" style={{ justifyContent: 'flex-end' }}>
+                  <button type="button" className="kv-btn kv-btn--ghost kv-btn--sm" onClick={() => setQuickAdd(emptyQuickAdd(product?.code ? `${product.code}-` : ''))}>Huỷ</button>
+                  <button type="button" className="kv-btn kv-btn--primary kv-btn--sm" onClick={submitQuickAdd} disabled={createVariant.isPending}>
+                    {createVariant.isPending ? 'Đang lưu…' : 'Lưu SKU'}
+                  </button>
+                </div>
+              </td>
+            </tr>
+            <tr className="kv-newrow">
+              <td colSpan={10} style={{ background: 'transparent', borderBottom: 'none', paddingTop: 15 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 30, fontSize: 13, color: 'var(--text-2)' }}>
+                  <span>Cân nặng, bảo hành hãng, điểm đặt hàng lại và mô tả có ở trang tạo SKU đầy đủ:</span>
+                  <a href={`/products/${id}/variants/create`} onClick={(e) => { e.preventDefault(); navigate(`/products/${id}/variants/create`) }}>Mở form đầy đủ</a>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
 
+      {/* Delete confirmation */}
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent className="theme-2a">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Xoá sản phẩm "{product.name}"?</AlertDialogTitle>
+            <AlertDialogDescription>Không thể xoá nếu còn SKU con có tồn kho.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Huỷ</AlertDialogCancel>
+            <AlertDialogAction variant="danger" disabled={deleteProduct.isPending} onClick={() => deleteProduct.mutate(undefined)}>
+              Xoá
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

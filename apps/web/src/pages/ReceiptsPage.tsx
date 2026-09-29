@@ -1,15 +1,10 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Search, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Search, ChevronLeft, ChevronRight, Plus } from 'lucide-react'
 import { useReceipts } from '../hooks/useReceipts'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { StatusBadge } from '@/components/ui/StatusBadge'
-import { PageSizeSelector } from '@/components/ui/PageSizeSelector'
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@/components/ui/select'
+import { StatusBadge, statusFilterClassName } from '@/components/ui/StatusBadge'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
-import { CodeText } from '@/components/ui/CodeText'
 
 const STATUS_OPTIONS = [
   { value: 'draft',            label: 'Nháp' },
@@ -19,7 +14,8 @@ const STATUS_OPTIONS = [
   { value: 'cancelled',        label: 'Đã hủy' },
 ] as const
 
-
+// Port class kv-* từ export/app.css (kv.css) — cùng công thức đã áp cho InventoryPage/
+// ProductsPage, thay Tailwind approximation trước đó.
 export default function ReceiptsPage() {
   const navigate = useNavigate()
   const hook = useReceipts()
@@ -27,167 +23,208 @@ export default function ReceiptsPage() {
   const total: number = hook.data?.total ?? 0
   const from = total === 0 ? 0 : (hook.page - 1) * hook.limit + 1
   const to = Math.min(hook.page * hook.limit, total)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+
+  function toggleSelected(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+  }
+
+  function exportSelectedCsv() {
+    const list = rows.filter((r) => selected.has(r.id))
+    const statusLabel = (s: string) => STATUS_OPTIONS.find((o) => o.value === s)?.label ?? s
+    const header = ['Mã phiếu', 'Loại nhập', 'NCC', 'Phiếu nhận hàng', 'Kho', 'Trạng thái', 'Người nhập', 'Ngày tạo']
+    const lines = list.map((r) => [
+      r.code, r.import_type ?? '', r.company_code ?? '', r.shipment_code ?? '', r.warehouse_name ?? '',
+      statusLabel(r.status), r.created_by_name ?? '', r.created_at ? new Date(r.created_at).toLocaleDateString('vi-VN') : '',
+    ].join(','))
+    const csv = [header.join(','), ...lines].join('\n')
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `phieu-nhap-kho-${Date.now()}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="theme-2a -m-6 flex flex-col gap-4 bg-background p-6">
 
-      {/* Page header */}
-      <div className="flex items-center justify-between">
+      <div className="kv-head">
         <div>
-          <h1 className="font-serif text-2xl font-semibold tracking-tight">Phiếu nhập kho</h1>
-          <p className="mt-0.5 text-sm text-muted-foreground">Quản lý phiếu nhập hàng từ nhà cung cấp</p>
+          <h1 className="kv-title">Phiếu nhập kho</h1>
+          <p className="kv-sub">Quản lý phiếu nhập hàng từ nhà cung cấp</p>
         </div>
-        <Button onClick={() => navigate('/receipts/new')}>
-          <Plus className="mr-2 h-4 w-4" />
-          Tạo phiếu nhập
-        </Button>
+        <button type="button" className="kv-btn kv-btn--primary" onClick={() => navigate('/receipts/new')}>
+          <Plus className="h-3.5 w-3.5" /> Tạo phiếu nhập
+        </button>
       </div>
 
-      {/* Table card */}
-      <div className="overflow-hidden rounded-xl border border-border-md bg-background shadow-sm">
+      <div className="kv-table-wrap">
 
-        {/* Toolbar */}
-        <div className="flex items-center justify-between border-b border-border px-4 py-3">
-          <div className="flex items-center gap-2">
+        {/* Toolbar — pill lọc trạng thái bên trái, filter + search bên phải */}
+        <div className="kv-toolbar" style={{ justifyContent: 'space-between' }}>
+          <div className="flex items-center gap-1">
             <button
+              type="button"
               onClick={() => hook.setStatus(undefined)}
-              className={cn('rounded-md px-3 py-1.5 text-xs font-medium transition-colors', !hook.status ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground')}
+              className={cn('rounded-sm px-2.5 py-1 text-xs font-medium transition-colors', !hook.status ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground')}
             >Tất cả</button>
             {STATUS_OPTIONS.map((opt) => (
-              <button key={opt.value}
+              <button key={opt.value} type="button"
                 onClick={() => hook.setStatus(hook.status === opt.value ? undefined : opt.value)}
-                className={cn('rounded-md px-3 py-1.5 text-xs font-medium transition-colors', hook.status === opt.value ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground')}
+                className={cn('rounded-sm px-2.5 py-1 text-xs font-medium transition-colors', hook.status === opt.value ? statusFilterClassName(opt.value) : 'text-muted-foreground hover:bg-muted hover:text-foreground')}
               >{opt.label}</button>
             ))}
           </div>
           <div className="flex items-center gap-2">
-            {/* Import type filter */}
-            <Select
+            <select
+              className="kv-select kv-select--auto"
+              aria-label="Loại nhập"
               value={hook.importType ?? '__all__'}
-              onValueChange={(v) => hook.setImportType(v === '__all__' ? undefined : v)}
+              onChange={(e) => hook.setImportType(e.target.value === '__all__' ? undefined : e.target.value)}
             >
-              <SelectTrigger className="h-9 w-36 text-sm shadow-none">
-                <SelectValue placeholder="Loại nhập" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__all__">Tất cả loại</SelectItem>
-                {(hook.importTypes ?? []).map((t: any) => (
-                  <SelectItem key={t.key} value={t.key}>{t.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            {/* Warehouse filter */}
-            <Select
+              <option value="__all__">Tất cả loại</option>
+              {(hook.importTypes ?? []).map((t: any) => <option key={t.key} value={t.key}>{t.label}</option>)}
+            </select>
+            <select
+              className="kv-select kv-select--auto"
+              aria-label="Kho"
               value={hook.warehouseIdFilter ?? '__all__'}
-              onValueChange={(v) => hook.setWarehouseIdFilter(v === '__all__' ? undefined : v)}
+              onChange={(e) => hook.setWarehouseIdFilter(e.target.value === '__all__' ? undefined : e.target.value)}
             >
-              <SelectTrigger className="h-9 w-40 text-sm shadow-none">
-                <SelectValue placeholder="Kho" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__all__">Tất cả kho</SelectItem>
-                {(hook.warehouses ?? []).map((w: any) => (
-                  <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
+              <option value="__all__">Tất cả kho</option>
+              {(hook.warehouses ?? []).map((w: any) => <option key={w.id} value={w.id}>{w.name}</option>)}
+            </select>
+            <div className="kv-search" style={{ width: 220 }}>
+              <Search className="h-4 w-4" />
+              <input
+                className="kv-input"
+                type="search"
                 placeholder="Tìm mã phiếu, NCC…"
                 value={hook.searchInput}
                 onChange={(e) => hook.setSearchInput(e.target.value)}
-                className="h-9 w-56 pl-9 text-sm shadow-none focus-visible:ring-1"
               />
             </div>
-            <span className="text-sm text-muted-foreground">{total.toLocaleString('vi-VN')} kết quả</span>
+            <span className="kv-muted" style={{ fontSize: 13 }}>{total.toLocaleString('vi-VN')} kết quả</span>
           </div>
         </div>
 
+        {/* Thanh hành động hàng loạt — hiện khi có dòng được chọn */}
+        {selected.size > 0 && (
+          <div className="kv-bulk">
+            <span className="kv-strong">Đã chọn {selected.size} dòng</span>
+            <span className="kv-bulk-sep" />
+            <button type="button" onClick={exportSelectedCsv}>Xuất Excel</button>
+            <div className="kv-spacer" />
+            <button type="button" style={{ color: 'var(--text-2)' }} onClick={() => setSelected(new Set())}>Bỏ chọn</button>
+          </div>
+        )}
+
         {/* Table */}
-        <table className="w-full table-fixed">
+        <div className="overflow-x-auto">
+        <table className="kv-table" style={{ minWidth: 960, tableLayout: 'fixed' }}>
           <colgroup>
+            <col style={{ width: 34 }} />
             <col style={{ width: '4%' }} />
+            <col style={{ width: '12%' }} />
+            <col style={{ width: '10%' }} />
+            <col style={{ width: '9%' }} />
+            <col style={{ width: '11%' }} />
+            <col style={{ width: '17%' }} />
+            <col style={{ width: '13%' }} />
             <col style={{ width: '14%' }} />
-            <col style={{ width: '12%' }} />
-            <col style={{ width: '32%' }} />
-            <col style={{ width: '14%' }} />
-            <col style={{ width: '12%' }} />
-            <col style={{ width: '12%' }} />
+            <col style={{ width: '10%' }} />
           </colgroup>
           <thead>
-            <tr className="border-b border-border bg-muted/60">
-              <th className="px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground">#</th>
-              <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Mã phiếu</th>
-              <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Loại nhập</th>
-              <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">NCC</th>
-              <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Kho</th>
-              <th className="px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground">Trạng thái</th>
-              <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Ngày tạo</th>
+            <tr>
+              <th className="text-center">
+                <input
+                  type="checkbox"
+                  checked={rows.length > 0 && selected.size === rows.length}
+                  onChange={(e) => setSelected(e.target.checked ? new Set(rows.map((r) => r.id)) : new Set())}
+                />
+              </th>
+              <th className="text-center">#</th>
+              <th className="text-left">Mã phiếu</th>
+              <th className="text-left">Loại nhập</th>
+              <th className="text-left">NCC</th>
+              <th className="text-left">Phiếu nhận hàng</th>
+              <th className="text-left">Kho</th>
+              <th className="text-left">Người nhập</th>
+              <th className="text-left">Ngày tạo</th>
+              <th className="text-center">Trạng thái</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-border">
+          <tbody>
             {hook.isFetching && rows.length === 0 ? (
-              <tr>
-                <td colSpan={7} className="px-4 py-12 text-center text-xs text-muted-foreground">Đang tải…</td>
-              </tr>
+              <tr><td colSpan={10} className="kv-muted" style={{ padding: '32px 10px', textAlign: 'center' }}>Đang tải…</td></tr>
             ) : rows.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-12 text-center text-xs text-muted-foreground">
+                <td colSpan={10} className="kv-muted" style={{ padding: '32px 10px', textAlign: 'center' }}>
                   {hook.searchInput ? 'Không tìm thấy kết quả.' : 'Chưa có phiếu nhập nào.'}
                 </td>
               </tr>
             ) : (
               rows.map((row, i) => (
-                <tr
-                  key={row.id}
-                  onClick={() => navigate(`/receipts/${row.id}`)}
-                  className="cursor-pointer transition-colors hover:bg-muted/30"
-                >
-                  <td className="px-4 py-2 text-center text-xs text-muted-foreground">{from + i}</td>
-                  <td className="px-4 py-2"><CodeText>{row.code}</CodeText></td>
-                  <td className="px-4 py-2 text-foreground">{row.import_type ?? '—'}</td>
-                  <td className="px-4 py-2 font-medium text-foreground">{row.company_name ?? '—'}</td>
-                  <td className="px-4 py-2 text-foreground">{row.warehouse_name ?? '—'}</td>
-                  <td className="px-4 py-2"><div className="flex justify-center"><StatusBadge status={row.status} /></div></td>
-                  <td className="px-4 py-2 text-muted-foreground">
-                    {row.created_at ? new Date(row.created_at).toLocaleDateString('vi-VN') : '—'}
+                <tr key={row.id} onClick={() => navigate(`/receipts/${row.id}`)} className="kv-row-link">
+                  <td className="text-center" onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      checked={selected.has(row.id)}
+                      onChange={() => toggleSelected(row.id)}
+                    />
                   </td>
+                  <td className="text-center kv-muted">{from + i}</td>
+                  <td className="mono">{row.code}</td>
+                  <td>{row.import_type ?? '—'}</td>
+                  <td>
+                    {row.company_name ? (
+                      <Tooltip>
+                        <TooltipTrigger asChild><span className="mono">{row.company_code ?? '—'}</span></TooltipTrigger>
+                        <TooltipContent className="theme-2a">{row.company_name}</TooltipContent>
+                      </Tooltip>
+                    ) : <span className="mono">{row.company_code ?? '—'}</span>}
+                  </td>
+                  <td>{row.shipment_code ?? <span className="kv-muted">—</span>}</td>
+                  <td className="truncate" title={row.warehouse_name}>{row.warehouse_name ?? '—'}</td>
+                  <td>{row.created_by_name ?? <span className="kv-muted">—</span>}</td>
+                  <td className="kv-muted">{row.created_at ? new Date(row.created_at).toLocaleDateString('vi-VN') : '—'}</td>
+                  <td className="text-center"><StatusBadge status={row.status} /></td>
                 </tr>
               ))
             )}
           </tbody>
         </table>
+        </div>
 
         {/* Pagination */}
         {total > 0 && (
-          <div className="flex items-center justify-between border-t border-border px-4 py-2.5">
-            <div className="flex items-center gap-3">
-              <span className="text-xs text-muted-foreground">{from}–{to} / {total} phiếu</span>
-              <PageSizeSelector value={hook.limit} onChange={hook.setLimit} />
+          <div className="kv-pager">
+            <div className="kv-actions">
+              <span>{from}–{to} / {total} phiếu</span>
+              <select
+                className="kv-select kv-select--auto"
+                aria-label="Số dòng mỗi trang"
+                style={{ height: 26, fontSize: 12 }}
+                value={String(hook.limit)}
+                onChange={(e) => hook.setLimit(Number(e.target.value))}
+              >
+                {[10, 20, 50, 100].map((n) => <option key={n} value={n}>{n} dòng / trang</option>)}
+              </select>
             </div>
-            <div className="flex items-center gap-1">
-              <Button
-                variant="ghost" size="sm"
-                disabled={hook.page <= 1}
-                onClick={() => hook.setPage(hook.page - 1)}
-                className="h-7 w-7 p-0"
-              >
+            <div className="kv-pages">
+              <button type="button" className="kv-page" aria-label="Trang trước" disabled={hook.page <= 1} onClick={() => hook.setPage(hook.page - 1)}>
                 <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <span className="min-w-[3rem] text-center text-xs text-muted-foreground">
-                {hook.page} / {Math.ceil(total / hook.limit)}
-              </span>
-              <Button
-                variant="ghost" size="sm"
-                disabled={to >= total}
-                onClick={() => hook.setPage(hook.page + 1)}
-                className="h-7 w-7 p-0"
-              >
+              </button>
+              <span style={{ minWidth: 48, textAlign: 'center' }}>{hook.page} / {Math.max(1, Math.ceil(total / hook.limit))}</span>
+              <button type="button" className="kv-page" aria-label="Trang sau" disabled={to >= total} onClick={() => hook.setPage(hook.page + 1)}>
                 <ChevronRight className="h-4 w-4" />
-              </Button>
+              </button>
             </div>
           </div>
         )}

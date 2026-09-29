@@ -1,20 +1,21 @@
 @import "tailwindcss";
 @import "shadcn/tailwind.css";
 @import "tw-animate-css";
-@import "@fontsource-variable/inter";
-@import "@fontsource-variable/lora";
 @import "./styles/tokens.css";
+@import "./styles/kv.css";
 
 /* Map CSS custom properties → Tailwind design tokens.
    Nguồn màu duy nhất là styles/tokens.css — các biến shadcn (--background,
    --foreground, --border…) chỉ alias sang đó, không định nghĩa palette riêng. */
 @theme inline {
-  --font-sans:    'Inter Variable', ui-sans-serif, sans-serif;
-  --font-serif:   'Lora Variable', Georgia, serif;
-  /* Dialog/Sheet/Card/AlertDialog title dùng class "font-heading" (shadcn mặc định) —
-     trước đây không có token nên là utility chết, giờ trỏ về Lora cho nhất quán với
-     PageHeader. */
-  --font-heading: 'Lora Variable', Georgia, serif;
+  /* 1 họ font duy nhất cho toàn app — Tahoma — ưu tiên gọn gàng/dễ đọc ở size nhỏ cho app
+     nhiều bảng dữ liệu, thay vì Public Sans (đẹp nhưng không phải trọng tâm ở đây). Tahoma
+     là font hệ thống (không cần tải font file) — fallback Segoe UI/Verdana cho máy không có
+     sẵn Tahoma (macOS/Linux). Phân cấp chỉ dựa vào size/weight, không trộn nhiều font. */
+  --font-sans:    Tahoma, 'Segoe UI', Verdana, ui-sans-serif, system-ui, sans-serif;
+  --font-serif:   Tahoma, 'Segoe UI', Verdana, ui-sans-serif, system-ui, sans-serif;
+  /* Dialog/Sheet/Card/AlertDialog title dùng class "font-heading" (shadcn mặc định). */
+  --font-heading: Tahoma, 'Segoe UI', Verdana, ui-sans-serif, system-ui, sans-serif;
 
   --color-background:              var(--background);
   --color-foreground:              var(--foreground);
@@ -29,7 +30,7 @@
   --color-muted:                   var(--muted);
   --color-muted-foreground:        var(--muted-foreground);
   /* Tailwind "accent" = tint nền hover/selected trung tính — KHÔNG dùng chung
-     tên với --accent thương hiệu (#29ABE2) khai báo trong styles/tokens.css,
+     tên với --accent thương hiệu khai báo trong styles/tokens.css,
      để tránh 2 định nghĩa cùng tên đè lẫn nhau qua cascade layer. */
   --color-accent:                  var(--tw-accent-tint);
   --color-accent-foreground:       var(--tw-accent-tint-foreground);
@@ -90,19 +91,19 @@
     --destructive-foreground: oklch(0.985 0 0);
 
     --input:                  var(--border);
-    --ring:                   #29ABE2;
+    --ring:                   var(--accent);
 
     --radius: 0.625rem;
 
     /* ── Sidebar ─────────────────────────────────── */
     --sidebar:                        var(--bg-card);
     --sidebar-foreground:             var(--text-1);
-    --sidebar-primary:                #29ABE2;
+    --sidebar-primary:                var(--accent);
     --sidebar-primary-foreground:     #ffffff;
     --sidebar-accent:                 var(--bg-hover);
     --sidebar-accent-foreground:      var(--text-1);
     --sidebar-border:                 var(--border);
-    --sidebar-ring:                   #29ABE2;
+    --sidebar-ring:                   var(--accent);
 
     /* ── Charts ──────────────────────────────────── */
     --chart-1: oklch(0.855 0.138 181.071);
@@ -138,16 +139,16 @@
     --destructive-foreground: oklch(0.985 0 0);
 
     --input:                  var(--border);
-    --ring:                   #7dd3f5;
+    --ring:                   var(--accent);
 
     --sidebar:                        var(--bg-card);
     --sidebar-foreground:             var(--text-1);
-    --sidebar-primary:                #7dd3f5;
+    --sidebar-primary:                var(--accent);
     --sidebar-primary-foreground:     #0f172a;
     --sidebar-accent:                 var(--bg-hover);
     --sidebar-accent-foreground:      var(--text-1);
     --sidebar-border:                 var(--border);
-    --sidebar-ring:                   #7dd3f5;
+    --sidebar-ring:                   var(--accent);
   }
 
   * {
@@ -159,21 +160,33 @@
     font-size: 13px;
   }
 
-  /* Tăng kích thước toàn trang ~4.5% qua root font-size (rem-based) thay vì CSS `zoom` —
-     `zoom` là post-layout transform, khiến Chromium tính sai scrollHeight của container
-     overflow-auto lồng flex sâu (vd sidebar nhiều mục) ở giá trị lẻ như 1.045, cắt mất
-     item cuối dù đã cuộn hết cỡ. font-size là layout thật nên không bị lỗi này — đổi lại
-     chỉ phần dùng Tailwind rem (CompaniesPage, ProductsPage, Sidebar, Reports...) to theo;
-     các trang AntD dùng nhiều px cứng trong inline style (Receipt, Shipment, PO,
-     Quotation...) sẽ không to theo. */
+  /* Co toàn trang lại qua root font-size (rem-based) thay vì CSS `zoom` — `zoom` là
+     post-layout transform, khiến Chromium tính sai scrollHeight của container overflow-auto
+     lồng flex sâu (vd sidebar nhiều mục) ở giá trị lẻ, cắt mất item cuối dù đã cuộn hết cỡ.
+     font-size là layout thật nên không bị lỗi này. Vì hầu hết spacing/kích thước component
+     của Tailwind đều tính theo rem (padding, gap, height nút/input...), hạ root font-size là
+     cách gọn nhất để giảm đồng loạt cỡ chữ + khoảng trống + kích thước component toàn app khi
+     cần hiển thị nhiều dữ liệu hơn trong màn hình — chỉ phần dùng Tailwind rem (CompaniesPage,
+     ProductsPage, Sidebar, Reports...) co theo; các trang AntD dùng nhiều px cứng trong inline
+     style (Receipt, Shipment, PO, Quotation...) sẽ không co theo. */
   html {
-    font-size: 104.5%;
+    font-size: 95%;
   }
 
   html, body, #root {
     height: 100%;
     overflow: hidden;
   }
+}
+
+/* ── Khối bảng full-width dùng chung cho mọi trang List (PurchaseOrders, Receipts,
+   Quotations, Deliveries, Transfers, Shipments, Stocktakes, Products, Inventory...) —
+   gom về 1 class duy nhất thay vì lặp lại y hệt chuỗi className ở từng trang, để sau này
+   chỉnh (đổi radius, bớt/thêm shadow...) chỉ sửa 1 chỗ áp dụng lại toàn bộ. `bg-card` khác
+   `bg-background` của trang (xem tokens.css --bg-page/--bg-card) nên bảng luôn có ranh giới
+   rõ với nền trang xung quanh, không cần set riêng từng trang. */
+.table-shell {
+  @apply overflow-hidden rounded-2xl border border-border bg-card shadow-md;
 }
 
 /* ── Ant Design input/select hover & focus ────────────────────────────────── */
@@ -193,7 +206,7 @@
 .ant-select:not(.ant-select-disabled):not(.ant-select-focused):hover .ant-select-selector,
 .ant-picker:not(.ant-picker-disabled):not(.ant-picker-focused):hover {
   border-color: var(--color-primary) !important;
-  box-shadow: 0 0 0 3px rgba(41,171,226,0.12) !important;
+  box-shadow: 0 0 0 3px rgba(11,95,174,0.12) !important;
 }
 
 .ant-input:focus,
@@ -202,12 +215,12 @@
 .ant-select-focused .ant-select-selector,
 .ant-picker-focused {
   border-color: var(--color-primary) !important;
-  box-shadow: 0 0 0 3px rgba(41,171,226,0.28) !important;
+  box-shadow: 0 0 0 3px rgba(11,95,174,0.28) !important;
 }
 
 /* AntD Switch — cùng kiểu glow khi hover để nhất quán với input/select */
 .ant-switch:not(.ant-switch-disabled):hover {
-  box-shadow: 0 0 0 3px rgba(41,171,226,0.12) !important;
+  box-shadow: 0 0 0 3px rgba(11,95,174,0.12) !important;
 }
 
 /* Option trong dropdown Select/TreeSelect — hover rõ hơn mặc định AntD */

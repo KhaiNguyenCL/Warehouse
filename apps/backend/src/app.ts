@@ -36,6 +36,7 @@ import shipmentRoutes from './modules/shipment/shipment.routes'
 import { activityLogRoutes } from './modules/activitylog/activitylog.routes'
 import notificationRoutes from './modules/notification/notification.routes'
 import searchRoutes from './modules/search/search.routes'
+import assistantRoutes from './modules/assistant/assistant.routes'
 
 const FIELD_VI: Record<string, string> = {
   vat_percent:                   'VAT%',
@@ -153,6 +154,7 @@ export async function buildApp() {
   await app.register(reportRoutes,    { prefix: '/api/v1/reports' })
   await app.register(uploadRoutes,    { prefix: '/api/v1/uploads' })
   await app.register(shipmentRoutes,  { prefix: '/api/v1/shipments' })
+  await app.register(assistantRoutes, { prefix: '/api/v1/assistant' })
   await app.register(activityLogRoutes, { prefix: '/api/v1/activity-logs' })
   await app.register(notificationRoutes, { prefix: '/api/v1/notifications' })
   await app.register(searchRoutes,       { prefix: '/api/v1/search' })

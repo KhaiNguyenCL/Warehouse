@@ -1,39 +1,83 @@
-import { useParams } from 'react-router-dom'
-import { Table, Button, Typography, Space, Popconfirm, InputNumber, Input } from 'antd'
+import { useState } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
+import { Table, InputNumber, Input } from 'antd'
+import { ArrowLeft } from 'lucide-react'
 import { useStocktakeDetail } from '../hooks/useStocktakeDetail'
-import { StatusTag } from '../components/StatusTag'
+import { StatusBadge } from '../components/ui/StatusBadge'
+import { Button } from '@/components/ui/button'
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel,
+  AlertDialogContent, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { usePageHeader } from '@/layout/PageHeaderSlot'
 import CustomFieldsPanel from '../components/CustomFieldsPanel'
-
-const STATUS_COLOR: Record<string, string> = { in_progress: 'blue', completed: 'green', cancelled: 'red' }
 
 export default function StocktakeDetailPage() {
   const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
   const hook = useStocktakeDetail(id!)
+  const [cancelOpen, setCancelOpen] = useState(false)
+
+  // usePageHeader là hook — PHẢI gọi vô điều kiện trước early return bên dưới (xem CLAUDE.md
+  // mục 22). Trang này trước đây không có nút quay lại danh sách/breadcrumb nào cả — thêm
+  // luôn cho đồng bộ với các trang Detail khác.
+  usePageHeader(
+    <div className="flex items-center justify-between gap-4">
+      <div className="flex min-w-0 items-center gap-2">
+        <Button variant="ghost" size="icon-sm" onClick={() => navigate('/stocktakes')}>
+          <ArrowLeft className="h-4 w-4" />
+        </Button>
+        <h1 className="flex min-w-0 items-baseline gap-2 truncate text-sm font-semibold tracking-tight">
+          <button
+            onClick={() => navigate('/stocktakes')}
+            className="text-muted-foreground transition-colors hover:text-foreground"
+          >
+            Kiểm kê
+          </button>
+          <span className="text-muted-foreground">/</span>
+          <span className="truncate text-foreground">{hook.data?.code}</span>
+        </h1>
+        {hook.data?.status && <StatusBadge status={hook.data.status} />}
+      </div>
+
+      <div className="flex flex-shrink-0 items-center gap-2">
+        {hook.data?.status === 'in_progress' && (
+          <Button size="sm" variant="success" onClick={hook.submitComplete} disabled={hook.completeMutation.isPending}>
+            Complete
+          </Button>
+        )}
+        {hook.data?.status === 'in_progress' && (
+          <Button size="sm" variant="danger" onClick={() => setCancelOpen(true)}>Cancel</Button>
+        )}
+      </div>
+    </div>,
+  )
 
   if (hook.isLoading || !hook.data) return null
 
   return (
     <div>
-      <Typography.Title level={3}>
-        Stocktake {hook.data.code} <StatusTag status={hook.data.status} colorMap={STATUS_COLOR} />
-      </Typography.Title>
+      <AlertDialog open={cancelOpen} onOpenChange={setCancelOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Huỷ kiểm kê này?</AlertDialogTitle>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Đóng</AlertDialogCancel>
+            <AlertDialogAction
+              variant="danger"
+              onClick={() => { hook.cancelMutation.mutate(); setCancelOpen(false) }}
+            >
+              Huỷ kiểm kê
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <p>
         Kho: <strong>{hook.data.warehouse_name}</strong> — Phạm vi: <strong>{hook.data.scope_type}</strong>
       </p>
       {hook.data.note && <p>Ghi chú: {hook.data.note}</p>}
-
-      <Space style={{ marginBottom: 16 }}>
-        {hook.data.status === 'in_progress' && (
-          <Button type="primary" onClick={hook.submitComplete} loading={hook.completeMutation.isPending}>
-            Complete
-          </Button>
-        )}
-        {hook.data.status === 'in_progress' && (
-          <Popconfirm title="Huỷ kiểm kê này?" onConfirm={() => hook.cancelMutation.mutate()}>
-            <Button danger>Cancel</Button>
-          </Popconfirm>
-        )}
-      </Space>
 
       {hook.data.result && (
         <div style={{ marginBottom: 16, padding: 12, background: 'var(--s-completed-bg)', border: '1px solid var(--s-completed-color)' }}>

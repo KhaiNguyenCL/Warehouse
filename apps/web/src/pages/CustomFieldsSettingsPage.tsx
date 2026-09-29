@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { cn } from '@/lib/utils'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
+import { usePageHeader } from '@/layout/PageHeaderSlot'
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -152,10 +153,10 @@ function VariantAttributesTab() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex justify-end">
-        <Button size="sm" onClick={openCreate}><Plus className="h-4 w-4" />Thêm thuộc tính</Button>
+        <Button size="sm" onClick={openCreate}>Thêm thuộc tính</Button>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-border-md bg-background shadow-sm">
+      <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-md">
         <table className="w-full">
           <thead>
             <tr className="border-b border-border bg-muted/60">
@@ -185,12 +186,12 @@ function VariantAttributesTab() {
                 </td>
                 <td className="px-4 py-2.5">
                   <div className="flex items-center justify-end gap-1 opacity-0 transition-opacity group-hover/row:opacity-100">
-                    <button onClick={(e) => { e.stopPropagation(); openEdit(r) }} className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors">
+                    <Button variant="ghost" size="icon-sm" onClick={(e) => { e.stopPropagation(); openEdit(r) }} className="text-muted-foreground">
                       <Pencil className="h-3.5 w-3.5" />
-                    </button>
-                    <button onClick={(e) => { e.stopPropagation(); setDeleteTarget(r) }} className="rounded-md p-1.5 text-muted-foreground hover:bg-red-50 hover:text-red-600 transition-colors">
+                    </Button>
+                    <Button variant="ghost" size="icon-sm" onClick={(e) => { e.stopPropagation(); setDeleteTarget(r) }} className="text-muted-foreground hover:text-destructive">
                       <Trash2 className="h-3.5 w-3.5" />
-                    </button>
+                    </Button>
                   </div>
                 </td>
               </tr>
@@ -219,7 +220,7 @@ function VariantAttributesTab() {
               <div className="flex flex-col gap-4">
                 <FormField control={form.control} name="name" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Tên thuộc tính <span className="text-red-500">*</span></FormLabel>
+                    <FormLabel>Tên thuộc tính <span className="text-destructive">*</span></FormLabel>
                     <FormControl><Input placeholder="Ví dụ: Số port, RAM, Dung lượng" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
@@ -346,7 +347,7 @@ function VariantAttributesTab() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Huỷ</AlertDialogCancel>
-            <AlertDialogAction className="bg-red-600 hover:bg-red-700" onClick={() => { handleDelete(deleteTarget.id); setDeleteTarget(null) }}>Xoá</AlertDialogAction>
+            <AlertDialogAction variant="danger" onClick={() => { handleDelete(deleteTarget.id); setDeleteTarget(null) }}>Xoá</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -444,10 +445,10 @@ function CustomFieldsTab() {
           <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
           <SelectContent>{OBJECT_TYPES.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
         </Select>
-        <Button size="sm" onClick={openCreate}><Plus className="h-4 w-4" />Tạo field</Button>
+        <Button size="sm" onClick={openCreate}>Tạo field</Button>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-border-md bg-background shadow-sm">
+      <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-md">
         <table className="w-full">
           <thead>
             <tr className="border-b border-border bg-muted/60">
@@ -482,12 +483,12 @@ function CustomFieldsTab() {
                 </td>
                 <td className="px-4 py-2.5">
                   <div className="flex items-center justify-end gap-1 opacity-0 transition-opacity group-hover/row:opacity-100">
-                    <button onClick={(e) => { e.stopPropagation(); openEditField(r) }} className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors">
+                    <Button variant="ghost" size="icon-sm" onClick={(e) => { e.stopPropagation(); openEditField(r) }} className="text-muted-foreground">
                       <Pencil className="h-3.5 w-3.5" />
-                    </button>
-                    <button onClick={(e) => { e.stopPropagation(); setDeleteTarget(r) }} className="rounded-md p-1.5 text-muted-foreground hover:bg-red-50 hover:text-red-600 transition-colors">
+                    </Button>
+                    <Button variant="ghost" size="icon-sm" onClick={(e) => { e.stopPropagation(); setDeleteTarget(r) }} className="text-muted-foreground hover:text-destructive">
                       <Trash2 className="h-3.5 w-3.5" />
-                    </button>
+                    </Button>
                   </div>
                 </td>
               </tr>
@@ -518,7 +519,7 @@ function CustomFieldsTab() {
                   <>
                     <FormField control={form.control} name="field_name" render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Tên trường (machine key) <span className="text-red-500">*</span></FormLabel>
+                        <FormLabel>Tên trường (machine key) <span className="text-destructive">*</span></FormLabel>
                         <FormControl><Input placeholder="vd: warranty_note" {...field} /></FormControl>
                         <p className="text-xs text-muted-foreground">snake_case — không sửa được sau khi tạo</p>
                         <FormMessage />
@@ -526,7 +527,7 @@ function CustomFieldsTab() {
                     )} />
                     <FormField control={form.control} name="field_type" render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Loại trường <span className="text-red-500">*</span></FormLabel>
+                        <FormLabel>Loại trường <span className="text-destructive">*</span></FormLabel>
                         <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
                           <SelectContent>{FIELD_TYPES.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
@@ -540,7 +541,7 @@ function CustomFieldsTab() {
 
                 <FormField control={form.control} name="field_label" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Tên hiển thị <span className="text-red-500">*</span></FormLabel>
+                    <FormLabel>Tên hiển thị <span className="text-destructive">*</span></FormLabel>
                     <FormControl><Input placeholder="vd: Ghi chú bảo hành" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
@@ -548,7 +549,7 @@ function CustomFieldsTab() {
 
                 {(editing ? editing.field_type : fieldType) === 'select' && (
                   <div className="flex flex-col gap-2">
-                    <label className="text-sm font-medium">Options <span className="text-red-500">*</span></label>
+                    <label className="text-sm font-medium">Options <span className="text-destructive">*</span></label>
                     <div className="flex flex-wrap gap-1.5">
                       {optionList.map((o) => (
                         <span key={o} className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-foreground">
@@ -616,7 +617,7 @@ function CustomFieldsTab() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Huỷ</AlertDialogCancel>
-            <AlertDialogAction className="bg-red-600 hover:bg-red-700" onClick={() => { deleteMutation.mutate(deleteTarget.id); setDeleteTarget(null) }}>Xoá</AlertDialogAction>
+            <AlertDialogAction variant="danger" onClick={() => { deleteMutation.mutate(deleteTarget.id); setDeleteTarget(null) }}>Xoá</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -627,12 +628,15 @@ function CustomFieldsTab() {
 // ── Page ─────────────────────────────────────────────────────────────────────
 
 export default function CustomFieldsSettingsPage() {
+  usePageHeader(
+    <h1 className="flex items-baseline gap-2 truncate text-sm font-semibold tracking-tight">
+      Trường tùy chỉnh
+      <span className="text-xs font-normal text-muted-foreground">Quản lý thuộc tính SKU và các trường bổ sung cho phiếu/đơn</span>
+    </h1>,
+  )
+
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="font-serif text-2xl font-semibold tracking-tight">Trường tùy chỉnh</h1>
-        <p className="mt-0.5 text-sm text-muted-foreground">Quản lý thuộc tính SKU và các trường bổ sung cho phiếu/đơn</p>
-      </div>
       <Tabs defaultValue="attr">
         <TabsList>
           <TabsTrigger value="attr">Thuộc tính SKU</TabsTrigger>

@@ -64,7 +64,18 @@ export class TransferService {
       if (from_warehouse_id === data.to_warehouse_id) {
         throw { statusCode: 400, message: 'Kho nguồn và kho đích không được trùng nhau' }
       }
-      return this.repo.create({ ...data, from_warehouse_id }, userId, trx)
+
+      // Với 4 transfer_type có kho ảo nguồn cố định (warranty_in/demo_in/qc_pass/
+      // sn_ready), ép TẤT CẢ dòng dùng đúng from_warehouse_id đã resolve — không tin
+      // client gửi lines[].from_warehouse_id, tránh giả mạo bypass kho ảo (VD gửi thẳng
+      // kho vật lý thật cho demo_in để né rule "hàng demo phải qua kho ảo Demo" ở mục 11).
+      // Type "transfer" thường vẫn cho phép per-line from_warehouse_id khác nhau (client
+      // chọn kho nguồn riêng từng dòng, fallback về header nếu bỏ trống) — đây là tính
+      // năng hợp lệ, không phải lỗ hổng, xem TransferOrderCreatePage.tsx.
+      const isVirtualSource = Boolean(VIRTUAL_SOURCE_WAREHOUSE_CODE[data.transfer_type])
+      const lines = isVirtualSource ? data.lines.map((l) => ({ ...l, from_warehouse_id })) : data.lines
+
+      return this.repo.create({ ...data, from_warehouse_id, lines }, userId, trx)
     })
     const actorName = await resolveActorName(this.db, userId)
     await logActivity({ db: this.db, objectType: 'transfer_order', objectId: transfer.id, objectCode: transfer.code, action: 'created', actorId: userId, actorName })
@@ -127,7 +138,7 @@ export class TransferService {
       }
     }
 
-    return this.db.transaction(async (trx) => {
+    await this.db.transaction(async (trx) => {
       // Guard THẬT chống race condition — xem giải thích chi tiết ở receipt.service.ts.
       const completed = await this.repo.updateStatus(
         id, 'draft', 'completed', { completed_at: trx.fn.now() }, trx,

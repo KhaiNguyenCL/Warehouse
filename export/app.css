@@ -1,0 +1,288 @@
+@import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap');
+/* ═══════════════════════════════════════════════════════════════
+   DNS Kho — app.css (bản gộp, nguồn duy nhất)
+   Nạp SAU broadsheet.css. Mọi trang chỉ dùng class .kv-* bên dưới,
+   không viết size/màu inline trong HTML.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── 1. Tokens ──────────────────────────────────────────────── */
+:root {
+  /* font */
+  --font-heading: 'Be Vietnam Pro', system-ui, sans-serif;
+  --font-body: 'Be Vietnam Pro', system-ui, sans-serif;
+
+  /* màu nền + chữ */
+  --color-bg: #ffffff;
+  --color-surface: #ffffff;
+  --color-text: #111111;
+  --kv-text-2: #333333;      /* header bảng, label */
+  --kv-text-3: #4a4a4a;      /* subtext, nav, hint */
+  --kv-text-4: #5c5c5c;      /* icon phụ */
+  --kv-border: var(--color-neutral-400);
+  --kv-border-hover: var(--color-neutral-600);
+  --kv-rule: var(--color-neutral-200);       /* kẻ dòng */
+  --kv-rule-strong: var(--color-neutral-400);/* kẻ dưới header / tab */
+  --kv-row-hover: var(--color-accent-100);
+  --kv-fill-subtle: var(--color-neutral-100);
+
+  /* DENSITY — đổi 1 chỗ, mọi trang đổi theo */
+  --kv-page-w: 1440px;
+  --kv-gutter: 24px;          /* lề trái/phải trang */
+  --kv-ctrl-h: 36px;          /* input, select, button, segmented */
+  --kv-ctrl-h-sm: 32px;       /* control trong bảng, pager, nav search */
+  --kv-ctrl-px: 12px;
+  --kv-gap-xs: 4px;
+  --kv-gap-sm: 8px;           /* giữa các control trong 1 hàng */
+  --kv-gap-md: 12px;          /* giữa field trong form */
+  --kv-gap-lg: 16px;          /* khối con */
+  --kv-gap-xl: 24px;          /* giữa các vùng: head → tabs → toolbar → bảng */
+  --kv-gap-2xl: 32px;         /* giữa các section lớn */
+  --kv-cell-py: 10px;         /* dòng bảng ≈ 44px (1 dòng) / 56px (2 dòng) */
+  --kv-cell-px: 10px;
+  --kv-nav-h: 56px;
+
+  /* type scale — chỉ dùng các size này */
+  --kv-fs-xs: 12px;   /* subtext, label, header bảng, count */
+  --kv-fs-sm: 13px;   /* pager, hint, control nhỏ */
+  --kv-fs-md: 14px;   /* body, ô bảng, control */
+  --kv-fs-lg: 18px;   /* tiêu đề section */
+  --kv-fs-xl: 28px;   /* tiêu đề trang */
+  --kv-icon: 18px;
+}
+
+/* ── 2. Base ────────────────────────────────────────────────── */
+body { margin: 0; background: var(--color-bg); color: var(--color-text); font-family: var(--font-body); -webkit-font-smoothing: antialiased; }
+input, select, button, textarea { font-family: var(--font-body); }
+a { color: var(--color-accent-800); text-decoration: none; }
+a:hover { color: var(--color-accent-600); text-decoration: underline; }
+:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+.ph-duotone { font-size: var(--kv-icon); line-height: 1; }
+
+.screens { display: flex; flex-direction: column; font-family: var(--font-body); color: var(--color-text); }
+.kv-sheet { width: var(--kv-page-w); min-width: var(--kv-page-w); background: var(--color-bg); }
+
+/* ── 3. Nav ─────────────────────────────────────────────────── */
+.kv-nav { display: flex; align-items: center; justify-content: space-between; height: var(--kv-nav-h); padding: 0 var(--kv-gutter); border-bottom: 1px solid var(--kv-rule-strong); }
+.kv-nav-left { display: flex; align-items: center; gap: var(--kv-gap-xl); }
+.kv-brand { font-weight: 700; font-size: 16px; letter-spacing: 0.08em; text-transform: uppercase; }
+.kv-nav-links { display: flex; gap: var(--kv-gap-lg); font-size: var(--kv-fs-md); }
+.kv-nav-links a { color: var(--kv-text-3); white-space: nowrap; }
+.kv-nav-links a:hover { color: var(--color-text); text-decoration: none; }
+.kv-nav-links a[aria-current="page"] { color: var(--color-text); font-weight: 600; box-shadow: inset 0 -2px 0 var(--color-accent); }
+.kv-nav-more { display: inline-flex; align-items: center; gap: var(--kv-gap-xs); }
+.kv-nav-more .ph-duotone { font-size: 14px; }
+.kv-nav-right { display: flex; align-items: center; gap: var(--kv-gap-md); font-size: var(--kv-fs-sm); color: var(--kv-text-3); }
+.kv-nav-search { position: relative; width: 240px; }
+.kv-nav-search .kv-input { height: var(--kv-ctrl-h-sm); font-size: var(--kv-fs-sm); padding-left: 32px; }
+.kv-avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--color-neutral-200); display: inline-flex; align-items: center; justify-content: center; font-size: var(--kv-fs-xs); color: var(--color-text); }
+.kv-icon-btn { display: inline-flex; align-items: center; justify-content: center; width: var(--kv-ctrl-h-sm); height: var(--kv-ctrl-h-sm); color: var(--kv-text-2); background: transparent; border: none; border-radius: var(--radius-md); cursor: pointer; }
+.kv-icon-btn:hover { background: var(--kv-fill-subtle); }
+
+/* ── 4. Page head ───────────────────────────────────────────── */
+.kv-head { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--kv-gap-lg); padding: var(--kv-gap-xl) var(--kv-gutter) 0; }
+.kv-head--divided { align-items: center; padding-bottom: var(--kv-gap-lg); border-bottom: 1px solid var(--kv-rule-strong); }
+.kv-crumb { font-size: var(--kv-fs-sm); color: var(--kv-text-3); margin-bottom: var(--kv-gap-xs); }
+.kv-title, .kv-title--sm { margin: 0; font-weight: 700; font-size: var(--kv-fs-xl); letter-spacing: -0.02em; line-height: 1.2; color: var(--color-text); }
+.kv-sub { margin: var(--kv-gap-xs) 0 0; font-size: var(--kv-fs-md); color: var(--kv-text-3); }
+.kv-actions { display: flex; align-items: center; gap: var(--kv-gap-sm); }
+.kv-spacer { flex: 1; }
+
+/* facts strip */
+.kv-facts { display: flex; gap: var(--kv-gap-2xl); padding: var(--kv-gap-lg) var(--kv-gutter) 0; }
+.kv-fact-label { font-size: var(--kv-fs-xs); color: var(--kv-text-3); }
+.kv-fact-value { margin-top: 2px; font-size: var(--kv-fs-md); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* section head */
+.kv-section-head { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--kv-gap-lg); padding: var(--kv-gap-2xl) var(--kv-gutter) 0; }
+.kv-section-title { margin: 0; font-weight: 600; font-size: var(--kv-fs-lg); }
+.kv-eyebrow { font-size: var(--kv-fs-xs); font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; color: var(--kv-text-2); }
+
+/* ── 5. Tabs (một kiểu duy nhất) ───────────────────────────── */
+.kv-tabs { display: flex; gap: var(--kv-gap-xl); padding: var(--kv-gap-xl) var(--kv-gutter) 0; font-size: var(--kv-fs-md); border-bottom: 1px solid var(--kv-rule-strong); }
+.kv-tab { display: inline-flex; align-items: center; gap: 6px; padding-bottom: 10px; color: var(--kv-text-3); white-space: nowrap; }
+.kv-tab:hover { color: var(--color-text); text-decoration: none; }
+.kv-tab[aria-current="page"] { color: var(--color-text); font-weight: 600; box-shadow: inset 0 -2px 0 var(--color-accent); }
+.kv-tab-count { font-size: var(--kv-fs-xs); font-weight: 400; color: var(--kv-text-3); font-variant-numeric: tabular-nums; }
+
+/* ── 6. Buttons ─────────────────────────────────────────────── */
+.kv-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: var(--kv-ctrl-h); padding: 0 var(--kv-ctrl-px); font-weight: 600; font-size: var(--kv-fs-md); line-height: 1; white-space: nowrap; flex-shrink: 0; color: var(--color-text); background: transparent; border: 1px solid var(--kv-border); border-radius: var(--radius-md); cursor: pointer; }
+.kv-btn:hover { background: var(--kv-fill-subtle); }
+.kv-btn--primary { background: var(--color-accent); color: #ffffff; border-color: transparent; }
+.kv-btn--primary:hover { background: var(--color-accent-600); }
+.kv-btn--ghost { color: var(--color-accent-800); border-color: transparent; }
+.kv-btn--ghost:hover { background: var(--color-accent-100); }
+.kv-btn--danger { color: var(--color-accent-2-700); }
+.kv-btn--danger:hover { background: var(--color-accent-2-100); }
+.kv-btn--sm { height: var(--kv-ctrl-h-sm); font-size: var(--kv-fs-sm); }
+
+/* ── 7. Fields ──────────────────────────────────────────────── */
+.kv-input, .kv-select { width: 100%; height: var(--kv-ctrl-h); padding: 0 10px; font-size: var(--kv-fs-md); color: var(--color-text); background: #ffffff; border: 1px solid var(--kv-border); border-radius: var(--radius-md); box-sizing: border-box; }
+.kv-input:hover, .kv-select:hover { border-color: var(--kv-border-hover); }
+.kv-input[disabled] { background: var(--kv-fill-subtle); color: var(--kv-text-3); }
+.kv-input--num { text-align: right; font-variant-numeric: tabular-nums; }
+.kv-select--auto { width: auto; flex-shrink: 0; }
+.kv-select--sm, .kv-input--sm { height: var(--kv-ctrl-h-sm); font-size: var(--kv-fs-sm); }
+.kv-field label { display: block; margin-bottom: 6px; font-size: var(--kv-fs-xs); font-weight: 500; color: var(--kv-text-2); }
+.kv-hint { margin-top: 6px; font-size: var(--kv-fs-xs); color: var(--kv-text-3); }
+.kv-req { color: var(--color-accent-2-700); }
+.kv-stack { display: flex; flex-direction: column; gap: var(--kv-gap-md); }
+.kv-2col { display: grid; grid-template-columns: 1fr 1fr; gap: var(--kv-gap-md); }
+
+/* form nhóm-nhãn-bên-trái */
+.kv-form { padding: var(--kv-gap-xl) var(--kv-gutter) var(--kv-gap-2xl); }
+.kv-form-grid { display: grid; grid-template-columns: 170px minmax(0, 1fr); gap: var(--kv-gap-xl) var(--kv-gap-xl); align-items: start; }
+.kv-group-label { font-weight: 600; font-size: 15px; padding-top: 22px; }
+.kv-group-body { max-width: 520px; }
+
+/* ── 8. Toolbar + search + segmented ───────────────────────── */
+.kv-toolbar { display: flex; align-items: center; gap: var(--kv-gap-sm); padding: var(--kv-gap-lg) var(--kv-gutter); }
+.kv-search { position: relative; width: 320px; flex-shrink: 0; }
+.kv-search .ph-duotone, .kv-nav-search .ph-duotone { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); font-size: 16px; color: var(--kv-text-4); }
+.kv-search .kv-input { padding-left: 34px; }
+.kv-seg { display: inline-flex; flex-shrink: 0; border: 1px solid var(--kv-border); border-radius: var(--radius-md); overflow: hidden; }
+.kv-seg a { display: inline-flex; align-items: center; gap: 6px; height: calc(var(--kv-ctrl-h) - 2px); padding: 0 var(--kv-ctrl-px); font-size: var(--kv-fs-md); color: var(--kv-text-2); white-space: nowrap; }
+.kv-seg a + a { border-left: 1px solid var(--kv-border); }
+.kv-seg a:hover { background: var(--kv-fill-subtle); text-decoration: none; }
+.kv-seg a[aria-current="true"] { background: var(--color-accent); color: #ffffff; font-weight: 600; }
+.kv-seg a[aria-current="true"] .kv-tab-count { color: #ffffff; }
+
+/* bulk bar — luôn nằm giữa toolbar và bảng */
+.kv-bulk { display: flex; align-items: center; gap: var(--kv-gap-lg); margin: 0 var(--kv-gutter) var(--kv-gap-sm); height: var(--kv-ctrl-h); padding: 0 var(--kv-ctrl-px); background: var(--color-accent-100); border-radius: var(--radius-md); font-size: var(--kv-fs-md); }
+.kv-bulk a { font-weight: 500; }
+.kv-bulk-sep { width: 1px; height: 18px; background: var(--kv-border); }
+.kv-bulk-clear { color: var(--kv-text-3) !important; }
+
+/* ── 9. Table ───────────────────────────────────────────────── */
+.kv-table-wrap { padding: 0 var(--kv-gutter) var(--kv-gap-xl); }
+.kv-table { width: 100%; border-collapse: collapse; font-size: var(--kv-fs-md); }
+.kv-table th { text-align: left; font-size: var(--kv-fs-xs); font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--kv-text-2); padding: var(--kv-cell-py) var(--kv-cell-px); border-bottom: 1px solid var(--kv-rule-strong); white-space: nowrap; }
+.kv-table td { padding: var(--kv-cell-py) var(--kv-cell-px); border-bottom: 1px solid var(--kv-rule); vertical-align: middle; color: var(--color-text); }
+.kv-table tbody tr:hover { background: var(--kv-row-hover); }
+.kv-table input[type="checkbox"] { accent-color: var(--color-accent); margin: 0; width: 16px; height: 16px; }
+.kv-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+.kv-col-check { width: 36px; }
+.kv-col-action { width: 36px; }
+.mono { font-variant-numeric: tabular-nums; letter-spacing: 0.01em; }
+.kv-row-link { cursor: pointer; }
+.kv-row--alert td:first-child { box-shadow: inset 2px 0 0 var(--color-accent-2); }
+.kv-cell-title { font-weight: 600; }
+.kv-cell-sub { margin-top: 2px; font-size: var(--kv-fs-xs); color: var(--kv-text-3); }
+.kv-muted { color: var(--kv-text-3); }
+.kv-strong { font-weight: 600; }
+.kv-caret { color: var(--kv-text-4); }
+.kv-add-link { font-size: var(--kv-fs-xs); }
+.kv-newrow td { background: var(--kv-fill-subtle); }
+.kv-newrow .kv-input, .kv-newrow .kv-select { height: var(--kv-ctrl-h-sm); font-size: var(--kv-fs-sm); }
+.kv-newrow-note td { background: transparent; border-bottom: none; font-size: var(--kv-fs-sm); color: var(--kv-text-3); }
+
+/* pager */
+.kv-pager { display: flex; align-items: center; justify-content: space-between; margin-top: var(--kv-gap-lg); font-size: var(--kv-fs-sm); color: var(--kv-text-3); }
+.kv-pages { display: flex; gap: var(--kv-gap-xs); }
+.kv-page { display: inline-flex; align-items: center; justify-content: center; width: var(--kv-ctrl-h-sm); height: var(--kv-ctrl-h-sm); border: 1px solid var(--kv-border); border-radius: var(--radius-md); color: var(--color-text); }
+.kv-page:hover { background: var(--kv-fill-subtle); text-decoration: none; }
+.kv-page[aria-current="page"] { background: var(--color-accent); border-color: var(--color-accent); color: #ffffff; }
+
+/* ── 10. Tags — chữ nhật bo 1.5px, 1 accent / tag ─────────── */
+.kv-tag { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; font-size: var(--kv-fs-xs); font-weight: 500; border-radius: 1.5px; white-space: nowrap; border: 1px solid transparent; box-sizing: border-box; }
+/* trạng thái tồn: chỉ tô màu ngoại lệ */
+.kv-tag--ok { color: var(--kv-text-3); padding-left: 0; }
+.kv-tag--low { background: var(--color-accent-2-100); color: var(--color-accent-2-800); }
+.kv-tag--out { background: var(--color-accent-2-600); color: #ffffff; }
+.kv-tag--exp { color: var(--color-accent-2-700); border-color: var(--color-accent-2-500); }
+/* loại sản phẩm */
+.kv-tag--device { background: var(--color-accent-100); color: var(--color-accent-800); }
+.kv-tag--supply { background: var(--color-neutral-200); color: var(--kv-text-2); }
+.kv-tag--service { color: var(--color-accent-800); border-color: var(--color-accent-500); }
+.kv-tag--bundle { background: var(--color-accent-2-100); color: var(--color-accent-2-800); }
+/* vòng đời serial */
+.kv-tag--instock { background: var(--color-accent-100); color: var(--color-accent-800); }
+.kv-tag--sold { background: var(--color-neutral-200); color: var(--kv-text-2); }
+.kv-tag--rma { color: var(--color-accent-2-700); border-color: var(--color-accent-2-500); }
+
+/* ── 11. Phiếu nhập / xuất (form + dòng hàng) ─────────────── */
+.kv-3col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--kv-gap-md); }
+.kv-textarea { width: 100%; min-height: 72px; padding: 8px 10px; font-size: var(--kv-fs-md); color: var(--color-text); background: #ffffff; border: 1px solid var(--kv-border); border-radius: var(--radius-md); box-sizing: border-box; resize: vertical; font-family: var(--font-body); }
+.kv-textarea:hover { border-color: var(--kv-border-hover); }
+.kv-input::placeholder, .kv-textarea::placeholder { color: var(--kv-text-4); }
+
+.kv-lines .kv-input, .kv-lines .kv-select { height: var(--kv-ctrl-h-sm); font-size: var(--kv-fs-md); }
+.kv-lines td { padding-top: 8px; padding-bottom: 8px; }
+.kv-line-no { color: var(--kv-text-3); font-variant-numeric: tabular-nums; }
+.kv-row-del { opacity: 0; }
+.kv-lines tbody tr:hover .kv-row-del, .kv-row-del:focus-visible { opacity: 1; }
+.kv-row-del:hover { color: var(--color-accent-2-700); background: var(--color-accent-2-100); }
+.kv-serial-btn { display: inline-flex; align-items: center; gap: 6px; height: var(--kv-ctrl-h-sm); padding: 0 10px; font-size: var(--kv-fs-sm); font-weight: 500; white-space: nowrap; color: var(--color-accent-800); background: transparent; border: 1px solid var(--color-accent-500); border-radius: var(--radius-md); cursor: pointer; font-family: var(--font-body); }
+.kv-serial-btn:hover { background: var(--color-accent-100); }
+.kv-serial-btn--missing { color: var(--color-accent-2-700); border-color: var(--color-accent-2-500); }
+.kv-serial-btn--missing:hover { background: var(--color-accent-2-100); }
+.kv-serial-btn--done { color: var(--kv-text-2); border-color: var(--kv-border); }
+.kv-na { color: var(--kv-text-3); font-size: var(--kv-fs-sm); }
+
+.kv-addline td { border-bottom: none; padding-top: var(--kv-gap-md); }
+.kv-addline .kv-search { width: 480px; }
+.kv-kbd { display: inline-flex; align-items: center; height: 20px; padding: 0 6px; font-size: 11px; color: var(--kv-text-3); border: 1px solid var(--kv-border); border-radius: var(--radius-md); }
+.kv-total td { border-top: 1px solid var(--kv-rule-strong); border-bottom: none; font-weight: 600; padding-top: 12px; }
+
+/* thanh hành động dính đáy */
+.kv-footer-bar { position: sticky; bottom: 0; display: flex; align-items: center; gap: var(--kv-gap-2xl); height: 64px; padding: 0 var(--kv-gutter); background: #ffffff; border-top: 1px solid var(--kv-rule-strong); }
+.kv-footer-stat .kv-fact-label { font-size: var(--kv-fs-xs); }
+.kv-footer-warn { display: inline-flex; align-items: center; gap: 6px; font-size: var(--kv-fs-sm); color: var(--color-accent-2-700); }
+.kv-btn[disabled] { opacity: 0.45; cursor: not-allowed; }
+
+/* panel serial (drawer) */
+.kv-drawer-demo { display: grid; grid-template-columns: minmax(0, 1fr) 480px; min-height: 560px; }
+.kv-drawer-scrim { background: color-mix(in srgb, var(--color-text) 30%, transparent); }
+.kv-drawer { background: #ffffff; border-left: 1px solid var(--kv-rule-strong); display: flex; flex-direction: column; }
+.kv-drawer-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--kv-gap-lg); padding: var(--kv-gap-xl) var(--kv-gutter) var(--kv-gap-lg); border-bottom: 1px solid var(--kv-rule-strong); }
+.kv-drawer-body { flex: 1; padding: var(--kv-gap-lg) var(--kv-gutter); display: flex; flex-direction: column; gap: var(--kv-gap-lg); }
+.kv-drawer-foot { display: flex; justify-content: flex-end; gap: var(--kv-gap-sm); padding: var(--kv-gap-lg) var(--kv-gutter); border-top: 1px solid var(--kv-rule-strong); }
+.kv-progress { height: 4px; background: var(--color-neutral-200); border-radius: 2px; overflow: hidden; }
+.kv-progress > span { display: block; height: 100%; background: var(--color-accent); }
+.kv-serial-list { list-style: none; margin: 0; padding: 0; font-size: var(--kv-fs-md); }
+.kv-serial-list li { display: flex; align-items: center; justify-content: space-between; height: 36px; border-bottom: 1px solid var(--kv-rule); font-variant-numeric: tabular-nums; }
+.kv-serial-list .kv-dup { color: var(--color-accent-2-700); font-size: var(--kv-fs-xs); }
+
+/* ── 12. Phiếu mua hàng — deal từ Bitrix ──────────────────── */
+.kv-fetch { display: flex; align-items: flex-end; gap: var(--kv-gap-sm); }
+.kv-fetch .kv-field { width: 240px; }
+.kv-fetch-status { display: inline-flex; align-items: center; gap: 6px; height: var(--kv-ctrl-h); font-size: var(--kv-fs-sm); color: var(--color-accent-800); }
+.kv-deal { margin-top: var(--kv-gap-lg); padding-top: var(--kv-gap-lg); border-top: 1px solid var(--kv-rule); }
+.kv-deal-title { display: flex; align-items: baseline; gap: var(--kv-gap-md); flex-wrap: wrap; font-size: var(--kv-fs-lg); font-weight: 600; line-height: 1.35; }
+.kv-deal-title a { font-size: var(--kv-fs-sm); font-weight: 500; white-space: nowrap; }
+.kv-dl { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--kv-gap-lg) var(--kv-gap-xl); margin: var(--kv-gap-lg) 0 0; }
+.kv-dl dt { font-size: var(--kv-fs-xs); color: var(--kv-text-3); }
+.kv-dl dd { margin: 2px 0 0; font-size: var(--kv-fs-md); font-weight: 500; color: var(--color-text); }
+.kv-dl .kv-span-2 { grid-column: span 2; }
+.kv-dl .kv-span-3 { grid-column: 1 / -1; }
+.kv-empty { color: var(--kv-text-3); font-weight: 400; font-style: italic; }
+.kv-lock { display: inline-flex; align-items: center; gap: 4px; font-size: var(--kv-fs-xs); color: var(--kv-text-3); }
+.kv-lines .kv-select { padding-right: 6px; }
+.kv-note-btn { color: var(--kv-text-4); }
+.kv-note-btn--has { color: var(--color-accent-800); }
+.kv-total--sub td { border-top: 1px solid var(--kv-rule-strong); font-weight: 400; color: var(--kv-text-2); padding-top: 12px; padding-bottom: 4px; }
+.kv-total--sub + .kv-total--sub td { border-top: none; padding-top: 4px; }
+.kv-total--grand td { border-bottom: none; font-weight: 700; font-size: 15px; padding-top: 8px; }
+
+/* ── 13. Master–detail (Kho hàng) ─────────────────────────── */
+.kv-md { display: grid; grid-template-columns: 340px minmax(0, 1fr); min-height: 640px; margin-top: var(--kv-gap-xl); border-top: 1px solid var(--kv-rule-strong); }
+.kv-md-list { border-right: 1px solid var(--kv-rule-strong); display: flex; flex-direction: column; }
+.kv-md-tools { display: flex; flex-direction: column; gap: var(--kv-gap-sm); padding: var(--kv-gap-lg) var(--kv-gutter) var(--kv-gap-md); }
+.kv-md-tools .kv-search { width: 100%; }
+.kv-seg--sm a { height: calc(var(--kv-ctrl-h-sm) - 2px); font-size: var(--kv-fs-sm); padding: 0 10px; }
+.kv-md-items { list-style: none; margin: 0; padding: 0; flex: 1; }
+.kv-md-item { display: flex; align-items: center; justify-content: space-between; gap: var(--kv-gap-sm); padding: 10px var(--kv-gutter); border-bottom: 1px solid var(--kv-rule); color: var(--color-text); cursor: pointer; }
+.kv-md-item:hover { background: var(--kv-row-hover); text-decoration: none; color: var(--color-text); }
+.kv-md-item[aria-current="true"] { background: var(--color-accent-100); box-shadow: inset 3px 0 0 var(--color-accent); }
+.kv-md-item .kv-tags { display: flex; gap: var(--kv-gap-xs); }
+.kv-md-foot { padding: var(--kv-gap-md) var(--kv-gutter); font-size: var(--kv-fs-sm); color: var(--kv-text-3); border-top: 1px solid var(--kv-rule); }
+.kv-md-detail { padding: var(--kv-gap-lg) var(--kv-gutter) var(--kv-gap-2xl) var(--kv-gap-2xl); }
+.kv-md-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--kv-gap-lg); }
+.kv-md-title { display: flex; align-items: center; gap: var(--kv-gap-sm); margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -0.01em; }
+.kv-md-block { margin-top: var(--kv-gap-2xl); }
+.kv-md-block .kv-dl { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.kv-md-block-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--kv-gap-lg); padding-bottom: var(--kv-gap-sm); border-bottom: 1px solid var(--kv-rule-strong); }
+.kv-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; }
+.kv-dot--on { background: var(--color-accent); }
+.kv-dot--off { background: var(--color-neutral-400); }
+.kv-tag--default { background: var(--color-accent-100); color: var(--color-accent-800); }
+.kv-tag--virtual { color: var(--kv-text-2); border-color: var(--kv-border); }

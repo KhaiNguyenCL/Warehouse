@@ -41,9 +41,10 @@ export class DeliveryService {
       await this.validateAdjustmentRefDocument(data)
     }
 
-    await this.validateQuotationLines(data)
-
-    const delivery = await this.db.transaction((trx) => this.repo.create(data, userId, trx))
+    const delivery = await this.db.transaction(async (trx) => {
+      await this.validateQuotationLines(data, trx)
+      return this.repo.create(data, userId, trx)
+    })
     const actorName = await resolveActorName(this.db, userId)
     await logActivity({ db: this.db, objectType: 'delivery_order', objectId: delivery.id, objectCode: delivery.code, action: 'created', actorId: userId, actorName })
     return delivery
@@ -84,7 +85,12 @@ export class DeliveryService {
   // không vượt remaining_qty còn lại của dòng báo giá đó (CLAUDE.md mục 6: remaining_qty=0
   // → khoá, không tạo thêm DO). Query trực tiếp DB thay vì import QuotationRepository để
   // 2 module không phụ thuộc lẫn nhau (giống cách cancel() check role_permissions trực tiếp).
-  private async validateQuotationLines(data: CreateDeliveryBody) {
+  // PHẢI chạy TRONG transaction của create() với forUpdate() lock đúng dòng quotations/
+  // quotation_line_items — nếu check ngoài transaction (như code cũ), 2 request tạo DO
+  // cùng lúc từ CÙNG 1 dòng báo giá có thể cùng đọc remaining_qty cũ, cùng pass validate,
+  // rồi cùng insert → tổng xuất vượt remaining_qty (race y hệt bug PO/Receipt, xem
+  // receipt.service.ts::validatePurchaseOrder()).
+  private async validateQuotationLines(data: CreateDeliveryBody, trx: Knex.Transaction) {
     const linkedLines = data.lines.filter((l) => l.quotation_line_item_id)
     if (linkedLines.length === 0) return
 
@@ -92,16 +98,17 @@ export class DeliveryService {
       throw { statusCode: 400, message: 'Dòng hàng tham chiếu báo giá nhưng phiếu không có quotation_id' }
     }
 
-    const quotation = await this.db('quotations').where({ id: data.quotation_id }).first()
+    const quotation = await trx('quotations').where({ id: data.quotation_id }).forUpdate().first()
     if (!quotation) throw { statusCode: 400, message: 'Quotation không tồn tại' }
     if (quotation.status !== 'confirmed') {
       throw { statusCode: 400, message: 'Chỉ có thể xuất hàng theo báo giá đã Confirmed' }
     }
 
     const lineItemIds = [...new Set(linkedLines.map((l) => l.quotation_line_item_id as string))]
-    const quotationLines = await this.db('quotation_line_items')
+    const quotationLines = await trx('quotation_line_items')
       .whereIn('id', lineItemIds)
       .andWhere('quotation_id', data.quotation_id)
+      .forUpdate()
       .select('id', 'quantity')
 
     const quotationLineById = new Map(quotationLines.map((l) => [l.id, l]))
@@ -115,7 +122,7 @@ export class DeliveryService {
     // Bundle lines: nhiều component lines của cùng 1 bundle trong cùng 1 DO → chỉ đếm 1 lần
     // theo bundle_unit_qty. Dùng COALESCE(bundle_id||':'||delivery_order_id, id) làm grouping
     // key để: non-bundle → mỗi line riêng; bundle → mỗi (bundle, DO) riêng.
-    const committedRaw = await this.db.raw<{ rows: Array<{ quotation_line_item_id: string; committed_qty: number }> }>(
+    const committedRaw = await trx.raw<{ rows: Array<{ quotation_line_item_id: string; committed_qty: number }> }>(
       `SELECT sub.quotation_line_item_id, SUM(sub.effective_qty)::int AS committed_qty
        FROM (
          SELECT
@@ -235,7 +242,7 @@ export class DeliveryService {
       }
     }
 
-    return this.db.transaction(async (trx) => {
+    await this.db.transaction(async (trx) => {
       // Guard THẬT chống race condition — xem giải thích chi tiết ở receipt.service.ts.
       const completed = await this.repo.updateStatus(
         id, 'draft', 'completed', { completed_at: trx.fn.now() }, trx,

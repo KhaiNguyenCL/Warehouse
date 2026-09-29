@@ -1,5 +1,5 @@
-// Quản lý thành viên của 1 Group — render bên trong Sheet sửa Group (GroupsPage), chỉ khi
-// đang edit. Add/remove gọi thẳng POST/DELETE /settings/groups/:id/members, không qua form
+// Quản lý thành viên của 1 Group — render trong SectionCard "Thành viên" ở panel chi tiết
+// GroupsPage. Add/remove gọi thẳng POST/DELETE /settings/groups/:id/members, không qua form
 // chính (giống RolePermissionsPanel: sub-panel có mutation riêng).
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
@@ -49,8 +49,8 @@ export default function GroupMembersPanel({ groupId }: Props) {
   if (isLoading) return null
 
   return (
-    <div className="mt-4 border-t border-border pt-4">
-      <p className="mb-3 text-sm font-semibold text-foreground">Thành viên ({members.length})</p>
+    <div>
+      <p className="mb-3 text-xs font-medium text-muted-foreground">{members.length} thành viên</p>
 
       {members.length > 0 ? (
         <div className="mb-3 flex flex-col divide-y divide-border overflow-hidden rounded-lg border border-border-md">
@@ -77,7 +77,7 @@ export default function GroupMembersPanel({ groupId }: Props) {
       <div className="flex items-center gap-2">
         <Select value={selectedUserId} onValueChange={setSelectedUserId}>
           <SelectTrigger className="flex-1"><SelectValue placeholder="Chọn user để thêm…" /></SelectTrigger>
-          <SelectContent>
+          <SelectContent className="theme-2a">
             {candidates.map((u: any) => (
               <SelectItem key={u.id} value={u.id}>{u.full_name} ({u.email})</SelectItem>
             ))}

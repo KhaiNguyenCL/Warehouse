@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Router doanh nghiệp EdgeRouter X — Sản phẩm</title>
+<link rel="stylesheet" href="broadsheet.css">
+<link rel="stylesheet" href="app.css">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/duotone/style.css">
+</head>
+<body>
+<main class="screens">
+    <div class="kv-sheet">
+      <div class="kv-nav">
+        <div class="kv-nav-left">
+          <span class="kv-brand">DNS</span>
+          <nav class="kv-nav-links">
+            <a href="#">Tổng quan</a>
+            <a href="inventory.html">Tồn kho</a>
+            <a href="products.html" aria-current="page">Sản phẩm</a>
+            <a href="import-new.html">Nhập kho</a>
+            <a href="#">Xuất kho</a>
+            <a href="#">Kiểm kê</a>
+            <a href="purchase-new.html">Mua hàng</a>
+            <a href="#">Nhà cung cấp</a>
+            <a href="#" class="kv-nav-more">Giao dịch <i class="ph-duotone ph-caret-down"></i></a>
+            <a href="warehouses.html">Kho hàng</a>
+            <a href="#" class="kv-nav-more">Thêm <i class="ph-duotone ph-caret-down"></i></a>
+          </nav>
+        </div>
+        <div class="kv-nav-right">
+          <div class="kv-nav-search">
+            <i class="ph-duotone ph-magnifying-glass"></i>
+            <input class="kv-input" type="search" placeholder="Tìm nhanh…  Ctrl K">
+          </div>
+          <button type="button" class="kv-icon-btn" aria-label="Thông báo"><i class="ph-duotone ph-bell"></i></button>
+          <span class="kv-avatar">A</span>
+        </div>
+      </div>
+
+      <div class="kv-head kv-head--divided">
+        <div>
+          <div class="kv-crumb"><a href="products.html">Sản phẩm</a> / Router doanh nghiệp EdgeRouter X</div>
+          <h1 class="kv-title">Router doanh nghiệp EdgeRouter X</h1>
+        </div>
+        <div class="kv-actions">
+          <button type="button" class="kv-btn kv-btn--danger"><i class="ph-duotone ph-trash"></i>Xoá</button>
+          <button type="button" class="kv-btn kv-btn--primary"><i class="ph-duotone ph-pencil-simple"></i>Sửa</button>
+        </div>
+      </div>
+
+      <div class="kv-form">
+        <div class="kv-form-grid">
+          <div class="kv-group-label">Nhận diện</div>
+          <div class="kv-group-body kv-stack">
+            <div class="kv-field">
+              <label for="p-code">Mã sản phẩm <span class="kv-req">*</span></label>
+              <input class="kv-input mono" id="p-code" value="SP-RT-0142">
+              <div class="kv-hint">Mã dùng chung cho mọi SKU con của dòng sản phẩm này.</div>
+            </div>
+            <div class="kv-field">
+              <label for="p-name">Tên sản phẩm <span class="kv-req">*</span></label>
+              <input class="kv-input" id="p-name" value="Router doanh nghiệp EdgeRouter X">
+            </div>
+          </div>
+
+          <div class="kv-group-label">Phân loại</div>
+          <div class="kv-group-body kv-stack">
+            <div class="kv-field">
+              <label for="p-cat">Danh mục <span class="kv-req">*</span></label>
+              <select class="kv-select" id="p-cat">
+                <option>Router &amp; Gateway</option>
+                <option>Switch</option>
+                <option>Camera giám sát</option>
+                <option>Access Point</option>
+              </select>
+            </div>
+            <div class="kv-field">
+              <label for="p-brand">Hãng <span class="kv-req">*</span></label>
+              <select class="kv-select" id="p-brand">
+                <option>Ubiquiti</option>
+                <option>Cisco</option>
+                <option>Hikvision</option>
+                <option>Commscope</option>
+              </select>
+            </div>
+            <div class="kv-field">
+              <label for="p-type">Loại sản phẩm <span class="kv-req">*</span></label>
+              <select class="kv-select" id="p-type">
+                <option>Thiết bị</option>
+                <option>Vật tư</option>
+                <option>Dịch vụ</option>
+                <option>Gói sản phẩm</option>
+              </select>
+              <div class="kv-hint">Loại quyết định SKU con có theo tồn kho hay không.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="kv-section-head">
+        <div>
+          <div class="kv-eyebrow">SKU con</div>
+          <h2 class="kv-section-title">6 biến thể có thể nhập / xuất riêng</h2>
+        </div>
+        <div class="kv-actions">
+          <button type="button" class="kv-btn"><i class="ph-duotone ph-file-xls"></i>Xuất Excel</button>
+          <button type="button" class="kv-btn kv-btn--primary"><i class="ph-duotone ph-plus"></i>Thêm SKU</button>
+        </div>
+      </div>
+
+      <div class="kv-table-wrap">
+        <table class="kv-table">
+          <thead>
+            <tr>
+              <th style="width: 130px">Mã hàng</th>
+              <th>Tên SKU</th>
+              <th style="width: 110px">Model</th>
+              <th style="width: 140px">Part Number</th>
+              <th style="width: 80px">Đơn vị</th>
+              <th class="num" style="width: 110px">Giá vốn</th>
+              <th class="num" style="width: 110px">Giá bán</th>
+              <th class="num" style="width: 90px">Tồn kho</th>
+              <th class="num" style="width: 90px">Khả dụng</th>
+              <th class="kv-col-action"></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="mono">RT-ERX-STD</td>
+              <td class="kv-cell-title">EdgeRouter X bản tiêu chuẩn</td>
+              <td class="mono">ER-X</td>
+              <td class="mono">ERX-EU-01</td>
+              <td>Cái</td>
+              <td class="num">1.180.000</td>
+              <td class="num">1.450.000</td>
+              <td class="num">64</td>
+              <td class="num">58</td>
+              <td class="num kv-caret"><i class="ph-duotone ph-dots-three-vertical"></i></td>
+            </tr>
+            <tr>
+              <td class="mono">RT-ERX-SFP</td>
+              <td class="kv-cell-title">EdgeRouter X SFP 5 port PoE</td>
+              <td class="mono">ER-X-SFP</td>
+              <td class="mono">ERXSFP-EU-02</td>
+              <td>Cái</td>
+              <td class="num">1.620.000</td>
+              <td class="num">1.990.000</td>
+              <td class="num"><span class="kv-tag kv-tag--low">12</span></td>
+              <td class="num">9</td>
+              <td class="num kv-caret"><i class="ph-duotone ph-dots-three-vertical"></i></td>
+            </tr>
+            <tr>
+              <td class="mono">RT-ERX-KIT</td>
+              <td class="kv-cell-title">EdgeRouter X kèm nguồn dự phòng</td>
+              <td class="mono">ER-X-KIT</td>
+              <td class="mono">ERXKIT-EU-03</td>
+              <td>Bộ</td>
+              <td class="num">1.740.000</td>
+              <td class="num">2.150.000</td>
+              <td class="num"><span class="kv-tag kv-tag--out">0</span></td>
+              <td class="num">0</td>
+              <td class="num kv-caret"><i class="ph-duotone ph-dots-three-vertical"></i></td>
+            </tr>
+            <tr>
+              <td class="mono">RT-ER4-STD</td>
+              <td class="kv-cell-title">EdgeRouter 4 bản tiêu chuẩn</td>
+              <td class="mono">ER-4</td>
+              <td class="mono">ER4-EU-01</td>
+              <td>Cái</td>
+              <td class="num">4.250.000</td>
+              <td class="num">5.100.000</td>
+              <td class="num">21</td>
+              <td class="num">18</td>
+              <td class="num kv-caret"><i class="ph-duotone ph-dots-three-vertical"></i></td>
+            </tr>
+            <tr>
+              <td class="mono">RT-ER6P-STD</td>
+              <td class="kv-cell-title">EdgeRouter 6P 6 port PoE</td>
+              <td class="mono">ER-6P</td>
+              <td class="mono">ER6P-EU-01</td>
+              <td>Cái</td>
+              <td class="num">5.480.000</td>
+              <td class="num">6.490.000</td>
+              <td class="num"><span class="kv-tag kv-tag--low">8</span></td>
+              <td class="num">8</td>
+              <td class="num kv-caret"><i class="ph-duotone ph-dots-three-vertical"></i></td>
+            </tr>
+            <tr>
+              <td class="mono">RT-ERX-REF</td>
+              <td class="kv-cell-title">EdgeRouter X hàng refurbished</td>
+              <td class="mono">ER-X-R</td>
+              <td class="mono">ERXR-EU-09</td>
+              <td>Cái</td>
+              <td class="num">820.000</td>
+              <td class="num">1.090.000</td>
+              <td class="num">35</td>
+              <td class="num">30</td>
+              <td class="num kv-caret"><i class="ph-duotone ph-dots-three-vertical"></i></td>
+            </tr>
+            <tr class="kv-newrow">
+              <td><input class="kv-input mono" value="RT-ERX-" aria-label="Mã hàng"></td>
+              <td><input class="kv-input" placeholder="Tên SKU mới" aria-label="Tên SKU"></td>
+              <td><input class="kv-input mono" placeholder="Model" aria-label="Model"></td>
+              <td><input class="kv-input mono" placeholder="Part number" aria-label="Part number"></td>
+              <td>
+                <select class="kv-select" aria-label="Đơn vị">
+                  <option>Cái</option>
+                  <option>Bộ</option>
+                  <option>Thùng</option>
+                </select>
+              </td>
+              <td><input class="kv-input kv-input--num" placeholder="0" aria-label="Giá vốn"></td>
+              <td><input class="kv-input kv-input--num" placeholder="0" aria-label="Giá bán"></td>
+              <td><input class="kv-input kv-input--num" placeholder="0" aria-label="Tồn kho"></td>
+              <td colspan="2" style="text-align: right">
+                <div class="kv-actions" style="justify-content: flex-end">
+                  <button type="button" class="kv-btn kv-btn--ghost kv-btn--sm">Huỷ</button>
+                  <button type="button" class="kv-btn kv-btn--primary kv-btn--sm">Lưu SKU</button>
+                </div>
+              </td>
+            </tr>
+            <tr class="kv-newrow-note">
+              <td colspan="10">
+                <div class="kv-actions">
+                  <span>Các trường còn lại của SKU (cân nặng, bảo hành hãng, điểm đặt hàng lại) mở trong panel trượt:</span>
+                  <a href="#sku-panel">Mở form đầy đủ</a>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="kv-sheet" id="sku-panel">
+      <div class="kv-head kv-head--divided">
+        <div>
+          <div class="kv-eyebrow">Panel trượt — Thêm SKU</div>
+          <h2 class="kv-title">SKU mới cho EdgeRouter X</h2>
+        </div>
+        <div class="kv-actions">
+          <button type="button" class="kv-btn">Huỷ</button>
+          <button type="button" class="kv-btn kv-btn--primary">Lưu SKU</button>
+        </div>
+      </div>
+
+      <div class="kv-form">
+        <div class="kv-form-grid">
+          <div class="kv-group-label">Nhận diện</div>
+          <div class="kv-group-body kv-stack">
+            <div class="kv-field">
+              <label for="s-name">Tên SKU <span class="kv-req">*</span></label>
+              <input class="kv-input" id="s-name" placeholder="VD: EdgeRouter X bản tiêu chuẩn">
+            </div>
+            <div class="kv-2col">
+              <div class="kv-field">
+                <label for="s-code">Mã hàng <span class="kv-req">*</span></label>
+                <input class="kv-input mono" id="s-code" value="RT-ERX-">
+              </div>
+              <div class="kv-field">
+                <label for="s-unit">Đơn vị tính <span class="kv-req">*</span></label>
+                <select class="kv-select" id="s-unit">
+                  <option>Cái</option>
+                  <option>Bộ</option>
+                  <option>Thùng</option>
+                  <option>Mét</option>
+                </select>
+              </div>
+            </div>
+            <div class="kv-2col">
+              <div class="kv-field">
+                <label for="s-model">Model</label>
+                <input class="kv-input mono" id="s-model" placeholder="ER-X">
+              </div>
+              <div class="kv-field">
+                <label for="s-pn">Part number</label>
+                <input class="kv-input mono" id="s-pn" placeholder="ERX-EU-01">
+              </div>
+            </div>
+          </div>
+
+          <div class="kv-group-label">Giá</div>
+          <div class="kv-group-body kv-2col">
+            <div class="kv-field">
+              <label for="s-cost">Giá nhập (₫)</label>
+              <input class="kv-input kv-input--num" id="s-cost" placeholder="0">
+            </div>
+            <div class="kv-field">
+              <label for="s-price">Giá bán gợi ý (₫)</label>
+              <input class="kv-input kv-input--num" id="s-price" placeholder="0">
+            </div>
+          </div>
+
+          <div class="kv-group-label">Kho &amp; bảo hành</div>
+          <div class="kv-group-body kv-stack">
+            <div class="kv-2col">
+              <div class="kv-field">
+                <label for="s-reorder">Điểm đặt hàng lại</label>
+                <input class="kv-input kv-input--num" id="s-reorder" placeholder="0">
+                <div class="kv-hint">Tồn xuống dưới mức này thì SKU hiện cảnh báo trên bảng.</div>
+              </div>
+              <div class="kv-field">
+                <label for="s-weight">Cân nặng (kg)</label>
+                <input class="kv-input kv-input--num" id="s-weight" placeholder="0,00">
+              </div>
+            </div>
+            <div class="kv-2col">
+              <div class="kv-field">
+                <label for="s-warranty">Bảo hành hãng (tháng)</label>
+                <input class="kv-input kv-input--num" id="s-warranty" value="24">
+              </div>
+              <div class="kv-field">
+                <label for="s-stock">Tồn khởi tạo</label>
+                <input class="kv-input kv-input--num" id="s-stock" placeholder="0">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+</main>
+</body>
+</html>

@@ -395,7 +395,7 @@ export class QuotationService {
       }
     }
 
-    return this.db.transaction(async (trx) => {
+    await this.db.transaction(async (trx) => {
       // SELECT FOR UPDATE để đọc status THẬT trong transaction (không dùng snapshot đã đọc
       // trước đó) — cần biết đúng status cũ để quyết định có giải phóng reserved hay không.
       const current = await this.repo.lockForUpdate(id, trx)

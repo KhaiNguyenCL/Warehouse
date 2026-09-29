@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tạo phiếu mua hàng — DNS</title>
+<link rel="stylesheet" href="broadsheet.css">
+<link rel="stylesheet" href="app.css">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/duotone/style.css">
+</head>
+<body>
+<main class="screens">
+    <div class="kv-sheet">
+      <div class="kv-nav">
+        <div class="kv-nav-left">
+          <span class="kv-brand">DNS</span>
+          <nav class="kv-nav-links">
+            <a href="#">Tổng quan</a>
+            <a href="inventory.html">Tồn kho</a>
+            <a href="products.html">Sản phẩm</a>
+            <a href="import-new.html">Nhập kho</a>
+            <a href="#">Xuất kho</a>
+            <a href="#">Kiểm kê</a>
+            <a href="purchase-new.html" aria-current="page">Mua hàng</a>
+            <a href="#">Nhà cung cấp</a>
+            <a href="#" class="kv-nav-more">Giao dịch <i class="ph-duotone ph-caret-down"></i></a>
+            <a href="warehouses.html">Kho hàng</a>
+            <a href="#" class="kv-nav-more">Thêm <i class="ph-duotone ph-caret-down"></i></a>
+          </nav>
+        </div>
+        <div class="kv-nav-right">
+          <div class="kv-nav-search">
+            <i class="ph-duotone ph-magnifying-glass"></i>
+            <input class="kv-input" type="search" placeholder="Tìm nhanh…  Ctrl K">
+          </div>
+          <button type="button" class="kv-icon-btn" aria-label="Thông báo"><i class="ph-duotone ph-bell"></i></button>
+          <span class="kv-avatar">A</span>
+        </div>
+      </div>
+
+      <div class="kv-head kv-head--divided">
+        <div>
+          <div class="kv-crumb"><a href="#">Phiếu mua hàng</a> / Tạo mới</div>
+          <h1 class="kv-title">Tạo phiếu mua hàng</h1>
+        </div>
+        <div class="kv-actions">
+          <span class="kv-muted" style="font-size: var(--kv-fs-sm)">Nháp lưu tự động 10:18</span>
+        </div>
+      </div>
+
+      <div class="kv-form">
+        <div class="kv-form-grid">
+          <div class="kv-group-label">Deal Bitrix</div>
+          <div>
+            <div class="kv-fetch">
+              <div class="kv-field">
+                <label for="deal-id">Bitrix Deal ID <span class="kv-req">*</span></label>
+                <input class="kv-input mono" id="deal-id" value="3676">
+              </div>
+              <button type="button" class="kv-btn"><i class="ph-duotone ph-arrows-clockwise"></i>Lấy dữ liệu</button>
+              <span class="kv-fetch-status"><i class="ph-duotone ph-check-circle"></i>Đã đồng bộ lúc 10:16</span>
+            </div>
+            <div class="kv-hint">Nhập ID rồi bấm Lấy dữ liệu. Thông tin deal bên dưới đọc từ Bitrix, muốn sửa thì sửa trên Bitrix rồi lấy lại.</div>
+
+            <div class="kv-deal">
+              <div class="kv-deal-title">
+                <span>SBVN-HCM: Màn hình chuyên dụng The Wall 136" LHA15MMF</span>
+                <a href="https://erp.dnsvn.com/crm/deal/details/3676/" target="_blank" rel="noopener">Mở trên Bitrix <i class="ph-duotone ph-arrow-square-out" style="font-size: 14px"></i></a>
+              </div>
+              <dl class="kv-dl">
+                <div><dt>Nhà cung cấp</dt><dd>Cty TNHH Thực phẩm &amp; Nước giải khát Ý Tưởng Việt</dd></div>
+                <div><dt>Người liên hệ</dt><dd>Bùi Minh Nhật</dd></div>
+                <div><dt>Khu vực</dt><dd>Hồ Chí Minh</dd></div>
+                <div><dt>Số hợp đồng</dt><dd class="kv-empty">Chưa có trên deal</dd></div>
+                <div><dt>Thời gian deal</dt><dd class="mono">21.07.2026 → 25.08.2026</dd></div>
+                <div><dt>Địa chỉ</dt><dd class="kv-empty">Chưa có trên deal</dd></div>
+              </dl>
+            </div>
+          </div>
+
+          <div class="kv-group-label">Nhận hàng</div>
+          <div class="kv-group-body kv-stack">
+            <div class="kv-2col">
+              <div class="kv-field">
+                <label for="f-kho">Kho nhận <span class="kv-req">*</span></label>
+                <select class="kv-select" id="f-kho"><option>Kho HCM</option><option>Kho HN</option></select>
+              </div>
+              <div class="kv-field">
+                <label for="f-eta">Ngày dự kiến về</label>
+                <input class="kv-input" id="f-eta" type="date" value="2026-08-10">
+              </div>
+            </div>
+            <div class="kv-field">
+              <label for="f-note">Ghi chú</label>
+              <textarea class="kv-textarea" id="f-note" placeholder="Tuỳ chọn — VD: NCC giao 2 đợt, đợt 1 trước 10.08"></textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="kv-section-head" style="padding-top: 0">
+        <h2 class="kv-section-title">Hàng mua · 3 dòng</h2>
+        <div class="kv-actions">
+          <button type="button" class="kv-btn kv-btn--ghost"><i class="ph-duotone ph-arrow-line-down"></i>Lấy sản phẩm từ deal</button>
+          <button type="button" class="kv-btn kv-btn--ghost"><i class="ph-duotone ph-upload-simple"></i>Nhập từ Excel</button>
+        </div>
+      </div>
+
+      <div class="kv-table-wrap" style="padding-top: var(--kv-gap-md)">
+        <table class="kv-table kv-lines">
+          <thead>
+            <tr>
+              <th style="width: 36px">#</th>
+              <th>Sản phẩm</th>
+              <th class="num" style="width: 90px">SL</th>
+              <th class="num" style="width: 170px">Đơn giá (₫)</th>
+              <th style="width: 96px">VAT</th>
+              <th class="num" style="width: 170px">Thành tiền (₫)</th>
+              <th class="kv-col-action" title="Ghi chú"></th>
+              <th class="kv-col-action"></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="kv-line-no">1</td>
+              <td>
+                <div class="kv-cell-title">Màn hình LED The Wall 136" LHA15MMF</div>
+                <div class="kv-cell-sub mono">DSP-SAM-LHA15MMF · Bộ</div>
+              </td>
+              <td><input class="kv-input kv-input--num" value="1" aria-label="Số lượng dòng 1"></td>
+              <td><input class="kv-input kv-input--num" value="1.850.000.000" aria-label="Đơn giá dòng 1"></td>
+              <td><select class="kv-select" aria-label="VAT dòng 1"><option>0%</option><option>5%</option><option>8%</option><option selected>10%</option></select></td>
+              <td class="num kv-strong">1.850.000.000</td>
+              <td class="num"><button type="button" class="kv-icon-btn kv-note-btn kv-note-btn--has" aria-label="Ghi chú dòng 1" title="Giao trước 15.08 — lắp đặt tại hội trường tầng 2"><i class="ph-duotone ph-note-pencil"></i></button></td>
+              <td class="num"><button type="button" class="kv-icon-btn kv-row-del" aria-label="Xoá dòng 1"><i class="ph-duotone ph-trash"></i></button></td>
+            </tr>
+            <tr>
+              <td class="kv-line-no">2</td>
+              <td>
+                <div class="kv-cell-title">Bộ xử lý tín hiệu IWR-C3</div>
+                <div class="kv-cell-sub mono">DSP-SAM-IWRC3 · Cái</div>
+              </td>
+              <td><input class="kv-input kv-input--num" value="1" aria-label="Số lượng dòng 2"></td>
+              <td><input class="kv-input kv-input--num" value="96.500.000" aria-label="Đơn giá dòng 2"></td>
+              <td><select class="kv-select" aria-label="VAT dòng 2"><option>0%</option><option>5%</option><option>8%</option><option selected>10%</option></select></td>
+              <td class="num kv-strong">96.500.000</td>
+              <td class="num"><button type="button" class="kv-icon-btn kv-note-btn" aria-label="Ghi chú dòng 2" title="Thêm ghi chú"><i class="ph-duotone ph-note-pencil"></i></button></td>
+              <td class="num"><button type="button" class="kv-icon-btn kv-row-del" aria-label="Xoá dòng 2"><i class="ph-duotone ph-trash"></i></button></td>
+            </tr>
+            <tr>
+              <td class="kv-line-no">3</td>
+              <td>
+                <div class="kv-cell-title">Khung treo tường chuyên dụng The Wall</div>
+                <div class="kv-cell-sub mono">ACC-SAM-WMN-WALL · Bộ</div>
+              </td>
+              <td><input class="kv-input kv-input--num" value="1" aria-label="Số lượng dòng 3"></td>
+              <td><input class="kv-input kv-input--num" value="42.000.000" aria-label="Đơn giá dòng 3"></td>
+              <td><select class="kv-select" aria-label="VAT dòng 3"><option>0%</option><option>5%</option><option selected>8%</option><option>10%</option></select></td>
+              <td class="num kv-strong">42.000.000</td>
+              <td class="num"><button type="button" class="kv-icon-btn kv-note-btn" aria-label="Ghi chú dòng 3" title="Thêm ghi chú"><i class="ph-duotone ph-note-pencil"></i></button></td>
+              <td class="num"><button type="button" class="kv-icon-btn kv-row-del" aria-label="Xoá dòng 3"><i class="ph-duotone ph-trash"></i></button></td>
+            </tr>
+            <tr class="kv-total--sub">
+              <td></td><td colspan="4">Tổng trước thuế</td>
+              <td class="num">1.988.500.000</td><td colspan="2"></td>
+            </tr>
+            <tr class="kv-total--sub">
+              <td></td><td colspan="4">VAT</td>
+              <td class="num">198.010.000</td><td colspan="2"></td>
+            </tr>
+            <tr class="kv-total--grand">
+              <td></td><td colspan="4">Tổng thanh toán</td>
+              <td class="num">2.186.510.000</td><td colspan="2"></td>
+            </tr>
+            <tr class="kv-addline">
+              <td></td>
+              <td colspan="7">
+                <div class="kv-actions">
+                  <div class="kv-search">
+                    <i class="ph-duotone ph-magnifying-glass"></i>
+                    <input class="kv-input" placeholder="Tìm mã hàng / tên để thêm dòng…">
+                  </div>
+                  <span class="kv-kbd">Enter</span>
+                  <span class="kv-muted" style="font-size: var(--kv-fs-sm)">Bảo hành hãng và công ty lấy tự động theo SKU</span>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="kv-footer-bar">
+        <div class="kv-footer-stat"><div class="kv-fact-label">Số dòng</div><div class="kv-fact-value">3</div></div>
+        <div class="kv-footer-stat"><div class="kv-fact-label">Trước thuế</div><div class="kv-fact-value">1.988.500.000 ₫</div></div>
+        <div class="kv-footer-stat"><div class="kv-fact-label">Tổng thanh toán</div><div class="kv-fact-value">2.186.510.000 ₫</div></div>
+        <div class="kv-spacer"></div>
+        <div class="kv-actions">
+          <a href="#" class="kv-btn">Huỷ</a>
+          <button type="button" class="kv-btn">Lưu nháp</button>
+          <button type="button" class="kv-btn kv-btn--primary">Tạo phiếu mua hàng</button>
+        </div>
+      </div>
+    </div>
+</main>
+</body>
+</html>
